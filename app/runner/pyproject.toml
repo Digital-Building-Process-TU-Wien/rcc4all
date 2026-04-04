@@ -1,0 +1,15 @@
+[project]
+name = "python-ifc-runner"
+version = "0.1.0"
+description = "Ifc checking engine"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+openbim-runner = "main:main"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.5",
+]
