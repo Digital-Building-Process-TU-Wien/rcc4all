@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  /* Use Montserrat for display/headings */
+  --font-montserrat: "Montserrat", sans-serif;
+  /* Use Open Sans for the main sans stack */
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #3d84ba;
+  --color-primary-light: #4a90e2;
+  --color-primary-dark: #1c3f5a;
+
+  --color-accent-100: var(--color-teal-100);
+  --color-accent-300: var(--color-teal-300);
+  --color-accent: var(--color-teal-500);
+  --color-accent-700: var(--color-teal-700);
+  --color-accent-900: var(--color-teal-900);
+
+  /* Default dark text color */
+  --color-dark: var(--color-slate-900); 
+  /* default light text color (negative) */
+  --color-light: var(--color-slate-50);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  /* Reference the variable defined in @theme */
+  font-family: var(--font-montserrat);
+}
