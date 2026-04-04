@@ -1,0 +1,20 @@
+{
+	"folders": [
+    {
+      "name": "open-bim-engine",
+      "path": "."
+    },
+    {
+      "name": "cms",
+      "path": "app/cms"
+    },
+    {
+      "name": "runner",
+      "path": "app/runner"
+    },
+    {
+      "name": "web",
+      "path": "app/web"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+- [ ] Nuxt Node Editor from prototype
+- [ ] Nuxt Simple Project page
+- [ ] Nuxt RUN Button
+  - [ ] Nuxt Python integration
+    - [ ] Nuxt Python check workflow and run workflow command
