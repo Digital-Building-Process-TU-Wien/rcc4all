@@ -37,7 +37,7 @@ The web frontend provides the main user interface and is built with [Nuxt 4](htt
 
 Location: [./app/runner](./app/runner)
 
-The runner is a Python-based CLI engine for execution checking rules. It receives an execution plan as a JSON file that defines nodes, their connections, inputs, outputs, and result names, and it includes the implementation version of the runner as an integral part of the plan (git hash, release tag, python wheel hash). The runner then executes that version-pinned plan against input files (for example IFC, IDS, Excel, and CSV). In addition to textual outputs, it can produce helper geometry in IFC format to document how checks were performed, such as temporary collision meshes, measured distances, and other derived geometric artifacts.
+The runner is a Python-based CLI engine for execution checking rules. It executes a library of decorator-registered Python functions whose input and output contracts are defined with Pydantic models. It receives an execution plan as a JSON file that defines nodes, their connections, inputs, outputs, and result names, and it includes the implementation version of the runner as an integral part of the plan (git hash, release tag, python wheel hash). The runner then executes that version-pinned plan against input files (for example IFC, IDS, Excel, and CSV). In addition to textual outputs, it can produce helper geometry in IFC format to document how checks were performed, such as temporary collision meshes, measured distances, and other derived geometric artifacts.
 
 In this prototype the web app spawns the python runner directly, this can be replaced by a job queue or seperate API in a production setup.
 

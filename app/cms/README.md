@@ -33,7 +33,7 @@ An admin backend that serves as a base project with simple default collections t
 
 **Project** title, description, images[], titleImage, group (relation), creator
 
-**CheckRun** name, timestamp, project (relation), inputFiles[], outputFiles[]
+**WorkflowRun** name, timestamp, project (relation), inputFiles[], outputFiles[]
 - Stores validation/check executions per project
 
 **File** project (relation), path, meta fields, type (free-text classification)
@@ -41,9 +41,9 @@ An admin backend that serves as a base project with simple default collections t
 - Example types: IFC model files, validation results, supporting documents, issue reports
 
 ## Validation Integration
-- External Python service with token-based API access
-- Triggers: check run creation, IFC upload (via Payload hooks)
-- Service writes results as Document files via API
+- Checking Rule Runner (Python) executed on local machine or via job queue
+- Triggers: workflow run creation (manual or automated via Payload hooks)
+- Runner writes results as WorkflowRun data or File records via API
 
 ## Auth
 - JWT-based

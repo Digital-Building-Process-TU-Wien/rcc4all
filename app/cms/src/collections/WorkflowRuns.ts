@@ -14,27 +14,27 @@ type BeforeValidateArgs = Parameters<
   NonNullable<NonNullable<CollectionConfig['hooks']>['beforeValidate']>[number]
 >[0]
 
-async function canManageCheckRunByID({ req, id }: AccessArgs): Promise<boolean> {
+async function canManageWorkflowRunByID({ req, id }: AccessArgs): Promise<boolean> {
   const { payload } = req
 
   if (!id) return false
 
-  const checkRun = await payload.findByID({
-    collection: 'checkruns',
+  const workflowRun = await payload.findByID({
+    collection: 'workflow-runs',
     id,
     depth: 0,
     overrideAccess: true,
   })
 
-  if (!checkRun) return false
+  if (!workflowRun) return false
 
-  const projectId = getRelationID(checkRun.project)
+  const projectId = getRelationID(workflowRun.project)
   if (!projectId) return false
 
   return canManageProjectByID(req, projectId)
 }
 
-async function getCheckRunWriteWhere({ req }: AccessArgs): Promise<Where | false> {
+async function getWorkflowRunWriteWhere({ req }: AccessArgs): Promise<Where | false> {
   const { user, payload } = req
 
   if (!user) return false
@@ -43,16 +43,16 @@ async function getCheckRunWriteWhere({ req }: AccessArgs): Promise<Where | false
   return buildGroupWriteWhere('project.group', user.id, adminGroupIds, 'project.creator')
 }
 
-export const CheckRuns: CollectionConfig = {
-  slug: 'checkruns',
+export const WorkflowRuns: CollectionConfig = {
+  slug: 'workflow-runs',
   admin: {
     useAsTitle: 'name',
   },
   access: {
-    read: checkRunReadAccess,
-    create: checkRunCreateAccess,
-    update: checkRunUpdateAccess,
-    delete: checkRunDeleteAccess,
+    read: workflowRunReadAccess,
+    create: workflowRunCreateAccess,
+    update: workflowRunUpdateAccess,
+    delete: workflowRunDeleteAccess,
   },
   fields: [
     {
@@ -94,7 +94,7 @@ export const CheckRuns: CollectionConfig = {
   timestamps: true,
 }
 
-export async function checkRunReadAccess({ req }: AccessArgs): Promise<boolean | Where> {
+export async function workflowRunReadAccess({ req }: AccessArgs): Promise<boolean | Where> {
   const { user, payload } = req
 
   if (isSuperAdmin({ req })) return true
@@ -107,7 +107,7 @@ export async function checkRunReadAccess({ req }: AccessArgs): Promise<boolean |
   return buildGroupReadWhere('project.group', user.id, adminGroupIds)
 }
 
-export async function checkRunCreateAccess({ req, data }: AccessArgs) {
+export async function workflowRunCreateAccess({ req, data }: AccessArgs) {
   if (isSuperAdmin({ req })) return true
 
   const projectId = getRelationID(data?.project)
@@ -116,7 +116,7 @@ export async function checkRunCreateAccess({ req, data }: AccessArgs) {
   return canManageProjectByID(req, projectId)
 }
 
-export async function checkRunUpdateAccess(args: AccessArgs): Promise<boolean | Where> {
+export async function workflowRunUpdateAccess(args: AccessArgs): Promise<boolean | Where> {
   const { req, id } = args
 
   if (isSuperAdmin({ req })) return true
@@ -124,13 +124,13 @@ export async function checkRunUpdateAccess(args: AccessArgs): Promise<boolean | 
   if (!req.user) return false
 
   if (id) {
-    return canManageCheckRunByID(args)
+    return canManageWorkflowRunByID(args)
   }
 
-  return getCheckRunWriteWhere(args)
+  return getWorkflowRunWriteWhere(args)
 }
 
-export async function checkRunDeleteAccess(args: AccessArgs): Promise<boolean | Where> {
+export async function workflowRunDeleteAccess(args: AccessArgs): Promise<boolean | Where> {
   const { req, id } = args
 
   if (isSuperAdmin({ req })) return true
@@ -138,10 +138,10 @@ export async function checkRunDeleteAccess(args: AccessArgs): Promise<boolean | 
   if (!req.user) return false
 
   if (id) {
-    return canManageCheckRunByID(args)
+    return canManageWorkflowRunByID(args)
   }
 
-  return getCheckRunWriteWhere(args)
+  return getWorkflowRunWriteWhere(args)
 }
 
 async function enforceProjectScopedFiles({ data, req, originalDoc }: BeforeValidateArgs) {
@@ -190,7 +190,7 @@ async function enforceProjectScopedFiles({ data, req, originalDoc }: BeforeValid
   })
 
   if (mismatchedRevision) {
-    throw new Error('All check run files must belong to the selected project.')
+    throw new Error('All workflow run files must belong to the selected project.')
   }
 
   return data

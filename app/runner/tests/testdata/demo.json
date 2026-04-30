@@ -1,0 +1,29 @@
+{
+  "ifc_path": "test.ifc",
+  "nodes": [
+    {
+      "id": "get_name",
+      "type": "get_name",
+      "settings": {
+        "allow_missing": true,
+        "express_ids": [265, 498, 2524, 4616]
+      }
+    },
+    {
+      "id": "concat_names",
+      "type": "concat_string",
+      "settings": {
+        "separator": ", "
+      },
+      "input_bindings": {
+        "values": "get_name.object_names"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "get_name",
+      "target": "concat_names"
+    }
+  ]
+}

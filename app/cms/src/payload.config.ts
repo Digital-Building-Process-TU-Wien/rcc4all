@@ -10,7 +10,7 @@ import { Groups } from './collections/Groups'
 import { FileEntry } from './collections/FileEntry'
 import { FileRevisions } from './collections/FileRevisions'
 import { Projects } from './collections/Projects'
-import { CheckRuns } from './collections/CheckRuns'
+import { WorkflowRuns } from './collections/WorkflowRuns'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -35,7 +35,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Groups, FileEntry, FileRevisions, Projects, CheckRuns],
+  collections: [Users, Groups, FileEntry, FileRevisions, Projects, WorkflowRuns],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

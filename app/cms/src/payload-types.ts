@@ -72,7 +72,7 @@ export interface Config {
     'file-entry': FileEntry;
     'file-revisions': FileRevision;
     projects: Project;
-    checkruns: Checkrun;
+    'workflow-runs': WorkflowRun;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -85,7 +85,7 @@ export interface Config {
     'file-entry': FileEntrySelect<false> | FileEntrySelect<true>;
     'file-revisions': FileRevisionsSelect<false> | FileRevisionsSelect<true>;
     projects: ProjectsSelect<false> | ProjectsSelect<true>;
-    checkruns: CheckrunsSelect<false> | CheckrunsSelect<true>;
+    'workflow-runs': WorkflowRunsSelect<false> | WorkflowRunsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -98,6 +98,9 @@ export interface Config {
   globals: {};
   globalsSelect: {};
   locale: null;
+  widgets: {
+    collections: CollectionsWidget;
+  };
   user: User;
   jobs: {
     tasks: unknown;
@@ -231,9 +234,9 @@ export interface FileRevision {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "checkruns".
+ * via the `definition` "workflow-runs".
  */
-export interface Checkrun {
+export interface WorkflowRun {
   id: number;
   name: string;
   timestamp: string;
@@ -288,8 +291,8 @@ export interface PayloadLockedDocument {
         value: number | Project;
       } | null)
     | ({
-        relationTo: 'checkruns';
-        value: number | Checkrun;
+        relationTo: 'workflow-runs';
+        value: number | WorkflowRun;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -419,9 +422,9 @@ export interface ProjectsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "checkruns_select".
+ * via the `definition` "workflow-runs_select".
  */
-export interface CheckrunsSelect<T extends boolean = true> {
+export interface WorkflowRunsSelect<T extends boolean = true> {
   name?: T;
   timestamp?: T;
   project?: T;
@@ -469,6 +472,16 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "collections_widget".
+ */
+export interface CollectionsWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'full';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

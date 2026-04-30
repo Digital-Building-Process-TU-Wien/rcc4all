@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Node Registry Schema",
+  "type": "object",
+  "properties": {
+    "concat_string": {
+      "type": "object",
+      "title": "Concatenate Strings",
+      "description": "Join a list of resolved string values into one output string.",
+      "markdownDescription": "The `concat_string` node combines the incoming `values` list into a single string.\n\nUse this node when a workflow needs to turn several upstream values into a readable label, summary, or message.\n\n## Use case example\n\nCombine object names from an earlier lookup step into a comma-separated sentence for display in the UI or for downstream reporting.",
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "separator": {
+              "default": ", ",
+              "description": "String inserted between the resolved input strings.",
+              "title": "Separator",
+              "type": "string"
+            }
+          },
+          "title": "ConcatStringSettings",
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "default": "",
+              "description": "Final string assembled from the input strings.",
+              "title": "Concatenated string",
+              "type": "string"
+            }
+          },
+          "title": "ConcatStringResult",
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "values": {
+              "default": [],
+              "description": "Resolved values to concatenate.",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "title": "Input values",
+              "type": "array"
+            }
+          },
+          "title": "ConcatStringInputs",
+          "type": "object"
+        }
+      },
+      "required": [
+        "settings",
+        "result",
+        "inputs"
+      ]
+    },
+    "element_filter": {
+      "type": "object",
+      "title": "Filter IFC Elements",
+      "description": "Resolve all IFC entities of a requested type to their express IDs.",
+      "markdownDescription": "The `element_filter` node queries the IFC model for all entities matching the configured `entity_type`.\n\nUse this node at the start of a workflow when you need a stable list of express IDs for a specific IFC class before passing those IDs to downstream nodes.\n\n## Use case example\n\nCollect all `IFCWALL` entities from the model, then forward their express IDs to other nodes that inspect names, properties, or custom validation rules.",
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "entity_type": {
+              "default": "IFCWALL",
+              "description": "IFC entity name to filter by, for example IFCWALL.",
+              "title": "Entity type",
+              "type": "string"
+            }
+          },
+          "title": "ElementFilterSettings",
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "Express IDs for all IFC entities matching the requested entity type.",
+              "items": {
+                "type": "integer"
+              },
+              "title": "Express IDs",
+              "type": "array"
+            }
+          },
+          "title": "ElementFilterResult",
+          "type": "object"
+        }
+      },
+      "required": [
+        "settings",
+        "result"
+      ]
+    },
+    "get_name": {
+      "type": "object",
+      "title": "Resolve Object Names",
+      "description": "Look up IFC object names for a configured list of express IDs.",
+      "markdownDescription": "The `get_name` node reads IFC entities by express ID and returns their `Name` values in the same order as the configured input list.\n\nUse this node when a workflow needs human-readable labels for model elements, especially after a filtering step has already narrowed the candidate entities.\n\n## Use case example\n\nResolve the names of a wall selection, then send that ordered name list into a formatting node such as `concat_string` to create a readable summary.",
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "allow_missing": {
+              "default": true,
+              "description": "When enabled, unresolved express IDs or nameless IFC entities produce None instead of raising an error.",
+              "title": "Allow missing names",
+              "type": "boolean"
+            },
+            "express_ids": {
+              "default": [],
+              "description": "Ordered list of IFC express IDs whose object names should be resolved.",
+              "items": {
+                "type": "integer"
+              },
+              "title": "Express IDs",
+              "type": "array"
+            }
+          },
+          "title": "GetNameSettings",
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "object_names": {
+              "default": [],
+              "description": "Ordered list of IFC object names aligned with the input express IDs.",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "title": "Object names",
+              "type": "array"
+            }
+          },
+          "title": "GetNameResult",
+          "type": "object"
+        }
+      },
+      "required": [
+        "settings",
+        "result"
+      ]
+    }
+  }
+}

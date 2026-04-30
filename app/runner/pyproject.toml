@@ -1,15 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
 [project]
 name = "python-ifc-runner"
 version = "0.1.0"
 description = "Ifc checking engine"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "ifcopenshell>=0.8.3",
+    "pydantic>=2.11.0",
+]
 
 [project.scripts]
-openbim-runner = "main:main"
+openbim-runner = "openbim_runner.main:main"
 
 [dependency-groups]
 dev = [
+    "pytest>=8.4.2",
     "ruff>=0.15.5",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openbim_runner"]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "src/openbim_runner/nodes",
+    "tests",
 ]

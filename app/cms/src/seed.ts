@@ -296,7 +296,7 @@ async function ensureProject(
   return created as Project
 }
 
-async function ensureCheckRun(
+async function ensureWorkflowRun(
   payload: Payload,
   args: {
     name: string
@@ -307,7 +307,7 @@ async function ensureCheckRun(
   },
 ) {
   const existing = await payload.find({
-    collection: 'checkruns',
+    collection: 'workflow-runs',
     where: {
       and: [{ name: { equals: args.name } }, { project: { equals: args.projectId } }],
     },
@@ -319,7 +319,7 @@ async function ensureCheckRun(
   if (existing.docs.length) return existing.docs[0]
 
   return payload.create({
-    collection: 'checkruns',
+    collection: 'workflow-runs',
     data: {
       name: args.name,
       project: args.projectId,
@@ -441,7 +441,7 @@ async function main() {
     overrideAccess: true,
   })
 
-  await ensureCheckRun(payload, {
+  await ensureWorkflowRun(payload, {
     name: 'Public baseline run',
     projectId: publicProject.id,
     timestamp: new Date().toISOString(),
@@ -498,7 +498,7 @@ async function main() {
     overrideAccess: true,
   })
 
-  await ensureCheckRun(payload, {
+  await ensureWorkflowRun(payload, {
     name: 'Private import validation',
     projectId: privateProject.id,
     timestamp: new Date().toISOString(),
@@ -506,7 +506,7 @@ async function main() {
     outputFiles: [privateFileB.id],
   })
 
-  await ensureCheckRun(payload, {
+  await ensureWorkflowRun(payload, {
     name: 'Private consistency validation',
     projectId: privateProject.id,
     timestamp: new Date(Date.now() + 1000).toISOString(),
