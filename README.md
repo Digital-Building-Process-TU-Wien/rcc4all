@@ -1,6 +1,6 @@
-# Open BIM Engine
+# RCC4All
 
-Open BIM Engine is an open-source platform for checking IFC-based BIM models against regulatory and technical requirements.
+RCC4All is an open-source platform for checking IFC-based BIM models against regulatory and technical requirements.
 
 It is built for both project stakeholders and developers: stakeholders get a clear process for defining and reviewing checks, and developers get a modular system that can be extended and integrated. The prototype is maintained by the Center of Digital Building Processes at TU Wien and is being developed as part of the research project "Regulatory Criteria Check für öffentliche Auftraggeber" (RCC4ÖAG), funded by the FFG COLLECTIVE RESEARCH grant.
 
@@ -8,7 +8,7 @@ It is built for both project stakeholders and developers: stakeholders get a cle
 
 Many approval-relevant requirements in construction are still written as natural-language text. BIM models, on the other hand, are digital and machine-readable. This mismatch makes repeatable, transparent validation difficult and often leads to manual or proprietary workflows.
 
-Open BIM Engine closes that gap. It supports a structured path from requirement definition to executable checks and documented results, with a strong focus on open standards and long-term maintainability.
+RCC4All closes that gap. It supports a structured path from requirement definition to executable checks and documented results, with a strong focus on open standards and long-term maintainability.
 
 ## How It Works
 

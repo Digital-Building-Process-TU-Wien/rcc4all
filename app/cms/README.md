@@ -63,7 +63,7 @@ An admin backend that serves as a base project with simple default collections t
 - Hierarchical group structure (theoretical unlimited nesting, limit at 5 for usability)
 - Admins inherit admin rights to all descendant subgroups
 
-## Usecase in OpenBimEngine
+## Usecase in RCC4All
 - **This Backend**: PayloadCMS, SQLite, local file storage
 - **A user facing Frontend**: Nuxt 4 (types shared from Payload)
 - **File Validation Runner**: Python (separate service)

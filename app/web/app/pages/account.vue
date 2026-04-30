@@ -87,7 +87,7 @@ const form = reactive({
               id="account-current-email"
               v-model="form.currentEmail"
               type="email"
-              placeholder="alexandra@openbim.engine"
+              placeholder="alexandra@rcc4all.org"
             />
           </div>
           <div class="space-y-2">

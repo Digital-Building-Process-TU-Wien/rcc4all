@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Group, User } from 'open-bim-engine-payload-types'
+import type { Group, User } from 'rcc4all-payload-types'
 import { computed } from 'vue'
 
 interface Props {

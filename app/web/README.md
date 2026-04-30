@@ -1,10 +1,10 @@
-# Open BIM Engine – Web Frontend
+# RCC4All – Web Frontend
 
 ## Overview
 
-This is the web frontend for Open BIM Engine, built with [Nuxt 4](https://nuxt.com/) and styled with [Tailwind CSS](https://tailwindcss.com/).
+This is the web frontend for RCC4All, built with [Nuxt 4](https://nuxt.com/) and styled with [Tailwind CSS](https://tailwindcss.com/).
 
-The frontend provides the main user interface for the Open BIM Engine platform, enabling collaboration across contracting authorities. Its central capability is a **visual scripting editor** where checking nodes are composed into reusable templates. From this authoring step, an execution plan JSON is produced and sent to the checking rule runner.
+The frontend provides the main user interface for the RCC4All platform, enabling collaboration across contracting authorities. Its central capability is a **visual scripting editor** where checking nodes are composed into reusable templates. From this authoring step, an execution plan JSON is produced and sent to the checking rule runner.
 
 The web frontend communicates with the [Payload CMS](./app/cms) backend via the [Payload SDK](https://github.com/payloadcms/payload/tree/main/packages/sdk) to:
 - Manage groups, projects, files, and check runs
@@ -70,7 +70,7 @@ The web frontend depends on the CMS backend. To develop locally:
 
 ## See Also
 
-- [Top-level README](../../README.md) – Overview of the entire Open BIM Engine project
+- [Top-level README](../../README.md) – Overview of the entire RCC4All project
 - [CMS README](../cms/README.md) – Backend, data model, and API documentation
 - [Runner README](../runner/README.md) – Execution engine for checking rules
 - [Nuxt Docs](https://nuxt.com/)

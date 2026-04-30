@@ -1,4 +1,4 @@
-import type { Config, User } from 'open-bim-engine-payload-types'
+import type { Config, User } from 'rcc4all-payload-types'
 import { PayloadSDK } from '@payloadcms/sdk'
 
 type LoginArgs = Parameters<PayloadSDK<Config>['login']>[0]
