@@ -10,7 +10,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
-    "generate:schema": "tsx scripts/generate-types.ts"
+    "generate:schema": "uv run --directory ../runner openbim-runner export-schema ../web/scripts/schema.json && tsx scripts/generate-types.ts"
   },
   "dependencies": {
     "@nuxt/eslint": "^1.15.1",
