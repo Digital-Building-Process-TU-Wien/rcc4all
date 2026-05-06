@@ -34,7 +34,7 @@ async function handleLogin() {
 </script>
 
 <template>
-  <BaseCard class="relative overflow-hidden border shadow-xl shadow-slate-200/60">
+  <UCard class="relative overflow-hidden border shadow-xl shadow-slate-200/60">
     <div class="absolute -top-16 -right-16 h-56 w-56 rounded-full bg-accent-100/70 blur-3xl" />
     <div class="relative grid gap-10 p-8 lg:grid-cols-2 lg:p-12">
       <div class="space-y-6">
@@ -42,11 +42,11 @@ async function handleLogin() {
           Mitgliederbereich
         </div>
         <h1 class="text-3xl font-semibold leading-relaxed text-dark sm:text-4xl">
-          Willkommen zur <br> OpenBIM Engine.
+          Willkommen zu <br> RCC4ALL.
         </h1>
       </div>
 
-      <BaseCard class="bg-white">
+      <UCard class="bg-white">
         <div class="flex items-center justify-between">
           <p class="text-sm font-semibold uppercase tracking-widest text-slate-500">
             Login
@@ -58,7 +58,7 @@ async function handleLogin() {
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="email">
               E-Mail-Adresse
             </label>
-            <BaseInput
+            <UInput
               id="email"
               v-model="email"
               type="email"
@@ -72,7 +72,7 @@ async function handleLogin() {
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="password">
               Passwort
             </label>
-            <BaseInput
+            <UInput
               id="password"
               v-model="password"
               type="password"
@@ -85,15 +85,16 @@ async function handleLogin() {
             {{ errorMessage }}
           </p>
 
-          <BaseButton
+          <UButton
             type="submit"
-            class="w-full bg-primary text-light uppercase"
+            color="primary"
+            class="w-full uppercase"
             :disabled="isSubmitting || !email || !password"
           >
             Login
-          </BaseButton>
+          </UButton>
         </form>
-      </BaseCard>
+      </UCard>
     </div>
-  </BaseCard>
+  </UCard>
 </template>

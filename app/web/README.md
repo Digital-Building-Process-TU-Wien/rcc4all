@@ -68,6 +68,13 @@ The web frontend depends on the CMS backend. To develop locally:
    npm run generate:types
    ```
 
+4. **Generate runner schema types** (after runner changes or initial setup):
+   ```bash
+   # From web/ directory:
+   npm run generate:schema
+   ```
+   This exports the latest Python node schema and generates TypeScript types.
+
 ## See Also
 
 - [Top-level README](../../README.md) – Overview of the entire RCC4All project

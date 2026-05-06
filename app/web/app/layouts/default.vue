@@ -65,15 +65,22 @@ onBeforeUnmount(() => {
           >
             Login
           </NuxtLink>
-          <BaseBadge v-if="user" class="text-white ml-auto bg-accent!">
-            Hello, {{ greetingName }}
-          </BaseBadge>
-          <BaseButton
+          <UBadge
             v-if="user"
+            color="primary"
+            variant="solid"
+            class="ml-auto"
+          >
+            Hello, {{ greetingName }}
+          </UBadge>
+          <UButton
+            v-if="user"
+            color="neutral"
+            variant="outline"
             @click="sdk.logout()"
           >
             Logout
-          </BaseButton>
+          </UButton>
         </nav>
       </div>
     </header>

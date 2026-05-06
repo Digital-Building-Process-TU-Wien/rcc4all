@@ -1,260 +1,212 @@
+<script setup lang="ts">
+const heroLinks = [
+  {
+    label: 'Kontakt aufnehmen',
+    to: '/account',
+  },
+  {
+    label: 'Engine erkunden',
+    to: '/projects',
+    color: 'neutral' as const,
+    variant: 'subtle' as const,
+  },
+]
+
+const featureCards = [
+  {
+    title: 'No-Code-Regelstudio',
+    description: 'Pruefungen in Klartext definieren. Platzhaltertext fuer einen visuellen Regel-Editor und Vorlagen fuer gaengige IFC-Standards.',
+    icon: 'i-lucide-square-pen',
+  },
+  {
+    title: 'Versionierung mit Linie',
+    description: 'Unveraenderliche Versionen mit veroeffentlichtem Master und geerbten Dateilinks, um Wiederholung zu reduzieren.',
+    icon: 'i-lucide-git-branch',
+  },
+  {
+    title: 'Berichte mit Nachweis',
+    description: 'Strukturierte Ausgaben fuer Audits. Platzhaltertext fuer Exportformate, Priorisierung und Compliance-Notizen.',
+    icon: 'i-lucide-file-text',
+  },
+  {
+    title: 'Geschuetzte Governance',
+    description: 'Mehrstufige Gruppenrechte, Magic-Link-Onboarding und Service-Tokens fuer automatisierte Validierungsablaeufe.',
+    icon: 'i-lucide-shield-check',
+  },
+]
+
+const workflowSteps = [
+  {
+    title: '1. Upload und Versionierung',
+    description: 'IFC- und Dokument-Sets hochladen. Das System erzeugt automatisch unveraenderliche Versionen und eine Master-Linie.',
+  },
+  {
+    title: '2. Validierung ausfuehren',
+    description: 'Pruefungen per API-Trigger starten. Platzhaltertext fuer den Python-Validator und die Service-Token-Integration.',
+  },
+  {
+    title: '3. Ergebnisse teilen',
+    description: 'Bericht veroeffentlichen, Stakeholder informieren und jede Entscheidung nachvollziehbar halten.',
+  },
+]
+
+const partnerLogos = Array.from({ length: 8 }, (_, index) => ({
+  title: `Logo ${index + 1}`,
+}))
+
+const ctaLinks = [
+  {
+    label: 'Projektuebersicht oeffnen',
+    to: '/projects',
+  },
+  {
+    label: 'Zum Login',
+    to: '/login',
+    color: 'neutral' as const,
+    variant: 'subtle' as const,
+  },
+]
+</script>
+
 <template>
-  <main class="font-sans">
-    <section class="relative overflow-hidden bg-linear-to-b from-white via-slate-50 to-slate-100">
-      <div class="absolute -top-16 -right-16 h-56 w-56 rounded-full bg-accent-100/70 blur-3xl" />
-
-      <div class="relative mx-auto max-w-6xl px-6 pb-16 pt-20">
-        <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-1 text-xs uppercase tracking-widest text-slate-500">
-          Forschungsprojekt ZDB TU Wien
+  <UPage>
+    <UPageHero
+      headline="Forschungsprojekt ZDB TU Wien"
+      title="IFC-Modelle nachvollziehbar pruefen."
+      description="Eine forschungsgetriebene OpenBIM-Plattform der TU Wien fuer oeffentliche Auftraggeber. Platzhaltertext fuer Mission, Zielgruppe und Nutzen in wenigen klaren Saetzen."
+      orientation="horizontal"
+      :links="heroLinks"
+    >
+      <UCard class="bg-elevated">
+        <div class="flex items-center justify-between gap-4">
+          <p class="text-sm font-semibold text-toned">
+            Validierungslauf
+          </p>
+          <UBadge color="success" variant="soft">
+            Live
+          </UBadge>
         </div>
 
-        <div class="mt-6 grid gap-12 lg:grid-cols-2 lg:items-center">
-          <div>
-            <h1 class="text-4xl font-semibold leading-tight text-dark sm:text-5xl">
-              IFC-Modelle nachvollziehbar prüfen.
-            </h1>
-            <p class="mt-4 max-w-2xl text-lg text-slate-600">
-              Eine forschungsgetriebene OpenBIM-Plattform der TU Wien, für öffentliche
-              Auftraggeber. Platzhaltertext für Mission, Zielgruppe und Nutzen in wenigen klaren
-              Sätzen.
+        <div class="mt-6 space-y-4">
+          <UCard>
+            <p class="text-xs uppercase tracking-widest text-muted">
+              Regelpaket
             </p>
-            <div class="mt-8 flex flex-wrap gap-4">
-              <NuxtLink to="/account">
-                <BaseButton class="bg-primary text-light uppercase">
-                  Kontakt aufnehmen
-                </BaseButton>
-              </NuxtLink>
-              <NuxtLink to="/projects">
-                <BaseButton class="bg-white text-dark">
-                  Engine erkunden
-                </BaseButton>
-              </NuxtLink>
-            </div>
-            <div class="mt-10 grid gap-6 sm:grid-cols-3">
-              <div>
-                <p class="text-2xl font-semibold text-dark">
-                  100+
-                </p>
-                <p class="text-sm text-slate-500">
-                  IFC-Dateien geprüft
-                </p>
-              </div>
-              <div>
-                <p class="text-2xl font-semibold text-dark">
-                  3 Min.
-                </p>
-                <p class="text-sm text-slate-500">
-                  Durchschn. Laufzeit
-                </p>
-              </div>
-              <div>
-                <p class="text-2xl font-semibold text-dark">
-                  Open Source
-                </p>
-                <p class="text-sm text-slate-500">
-                  Engine-Code und Regeln
-                </p>
-              </div>
-            </div>
-          </div>
+            <p class="mt-2 text-sm font-semibold text-highlighted">
+              Stadt Wien Core v2
+            </p>
+          </UCard>
 
-          <div class="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-xl shadow-slate-200/60">
-            <div class="flex items-center justify-between">
-              <p class="text-sm font-semibold text-slate-700">
-                Validierungslauf
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UCard>
+              <p class="text-xs uppercase tracking-widest text-muted">
+                Erfolgsquote
               </p>
-              <span class="inline-flex items-center gap-2 rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-800">
-                <span class="h-2 w-2 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
-                Live
-              </span>
-            </div>
-            <div class="mt-6 space-y-4">
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p class="text-xs uppercase tracking-widest text-slate-400">
-                  Regelpaket
-                </p>
-                <p class="mt-2 text-sm font-semibold text-slate-700">
-                  Stadt Wien Core v2
-                </p>
-              </div>
-              <div class="grid gap-4 sm:grid-cols-2">
-                <div class="rounded-2xl border border-slate-200 p-4">
-                  <p class="text-xs uppercase tracking-widest text-slate-400">
-                    Erfolgsquote
-                  </p>
-                  <p class="mt-2 text-2xl font-semibold text-dark">
-                    92%
-                  </p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 p-4">
-                  <p class="text-xs uppercase tracking-widest text-slate-400">
-                    Hinweise
-                  </p>
-                  <p class="mt-2 text-2xl font-semibold text-dark">
-                    14
-                  </p>
-                </div>
-              </div>
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p class="text-xs uppercase tracking-widest text-slate-400">
-                  Nächster Schritt
-                </p>
-                <p class="mt-2 text-sm text-slate-600">
-                  Platzhaltertext für Hinweise zur Behebung und Links.
-                </p>
-              </div>
-            </div>
+              <p class="mt-2 text-2xl font-semibold text-highlighted">
+                92%
+              </p>
+            </UCard>
+            <UCard>
+              <p class="text-xs uppercase tracking-widest text-muted">
+                Hinweise
+              </p>
+              <p class="mt-2 text-2xl font-semibold text-highlighted">
+                14
+              </p>
+            </UCard>
           </div>
-        </div>
-      </div>
-    </section>
 
-    <section class="mx-auto max-w-6xl px-6 py-20">
-      <div class="flex flex-wrap items-end justify-between gap-6">
+          <UCard>
+            <p class="text-xs uppercase tracking-widest text-muted">
+              Naechster Schritt
+            </p>
+            <p class="mt-2 text-sm text-toned">
+              Platzhaltertext fuer Hinweise zur Behebung und Links.
+            </p>
+          </UCard>
+        </div>
+      </UCard>
+
+      <div class="mt-10 grid gap-6 sm:grid-cols-3">
         <div>
-          <p class="text-xs uppercase tracking-widest text-slate-400">
-            Funktionen
+          <p class="text-2xl font-semibold text-highlighted">
+            100+
           </p>
-          <h2 class="mt-3 text-3xl font-semibold text-dark">
-            Eine robuste Engine mit klaren Ergebnissen
-          </h2>
-        </div>
-        <p class="max-w-md text-sm text-slate-500">
-          Platzhaltertext, der beschreibt, wie die Plattform strukturierte Prüfungen über
-          Partnernetzwerke hinweg unterstützt, ohne Komplexität zu erhöhen.
-        </p>
-      </div>
-
-      <div class="mt-10 grid gap-6 md:grid-cols-2">
-        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-xl font-semibold text-slate-800">
-            No-Code-Regelstudio
-          </h3>
-          <p class="mt-3 text-sm text-slate-600">
-            Prüfungen in Klartext definieren. Platzhaltertext für einen visuellen Regel-Editor
-            und Vorlagen für gängige IFC-Standards.
+          <p class="text-sm text-muted">
+            IFC-Dateien geprueft
           </p>
         </div>
-        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-xl font-semibold text-slate-800">
-            Versionierung mit Linie
-          </h3>
-          <p class="mt-3 text-sm text-slate-600">
-            Unveränderliche Versionen mit veröffentlichtem Master und geerbten Dateilinks, um
-            Wiederholung zu reduzieren.
-          </p>
-        </div>
-        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-xl font-semibold text-slate-800">
-            Berichte mit Nachweis
-          </h3>
-          <p class="mt-3 text-sm text-slate-600">
-            Strukturierte Ausgaben für Audits. Platzhaltertext für Exportformate, Priorisierung
-            und Compliance-Notizen.
-          </p>
-        </div>
-        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-xl font-semibold text-slate-800">
-            Geschützte Governance
-          </h3>
-          <p class="mt-3 text-sm text-slate-600">
-            Mehrstufige Gruppenrechte, Magic-Link-Onboarding und Service-Tokens für automatisierte
-            Validierungsabläufe.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <section class="bg-white">
-      <div class="mx-auto max-w-6xl px-6 py-20">
-        <div class="grid gap-10 lg:grid-cols-2">
-          <div>
-            <p class="text-xs uppercase tracking-widest text-slate-400">
-              So funktioniert es
-            </p>
-            <h2 class="mt-3 text-3xl font-semibold text-dark">
-              Von Upload bis nachvollziehbarem Ergebnis
-            </h2>
-            <p class="mt-4 text-sm text-slate-600">
-              Platzhaltertext, der den Validierungsablauf über Abteilungen und Partnernetzwerke
-              hinweg beschreibt.
-            </p>
-          </div>
-          <div class="space-y-6">
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <p class="text-sm font-semibold text-slate-800">
-                1. Upload und Versionierung
-              </p>
-              <p class="mt-2 text-sm text-slate-600">
-                IFC- und Dokument-Sets hochladen. Das System erzeugt automatisch unveränderliche
-                Versionen und eine Master-Linie.
-              </p>
-            </div>
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <p class="text-sm font-semibold text-slate-800">
-                2. Validierung ausführen
-              </p>
-              <p class="mt-2 text-sm text-slate-600">
-                Prüfungen per API-Trigger starten. Platzhaltertext für den Python-Validator und
-                die Service-Token-Integration.
-              </p>
-            </div>
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <p class="text-sm font-semibold text-slate-800">
-                3. Ergebnisse teilen
-              </p>
-              <p class="mt-2 text-sm text-slate-600">
-                Bericht veröffentlichen, Stakeholder informieren und jede Entscheidung
-                nachvollziehbar halten.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="mx-auto max-w-6xl px-6 py-20">
-      <div class="flex flex-wrap items-center justify-between gap-6">
         <div>
-          <p class="text-xs uppercase tracking-widest text-slate-400">
-            Partner
+          <p class="text-2xl font-semibold text-highlighted">
+            3 Min.
           </p>
-          <h2 class="mt-3 text-3xl font-semibold text-dark">
-            Zusammenarbeit über Europa hinaus
-          </h2>
+          <p class="text-sm text-muted">
+            Durchschn. Laufzeit
+          </p>
         </div>
-        <p class="max-w-sm text-sm text-slate-500">
-          Platzhaltertext für Partnerschaften aus Wien, ganz Österreich und europäischen
-          Forschungskonsortien.
-        </p>
+        <div>
+          <p class="text-2xl font-semibold text-highlighted">
+            Open Source
+          </p>
+          <p class="text-sm text-muted">
+            Engine-Code und Regeln
+          </p>
+        </div>
       </div>
+    </UPageHero>
 
-      <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="flex h-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-xs font-semibold tracking-widest text-slate-500">
-          LOGO
-        </div>
-        <div class="flex h-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-xs font-semibold tracking-widest text-slate-500">
-          LOGO
-        </div>
-        <div class="flex h-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-xs font-semibold tracking-widest text-slate-500">
-          LOGO
-        </div>
-        <div class="flex h-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-xs font-semibold tracking-widest text-slate-500">
-          LOGO
-        </div>
-        <div class="flex h-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-xs font-semibold tracking-widest text-slate-500">
-          LOGO
-        </div>
-        <div class="flex h-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-xs font-semibold tracking-widest text-slate-500">
-          LOGO
-        </div>
-        <div class="flex h-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-xs font-semibold tracking-widest text-slate-500">
-          LOGO
-        </div>
-        <div class="flex h-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-xs font-semibold tracking-widest text-slate-500">
-          LOGO
-        </div>
-      </div>
-    </section>
-  </main>
+    <UPageSection
+      id="features"
+      headline="Funktionen"
+      title="Eine robuste Engine mit klaren Ergebnissen"
+      description="Platzhaltertext, der beschreibt, wie die Plattform strukturierte Pruefungen ueber Partnernetzwerke hinweg unterstuetzt, ohne Komplexitaet zu erhoehen."
+    >
+      <UPageGrid>
+        <UPageCard
+          v-for="card in featureCards"
+          :key="card.title"
+          :title="card.title"
+          :description="card.description"
+          :icon="card.icon"
+        />
+      </UPageGrid>
+    </UPageSection>
+
+    <UPageSection
+      headline="So funktioniert es"
+      title="Von Upload bis nachvollziehbarem Ergebnis"
+      description="Platzhaltertext, der den Validierungsablauf ueber Abteilungen und Partnernetzwerke hinweg beschreibt."
+    >
+      <UPageGrid>
+        <UPageCard
+          v-for="step in workflowSteps"
+          :key="step.title"
+          :title="step.title"
+          :description="step.description"
+        />
+      </UPageGrid>
+    </UPageSection>
+
+    <UPageSection
+      headline="Partner"
+      title="Zusammenarbeit ueber Europa hinaus"
+      description="Platzhaltertext fuer Partnerschaften aus Wien, ganz Oesterreich und europaeischen Forschungskonsortien."
+    >
+      <UPageGrid>
+        <UPageCard
+          v-for="logo in partnerLogos"
+          :key="logo.title"
+          :title="logo.title"
+          description="LOGO"
+          variant="subtle"
+        />
+      </UPageGrid>
+    </UPageSection>
+
+    <UPageCTA
+      title="Von Regeln zu nachvollziehbaren Ergebnissen"
+      description="Die naechsten Iterationen koennen API-Daten, echte Projektkennzahlen und Auth-Flows direkt in diese Nuxt-UI-Struktur einspeisen."
+      :links="ctaLinks"
+    />
+  </UPage>
 </template>

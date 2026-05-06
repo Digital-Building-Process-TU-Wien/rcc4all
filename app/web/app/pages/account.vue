@@ -14,33 +14,27 @@ const form = reactive({
 
 <template>
   <div class="space-y-12">
-    <BaseCard class="p-8">
-      <BaseSectionHeader>
-        <template #title>
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-widest text-slate-400">
-              Benutzer
-            </p>
-            <h1 class="mt-3 text-3xl font-semibold text-dark">
-              Konto und Sicherheit
-            </h1>
-          </div>
-        </template>
-        <template #description>
+    <UCard class="p-8">
+      <div class="flex flex-wrap items-start justify-between gap-6">
+        <div class="text-left">
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-400">
+            Benutzer
+          </p>
+          <h1 class="mt-3 text-3xl font-semibold text-dark">
+            Konto und Sicherheit
+          </h1>
           <p class="mt-3 max-w-2xl text-sm text-slate-600">
             Profil- und Zugangsdaten verwalten. Die Eingaben sind Platzhalter und koennen spaeter mit echten Nutzerdaten belegt werden.
           </p>
-        </template>
-        <template #actions>
-          <BaseButton>
-            Speichern
-          </BaseButton>
-        </template>
-      </BaseSectionHeader>
-    </BaseCard>
+        </div>
+        <UButton color="primary">
+          Speichern
+        </UButton>
+      </div>
+    </UCard>
 
     <section class="grid gap-6 lg:grid-cols-2">
-      <BaseCard>
+      <UCard>
         <h2 class="text-xl font-semibold text-dark">
           Profil
         </h2>
@@ -52,7 +46,7 @@ const form = reactive({
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-full-name">
               Vollstaendiger Name
             </label>
-            <BaseInput
+            <UInput
               id="account-full-name"
               v-model="form.fullName"
               placeholder="Alexandra Muster"
@@ -62,16 +56,16 @@ const form = reactive({
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-role">
               Rolle
             </label>
-            <BaseInput
+            <UInput
               id="account-role"
               v-model="form.role"
               placeholder="Projektleitung, Auftraggeber"
             />
           </div>
         </div>
-      </BaseCard>
+      </UCard>
 
-      <BaseCard>
+      <UCard>
         <h2 class="text-xl font-semibold text-dark">
           E-Mail
         </h2>
@@ -83,7 +77,7 @@ const form = reactive({
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-current-email">
               Aktuelle E-Mail
             </label>
-            <BaseInput
+            <UInput
               id="account-current-email"
               v-model="form.currentEmail"
               type="email"
@@ -94,21 +88,21 @@ const form = reactive({
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-new-email">
               Neue E-Mail
             </label>
-            <BaseInput
+            <UInput
               id="account-new-email"
               v-model="form.newEmail"
               type="email"
               placeholder="alexandra@firma.at"
             />
           </div>
-          <BaseButton class="border border-slate-300 bg-white text-slate-600 hover:border-slate-400">
+          <UButton color="neutral" variant="outline">
             E-Mail aktualisieren
-          </BaseButton>
+          </UButton>
         </div>
-      </BaseCard>
+      </UCard>
     </section>
 
-    <BaseCard>
+    <UCard>
       <h2 class="text-xl font-semibold text-dark">
         Passwort
       </h2>
@@ -120,7 +114,7 @@ const form = reactive({
           <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-current-password">
             Aktuelles Passwort
           </label>
-          <BaseInput
+          <UInput
             id="account-current-password"
             v-model="form.currentPassword"
             type="password"
@@ -131,7 +125,7 @@ const form = reactive({
           <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-new-password">
             Neues Passwort
           </label>
-          <BaseInput
+          <UInput
             id="account-new-password"
             v-model="form.newPassword"
             type="password"
@@ -142,7 +136,7 @@ const form = reactive({
           <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-confirm-password">
             Wiederholen
           </label>
-          <BaseInput
+          <UInput
             id="account-confirm-password"
             v-model="form.confirmPassword"
             type="password"
@@ -151,10 +145,10 @@ const form = reactive({
         </div>
       </div>
       <div class="mt-6">
-        <BaseButton>
+        <UButton color="primary">
           Passwort aendern
-        </BaseButton>
+        </UButton>
       </div>
-    </BaseCard>
+    </UCard>
   </div>
 </template>
