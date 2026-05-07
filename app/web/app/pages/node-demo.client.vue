@@ -1,52 +1,59 @@
 <script setup lang="ts">
-import type { NodeTypesObject } from '@vue-flow/core'
+import type { NodeProps } from '@vue-flow/core'
+import { LazyNodesNodeSlideover } from '#components'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
-import { markRaw } from 'vue'
-
-import ConcatStringComponent from '@/nodes/ConcatString/ConcatString.vue'
-import ElementFilterComponent from '@/nodes/ElementFilter/ElementFilter.vue'
+import NodeSlideover from '~/components/nodes/NodeSlideover.vue'
+import NodeWrapper from '~/components/nodes/NodeWrapper.vue'
 
 // Import nodes
-import GetNameComponent from '@/nodes/GetName/GetName.vue'
 // Basic Vue Flow styling
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
 const nodeTypes = {
-  GetName: markRaw(GetNameComponent),
-  ConcatString: markRaw(ConcatStringComponent),
-  ElementFilter: markRaw(ElementFilterComponent),
-} as unknown as NodeTypesObject
+  custom: markRaw(NodeWrapper),
+}
 
 const initialNodes = [
   {
     id: '1',
-    type: 'GetName',
+    type: 'custom',
     position: { x: 100, y: 100 },
-    data: { label: 'Get Name' },
+    data: { label: 'Get Name', nodeName: 'GetName' },
   },
   {
     id: '2',
-    type: 'ConcatString',
+    type: 'custom',
     position: { x: 400, y: 100 },
-    data: { label: 'Concat String' },
+    data: { label: 'Concat String', nodeName: 'ConcatString' },
   },
   {
     id: '3',
-    type: 'ElementFilter',
+    type: 'custom',
     position: { x: 100, y: 320 },
-    data: { label: 'Element Filter' },
+    data: { label: 'Element Filter', nodeName: 'ElementFilter' },
   },
 ]
 
 const initialEdges = [
-  { id: 'e1-2', source: '1', target: '2', sourceHandle: 'object_names', targetHandle: 'values' },
+  { id: 'e1-2', source: '1', target: '2' },
 ]
+const selectedNode = ref<typeof initialNodes[number] | null>(null)
+const overlay = useOverlay()
+const slideover = overlay.create(LazyNodesNodeSlideover)
 
-const { onConnect, addEdges } = useVueFlow()
+const { onConnect, addEdges, onNodeClick } = useVueFlow()
 
 onConnect((params) => {
   addEdges(params)
+})
+
+onNodeClick((params) => {
+  const id = params.node.id
+  selectedNode.value = initialNodes.find(node => node.id === id) || null
+  slideover.open({
+    node: initialNodes.find(node => node.id === id),
+  })
 })
 </script>
 
