@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Group } from 'rcc4all-payload-types'
-import { computed, ref, watch } from 'vue'
 
 const sdk = usePayloadSDK()
 const user = sdk.user

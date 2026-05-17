@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { NodeProps } from '@vue-flow/core'
-import type { NodeData } from '~/components/nodes/NodeWrapper.vue'
+import type { NodeData, NodeTypeFromSchema } from '~/utils/nodes'
 
 const props = defineProps<{
-  node: NodeProps<NodeData>
+  node: NodeProps<NodeTypeFromSchema<'concat_string'>>
 }>()
 
-const test = props.node.data.
+const test = props.node.data
 </script>
 
 <template>

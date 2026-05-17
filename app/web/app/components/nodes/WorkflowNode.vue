@@ -1,12 +1,7 @@
 <script lang="ts" setup>
 import type { NodeProps } from '@vue-flow/core'
+import type { NodeData } from '~/utils/nodes'
 import { Handle, Position } from '@vue-flow/core'
-
-export interface NodeData {
-  label: string
-  noInput?: boolean
-  nodeName: string
-}
 
 const props = defineProps<NodeProps<NodeData>>()
 </script>

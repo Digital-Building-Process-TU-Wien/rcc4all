@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const isScrolled = ref(false)
 const sdk = usePayloadSDK()

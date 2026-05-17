@@ -36,5 +36,19 @@ const parseConfig = (input) => {
 - Define a `Props` interface at the top of the file and use `defineProps<Props>()`.
 - Use `withDefaults(defineProps<Props>(), { ... })` for defaults.
 - Avoid runtime prop objects and the `type:` field in `defineProps`.
-- Keep `script setup` simple and do not mix type-based and runtime prop styles.
 - Avoid tailwind classes in script tag, they belong in the template.
+
+## Nuxt Auto-Imports
+
+Nuxt auto-imports Vue APIs and composables. Never manually import `ref`, `reactive`, `computed`, `watch`, or Nuxt composables.
+
+**✅ Do:**
+```typescript
+const count = ref(0)
+const doubled = computed(() => count.value * 2)
+```
+
+**❌ Don't:**
+```typescript
+import { computed, ref } from 'vue'
+```

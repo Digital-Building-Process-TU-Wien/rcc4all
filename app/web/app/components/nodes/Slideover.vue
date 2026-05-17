@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NodeProps } from '@vue-flow/core'
-import type { NodeData } from './NodeWrapper.vue'
-import { computed, defineAsyncComponent } from 'vue'
+import type { NodeData } from '~/utils/nodes'
+import { getNodeComponent } from '~/utils/nodes'
 
 const props = defineProps<{
   isOpen: boolean
@@ -12,23 +12,12 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const modules = import.meta.glob('../../nodes/**/*.vue')
-
-const components = Object.fromEntries(
-  Object.entries(modules).map(([path, loader]) => {
-    const parts = path.split('/')
-    const fileName = parts.pop()?.replace('.vue', '') ?? ''
-    return [fileName, defineAsyncComponent(loader as any)]
-  }),
-)
-console.log('Loaded components:', Object.keys(components))
-
 const component = computed(() => {
   if (!props.node?.data.nodeName)
     return null
-  console.log('Finding component for nodeName:', props.node.data.nodeName, components[props.node.data.nodeName])
+  console.log('Finding component for nodeName:', props.node.data.nodeName, getNodeComponent(props.node.data.nodeName))
   console.log('Props', props)
-  return components[props.node.data.nodeName]
+  return getNodeComponent(props.node.data.nodeName)
 })
 </script>
 

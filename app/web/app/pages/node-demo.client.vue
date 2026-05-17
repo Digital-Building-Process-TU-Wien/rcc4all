@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import type { NodeProps } from '@vue-flow/core'
-import { LazyNodesNodeSlideover } from '#components'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
-import NodeSlideover from '~/components/nodes/NodeSlideover.vue'
-import NodeWrapper from '~/components/nodes/NodeWrapper.vue'
+import WorkflowNode from '~/components/nodes/WorkflowNode.vue'
 
 // Import nodes
 // Basic Vue Flow styling
@@ -11,7 +8,7 @@ import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
 const nodeTypes = {
-  custom: markRaw(NodeWrapper),
+  custom: markRaw(WorkflowNode),
 }
 
 const initialNodes = [
@@ -33,6 +30,12 @@ const initialNodes = [
     position: { x: 100, y: 320 },
     data: { label: 'Element Filter', nodeName: 'ElementFilter' },
   },
+  {
+    id: '4',
+    type: 'custom',
+    position: { x: 400, y: 320 },
+    data: { label: 'Generate 3D Cube', nodeName: 'Generate3DCube' },
+  },
 ]
 
 const initialEdges = [
@@ -40,7 +43,7 @@ const initialEdges = [
 ]
 const selectedNode = ref<typeof initialNodes[number] | null>(null)
 const overlay = useOverlay()
-const slideover = overlay.create(LazyNodesNodeSlideover)
+const slideover = overlay.create(WorkflowNode)
 
 const { onConnect, addEdges, onNodeClick } = useVueFlow()
 
@@ -52,7 +55,7 @@ onNodeClick((params) => {
   const id = params.node.id
   selectedNode.value = initialNodes.find(node => node.id === id) || null
   slideover.open({
-    node: initialNodes.find(node => node.id === id),
+
   })
 })
 </script>

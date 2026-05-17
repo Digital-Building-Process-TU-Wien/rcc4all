@@ -19,6 +19,12 @@ export default defineNuxtConfig({
       standalone: false,
     },
   },
+  components: [
+    {
+      path: '~/components',
+      pathPrefix: false,
+    },
+  ],
   devServer: {
     port: 3001,
   },

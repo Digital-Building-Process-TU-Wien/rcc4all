@@ -13,7 +13,7 @@ async function generate() {
   const outputPath = resolve(__dirname, 'schema.d.ts')
 
   const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'))
-  const ts = await compile(schema, 'WorkflowSchema')
+  const ts = await compile(schema, 'WorkflowSchema', { additionalProperties: true })
 
   writeFileSync(outputPath, ts)
   console.log('✅ Generated schema.d.ts')

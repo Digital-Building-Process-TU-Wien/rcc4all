@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Node Registry Schema",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "concat_string": {
       "type": "object",
@@ -15,11 +16,9 @@
             "separator": {
               "default": ", ",
               "description": "String inserted between the resolved input strings.",
-              "title": "Separator",
               "type": "string"
             }
           },
-          "title": "ConcatStringSettings",
           "type": "object"
         },
         "result": {
@@ -28,11 +27,9 @@
             "value": {
               "default": "",
               "description": "Final string assembled from the input strings.",
-              "title": "Concatenated string",
               "type": "string"
             }
           },
-          "title": "ConcatStringResult",
           "type": "object"
         },
         "inputs": {
@@ -51,19 +48,18 @@
                   }
                 ]
               },
-              "title": "Input values",
               "type": "array"
             }
           },
-          "title": "ConcatStringInputs",
           "type": "object"
         }
       },
       "required": [
-        "settings",
         "result",
+        "settings",
         "inputs"
-      ]
+      ],
+      "additionalProperties": false
     },
     "element_filter": {
       "type": "object",
@@ -77,11 +73,9 @@
             "entity_type": {
               "default": "IFCWALL",
               "description": "IFC entity name to filter by, for example IFCWALL.",
-              "title": "Entity type",
               "type": "string"
             }
           },
-          "title": "ElementFilterSettings",
           "type": "object"
         },
         "result": {
@@ -93,18 +87,100 @@
               "items": {
                 "type": "integer"
               },
-              "title": "Express IDs",
               "type": "array"
             }
           },
-          "title": "ElementFilterResult",
           "type": "object"
         }
       },
       "required": [
-        "settings",
-        "result"
-      ]
+        "result",
+        "settings"
+      ],
+      "additionalProperties": false
+    },
+    "generate_3d_cube": {
+      "type": "object",
+      "title": "Generate 3D Cube",
+      "description": "Create a 3D cube geometry with customizable size, position, and rotation for clash detection.",
+      "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `vertices` | `list[list[float]]` | List of 8 vertex coordinates as `[x, y, z]` lists |\n| `faces` | `list[list[int]]` | List of 6 face definitions as vertex index lists |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- Output format is compatible with `trimesh.Trimesh(vertices, faces)` constructor",
+      "properties": {
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "vertices": {
+              "default": [],
+              "description": "List of 3D vertex coordinates [[x, y, z], ...] defining the cube geometry.",
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "faces": {
+              "default": [],
+              "description": "List of face definitions [[v1, v2, v3], ...] as vertex indices forming triangles.",
+              "items": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "position": {
+              "default": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "description": "3D position [x, y, z] for the cube center in meters.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "rotation": {
+              "default": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "description": "Euler angles [x, y, z] in degrees for rotation around each axis.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "size": {
+              "default": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "description": "Dimensions [width, height, depth] in meters.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "inputs"
+      ],
+      "additionalProperties": false
     },
     "get_name": {
       "type": "object",
@@ -118,7 +194,6 @@
             "allow_missing": {
               "default": true,
               "description": "When enabled, unresolved express IDs or nameless IFC entities produce None instead of raising an error.",
-              "title": "Allow missing names",
               "type": "boolean"
             },
             "express_ids": {
@@ -127,11 +202,9 @@
               "items": {
                 "type": "integer"
               },
-              "title": "Express IDs",
               "type": "array"
             }
           },
-          "title": "GetNameSettings",
           "type": "object"
         },
         "result": {
@@ -150,18 +223,17 @@
                   }
                 ]
               },
-              "title": "Object names",
               "type": "array"
             }
           },
-          "title": "GetNameResult",
           "type": "object"
         }
       },
       "required": [
-        "settings",
-        "result"
-      ]
+        "result",
+        "settings"
+      ],
+      "additionalProperties": false
     }
   }
 }
