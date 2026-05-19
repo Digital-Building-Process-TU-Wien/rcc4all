@@ -10,6 +10,7 @@ import { Groups } from './collections/Groups'
 import { FileEntry } from './collections/FileEntry'
 import { FileRevisions } from './collections/FileRevisions'
 import { Projects } from './collections/Projects'
+import { Pages } from './collections/Pages'
 import { WorkflowRuns } from './collections/WorkflowRuns'
 
 const filename = fileURLToPath(import.meta.url)
@@ -29,13 +30,27 @@ function parseOriginsFromEnv(value: string | undefined): string[] {
 export default buildConfig({
   cors: parseOriginsFromEnv(process.env.PAYLOAD_CORS_ORIGINS),
   csrf: parseOriginsFromEnv(process.env.PAYLOAD_CSRF_ORIGINS),
+  localization: {
+    locales: [
+      {
+        code: 'en',
+        label: 'English',
+      },
+      {
+        code: 'de',
+        label: 'Deutsch',
+      },
+    ],
+    defaultLocale: 'en',
+    fallback: true,
+  },
   admin: {
     user: Users.slug,
     importMap: {
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Groups, FileEntry, FileRevisions, Projects, WorkflowRuns],
+  collections: [Users, Groups, FileEntry, FileRevisions, Projects, Pages, WorkflowRuns],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

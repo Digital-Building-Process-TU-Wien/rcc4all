@@ -6,8 +6,9 @@ import path from 'path'
 import { getPayload, Payload, Where } from 'payload'
 import { fileURLToPath } from 'url'
 import config from './payload.config'
+import { getHomePageData } from './page-data'
 
-import type { FileEntry, FileRevision, Group, Project, User } from './payload-types'
+import type { FileEntry, FileRevision, Group, Page, Project, User } from './payload-types'
 
 type SeedFileType = 'IFC' | 'IDS' | 'CSV' | 'Image' | 'Workflow JSON'
 
@@ -37,6 +38,7 @@ async function confirmDatabaseReset() {
 
   if (!databasePath.endsWith('.db')) return
   if (!existsSync(databasePath)) return
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return
 
   const confirmed = await consola.prompt(
     `Database file found at ${databasePath}. Delete it? A .bkp file will be created first.`,
@@ -296,6 +298,68 @@ async function ensureProject(
   return created as Project
 }
 
+async function findPageBySlug(payload: Payload, slug: string) {
+  const existing = await payload.find({
+    collection: 'pages',
+    where: {
+      slug: { equals: slug },
+    },
+    depth: 0,
+    limit: 1,
+    locale: 'en',
+    fallbackLocale: false,
+    overrideAccess: true,
+  })
+
+  return existing.docs[0] as Page | undefined
+}
+
+async function ensureHomePage(payload: Payload) {
+  const existing = await findPageBySlug(payload, 'home')
+
+  if (!existing) {
+    const created = await payload.create({
+      collection: 'pages',
+      locale: 'en',
+      fallbackLocale: false,
+      data: {
+        slug: 'home',
+        ...getHomePageData('en'),
+      },
+      overrideAccess: true,
+    })
+
+    await payload.update({
+      collection: 'pages',
+      id: created.id,
+      locale: 'de',
+      fallbackLocale: false,
+      data: getHomePageData('de'),
+      overrideAccess: true,
+    })
+
+    return created as Page
+  }
+
+  await payload.update({
+    collection: 'pages',
+    id: existing.id,
+    locale: 'en',
+    fallbackLocale: false,
+    data: getHomePageData('en'),
+    overrideAccess: true,
+  })
+
+  return payload.update({
+    collection: 'pages',
+    id: existing.id,
+    locale: 'de',
+    fallbackLocale: false,
+    data: getHomePageData('de'),
+    overrideAccess: true,
+  }) as Promise<Page>
+}
+
 async function ensureWorkflowRun(
   payload: Payload,
   args: {
@@ -336,6 +400,13 @@ async function main() {
   const payload = await getPayloadInstance()
 
   const superAdmin = await ensureSuperAdmin(payload)
+
+  await ensureUser(payload, {
+    name: 'Demo Admin',
+    email: 'admin@test.com',
+    password: '1234',
+    roles: ['super-admin'],
+  })
 
   const testGroup = await ensureGroup(payload, {
     title: 'test',
@@ -513,6 +584,8 @@ async function main() {
     inputFiles: [privateFileA.id],
     outputFiles: [privateFileB.id],
   })
+
+  await ensureHomePage(payload)
 }
 
 main().catch((error) => {

@@ -72,6 +72,7 @@ export interface Config {
     'file-entry': FileEntry;
     'file-revisions': FileRevision;
     projects: Project;
+    pages: Page;
     'workflow-runs': WorkflowRun;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -85,6 +86,7 @@ export interface Config {
     'file-entry': FileEntrySelect<false> | FileEntrySelect<true>;
     'file-revisions': FileRevisionsSelect<false> | FileRevisionsSelect<true>;
     projects: ProjectsSelect<false> | ProjectsSelect<true>;
+    pages: PagesSelect<false> | PagesSelect<true>;
     'workflow-runs': WorkflowRunsSelect<false> | WorkflowRunsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -94,10 +96,10 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
-  fallbackLocale: null;
+  fallbackLocale: ('false' | 'none' | 'null') | false | null | ('en' | 'de') | ('en' | 'de')[];
   globals: {};
   globalsSelect: {};
-  locale: null;
+  locale: 'en' | 'de';
   widgets: {
     collections: CollectionsWidget;
   };
@@ -234,6 +236,76 @@ export interface FileRevision {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages".
+ */
+export interface Page {
+  id: number;
+  slug: string;
+  title: string;
+  hero: {
+    headline?: string | null;
+    title: string;
+    description: string;
+    badges?:
+      | {
+          label: string;
+          id?: string | null;
+        }[]
+      | null;
+    facts?:
+      | {
+          label: string;
+          value: string;
+          id?: string | null;
+        }[]
+      | null;
+    primaryLink?: {
+      label?: string | null;
+      to?: string | null;
+    };
+    secondaryLink?: {
+      label?: string | null;
+      to?: string | null;
+    };
+  };
+  layout?: PageSectionBlock[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PageSectionBlock".
+ */
+export interface PageSectionBlock {
+  anchor?: string | null;
+  headline?: string | null;
+  title: string;
+  description?: string | null;
+  display: 'grid' | 'rows';
+  cards?: CardBlock[] | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'page-section';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CardBlock".
+ */
+export interface CardBlock {
+  title: string;
+  description: string;
+  icon?: string | null;
+  badge?: string | null;
+  link?: {
+    label?: string | null;
+    to?: string | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'card';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "workflow-runs".
  */
 export interface WorkflowRun {
@@ -289,6 +361,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'projects';
         value: number | Project;
+      } | null)
+    | ({
+        relationTo: 'pages';
+        value: number | Page;
       } | null)
     | ({
         relationTo: 'workflow-runs';
@@ -419,6 +495,89 @@ export interface ProjectsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages_select".
+ */
+export interface PagesSelect<T extends boolean = true> {
+  slug?: T;
+  title?: T;
+  hero?:
+    | T
+    | {
+        headline?: T;
+        title?: T;
+        description?: T;
+        badges?:
+          | T
+          | {
+              label?: T;
+              id?: T;
+            };
+        facts?:
+          | T
+          | {
+              label?: T;
+              value?: T;
+              id?: T;
+            };
+        primaryLink?:
+          | T
+          | {
+              label?: T;
+              to?: T;
+            };
+        secondaryLink?:
+          | T
+          | {
+              label?: T;
+              to?: T;
+            };
+      };
+  layout?:
+    | T
+    | {
+        'page-section'?: T | PageSectionBlockSelect<T>;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PageSectionBlock_select".
+ */
+export interface PageSectionBlockSelect<T extends boolean = true> {
+  anchor?: T;
+  headline?: T;
+  title?: T;
+  description?: T;
+  display?: T;
+  cards?:
+    | T
+    | {
+        card?: T | CardBlockSelect<T>;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CardBlock_select".
+ */
+export interface CardBlockSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
+  icon?: T;
+  badge?: T;
+  link?:
+    | T
+    | {
+        label?: T;
+        to?: T;
+      };
+  id?: T;
+  blockName?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

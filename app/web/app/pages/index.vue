@@ -1,212 +1,185 @@
 <script setup lang="ts">
-const heroLinks = [
-  {
-    label: 'Kontakt aufnehmen',
-    to: '/account',
-  },
-  {
-    label: 'Engine erkunden',
-    to: '/projects',
-    color: 'neutral' as const,
-    variant: 'subtle' as const,
-  },
-]
+import type { CardBlock, Page, PageSectionBlock } from 'rcc4all-payload-types'
 
-const featureCards = [
-  {
-    title: 'No-Code-Regelstudio',
-    description: 'Pruefungen in Klartext definieren. Platzhaltertext fuer einen visuellen Regel-Editor und Vorlagen fuer gaengige IFC-Standards.',
-    icon: 'i-lucide-square-pen',
-  },
-  {
-    title: 'Versionierung mit Linie',
-    description: 'Unveraenderliche Versionen mit veroeffentlichtem Master und geerbten Dateilinks, um Wiederholung zu reduzieren.',
-    icon: 'i-lucide-git-branch',
-  },
-  {
-    title: 'Berichte mit Nachweis',
-    description: 'Strukturierte Ausgaben fuer Audits. Platzhaltertext fuer Exportformate, Priorisierung und Compliance-Notizen.',
-    icon: 'i-lucide-file-text',
-  },
-  {
-    title: 'Geschuetzte Governance',
-    description: 'Mehrstufige Gruppenrechte, Magic-Link-Onboarding und Service-Tokens fuer automatisierte Validierungsablaeufe.',
-    icon: 'i-lucide-shield-check',
-  },
-]
+const sdk = usePayloadSDK()
+const { currentLocale } = usei18n()
 
-const workflowSteps = [
-  {
-    title: '1. Upload und Versionierung',
-    description: 'IFC- und Dokument-Sets hochladen. Das System erzeugt automatisch unveraenderliche Versionen und eine Master-Linie.',
-  },
-  {
-    title: '2. Validierung ausfuehren',
-    description: 'Pruefungen per API-Trigger starten. Platzhaltertext fuer den Python-Validator und die Service-Token-Integration.',
-  },
-  {
-    title: '3. Ergebnisse teilen',
-    description: 'Bericht veroeffentlichen, Stakeholder informieren und jede Entscheidung nachvollziehbar halten.',
-  },
-]
+const { data: homePage } = await useAsyncData(
+  'home-page',
+  async () => {
+    const result = await sdk.find({
+      collection: 'pages',
+      where: {
+        slug: {
+          equals: 'home',
+        },
+      },
+      limit: 1,
+      locale: currentLocale.value,
+      fallbackLocale: false,
+    })
 
-const partnerLogos = Array.from({ length: 8 }, (_, index) => ({
-  title: `Logo ${index + 1}`,
-}))
+    return (result.docs[0] ?? null) as Page | null
+  },
+  {
+    watch: [currentLocale],
+  },
+)
 
-const ctaLinks = [
-  {
-    label: 'Projektuebersicht oeffnen',
-    to: '/projects',
-  },
-  {
-    label: 'Zum Login',
-    to: '/login',
-    color: 'neutral' as const,
-    variant: 'subtle' as const,
-  },
-]
+const heroLinks = computed(() => {
+  const links = []
+
+  if (homePage.value?.hero.primaryLink?.label && homePage.value.hero.primaryLink.to) {
+    links.push({
+      label: homePage.value.hero.primaryLink.label,
+      to: homePage.value.hero.primaryLink.to,
+      icon: 'i-lucide-arrow-right',
+    })
+  }
+
+  if (homePage.value?.hero.secondaryLink?.label && homePage.value.hero.secondaryLink.to) {
+    links.push({
+      label: homePage.value.hero.secondaryLink.label,
+      to: homePage.value.hero.secondaryLink.to,
+      color: 'neutral' as const,
+      variant: 'subtle' as const,
+      icon: 'i-lucide-arrow-right',
+    })
+  }
+
+  return links
+})
+
+const pageSections = computed(() => {
+  return (homePage.value?.layout ?? []).filter(isPageSectionBlock)
+})
+
+function isPageSectionBlock(value: Page['layout'] extends infer Layout ? Layout extends (infer Item)[] | null ? Item : never : never): value is PageSectionBlock {
+  return value?.blockType === 'page-section'
+}
+
+function isCardBlock(value: PageSectionBlock['cards'] extends infer Cards ? Cards extends (infer Item)[] | null ? Item : never : never): value is CardBlock {
+  return value?.blockType === 'card'
+}
+
+function getSectionCards(section: PageSectionBlock): CardBlock[] {
+  return (section.cards ?? []).filter(isCardBlock)
+}
+
+function resolveCardIcon(card: CardBlock): string {
+  return card.icon || 'i-lucide-layout-panel-top'
+}
 </script>
 
 <template>
   <UPage>
     <UPageHero
-      headline="Forschungsprojekt ZDB TU Wien"
-      title="IFC-Modelle nachvollziehbar pruefen."
-      description="Eine forschungsgetriebene OpenBIM-Plattform der TU Wien fuer oeffentliche Auftraggeber. Platzhaltertext fuer Mission, Zielgruppe und Nutzen in wenigen klaren Saetzen."
-      orientation="horizontal"
+      v-if="homePage"
+      :headline="homePage.hero.headline ?? homePage.title"
+      :title="homePage.hero.title"
+      :description="homePage.hero.description"
+      orientation="vertical"
       :links="heroLinks"
     >
       <UCard class="bg-elevated">
-        <div class="flex items-center justify-between gap-4">
-          <p class="text-sm font-semibold text-toned">
-            Validierungslauf
-          </p>
-          <UBadge color="success" variant="soft">
-            Live
-          </UBadge>
-        </div>
-
-        <div class="mt-6 space-y-4">
-          <UCard>
-            <p class="text-xs uppercase tracking-widest text-muted">
-              Regelpaket
-            </p>
-            <p class="mt-2 text-sm font-semibold text-highlighted">
-              Stadt Wien Core v2
-            </p>
-          </UCard>
-
-          <div class="grid gap-4 sm:grid-cols-2">
-            <UCard>
-              <p class="text-xs uppercase tracking-widest text-muted">
-                Erfolgsquote
-              </p>
-              <p class="mt-2 text-2xl font-semibold text-highlighted">
-                92%
-              </p>
-            </UCard>
-            <UCard>
-              <p class="text-xs uppercase tracking-widest text-muted">
-                Hinweise
-              </p>
-              <p class="mt-2 text-2xl font-semibold text-highlighted">
-                14
-              </p>
-            </UCard>
-          </div>
-
-          <UCard>
-            <p class="text-xs uppercase tracking-widest text-muted">
-              Naechster Schritt
+        <div class="space-y-4">
+          <div
+            v-for="fact in homePage.hero.facts ?? []"
+            :key="fact.id ?? fact.label"
+            class="rounded-lg border border-default bg-default px-4 py-3"
+          >
+            <p class="text-xs font-semibold uppercase tracking-widest text-muted">
+              {{ fact.label }}
             </p>
             <p class="mt-2 text-sm text-toned">
-              Platzhaltertext fuer Hinweise zur Behebung und Links.
+              {{ fact.value }}
             </p>
-          </UCard>
+          </div>
         </div>
       </UCard>
-
-      <div class="mt-10 grid gap-6 sm:grid-cols-3">
-        <div>
-          <p class="text-2xl font-semibold text-highlighted">
-            100+
-          </p>
-          <p class="text-sm text-muted">
-            IFC-Dateien geprueft
-          </p>
-        </div>
-        <div>
-          <p class="text-2xl font-semibold text-highlighted">
-            3 Min.
-          </p>
-          <p class="text-sm text-muted">
-            Durchschn. Laufzeit
-          </p>
-        </div>
-        <div>
-          <p class="text-2xl font-semibold text-highlighted">
-            Open Source
-          </p>
-          <p class="text-sm text-muted">
-            Engine-Code und Regeln
-          </p>
-        </div>
-      </div>
     </UPageHero>
 
     <UPageSection
-      id="features"
-      headline="Funktionen"
-      title="Eine robuste Engine mit klaren Ergebnissen"
-      description="Platzhaltertext, der beschreibt, wie die Plattform strukturierte Pruefungen ueber Partnernetzwerke hinweg unterstuetzt, ohne Komplexitaet zu erhoehen."
+      v-for="section in pageSections"
+      :id="section.anchor || undefined"
+      :key="section.id ?? section.anchor ?? section.title"
+      :headline="section.headline || undefined"
+      :title="section.title"
+      :description="section.description || undefined"
     >
-      <UPageGrid>
-        <UPageCard
-          v-for="card in featureCards"
-          :key="card.title"
-          :title="card.title"
-          :description="card.description"
-          :icon="card.icon"
-        />
-      </UPageGrid>
-    </UPageSection>
+      <UPageGrid v-if="section.display === 'grid'" class="lg:grid-cols-2">
+        <UCard
+          v-for="card in getSectionCards(section)"
+          :key="card.id ?? card.title"
+          class="h-full"
+        >
+          <div class="flex h-full flex-col gap-4">
+            <div class="flex items-start gap-3">
+              <UIcon :name="resolveCardIcon(card)" class="mt-1 size-5 text-primary" />
+              <div class="space-y-3">
+                <UBadge v-if="card.badge" color="neutral" variant="soft">
+                  {{ card.badge }}
+                </UBadge>
+                <div>
+                  <h3 class="text-base font-semibold text-highlighted">
+                    {{ card.title }}
+                  </h3>
+                  <p class="mt-2 text-sm text-toned">
+                    {{ card.description }}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-    <UPageSection
-      headline="So funktioniert es"
-      title="Von Upload bis nachvollziehbarem Ergebnis"
-      description="Platzhaltertext, der den Validierungsablauf ueber Abteilungen und Partnernetzwerke hinweg beschreibt."
-    >
-      <UPageGrid>
-        <UPageCard
-          v-for="step in workflowSteps"
-          :key="step.title"
-          :title="step.title"
-          :description="step.description"
-        />
+            <div v-if="card.link?.label && card.link.to" class="mt-auto">
+              <UButton
+                :to="card.link.to"
+                color="neutral"
+                variant="subtle"
+                trailing-icon="i-lucide-arrow-right"
+              >
+                {{ card.link.label }}
+              </UButton>
+            </div>
+          </div>
+        </UCard>
       </UPageGrid>
-    </UPageSection>
 
-    <UPageSection
-      headline="Partner"
-      title="Zusammenarbeit ueber Europa hinaus"
-      description="Platzhaltertext fuer Partnerschaften aus Wien, ganz Oesterreich und europaeischen Forschungskonsortien."
-    >
-      <UPageGrid>
-        <UPageCard
-          v-for="logo in partnerLogos"
-          :key="logo.title"
-          :title="logo.title"
-          description="LOGO"
-          variant="subtle"
-        />
-      </UPageGrid>
-    </UPageSection>
+      <div v-else class="space-y-4">
+        <UCard
+          v-for="card in getSectionCards(section)"
+          :key="card.id ?? card.title"
+        >
+          <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div class="flex items-start gap-3">
+              <UIcon :name="resolveCardIcon(card)" class="mt-1 size-5 text-primary" />
+              <div class="space-y-3">
+                <UBadge v-if="card.badge" color="neutral" variant="soft">
+                  {{ card.badge }}
+                </UBadge>
+                <div>
+                  <h3 class="text-base font-semibold text-highlighted">
+                    {{ card.title }}
+                  </h3>
+                  <p class="mt-2 text-sm text-toned">
+                    {{ card.description }}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-    <UPageCTA
-      title="Von Regeln zu nachvollziehbaren Ergebnissen"
-      description="Die naechsten Iterationen koennen API-Daten, echte Projektkennzahlen und Auth-Flows direkt in diese Nuxt-UI-Struktur einspeisen."
-      :links="ctaLinks"
-    />
+            <UButton
+              v-if="card.link?.label && card.link.to"
+              :to="card.link.to"
+              color="neutral"
+              variant="subtle"
+              trailing-icon="i-lucide-arrow-right"
+            >
+              {{ card.link.label }}
+            </UButton>
+          </div>
+        </UCard>
+      </div>
+    </UPageSection>
   </UPage>
 </template>

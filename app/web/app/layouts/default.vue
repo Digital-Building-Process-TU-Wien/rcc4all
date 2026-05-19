@@ -1,7 +1,7 @@
 <script setup lang="ts">
-
 const isScrolled = ref(false)
 const sdk = usePayloadSDK()
+const { changeLocale, currentLocale, localeOptions } = usei18n()
 const user = sdk.user
 const greetingName = computed(() => user.value?.email ?? 'User')
 function updateHeaderState() {
@@ -64,11 +64,22 @@ onBeforeUnmount(() => {
           >
             Login
           </NuxtLink>
+          <div class="ml-auto flex items-center gap-2">
+            <UButton
+              v-for="option in localeOptions"
+              :key="option.value"
+              color="neutral"
+              :variant="option.value === currentLocale ? 'soft' : 'ghost'"
+              size="xs"
+              @click="changeLocale(option.value)"
+            >
+              {{ option.label }}
+            </UButton>
+          </div>
           <UBadge
             v-if="user"
             color="primary"
             variant="solid"
-            class="ml-auto"
           >
             Hello, {{ greetingName }}
           </UBadge>
