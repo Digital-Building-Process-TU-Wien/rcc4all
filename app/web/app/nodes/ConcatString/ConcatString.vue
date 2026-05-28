@@ -12,7 +12,7 @@ const test = props.node.data
 <template>
   <div class="px-2">
     <div class="text-sm font-bold text-slate-800 mb-2 uppercase tracking-wide">
-      Concat String Node {{ props.node.id }}
+      Concat String Node
     </div>
   </div>
 

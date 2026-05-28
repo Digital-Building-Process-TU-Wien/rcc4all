@@ -13,6 +13,7 @@
     "generate:schema": "uv run --directory ../runner openbim-runner export-schema ../web/scripts/schema.json && tsx scripts/generate-types.ts"
   },
   "dependencies": {
+    "@comark/vue": "^0.3.1",
     "@nuxt/eslint": "^1.15.1",
     "@nuxt/fonts": "^0.13.0",
     "@nuxt/ui": "^4.7.1",
@@ -20,6 +21,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@vue-flow/core": "^1.48.2",
     "@vueuse/core": "^14.2.1",
+    "comark": "^0.3.2",
     "nanoid": "^5.1.11",
     "nuxt": "^4.3.1",
     "tailwindcss": "^4.2.4",

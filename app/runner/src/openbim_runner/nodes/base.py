@@ -87,13 +87,33 @@ def parse_node_documentation(readme_path: Path) -> NodeDocumentation:
     return NodeDocumentation(title=title, description=description, categories=categories, body=markdown_body)
 
 
-def load_node_documentation(definition: NodeDefinition) -> NodeDocumentation:
+def load_node_documentation_all_locales(definition: NodeDefinition) -> dict[str, NodeDocumentation]:
+    """Load documentation for all available locales.
+    
+    Scans for README.{locale}.md files in the node's directory.
+    Prints a warning if English or German translations are missing.
+    """
     handler_path = Path(getfile(definition.handler)).resolve()
-    readme_path = handler_path.parent / "README.md"
-    if not readme_path.exists():
-        raise ValueError(f"Node '{definition.name}' is missing documentation file {readme_path}.")
-
-    return parse_node_documentation(readme_path)
+    node_dir = handler_path.parent
+    
+    import re
+    readme_pattern = re.compile(r"^README\.([a-z]{2})\.md$")
+    
+    all_locales: dict[str, NodeDocumentation] = {}
+    
+    for readme_file in node_dir.iterdir():
+        match = readme_pattern.match(readme_file.name)
+        if match:
+            locale = match.group(1)
+            all_locales[locale] = parse_node_documentation(readme_file)
+    
+    required_locales = {'en', 'de'}
+    missing_locales = required_locales - set(all_locales.keys())
+    
+    if missing_locales:
+        print(f"⚠️  WARNING: Node '{definition.name}' missing translations: {missing_locales}")
+    
+    return all_locales
 
 
 def node(name: str | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
@@ -257,7 +277,7 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
 def get_registry_schema() -> dict[str, Any]:
     nodes_schemas: dict[str, Any] = {}
     for name, definition in REGISTRY.items():
-        documentation = load_node_documentation(definition)
+        all_locales = load_node_documentation_all_locales(definition)
         required_fields = ["result"]
         
         node_properties: dict[str, Any] = {}
@@ -277,12 +297,29 @@ def get_registry_schema() -> dict[str, Any]:
             node_properties["inputs"] = inputs_schema
             required_fields.append("inputs")
 
+        en_docs = all_locales.get('en')
+        title = en_docs.title if en_docs else ""
+        description = en_docs.description if en_docs else ""
+        categories = en_docs.categories if en_docs else []
+        markdown_description = en_docs.body if en_docs else ""
+
+        locales_data = {
+            locale: {
+                "title": docs.title,
+                "description": docs.description,
+                "categories": docs.categories,
+                "markdownDescription": docs.body,
+            }
+            for locale, docs in all_locales.items()
+        }
+
         nodes_schemas[name] = {
             "type": "object",
-            "title": documentation.title,
-            "description": documentation.description,
-            "categories": documentation.categories,
-            "markdownDescription": documentation.body,
+            "title": title,
+            "description": description,
+            "categories": categories,
+            "markdownDescription": markdown_description,
+            "locales": locales_data,
             "properties": node_properties,
             "required": required_fields,
             "additionalProperties": False,

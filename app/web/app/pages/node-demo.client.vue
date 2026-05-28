@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid'
 import SlideOver from '~/components/nodes/Slideover.vue'
 import WorkflowNode from '~/components/nodes/WorkflowNode.vue'
 import { getAvailableNodes, VUEFLOW_ID } from '~/utils/nodes'
+import { usei18n } from '~/composables/usei18n'
 
 // Import nodes
 // Basic Vue Flow styling
@@ -16,7 +17,9 @@ definePageMeta({
   layout: 'empty',
 })
 
-const availableNodes = getAvailableNodes()
+const { currentLocale } = usei18n()
+
+const availableNodes = computed(() => getAvailableNodes(currentLocale.value))
 
 const viewMode = ref<'all' | 'categories'>('all')
 const searchQuery = ref('')
@@ -25,9 +28,9 @@ const expandedCategories = ref<Set<string>>(new Set(['IFC', '3D operation', 'Dem
 const filteredNodes = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query)
-    return availableNodes
+    return availableNodes.value
 
-  return availableNodes.filter(node =>
+  return availableNodes.value.filter(node =>
     node.label.toLowerCase().includes(query)
     || node.nodeName.toLowerCase().includes(query),
   )
@@ -37,7 +40,7 @@ const nodesByCategory = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   const result: Record<string, AvailableNode[]> = {}
 
-  availableNodes.forEach((node) => {
+  availableNodes.value.forEach((node) => {
     let nodeMatches = true
     if (query) {
       nodeMatches = node.label.toLowerCase().includes(query)

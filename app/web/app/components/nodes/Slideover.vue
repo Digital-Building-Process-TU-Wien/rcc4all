@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
+import { Comark } from '@comark/vue'
+import { usei18n } from '~/composables/usei18n'
 import { getAvailableNodes, getNodeComponent } from '~/utils/nodes'
 
 const props = defineProps<{
@@ -11,6 +13,8 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const { currentLocale } = usei18n()
+
 const component = computed(() => {
   if (!props.node.id)
     return null
@@ -19,7 +23,7 @@ const component = computed(() => {
 })
 
 const nodeDocs = computed(() => {
-  const availableNodes = getAvailableNodes()
+  const availableNodes = getAvailableNodes(currentLocale.value)
   return availableNodes.find(n => n.nodeName === props.node.data?.nodeName)
 })
 </script>
@@ -46,11 +50,15 @@ const nodeDocs = computed(() => {
               <p v-if="nodeDocs.description" class="text-sm text-muted mb-3">
                 {{ nodeDocs.description }}
               </p>
-              <MDC
-                v-if="nodeDocs.markdownDescription"
-                :value="nodeDocs.markdownDescription"
-                class="prose prose-sm dark:prose-invert max-w-none"
-              />
+              <Comark
+                v-if="nodeDocs?.markdownDescription"
+                class="mt-4 prose prose-sm dark:prose-invert max-w-none"
+              >
+                {{ nodeDocs.markdownDescription }}
+              </Comark>
+              <div v-else class="text-sm text-muted italic">
+                No detailed documentation available
+              </div>
             </div>
           </template>
 
