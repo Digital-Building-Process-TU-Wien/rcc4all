@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
-import { getNodeComponent, getAvailableNodes } from '~/utils/nodes'
+import { getAvailableNodes, getNodeComponent } from '~/utils/nodes'
 
 const props = defineProps<{
   isOpen: boolean

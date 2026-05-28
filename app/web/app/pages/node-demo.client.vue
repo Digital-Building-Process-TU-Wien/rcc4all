@@ -22,63 +22,60 @@ const viewMode = ref<'all' | 'categories'>('all')
 const searchQuery = ref('')
 const expandedCategories = ref<Set<string>>(new Set(['IFC', '3D operation', 'Demo', 'Filter', 'Other']))
 
-const allCategories = computed(() => {
-  const categories = new Set<string>()
-  availableNodes.forEach(node => {
-    node.categories.forEach(cat => categories.add(cat))
-  })
-  return Array.from(categories).sort()
-})
-
 const filteredNodes = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
-  if (!query) return availableNodes
-  
-  return availableNodes.filter(node => 
-    node.label.toLowerCase().includes(query) ||
-    node.nodeName.toLowerCase().includes(query)
+  if (!query)
+    return availableNodes
+
+  return availableNodes.filter(node =>
+    node.label.toLowerCase().includes(query)
+    || node.nodeName.toLowerCase().includes(query),
   )
 })
 
 const nodesByCategory = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   const result: Record<string, AvailableNode[]> = {}
-  
-  availableNodes.forEach(node => {
+
+  availableNodes.forEach((node) => {
     let nodeMatches = true
     if (query) {
-      nodeMatches = node.label.toLowerCase().includes(query) ||
-                    node.nodeName.toLowerCase().includes(query)
+      nodeMatches = node.label.toLowerCase().includes(query)
+        || node.nodeName.toLowerCase().includes(query)
     }
-    
-    if (!nodeMatches) return
-    
+
+    if (!nodeMatches)
+      return
+
     const hasCategories = node.categories.length > 0
-    
+
     if (hasCategories) {
-      node.categories.forEach(cat => {
+      node.categories.forEach((cat) => {
         let categoryMatches = true
         if (query) {
           categoryMatches = cat.toLowerCase().includes(query)
         }
-        
+
         if (categoryMatches || nodeMatches) {
-          if (!result[cat]) result[cat] = []
+          if (!result[cat])
+            result[cat] = []
           if (!result[cat].some(n => n.nodeName === node.nodeName)) {
             result[cat].push(node)
           }
         }
       })
-    } else {
-      if (!result['Other']) result['Other'] = []
-      result['Other'].push(node)
+    }
+    else {
+      if (!result.Other)
+        result.Other = []
+      result.Other.push(node)
     }
   })
-  
-  Object.values(result).forEach(nodes => {
+
+  Object.values(result).forEach((nodes) => {
     nodes.sort((a, b) => a.label.localeCompare(b.label))
   })
-  
+
   return result
 })
 
@@ -89,7 +86,8 @@ const displayedCategories = computed(() => {
 function toggleCategory(category: string) {
   if (expandedCategories.value.has(category)) {
     expandedCategories.value.delete(category)
-  } else {
+  }
+  else {
     expandedCategories.value.add(category)
   }
   expandedCategories.value = new Set(expandedCategories.value)
@@ -117,7 +115,6 @@ const slideover = overlay.create(SlideOver)
 const {
   addEdges,
   addNodes,
-  findNode,
   fitView,
   getNodes,
   onConnect,

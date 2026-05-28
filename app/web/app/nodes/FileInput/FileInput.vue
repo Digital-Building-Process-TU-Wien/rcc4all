@@ -4,7 +4,7 @@ import { useVueFlow } from '@vue-flow/core'
 import { VUEFLOW_ID } from '~/utils/nodes'
 
 interface NodeData {
-  filename?: string
+  filename: string
 }
 
 interface Props {
@@ -111,7 +111,7 @@ function selectFilename(filename: string) {
             v-for="file in filteredFiles"
             :key="file"
             color="neutral"
-            :variant="props.node.filename === file ? 'soft' : 'ghost'"
+            :variant="props.node.data?.filename === file ? 'soft' : 'ghost'"
             block
             class="justify-start truncate"
             @click="selectFilename(file)"
