@@ -36,6 +36,7 @@ class NodeDefinition:
 class NodeDocumentation:
     title: str
     description: str
+    categories: list[str]
     body: str
 
 
@@ -73,6 +74,7 @@ def parse_node_documentation(readme_path: Path) -> NodeDocumentation:
 
     title = metadata.get("title", "").strip()
     description = metadata.get("description", "").strip()
+    categories = [cat.strip() for cat in metadata.get("categories", "").split(",") if cat.strip()]
     markdown_body = body.strip()
 
     if not title:
@@ -82,7 +84,7 @@ def parse_node_documentation(readme_path: Path) -> NodeDocumentation:
     if not markdown_body:
         raise ValueError(f"{readme_path} must include markdown body content after the frontmatter.")
 
-    return NodeDocumentation(title=title, description=description, body=markdown_body)
+    return NodeDocumentation(title=title, description=description, categories=categories, body=markdown_body)
 
 
 def load_node_documentation(definition: NodeDefinition) -> NodeDocumentation:
@@ -279,6 +281,7 @@ def get_registry_schema() -> dict[str, Any]:
             "type": "object",
             "title": documentation.title,
             "description": documentation.description,
+            "categories": documentation.categories,
             "markdownDescription": documentation.body,
             "properties": node_properties,
             "required": required_fields,

@@ -8,6 +8,7 @@ export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/fonts', '@nuxt/ui'],
   ui: {
     colorMode: false,
+    prose: true,
   },
   runtimeConfig: {
     public: {

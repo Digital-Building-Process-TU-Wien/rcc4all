@@ -16,7 +16,9 @@ const props = defineProps<NodeProps<NodeData>>()
       :position="Position.Left"
       class="w-4! h-4! bg-blue-600! border-2! border-white! -left-2! shadow-sm"
     />
-    {{ props.data.label }}
+    <div class="flex flex-col px-3 py-2">
+      <span class="font-medium">{{ props.data.label }}</span>
+    </div>
     <Handle
       type="source"
       :position="Position.Right"

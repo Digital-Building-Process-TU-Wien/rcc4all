@@ -1,6 +1,7 @@
 ---
 title: Concatenate Strings
 description: Join a list of resolved string values into one output string.
+categories: Demo
 ---
 
 The `concat_string` node combines the incoming `values` list into a single string.

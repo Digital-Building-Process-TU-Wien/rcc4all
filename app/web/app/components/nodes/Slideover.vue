@@ -1,23 +1,26 @@
 <script setup lang="ts">
-import type { NodeProps } from '@vue-flow/core'
+import type { Node } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
-import { getNodeComponent } from '~/utils/nodes'
+import { getNodeComponent, getAvailableNodes } from '~/utils/nodes'
 
 const props = defineProps<{
   isOpen: boolean
-  node: NodeProps<NodeData>
+  node: Node<NodeData>
 }>()
-
 const emit = defineEmits<{
   close: []
 }>()
 
 const component = computed(() => {
-  if (!props.node?.data.nodeName)
+  if (!props.node.id)
     return null
-  console.log('Finding component for nodeName:', props.node.data.nodeName, getNodeComponent(props.node.data.nodeName))
-  console.log('Props', props)
-  return getNodeComponent(props.node.data.nodeName)
+
+  return getNodeComponent(props.node.data!.nodeName)
+})
+
+const nodeDocs = computed(() => {
+  const availableNodes = getAvailableNodes()
+  return availableNodes.find(n => n.nodeName === props.node.data?.nodeName)
 })
 </script>
 
@@ -35,17 +38,30 @@ const component = computed(() => {
               :is="component"
               :node="node"
             />
+
+            <div v-if="nodeDocs" class="mt-6 border-t border-default pt-4">
+              <h3 class="text-sm font-semibold text-highlighted mb-2">
+                Documentation
+              </h3>
+              <p v-if="nodeDocs.description" class="text-sm text-muted mb-3">
+                {{ nodeDocs.description }}
+              </p>
+              <MDC
+                v-if="nodeDocs.markdownDescription"
+                :value="nodeDocs.markdownDescription"
+                class="prose prose-sm dark:prose-invert max-w-none"
+              />
+            </div>
           </template>
 
           <div
             v-else-if="node"
             class="text-sm text-slate-500"
           >
-            test
             <p class="font-semibold mb-2">
-              {{ node.data?.label }}
+              {{ node?.data?.label || 'Unknown Node' }}
             </p>
-            <p>Node component not found: {{ node.data?.nodeName }}</p>
+            <p>Node component not found: {{ node.data!.nodeName }}</p>
           </div>
 
           <div

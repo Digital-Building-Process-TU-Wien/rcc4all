@@ -1,6 +1,7 @@
 ---
 title: Filter IFC Elements
 description: Resolve all IFC entities of a requested type to their express IDs.
+categories: IFC, Filter
 ---
 
 The `element_filter` node queries the IFC model for all entities matching the configured `entity_type`.

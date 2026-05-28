@@ -1,6 +1,7 @@
 ---
 title: Generate 3D Cube
 description: Create a 3D cube geometry with customizable size, position, and rotation for clash detection.
+categories: 3D operation,
 ---
 
 The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.

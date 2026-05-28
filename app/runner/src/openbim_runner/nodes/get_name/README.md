@@ -1,6 +1,7 @@
 ---
 title: Resolve Object Names
 description: Look up IFC object names for a configured list of express IDs.
+categories: IFC
 ---
 
 The `get_name` node reads IFC entities by express ID and returns their `Name` values in the same order as the configured input list.
