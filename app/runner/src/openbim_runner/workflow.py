@@ -15,6 +15,11 @@ from openbim_runner.nodes import ExecutionContext, NodeModel, dispatch, get_regi
 class WorkflowNode(NodeModel):
     id: str = Field(title="Node ID", description="Unique workflow node identifier.")
     type: str = Field(title="Node type", description="Registered node type name.")
+    label: str = Field(
+        default="",
+        title="Node label",
+        description="Human-readable label for the node. Falls back to node type if empty.",
+    )
     settings: dict[str, Any] = Field(
         default={},
         title="Node settings",
@@ -25,6 +30,9 @@ class WorkflowNode(NodeModel):
         title="Input bindings",
         description="Mappings from node input names to previously produced '<node_id>.<field_name>' references.",
     )
+
+    def get_label(self) -> str:
+        return self.label if self.label else self.type
 
 
 class WorkflowEdge(NodeModel):
@@ -154,7 +162,7 @@ def resolve_input_bindings(workflow_node: WorkflowNode, node_outputs: dict[str, 
     return input_payload
 
 
-async def execute_workflow_async(workflow_path: Path) -> dict[str, NodeModel]:
+async def execute_workflow_async(workflow_path: Path) -> tuple[dict[str, NodeModel], dict[str, WorkflowNode]]:
     workflow = load_workflow(workflow_path)
     node_lookup = build_node_lookup(workflow)
     execution_order = build_execution_order(workflow)
@@ -181,15 +189,23 @@ async def execute_workflow_async(workflow_path: Path) -> dict[str, NodeModel]:
             context=context,
         )
 
-    return node_outputs
+    return node_outputs, node_lookup
 
 
-def execute_workflow(workflow_path: Path) -> dict[str, NodeModel]:
+def execute_workflow(workflow_path: Path) -> tuple[dict[str, NodeModel], dict[str, WorkflowNode]]:
     return asyncio.run(execute_workflow_async(workflow_path))
 
 
-def dump_results(node_outputs: dict[str, NodeModel]) -> str:
+def dump_results(node_outputs: dict[str, NodeModel], node_lookup: dict[str, WorkflowNode]) -> str:
     return json.dumps(
-        {node_id: output.model_dump(mode="json") for node_id, output in node_outputs.items()},
+        {
+            node_id: {
+                "label": workflow_node.get_label(),
+                "type": workflow_node.type,
+                "result": output.model_dump(mode="json"),
+            }
+            for node_id, output in node_outputs.items()
+            if (workflow_node := node_lookup.get(node_id))
+        },
         indent=2,
     )

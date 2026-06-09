@@ -1,18 +1,26 @@
 <script setup lang="ts">
-import type { NodeProps } from '@vue-flow/core'
-import { useVueFlow } from '@vue-flow/core'
-import { VUEFLOW_ID } from '~/utils/nodes'
+import type { Node } from '@vue-flow/core'
+import { useScopedNode } from '~/composables/useScopedNode'
 
-interface NodeData {
-  filename: string
+// This is a workaround node for development so we dont need to have the cms running at all times.
+// Thats why this type is not defined in the schema and we use a generic Node type here with a custom data interface.
+interface FileInputData {
+  settings?: {
+    file_path?: string
+  }
+  result?: {
+    file_path?: string
+  }
+  filename?: string
 }
 
-interface Props {
-  node: NodeProps<NodeData>
-}
+type FileInputNode = Node<FileInputData>
 
-const props = defineProps<Props>()
-const { updateNodeData } = useVueFlow(VUEFLOW_ID)
+const props = defineProps<{
+  node: FileInputNode
+}>()
+
+const node = useScopedNode<FileInputNode>(props.node.id)
 
 const search = ref('')
 
@@ -34,11 +42,11 @@ const filteredFiles = computed(() => {
 })
 
 function clearSelection() {
-  updateNodeData(props.node.id, { filename: undefined })
+  node.value.data!.filename = undefined
 }
 
 function selectFilename(filename: string) {
-  updateNodeData(props.node.id, { filename })
+  node.value.data!.filename = filename
 }
 </script>
 
@@ -58,10 +66,10 @@ function selectFilename(filename: string) {
       <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
         <Icon name="i-lucide-file" class="size-4 text-slate-400" />
         <span class="flex-1 truncate">
-          {{ props.node.data?.filename || 'No file selected' }}
+          {{ node.data?.filename || 'No file selected' }}
         </span>
         <UButton
-          v-if="props.node.data?.filename"
+          v-if="node.data?.filename"
           color="neutral"
           variant="ghost"
           size="xs"
@@ -111,7 +119,7 @@ function selectFilename(filename: string) {
             v-for="file in filteredFiles"
             :key="file"
             color="neutral"
-            :variant="props.node.data?.filename === file ? 'soft' : 'ghost'"
+            :variant="node.data?.filename === file ? 'soft' : 'ghost'"
             block
             class="justify-start truncate"
             @click="selectFilename(file)"

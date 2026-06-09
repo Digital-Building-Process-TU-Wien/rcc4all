@@ -28,6 +28,14 @@ PAYLOAD_PUBLIC_API_URL=http://localhost:3000  # or your CMS URL
 ### Visual Scripting Editor
 The core feature is a no-code editor where domain experts can compose reusable checking templates by connecting nodes. The editor outputs a JSON execution plan for the [runner](../runner).
 
+### Workflow Execution
+
+The visual scripting editor produces a workflow JSON that is executed by the [runner](../runner). The flow:
+1. User creates nodes and connects them on the canvas
+2. FileInput node provides the IFC file path (excluded from workflow JSON)
+3. Workflow JSON is saved to `.dev-files/` and passed to the Python runner
+4. Results are displayed in a new tab, also saved to `.dev-files/`
+
 ### Permission Model
 - **Super Admins**: Full system access via Payload admin UI
 - **Group Admins**: Manage their group(s), invite users, create subgroups
@@ -73,7 +81,7 @@ The web frontend depends on the CMS backend. To develop locally:
    # From web/ directory:
    npm run generate:schema
    ```
-   This exports the latest Python node schema and generates TypeScript types.
+   This exports the latest Python node schema from the runner and generates TypeScript types in `app/utils/schema.d.ts`.
 
 ## See Also
 

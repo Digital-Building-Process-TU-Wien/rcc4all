@@ -16,7 +16,7 @@ async function generate() {
   const ts = await compile(schema, 'WorkflowSchema', { additionalProperties: true })
 
   writeFileSync(outputPath, ts)
-  console.log('✅ Generated schema.d.ts')
+  console.warn('✅ Generated schema.d.ts')
 }
 
 generate().catch(console.error)

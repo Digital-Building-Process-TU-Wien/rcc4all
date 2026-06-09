@@ -54,12 +54,12 @@ const pageSections = computed(() => {
   return (homePage.value?.layout ?? []).filter(isPageSectionBlock)
 })
 
-function isPageSectionBlock(value: Page['layout'] extends infer Layout ? Layout extends (infer Item)[] | null ? Item : never : never): value is PageSectionBlock {
-  return value?.blockType === 'page-section'
+function isPageSectionBlock(value: NonNullable<Page['layout']>[number]): value is PageSectionBlock {
+  return (value as PageSectionBlock)?.blockType === 'page-section'
 }
 
-function isCardBlock(value: PageSectionBlock['cards'] extends infer Cards ? Cards extends (infer Item)[] | null ? Item : never : never): value is CardBlock {
-  return value?.blockType === 'card'
+function isCardBlock(value: NonNullable<PageSectionBlock['cards']>[number]): value is CardBlock {
+  return (value as CardBlock)?.blockType === 'card'
 }
 
 function getSectionCards(section: PageSectionBlock): CardBlock[] {

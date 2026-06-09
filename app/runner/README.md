@@ -68,7 +68,7 @@ Ensure you have `uv` installed on your system for dependency management.
 
 1. Navigate to the project directory:
    ```bash
-   cd python-nodes
+   cd runner
    ```
 
 2. Install the project dependencies:
@@ -179,7 +179,7 @@ To use the python virtual environment in VS Code:
 
 1. Open the Command Palette with `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS).
 2. Run `Python: Select Interpreter`.
-3. Choose the interpreter from the `python-nodes` workspace.
+3. Choose the interpreter from the `runner` workspace.
 4. Select the Python executable from `./.venv/...`.
 
 Install recommended extensions, should be a popup.

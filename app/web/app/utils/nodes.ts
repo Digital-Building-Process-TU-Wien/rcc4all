@@ -10,6 +10,8 @@ export interface NodeData {
   noInput?: boolean
   nodeName: string
   filename?: string
+  settings?: Record<string, any>
+  input_bindings?: Record<string, string>
 }
 
 export interface AvailableNode {
@@ -19,8 +21,6 @@ export interface AvailableNode {
   description?: string
   markdownDescription?: string
 }
-
-export const VUEFLOW_ID = 'main-vue-flow'
 
 /**
  * Node component loader - loads Vue components from the nodes directory
@@ -47,7 +47,8 @@ function formatNodeLabel(nodeName: string): string {
 function toPascalCase(str: string): string {
   const parts = str.split('_')
   const capitalizedParts = parts.map((part) => {
-    if (!part) return part
+    if (!part)
+      return part
     const firstChar = part.charAt(0).toUpperCase()
     const rest = part.slice(1)
     // Handle letter after digit (e.g., "3d" -> "3D")
@@ -57,16 +58,15 @@ function toPascalCase(str: string): string {
     return firstChar + processed
   })
   const result = capitalizedParts.join('')
-  console.log(`toPascalCase("${str}") = "${result}"`)
   return result
 }
 
 const nodeNameToComponent: Record<string, string> = {
-  'concat_string': 'ConcatString',
-  'element_filter': 'ElementFilter',
-  'file_input': 'FileInput',
-  'generate_3d_cube': 'Generate3DCube',
-  'get_name': 'GetName',
+  concat_string: 'ConcatString',
+  element_filter: 'ElementFilter',
+  file_input: 'FileInput',
+  generate_3d_cube: 'Generate3DCube',
+  get_name: 'GetName',
 }
 
 /**
@@ -76,13 +76,13 @@ const nodeNameToComponent: Record<string, string> = {
  */
 export function getNodeComponent(nodeName: string) {
   const componentName = nodeNameToComponent[nodeName] || toPascalCase(nodeName)
-  
+
   // Try to find a specific component for this node type first
   const specificComponent = components[componentName]
   if (specificComponent) {
     return specificComponent
   }
-  
+
   // Fall back to generic WorkflowNode component
   return components.WorkflowNode
 }
@@ -98,19 +98,21 @@ function toSnakeCase(str: string): string {
 }
 
 function getNodeCategories(nodeName: string, locale: SupportedLocale = 'en'): string[] {
-  const key = toSnakeCase(nodeName)
+  const _key = toSnakeCase(nodeName)
   const nodeData = (schemaJson.properties as any)[nodeName]
-  if (!nodeData) return []
-  
+  if (!nodeData)
+    return []
+
   const localeData = nodeData.locales?.[locale] || nodeData.locales?.en
   return localeData?.categories || nodeData.categories || []
 }
 
-function getNodeDescription(nodeName: string, locale: SupportedLocale = 'en'): { description?: string; markdownDescription?: string } {
-  const key = toSnakeCase(nodeName)
+function getNodeDescription(nodeName: string, locale: SupportedLocale = 'en'): { description?: string, markdownDescription?: string } {
+  const _key = toSnakeCase(nodeName)
   const nodeData = (schemaJson.properties as any)[nodeName]
-  if (!nodeData) return {}
-  
+  if (!nodeData)
+    return {}
+
   const localeData = nodeData.locales?.[locale] || nodeData.locales?.en
   return {
     description: localeData?.description,
@@ -120,13 +122,13 @@ function getNodeDescription(nodeName: string, locale: SupportedLocale = 'en'): {
 
 export function getAvailableNodes(locale: SupportedLocale = 'en'): AvailableNode[] {
   const nodeNames = Object.keys(schemaJson.properties || {})
-  
+
   return nodeNames
-    .map(nodeName => {
+    .map((nodeName) => {
       const nodeData = (schemaJson.properties as any)[nodeName]
       const localeData = nodeData?.locales?.[locale] || nodeData?.locales?.en
       const title = localeData?.title || nodeData?.title || getNodeLabel(nodeName)
-      
+
       return {
         nodeName,
         label: title,

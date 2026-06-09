@@ -1,0 +1,111 @@
+import type { NodeRegistrySchema } from '@@/scripts/schema'
+import type { Node } from '@vue-flow/core'
+import schemaJson from '@@/scripts/schema.json'
+
+/**
+ * Convert a schema type to a Vue Flow Node type.
+ * Schema types (e.g., ConcatenateStrings) have { settings, result, inputs } at the root,
+ * which maps to the Node's `data` property.
+ * This type ensures `data` is always defined (not undefined).
+ */
+export type NodeWithSchema<T> = Omit<Node<T>, 'data'> & { data: T }
+
+/**
+ * Get the Node type for a specific node by its snake_case name.
+ * @template K - The node name key from NodeRegistrySchema
+ * @example type ConcatNode = SchemaNodeType<'concat_string'>
+ */
+export type SchemaNodeType<K extends keyof NodeRegistrySchema> = NodeWithSchema<NonNullable<NodeRegistrySchema[K]>>
+
+/**
+ * Helper type to extract the data type from a Node.
+ * Useful for getting the schema type back from a Node type.
+ */
+export type NodeDataType<T extends Node> = T extends Node<infer Data> ? Data : never
+
+export function getNodeSchema<K extends keyof NodeRegistrySchema>(nodeName: K): NodeRegistrySchema[K] {
+  return schemaJson.properties[nodeName] as any
+}
+
+export function getNodeOutputs(nodeName: string): string[] {
+  const schema = (schemaJson.properties as any)[nodeName]
+  if (!schema?.properties?.result?.properties)
+    return []
+  return Object.keys(schema.properties.result.properties)
+}
+
+export function getNodeInputs(nodeName: string): string[] {
+  const schema = (schemaJson.properties as any)[nodeName]
+  if (!schema?.properties?.inputs?.properties)
+    return []
+  return Object.keys(schema.properties.inputs.properties)
+}
+
+export function getInputLabel(nodeName: string, inputName: string): string {
+  const schema = (schemaJson.properties as any)[nodeName]
+  const inputSchema = schema?.properties?.inputs?.properties?.[inputName]
+  return inputSchema?.title || formatLabel(inputName)
+}
+
+export function getInputDescription(nodeName: string, inputName: string): string {
+  const schema = (schemaJson.properties as any)[nodeName]
+  const inputSchema = schema?.properties?.inputs?.properties?.[inputName]
+  return inputSchema?.description || ''
+}
+
+export interface TypeInfo {
+  type: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'null'
+  items?: TypeInfo
+}
+
+export function getOutputType(nodeName: string, outputField: string): TypeInfo {
+  const schema = (schemaJson.properties as any)[nodeName]
+  const outputSchema = schema?.properties?.result?.properties?.[outputField]
+  return parseTypeSchema(outputSchema)
+}
+
+export function getInputType(nodeName: string, inputName: string): TypeInfo {
+  const schema = (schemaJson.properties as any)[nodeName]
+  const inputSchema = schema?.properties?.inputs?.properties?.[inputName]
+  return parseTypeSchema(inputSchema)
+}
+
+function parseTypeSchema(schema: any): TypeInfo {
+  if (!schema)
+    return { type: 'null' }
+
+  if (schema.type === 'array') {
+    return {
+      type: 'array',
+      items: schema.items ? parseTypeSchema(schema.items) : undefined,
+    }
+  }
+
+  if (schema.anyOf) {
+    const nonNullType = schema.anyOf.find((t: any) => t.type !== 'null')
+    if (nonNullType)
+      return parseTypeSchema(nonNullType)
+    return { type: 'null' }
+  }
+
+  return { type: schema.type || 'null' }
+}
+
+export function areTypesCompatible(output: TypeInfo, input: TypeInfo): boolean {
+  if (output.type === input.type)
+    return true
+  if (output.type === 'integer' && input.type === 'number')
+    return true
+  if (output.type === 'null')
+    return true
+  return false
+}
+
+export function formatLabel(str: string): string {
+  return str
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+    .replace(/([A-Z])(\d)/gi, '$1 $2')
+    .replace(/(\d)([A-Z])/gi, '$1 $2')
+    .trim()
+}

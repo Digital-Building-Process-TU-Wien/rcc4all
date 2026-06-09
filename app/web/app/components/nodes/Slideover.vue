@@ -2,6 +2,7 @@
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
 import { Comark } from '@comark/vue'
+import InputBindingsSection from '~/components/nodes/InputBindingsSection.vue'
 import { usei18n } from '~/composables/usei18n'
 import { getAvailableNodes, getNodeComponent } from '~/utils/nodes'
 
@@ -38,9 +39,29 @@ const nodeDocs = computed(() => {
       <div class="flex flex-col h-full">
         <div class="flex-1 overflow-y-auto p-4">
           <template v-if="node && component">
+            <div class="mb-4">
+              <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
+                Node Label
+              </label>
+              <UInput
+                v-model="node.data!.label"
+                placeholder="Enter custom label..."
+                class="mt-1"
+              />
+              <p class="mt-1 text-xs text-muted">
+                This label will be shown in the graph and binding dropdowns
+              </p>
+            </div>
+
             <component
               :is="component"
               :node="node"
+            />
+
+            <InputBindingsSection
+              v-if="node.data!.nodeName !== 'FileInput'"
+              :node-id="node.id"
+              :node-name="node.data!.nodeName"
             />
 
             <div v-if="nodeDocs" class="mt-6 border-t border-default pt-4">

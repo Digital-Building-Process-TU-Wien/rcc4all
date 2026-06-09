@@ -1,9 +1,18 @@
 <script setup lang="ts">
-const outputs = ['express_ids']
+import type { SchemaNodeType } from '~/utils/schema-helpers'
+import { useScopedNode } from '~/composables/useScopedNode'
 
-const settings = reactive({
-  entity_type: 'IFCWALL',
-})
+type ElementFilterNode = SchemaNodeType<'element_filter'>
+
+const props = defineProps<{
+  node: ElementFilterNode
+}>()
+
+const node = useScopedNode<ElementFilterNode>(props.node.id)
+
+if (!node.value.data.settings) {
+  node.value.data.settings = { entity_type: 'IFCWALL' }
+}
 </script>
 
 <template>
@@ -16,7 +25,7 @@ const settings = reactive({
   <div class="flex flex-col gap-2">
     <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Entity Type</label>
     <input
-      v-model="settings.entity_type"
+      v-model="node.data.settings!.entity_type"
       type="text"
       placeholder="e.g. IFCWALL"
       class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"

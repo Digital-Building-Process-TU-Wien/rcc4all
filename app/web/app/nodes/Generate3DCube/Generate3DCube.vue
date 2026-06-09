@@ -1,24 +1,30 @@
 <script setup lang="ts">
-import type { NodeProps } from '@vue-flow/core'
-import type { NodeData } from '~/utils/nodes'
+import type { SchemaNodeType } from '~/utils/schema-helpers'
+import { useScopedNode } from '~/composables/useScopedNode'
 
-defineProps<{
-  node: NodeProps<NodeData>
+type Generate3DCubeNode = SchemaNodeType<'generate_3d_cube'>
+
+const props = defineProps<{
+  node: Generate3DCubeNode
 }>()
 
-const outputs = ['vertices', 'faces']
+const node = useScopedNode<Generate3DCubeNode>(props.node.id)
 
-const inputs = reactive({
-  position: [0.0, 0.0, 0.0],
-  rotation: [0.0, 0.0, 0.0],
-  size: [1.0, 1.0, 1.0],
-})
+if (!node.value.data.inputs) {
+  node.value.data.inputs = {
+    position: [0.0, 0.0, 0.0],
+    rotation: [0.0, 0.0, 0.0],
+    size: [1.0, 1.0, 1.0],
+  }
+}
 
 function updateArrayValue(
-  array: number[],
+  array: number[] | undefined,
   index: number,
   value: string,
 ) {
+  if (!array)
+    return
   const parsed = Number.parseFloat(value)
   if (!Number.isNaN(parsed)) {
     array[index] = parsed
@@ -27,7 +33,7 @@ function updateArrayValue(
 </script>
 
 <template>
-  <NodesNodeWrapper :inputs="outputs" :outputs="outputs">
+  <NodesNodeWrapper :inputs="node.data.inputs" :outputs="node.data.result">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 mb-2 uppercase tracking-wide">
         Generate 3D Cube
@@ -42,26 +48,26 @@ function updateArrayValue(
             <input
               type="number"
               step="0.1"
-              :value="inputs.position[0]"
+              :value="node.data.inputs?.position?.[0]"
               placeholder="X"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.position, 0, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.position!, 0, (e.target as HTMLInputElement).value)"
             >
             <input
               type="number"
               step="0.1"
-              :value="inputs.position[1]"
+              :value="node.data.inputs?.position?.[1]"
               placeholder="Y"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.position, 1, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.position!, 1, (e.target as HTMLInputElement).value)"
             >
             <input
               type="number"
               step="0.1"
-              :value="inputs.position[2]"
+              :value="node.data.inputs?.position?.[2]"
               placeholder="Z"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.position, 2, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.position!, 2, (e.target as HTMLInputElement).value)"
             >
           </div>
         </div>
@@ -72,26 +78,26 @@ function updateArrayValue(
             <input
               type="number"
               step="1"
-              :value="inputs.rotation[0]"
+              :value="node.data.inputs?.rotation?.[0]"
               placeholder="X°"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.rotation, 0, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.rotation!, 0, (e.target as HTMLInputElement).value)"
             >
             <input
               type="number"
               step="1"
-              :value="inputs.rotation[1]"
+              :value="node.data.inputs?.rotation?.[1]"
               placeholder="Y°"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.rotation, 1, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.rotation!, 1, (e.target as HTMLInputElement).value)"
             >
             <input
               type="number"
               step="1"
-              :value="inputs.rotation[2]"
+              :value="node.data.inputs?.rotation?.[2]"
               placeholder="Z°"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.rotation, 2, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.rotation!, 2, (e.target as HTMLInputElement).value)"
             >
           </div>
         </div>
@@ -103,28 +109,28 @@ function updateArrayValue(
               type="number"
               step="0.1"
               min="0.1"
-              :value="inputs.size[0]"
+              :value="node.data.inputs?.size?.[0]"
               placeholder="W"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.size, 0, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.size!, 0, (e.target as HTMLInputElement).value)"
             >
             <input
               type="number"
               step="0.1"
               min="0.1"
-              :value="inputs.size[1]"
+              :value="node.data.inputs?.size?.[1]"
               placeholder="H"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.size, 1, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.size!, 1, (e.target as HTMLInputElement).value)"
             >
             <input
               type="number"
               step="0.1"
               min="0.1"
-              :value="inputs.size[2]"
+              :value="node.data.inputs?.size?.[2]"
               placeholder="D"
               class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-              @input="(e) => updateArrayValue(inputs.size, 2, (e.target as HTMLInputElement).value)"
+              @input="(e) => updateArrayValue(node.data.inputs!.size!, 2, (e.target as HTMLInputElement).value)"
             >
           </div>
         </div>

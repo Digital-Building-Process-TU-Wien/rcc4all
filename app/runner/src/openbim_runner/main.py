@@ -76,12 +76,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     workflow_path = Path(args.workflow).resolve()
 
     try:
-        node_outputs = execute_workflow(workflow_path)
+        node_outputs, node_lookup = execute_workflow(workflow_path)
     except (FileNotFoundError, OSError, RuntimeError, ValueError) as error:
         print(error)
         return 1
 
-    print(dump_results(node_outputs))
+    print(dump_results(node_outputs, node_lookup))
     return 0
 
 
