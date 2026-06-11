@@ -2,8 +2,25 @@
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
 import { Handle, Position } from '@vue-flow/core'
+import { ref } from 'vue'
+import { useFlowStore } from '~/stores/flow'
 
 const props = defineProps<NodeProps<NodeData>>()
+const store = useFlowStore()
+const showConfirm = ref(false)
+
+function handleDeleteClick() {
+  showConfirm.value = true
+}
+
+function handleConfirmDelete() {
+  store.removeNode(props.id)
+  showConfirm.value = false
+}
+
+function handleCancel() {
+  showConfirm.value = false
+}
 </script>
 
 <template>
@@ -26,8 +43,32 @@ const props = defineProps<NodeProps<NodeData>>()
       :connectable="false"
       class="w-4! h-4! bg-blue-600! border-2! border-white! -left-2! shadow-sm"
     />
-    <div class="flex flex-col px-3 py-2">
-      <span class="font-medium">{{ props.data.label }}</span>
+    <div class="group flex items-center justify-between gap-2 px-3 py-2">
+      <span class="font-medium truncate">{{ props.data.label }}</span>
+      <div v-if="showConfirm" class="flex items-center justify-center">
+        <button
+          type="button"
+          class="text-xs text-red-600 hover:text-red-700 font-medium w-6"
+          @click.stop="handleConfirmDelete"
+        >
+          <UIcon name="i-heroicons-trash" class="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          class="text-xs text-slate-400 hover:text-slate-600 w-6"
+          @click.stop="handleCancel"
+        >
+          <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
+        </button>
+      </div>
+      <button
+        v-else
+        type="button"
+        class="text-slate-400 hover:text-red-600 transition-colors relative z-10 opacity-0 group-hover:opacity-100"
+        @click.stop="handleDeleteClick"
+      >
+        <UIcon name="i-heroicons-trash" class="w-4 h-4" />
+      </button>
     </div>
     <Handle
       id="output"
@@ -53,5 +94,6 @@ const props = defineProps<NodeProps<NodeData>>()
   background: transparent;
   opacity: 0;
   z-index: 1;
+  pointer-events: none;
 }
 </style>

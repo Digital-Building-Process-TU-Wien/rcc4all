@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^7.4.3",
+    "@iconify-json/heroicons": "^1.2.3",
     "@types/node": "^24.11.1",
     "json-schema-to-typescript-lite": "^15.0.0",
     "rcc4all-payload-types": "file:../../shared/cms-types",

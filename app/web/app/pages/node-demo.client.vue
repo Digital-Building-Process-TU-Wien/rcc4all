@@ -89,7 +89,7 @@ function handleConnect(params: Connection) {
 function handleNodeClick(params: { node: Node<NodeData> }) {
   slideover.open({
     isOpen: true,
-    node: params.node,
+    nodeId: params.node.id,
   })
 }
 

@@ -4,28 +4,42 @@ import type { NodeData } from '~/utils/nodes'
 import { Comark } from '@comark/vue'
 import InputBindingsSection from '~/components/nodes/InputBindingsSection.vue'
 import { usei18n } from '~/composables/usei18n'
+import { useScopedNode } from '~/composables/useScopedNode'
+import { useFlowStore } from '~/stores/flow'
 import { getAvailableNodes, getNodeComponent } from '~/utils/nodes'
 
-const props = defineProps<{
+interface Props {
   isOpen: boolean
-  node: Node<NodeData>
-}>()
+  nodeId: string
+}
+const props = defineProps<Props>()
 const emit = defineEmits<{
   close: []
 }>()
 
 const { currentLocale } = usei18n()
+const store = useFlowStore()
+const node = useScopedNode<Node<NodeData>>(props.nodeId)
+
+watch(() => store.nodesById[props.nodeId], (exists) => {
+  if (!exists) {
+    emit('close')
+  }
+}, { immediate: true })
+
+function handleDelete() {
+  store.removeNode(props.nodeId)
+}
 
 const component = computed(() => {
-  if (!props.node.id)
+  if (!node.value?.id)
     return null
-
-  return getNodeComponent(props.node.data!.nodeName)
+  return getNodeComponent(node.value.data!.nodeName)
 })
 
 const nodeDocs = computed(() => {
   const availableNodes = getAvailableNodes(currentLocale.value)
-  return availableNodes.find(n => n.nodeName === props.node.data?.nodeName)
+  return availableNodes.find(n => n.nodeName === node.value?.data?.nodeName)
 })
 </script>
 
@@ -37,7 +51,7 @@ const nodeDocs = computed(() => {
   >
     <template #body>
       <div class="flex flex-col h-full">
-        <div class="flex-1 overflow-y-auto p-4">
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
           <template v-if="node && component">
             <div class="mb-4">
               <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
@@ -99,6 +113,17 @@ const nodeDocs = computed(() => {
           >
             Select a node to view details
           </div>
+        </div>
+
+        <div class="border-t border-default p-4 bg-surface">
+          <UButton
+            color="error"
+            variant="soft"
+            block
+            @click="handleDelete"
+          >
+            Delete Node
+          </UButton>
         </div>
       </div>
     </template>

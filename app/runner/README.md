@@ -1,6 +1,10 @@
-# openBIM Engine - Python Nodes
+# RCC4ALL - Python Nodes
 
-**Core IFC checking logic for the openBIM engine.**
+**Core IFC checking logic for the RCC4ALL openBIM engine.**
+
+## Overview
+
+This repository contains the Python-based node workflows and IFC checking logic for the openBIM engine. It provides a CLI interface designed to execute node-based workflows and return detailed checking results for building models.
 
 ## Minimal Node Layout
 
@@ -42,9 +46,6 @@ This keeps the execution layer stable while making node metadata easier to manag
 
 The workflow engine now resolves `node_id.field_name` references centrally. Nodes no longer look up upstream outputs themselves.
 
-## Overview
-
-This repository contains the Python-based node workflows and IFC checking logic for the openBIM engine. It provides a CLI interface designed to execute node-based workflows and return detailed checking results for building models.
 
 ## Features
 
