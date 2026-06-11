@@ -107,7 +107,8 @@ function selectFilename(filename: string) {
         </div>
 
         <div v-else-if="!files.length" class="px-2 py-3 text-sm text-slate-500">
-          No files were found in .dev-files.
+          No files were found in web/.dev-files <br>
+          Please add an ifc file in the folder <span class="font-mono text-slate-700">web/.dev-files</span> to use this node.
         </div>
 
         <div v-else-if="!filteredFiles.length" class="px-2 py-3 text-sm text-slate-500">
