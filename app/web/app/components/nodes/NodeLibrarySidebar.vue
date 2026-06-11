@@ -136,7 +136,7 @@ function handleAddNode(node: AvailableNode) {
 </script>
 
 <template>
-  <UDashboardSidebar class="border-r border-default bg-elevated/50">
+  <UDashboardSidebar class="border-r border-default bg-elevated/50 flex" style="min-width: 20rem">
     <template #header>
       <div class="flex w-full items-center gap-2">
         <UButton

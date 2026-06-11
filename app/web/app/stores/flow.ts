@@ -8,6 +8,12 @@ interface Viewport {
   zoom: number
 }
 
+interface WorkflowData {
+  ifc_path: string
+  nodes: any[]
+  edges: any[]
+}
+
 export const useFlowStore = defineStore('flow', () => {
   const nodesById = ref<Record<string, Node>>({})
   const edges = ref<Edge[]>([])
@@ -16,6 +22,7 @@ export const useFlowStore = defineStore('flow', () => {
     y: 0,
     zoom: 1,
   })
+  const workflowData = ref<WorkflowData | null>(null)
 
   const nodes = computed(() => Object.values(nodesById.value))
 
@@ -75,6 +82,15 @@ export const useFlowStore = defineStore('flow', () => {
     nodesById.value = {}
     edges.value = []
     viewport.value = { x: 0, y: 0, zoom: 1 }
+    workflowData.value = null
+  }
+
+  function setWorkflowData(data: WorkflowData) {
+    workflowData.value = data
+  }
+
+  function getWorkflowData() {
+    return workflowData.value
   }
 
   function fitView(padding?: number) {
@@ -118,6 +134,7 @@ export const useFlowStore = defineStore('flow', () => {
     nodesById,
     edges,
     viewport,
+    workflowData,
     nodes,
     hasNodes,
     nodeCount,
@@ -129,6 +146,8 @@ export const useFlowStore = defineStore('flow', () => {
     updateNodeData,
     updateNodePosition,
     updateViewport,
+    setWorkflowData,
+    getWorkflowData,
     clear,
     fitView,
   }

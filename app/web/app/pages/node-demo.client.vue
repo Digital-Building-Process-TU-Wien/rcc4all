@@ -38,14 +38,17 @@ const selectedNode = shallowRef<Node<NodeData> | null>(null)
 const overlay = useOverlay()
 const slideover = overlay.create(SlideOver)
 
+const router = useRouter()
 const store = useFlowStore()
+
 const { hasNodes, nodeCount, viewport } = storeToRefs(store)
 const { setNodes, setEdges, fitView } = store
 const nodes = computed(() => Object.values(store.nodesById))
-const isRunning = ref(false)
 
-setNodes([])
-setEdges([])
+if (!hasNodes.value) {
+  setNodes([])
+  setEdges([])
+}
 
 function handleConnect(params: Connection) {
   const edge: Edge = {
@@ -140,9 +143,6 @@ function parseSettings(settings: any, nodeType: string) {
 }
 
 async function runWorkflow() {
-  if (isRunning.value)
-    return
-
   const fileInputNode = nodes.value.find(node => node.data.nodeName === 'FileInput')
   const ifcPath = fileInputNode?.data?.filename || 'test.ifc'
 
@@ -167,33 +167,15 @@ async function runWorkflow() {
       target: edge.target,
     }))
 
-  const workflow = {
+  store.setWorkflowData({
     ifc_path: ifcPath,
     nodes: workflowNodes,
     edges: workflowEdges,
-  }
+  })
 
-  isRunning.value = true
-
-  try {
-    const result = await $fetch('/api/workflow/execute', {
-      method: 'POST',
-      body: workflow,
-    })
-
-    if (result.success) {
-      window.open(`/results?file=${result.resultsPath}`, '_blank')
-    }
-    else if ('error' in result && result.error) {
-      console.error('Workflow execution failed:', result.error)
-    }
-  }
-  catch (error: any) {
-    console.error('Failed to execute workflow:', error)
-  }
-  finally {
-    isRunning.value = false
-  }
+  router.push({
+    path: '/results',
+  })
 }
 </script>
 
@@ -203,7 +185,6 @@ async function runWorkflow() {
       <NodeLibrarySidebar
         :has-nodes="hasNodes"
         :node-count="nodeCount"
-        :is-running="isRunning"
         @add-node="addNodeToCanvas"
         @run-workflow="runWorkflow"
         @clear-canvas="clearCanvas"
