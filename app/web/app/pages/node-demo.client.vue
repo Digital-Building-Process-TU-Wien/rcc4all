@@ -56,7 +56,10 @@ function handleConnect(params: Connection) {
     source: params.source,
     target: params.target,
     sourceHandle: params.sourceHandle,
-    targetHandle: params.targetHandle,
+    targetHandle:
+      params.targetHandle === 'input-hitbox'
+        ? 'input'
+        : params.targetHandle,
   }
   store.addEdges(edge)
 
@@ -129,7 +132,7 @@ function clearCanvas() {
   store.clear()
 }
 
-function parseSettings(settings: any, nodeType: string) {
+function parseSettings(settings: any, _nodeType: string) {
   const parsed = { ...settings }
 
   return parsed

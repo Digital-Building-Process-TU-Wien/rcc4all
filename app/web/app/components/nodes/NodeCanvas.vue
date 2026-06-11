@@ -24,6 +24,7 @@ const emit = defineEmits<{
 const store = useFlowStore()
 
 const vueFlowRef = ref<InstanceType<typeof VueFlow> | null>(null)
+const isConnecting = ref(false)
 
 function handleDragOver(event: DragEvent) {
   event.preventDefault()
@@ -89,7 +90,7 @@ function handleDrop(event: DragEvent) {
     </template>
 
     <template #default>
-      <div class="relative h-full bg-default">
+      <div class="relative h-full bg-default" :class="{ 'is-connecting': isConnecting }">
         <VueFlow
           ref="vueFlowRef"
           :nodes="nodes"
@@ -111,6 +112,8 @@ function handleDrop(event: DragEvent) {
             store.viewport = newViewport
           }"
           @connect="emit('connect', $event)"
+          @connect-start="isConnecting = true"
+          @connect-end="isConnecting = false"
           @node-click="emit('nodeClick', $event)"
           @dragover.prevent="handleDragOver"
           @drop.prevent="handleDrop"
@@ -134,9 +137,17 @@ function handleDrop(event: DragEvent) {
   stroke-width: 3;
 }
 
-.vue-flow__handle {
+.vue-flow__handle:not(.node-hitbox) {
   width: 12px !important;
   height: 12px !important;
+}
+
+.vue-flow__handle.node-hitbox {
+  pointer-events: none !important;
+}
+
+.is-connecting .vue-flow__handle.node-hitbox {
+  pointer-events: all !important;
 }
 
 /* Custom grid dots for light theme */
