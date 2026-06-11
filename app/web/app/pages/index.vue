@@ -7,19 +7,25 @@ const { currentLocale } = usei18n()
 const { data: homePage } = await useAsyncData(
   'home-page',
   async () => {
-    const result = await sdk.find({
-      collection: 'pages',
-      where: {
-        slug: {
-          equals: 'home',
+    try {
+      const result = await sdk.find({
+        collection: 'pages',
+        where: {
+          slug: {
+            equals: 'home',
+          },
         },
-      },
-      limit: 1,
-      locale: currentLocale.value,
-      fallbackLocale: false,
-    })
+        limit: 1,
+        locale: currentLocale.value,
+        fallbackLocale: false,
+      })
 
-    return (result.docs[0] ?? null) as Page | null
+      return (result.docs[0] ?? null) as Page | null
+    }
+    catch (error) {
+      console.error('CMS unavailable:', error)
+      return null
+    }
   },
   {
     watch: [currentLocale],
@@ -72,9 +78,19 @@ function resolveCardIcon(card: CardBlock): string {
 </script>
 
 <template>
-  <UPage>
+  <div v-if="!homePage" class="flex h-screen items-center justify-center">
+    <div class="text-center">
+      <p class="mb-4 text-lg text-muted">
+        CMS is currently unavailable
+      </p>
+      <UButton to="/node-demo" color="primary">
+        To Node Editor
+      </UButton>
+    </div>
+  </div>
+
+  <UPage v-else>
     <UPageHero
-      v-if="homePage"
       :headline="homePage.hero.headline ?? homePage.title"
       :title="homePage.hero.title"
       :description="homePage.hero.description"
