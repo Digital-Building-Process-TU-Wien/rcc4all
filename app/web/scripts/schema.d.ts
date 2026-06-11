@@ -74,23 +74,25 @@ export interface Generate3DCube {
   }
 }
 /**
- * Look up IFC object names for a configured list of express IDs.
+ * Look up IFC object names by express ID from workflow input.
  */
 export interface ResolveObjectNames {
   settings: {
     /**
-     * When enabled, unresolved express IDs or nameless IFC entities produce None instead of raising an error.
+     * When enabled, raises an error if an express ID does not exist in the model.
      */
-    allow_missing?: boolean
-    /**
-     * Ordered list of IFC express IDs whose object names should be resolved.
-     */
-    express_ids?: number[]
+    fail_on_missing?: boolean
   }
   result: {
     /**
      * Ordered list of IFC object names aligned with the input express IDs.
      */
     object_names?: (string | null)[]
+  }
+  inputs: {
+    /**
+     * Ordered list of IFC express IDs whose object names should be resolved.
+     */
+    express_ids?: number[]
   }
 }

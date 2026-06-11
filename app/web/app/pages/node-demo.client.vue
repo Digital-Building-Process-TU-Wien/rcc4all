@@ -132,13 +132,6 @@ function clearCanvas() {
 function parseSettings(settings: any, nodeType: string) {
   const parsed = { ...settings }
 
-  if (nodeType === 'get_name' && parsed.express_ids) {
-    const ids = parsed.express_ids
-    if (typeof ids === 'string') {
-      parsed.express_ids = ids.split(',').map((s: string) => Number.parseInt(s.trim(), 10)).filter((n: number) => !Number.isNaN(n))
-    }
-  }
-
   return parsed
 }
 

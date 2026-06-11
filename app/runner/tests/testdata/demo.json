@@ -5,7 +5,9 @@
       "id": "get_name",
       "type": "get_name",
       "settings": {
-        "allow_missing": true,
+        "fail_on_missing": false
+      },
+      "inputs": {
         "express_ids": [265, 498, 2524, 4616]
       }
     },

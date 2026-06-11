@@ -2,12 +2,34 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Node Registry Schema",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "concat_string": {
       "type": "object",
       "title": "Concatenate Strings",
       "description": "Join a list of resolved string values into one output string.",
+      "categories": [
+        "Demo"
+      ],
       "markdownDescription": "The `concat_string` node combines the incoming `values` list into a single string.\n\nUse this node when a workflow needs to turn several upstream values into a readable label, summary, or message.\n\n## Use case example\n\nCombine object names from an earlier lookup step into a comma-separated sentence for display in the UI or for downstream reporting.",
+      "locales": {
+        "de": {
+          "title": "Strings verketten",
+          "description": "Verkettet eine Liste von aufgel\u00f6sten String-Werten zu einem Ausgabe-String.",
+          "categories": [
+            "Demo"
+          ],
+          "markdownDescription": "Der `concat_string` Knoten kombiniert die eingehende `values` Liste zu einem einzigen String.\n\nVerwenden Sie diesen Knoten, wenn ein Workflow mehrere Upstream-Werte in eine lesbare Beschriftung, Zusammenfassung oder Nachricht umwandeln muss.\n\n## Anwendungsbeispiel\n\nKombinieren Sie Objektnamen aus einem fr\u00fcheren Nachschrittschritt zu einem durch Kommas getrennten Satz f\u00fcr die Anzeige in der Benutzeroberfl\u00e4che oder f\u00fcr nachgelagerte Berichte."
+        },
+        "en": {
+          "title": "Concatenate Strings",
+          "description": "Join a list of resolved string values into one output string.",
+          "categories": [
+            "Demo"
+          ],
+          "markdownDescription": "The `concat_string` node combines the incoming `values` list into a single string.\n\nUse this node when a workflow needs to turn several upstream values into a readable label, summary, or message.\n\n## Use case example\n\nCombine object names from an earlier lookup step into a comma-separated sentence for display in the UI or for downstream reporting."
+        }
+      },
       "properties": {
         "settings": {
           "additionalProperties": false,
@@ -15,11 +37,9 @@
             "separator": {
               "default": ", ",
               "description": "String inserted between the resolved input strings.",
-              "title": "Separator",
               "type": "string"
             }
           },
-          "title": "ConcatStringSettings",
           "type": "object"
         },
         "result": {
@@ -28,11 +48,9 @@
             "value": {
               "default": "",
               "description": "Final string assembled from the input strings.",
-              "title": "Concatenated string",
               "type": "string"
             }
           },
-          "title": "ConcatStringResult",
           "type": "object"
         },
         "inputs": {
@@ -51,25 +69,48 @@
                   }
                 ]
               },
-              "title": "Input values",
               "type": "array"
             }
           },
-          "title": "ConcatStringInputs",
           "type": "object"
         }
       },
       "required": [
-        "settings",
         "result",
+        "settings",
         "inputs"
-      ]
+      ],
+      "additionalProperties": false
     },
     "element_filter": {
       "type": "object",
       "title": "Filter IFC Elements",
       "description": "Resolve all IFC entities of a requested type to their express IDs.",
+      "categories": [
+        "IFC",
+        "Filter"
+      ],
       "markdownDescription": "The `element_filter` node queries the IFC model for all entities matching the configured `entity_type`.\n\nUse this node at the start of a workflow when you need a stable list of express IDs for a specific IFC class before passing those IDs to downstream nodes.\n\n## Use case example\n\nCollect all `IFCWALL` entities from the model, then forward their express IDs to other nodes that inspect names, properties, or custom validation rules.",
+      "locales": {
+        "de": {
+          "title": "IFC-Elemente filtern",
+          "description": "L\u00f6st alle IFC-Entit\u00e4ten eines angeforderten Typs zu ihren Express-IDs auf.",
+          "categories": [
+            "IFC",
+            "Filter"
+          ],
+          "markdownDescription": "Der `element_filter` Knoten fragt das IFC-Modell nach allen Entit\u00e4ten ab, die mit dem konfigurierten `entity_type` \u00fcbereinstimmen.\n\nVerwenden Sie diesen Knoten am Anfang eines Workflows, wenn Sie eine stabile Liste von Express-IDs f\u00fcr eine bestimmte IFC-Klasse ben\u00f6tigen, bevor Sie diese IDs an nachgelagerte Knoten weiterleiten.\n\n## Anwendungsbeispiel\n\nSammeln Sie alle `IFCWALL`-Entit\u00e4ten aus dem Modell und leiten Sie deren Express-IDs an andere Knoten weiter, die Namen, Eigenschaften oder benutzerdefinierte Validierungsregeln pr\u00fcfen."
+        },
+        "en": {
+          "title": "Filter IFC Elements",
+          "description": "Resolve all IFC entities of a requested type to their express IDs.",
+          "categories": [
+            "IFC",
+            "Filter"
+          ],
+          "markdownDescription": "The `element_filter` node queries the IFC model for all entities matching the configured `entity_type`.\n\nUse this node at the start of a workflow when you need a stable list of express IDs for a specific IFC class before passing those IDs to downstream nodes.\n\n## Use case example\n\nCollect all `IFCWALL` entities from the model, then forward their express IDs to other nodes that inspect names, properties, or custom validation rules."
+        }
+      },
       "properties": {
         "settings": {
           "additionalProperties": false,
@@ -77,11 +118,9 @@
             "entity_type": {
               "default": "IFCWALL",
               "description": "IFC entity name to filter by, for example IFCWALL.",
-              "title": "Entity type",
               "type": "string"
             }
           },
-          "title": "ElementFilterSettings",
           "type": "object"
         },
         "result": {
@@ -93,45 +132,158 @@
               "items": {
                 "type": "integer"
               },
-              "title": "Express IDs",
               "type": "array"
             }
           },
-          "title": "ElementFilterResult",
           "type": "object"
         }
       },
       "required": [
-        "settings",
-        "result"
-      ]
+        "result",
+        "settings"
+      ],
+      "additionalProperties": false
+    },
+    "generate_3d_cube": {
+      "type": "object",
+      "title": "Generate 3D Cube",
+      "description": "Create a 3D cube geometry with customizable size, position, and rotation for clash detection.",
+      "categories": [
+        "3D operation"
+      ],
+      "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `vertices` | `list[list[float]]` | List of 8 vertex coordinates as `[x, y, z]` lists |\n| `faces` | `list[list[int]]` | List of 6 face definitions as vertex index lists |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- Output format is compatible with `trimesh.Trimesh(vertices, faces)` constructor",
+      "locales": {
+        "de": {
+          "title": "3D-W\u00fcrfel generieren",
+          "description": "Erstellt eine 3D-W\u00fcrfelgeometrie mit anpassbarer Gr\u00f6\u00dfe, Position und Rotation f\u00fcr die Kollisionserkennung.",
+          "categories": [
+            "3D operation"
+          ],
+          "markdownDescription": "Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation. Die Ausgabe sind trimesh-kompatible Geometriedaten, die f\u00fcr die Kollisionserkennung, Visualisierung oder weitere geometrische Operationen verwendet werden k\u00f6nnen.\n\n## Eingaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `position` | `list[float]` | Position des W\u00fcrfelzentrums als `[x, y, z]` Koordinaten. Standard: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation um X, Y, Z Achsen in Grad (Euler-Winkel). Standard: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Abmessungen des W\u00fcrfels als `[Breite, H\u00f6he, Tiefe]`. Standard: `[1.0, 1.0, 1.0]` |\n\n## Ausgaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `vertices` | `list[list[float]]` | Liste von 8 Vertex-Koordinaten als `[x, y, z]` Listen |\n| `faces` | `list[list[int]]` | Liste von 6 Fl\u00e4chendefinitionen als Vertex-Index-Listen |\n\n## Beispiel\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nDies erstellt einen 2\u00d72\u00d72 W\u00fcrfel zentriert bei (5, 3, 0), um 45 Grad um die Z-Achse rotiert.\n\n## Hinweise\n\n- Der W\u00fcrfel wird zuerst zentriert am Ursprung erstellt, dann rotiert und verschoben\n- Alle Gr\u00f6\u00dfenabmessungen m\u00fcssen positiv sein (gr\u00f6\u00dfer als 0)\n- Rotation folgt der Rechte-Hand-Regel\n- Ausgabeformat ist kompatibel mit `trimesh.Trimesh(vertices, faces)` Konstruktor"
+        },
+        "en": {
+          "title": "Generate 3D Cube",
+          "description": "Create a 3D cube geometry with customizable size, position, and rotation for clash detection.",
+          "categories": [
+            "3D operation"
+          ],
+          "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `vertices` | `list[list[float]]` | List of 8 vertex coordinates as `[x, y, z]` lists |\n| `faces` | `list[list[int]]` | List of 6 face definitions as vertex index lists |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- Output format is compatible with `trimesh.Trimesh(vertices, faces)` constructor"
+        }
+      },
+      "properties": {
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "vertices": {
+              "default": [],
+              "description": "List of 3D vertex coordinates [[x, y, z], ...] defining the cube geometry.",
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "faces": {
+              "default": [],
+              "description": "List of face definitions [[v1, v2, v3], ...] as vertex indices forming triangles.",
+              "items": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "position": {
+              "default": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "description": "3D position [x, y, z] for the cube center in meters.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "rotation": {
+              "default": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "description": "Euler angles [x, y, z] in degrees for rotation around each axis.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "size": {
+              "default": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "description": "Dimensions [width, height, depth] in meters.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "inputs"
+      ],
+      "additionalProperties": false
     },
     "get_name": {
       "type": "object",
       "title": "Resolve Object Names",
-      "description": "Look up IFC object names for a configured list of express IDs.",
-      "markdownDescription": "The `get_name` node reads IFC entities by express ID and returns their `Name` values in the same order as the configured input list.\n\nUse this node when a workflow needs human-readable labels for model elements, especially after a filtering step has already narrowed the candidate entities.\n\n## Use case example\n\nResolve the names of a wall selection, then send that ordered name list into a formatting node such as `concat_string` to create a readable summary.",
+      "description": "Look up IFC object names by express ID from workflow input.",
+      "categories": [
+        "IFC"
+      ],
+      "markdownDescription": "The `get_name` node reads IFC entities by express ID from its input and returns their `Name` values in the same order.\n\nUse this node to get human-readable labels for model elements, typically after an `element_filter` or other node that provides express IDs.\n\n## Use case example\n\nConnect an `element_filter` to get all walls, then use `get_name` to resolve their names for display or reporting.\n\n## Settings\n\n- **Fail on missing**: When enabled, raises an error if any express ID cannot be resolved or has no name.",
+      "locales": {
+        "de": {
+          "title": "Objektnamen aufl\u00f6sen",
+          "description": "L\u00f6st IFC-Objektnamen f\u00fcr Express-IDs aus dem Workflow-Eingang auf.",
+          "categories": [
+            "IFC"
+          ],
+          "markdownDescription": "Der `get_name` Knoten liest IFC-Entit\u00e4ten nach Express-ID aus dem Eingang und gibt deren `Name`-Werte in der gleichen Reihenfolge zur\u00fcck.\n\nVerwenden Sie diesen Knoten f\u00fcr menschenlesbare Beschriftungen, typischerweise nach einem `element_filter` oder anderen Knoten, die Express-IDs bereitstellen.\n\n## Anwendungsbeispiel\n\nVerbinden Sie einen `element_filter`, um alle W\u00e4nde zu erhalten, und nutzen Sie dann `get_name`, um deren Namen f\u00fcr die Anzeige oder Berichterstattung aufzul\u00f6sen.\n\n## Einstellungen\n\n- **Fail on missing**: Wenn aktiviert, wird ein Fehler ausgel\u00f6st, wenn eine Express-ID nicht aufgel\u00f6st werden kann oder keinen Namen hat."
+        },
+        "en": {
+          "title": "Resolve Object Names",
+          "description": "Look up IFC object names by express ID from workflow input.",
+          "categories": [
+            "IFC"
+          ],
+          "markdownDescription": "The `get_name` node reads IFC entities by express ID from its input and returns their `Name` values in the same order.\n\nUse this node to get human-readable labels for model elements, typically after an `element_filter` or other node that provides express IDs.\n\n## Use case example\n\nConnect an `element_filter` to get all walls, then use `get_name` to resolve their names for display or reporting.\n\n## Settings\n\n- **Fail on missing**: When enabled, raises an error if any express ID cannot be resolved or has no name."
+        }
+      },
       "properties": {
         "settings": {
           "additionalProperties": false,
           "properties": {
-            "allow_missing": {
-              "default": true,
-              "description": "When enabled, unresolved express IDs or nameless IFC entities produce None instead of raising an error.",
-              "title": "Allow missing names",
+            "fail_on_missing": {
+              "default": false,
+              "description": "When enabled, raises an error if an express ID cannot be resolved or has no name.",
               "type": "boolean"
-            },
-            "express_ids": {
-              "default": [],
-              "description": "Ordered list of IFC express IDs whose object names should be resolved.",
-              "items": {
-                "type": "integer"
-              },
-              "title": "Express IDs",
-              "type": "array"
             }
           },
-          "title": "GetNameSettings",
           "type": "object"
         },
         "result": {
@@ -150,18 +302,32 @@
                   }
                 ]
               },
-              "title": "Object names",
               "type": "array"
             }
           },
-          "title": "GetNameResult",
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "Ordered list of IFC express IDs whose object names should be resolved.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          },
           "type": "object"
         }
       },
       "required": [
+        "result",
         "settings",
-        "result"
-      ]
+        "inputs"
+      ],
+      "additionalProperties": false
     }
   }
 }

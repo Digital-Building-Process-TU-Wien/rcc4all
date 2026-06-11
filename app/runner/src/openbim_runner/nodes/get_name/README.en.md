@@ -1,13 +1,17 @@
 ---
 title: Resolve Object Names
-description: Look up IFC object names for a configured list of express IDs.
+description: Look up IFC object names by express ID from workflow input.
 categories: IFC
 ---
 
-The `get_name` node reads IFC entities by express ID and returns their `Name` values in the same order as the configured input list.
+The `get_name` node reads IFC entities by express ID from its input and returns their `Name` values in the same order.
 
-Use this node when a workflow needs human-readable labels for model elements, especially after a filtering step has already narrowed the candidate entities.
+Use this node to get human-readable labels for model elements, typically after an `element_filter` or other node that provides express IDs.
 
 ## Use case example
 
-Resolve the names of a wall selection, then send that ordered name list into a formatting node such as `concat_string` to create a readable summary.
+Connect an `element_filter` to get all walls, then use `get_name` to resolve their names for display or reporting.
+
+## Settings
+
+- **Fail on missing**: When enabled, raises an error if an express ID does not exist in the model. Entities without a name return `null` instead.

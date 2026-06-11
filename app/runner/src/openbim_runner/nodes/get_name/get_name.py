@@ -6,11 +6,14 @@ from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 
 
 class GetNameSettings(NodeModel):
-    allow_missing: bool = Field(
-        default=True,
-        title="Allow missing names",
-        description="When enabled, unresolved express IDs or nameless IFC entities produce None instead of raising an error.",
+    fail_on_missing: bool = Field(
+        default=False,
+        title="Fail on missing",
+        description="When enabled, raises an error if an express ID does not exist in the model.",
     )
+
+
+class GetNameInputs(NodeModel):
     express_ids: list[int] = Field(
         default=[],
         title="Express IDs",
@@ -27,20 +30,19 @@ class GetNameResult(NodeModel):
 
 
 @node()
-async def get_name(settings: GetNameSettings, context: ExecutionContext) -> GetNameResult:
+async def get_name(settings: GetNameSettings, inputs: GetNameInputs, context: ExecutionContext) -> GetNameResult:
     object_names: list[str | None] = []
 
-    for express_id in settings.express_ids:
+    for express_id in inputs.express_ids:
         try:
             entity = context.ifc_model.by_id(express_id)
             object_name = getattr(entity, "Name", None)
             if object_name is not None:
                 object_name = str(object_name)
         except RuntimeError:
+            if settings.fail_on_missing:
+                raise ValueError(f"Could not resolve a name for express ID {express_id}.")
             object_name = None
-
-        if object_name is None and not settings.allow_missing:
-            raise ValueError(f"Could not resolve a name for express ID {express_id}.")
 
         object_names.append(object_name)
 

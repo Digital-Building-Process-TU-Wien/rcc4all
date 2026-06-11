@@ -135,6 +135,8 @@ def node(name: str | None = None) -> Callable[[Callable[..., Any]], Callable[...
                 second_param = parameters[1].name
                 if second_param == "inputs":
                     takes_inputs = True
+                    if len(parameters) > 2 and parameters[2].name == "context":
+                        takes_context = True
                 elif second_param == "context":
                     takes_context = True
                 else:

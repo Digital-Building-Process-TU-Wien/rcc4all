@@ -6,12 +6,13 @@ from typing import Any, cast
 import pytest
 
 from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.get_name.get_name import GetNameResult, GetNameSettings, get_name
+from openbim_runner.nodes.get_name.get_name import GetNameInputs, GetNameResult, GetNameSettings, get_name
 
 
 class FakeEntity:
     def __init__(self, name: str | None) -> None:
-        self.Name = name
+        if name is not None:
+            self.Name = name
 
 
 class FakeIfcModel:
@@ -34,12 +35,30 @@ def test_get_name_returns_names_in_input_order() -> None:
 
     result = asyncio.run(
         get_name(
-            GetNameSettings(allow_missing=True, express_ids=[2, 1]),
+            GetNameSettings(fail_on_missing=False),
+            GetNameInputs(express_ids=[2, 1]),
             context,
         )
     )
 
     assert result == GetNameResult(object_names=["Wall B", "Wall A"])
+
+
+def test_get_name_returns_none_for_entity_without_name() -> None:
+    context = ExecutionContext(
+        ifc_model=cast(Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity(None)})),
+        node_outputs={},
+    )
+
+    result = asyncio.run(
+        get_name(
+            GetNameSettings(fail_on_missing=False),
+            GetNameInputs(express_ids=[1, 2]),
+            context,
+        )
+    )
+
+    assert result.object_names == ["Wall A", None]
 
 
 def test_get_name_allows_missing_entities_when_configured() -> None:
@@ -50,7 +69,8 @@ def test_get_name_allows_missing_entities_when_configured() -> None:
 
     result = asyncio.run(
         get_name(
-            GetNameSettings(allow_missing=True, express_ids=[1, 99]),
+            GetNameSettings(fail_on_missing=False),
+            GetNameInputs(express_ids=[1, 99]),
             context,
         )
     )
@@ -58,7 +78,7 @@ def test_get_name_allows_missing_entities_when_configured() -> None:
     assert result.object_names == ["Wall A", None]
 
 
-def test_get_name_rejects_missing_entities_when_not_allowed() -> None:
+def test_get_name_fails_on_nonexistent_express_id() -> None:
     context = ExecutionContext(
         ifc_model=cast(Any, FakeIfcModel({1: FakeEntity("Wall A")}, failing_ids={99})),
         node_outputs={},
@@ -67,7 +87,25 @@ def test_get_name_rejects_missing_entities_when_not_allowed() -> None:
     with pytest.raises(ValueError, match="Could not resolve a name for express ID 99"):
         asyncio.run(
             get_name(
-                GetNameSettings(allow_missing=False, express_ids=[99]),
+                GetNameSettings(fail_on_missing=True),
+                GetNameInputs(express_ids=[99]),
                 context,
             )
         )
+
+
+def test_get_name_does_not_fail_on_missing_name() -> None:
+    context = ExecutionContext(
+        ifc_model=cast(Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity(None)})),
+        node_outputs={},
+    )
+
+    result = asyncio.run(
+        get_name(
+            GetNameSettings(fail_on_missing=True),
+            GetNameInputs(express_ids=[1, 2]),
+            context,
+        )
+    )
+
+    assert result.object_names == ["Wall A", None]
