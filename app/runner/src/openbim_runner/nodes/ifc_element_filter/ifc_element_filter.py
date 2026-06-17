@@ -142,14 +142,12 @@ def _get_property_value(entity: Any, property_set: str, property_name: str) -> A
     psets = get_psets(entity)
     if property_set:
         pset = psets.get(property_set)
-        if not isinstance(pset, dict):
+        if not pset:
             return None
         return pset.get(property_name)
 
     property_name_lower = property_name.lower()
     for pset in psets.values():
-        if not isinstance(pset, dict):
-            continue
         for candidate_name, candidate_value in pset.items():
             if candidate_name.lower() == property_name_lower:
                 return candidate_value
