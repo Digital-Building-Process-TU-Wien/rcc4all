@@ -3,6 +3,7 @@ export interface NodeRegistrySchema {
   element_filter?: FilterIFCElements
   generate_3d_cube?: Generate3DCube
   get_name?: ResolveObjectNames
+  ifc_element_filter?: IfcElementFilter
 }
 /**
  * Join a list of resolved string values into one output string.
@@ -94,5 +95,55 @@ export interface ResolveObjectNames {
      * Ordered list of IFC express IDs whose object names should be resolved.
      */
     express_ids?: number[]
+  }
+}
+/**
+ * Filter IFC entities using table-based include and exclude rules.
+ */
+export interface IfcElementFilter {
+  settings: {
+    /**
+     * List of component filter rows. Include rows are unioned, exclude rows are subtracted.
+     */
+    filter_rows?: {
+      /**
+       * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
+       */
+      mode?: ("include" | "exclude" | "disabled")
+      /**
+       * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
+       */
+      entity_type?: string
+      /**
+       * Optional PredefinedType value. Empty means any predefined type.
+       */
+      predefined_type?: string
+      /**
+       * Optional IFC PropertySet name. Empty means direct attribute lookup or search all PropertySets.
+       */
+      property_set?: string
+      /**
+       * Optional IFC attribute or PropertySet property name to compare.
+       */
+      property_name?: string
+      /**
+       * Comparison operator used for property or attribute values.
+       */
+      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
+      /**
+       * Value to compare against when property_name is set.
+       */
+      value?: string
+    }[]
+  }
+  result: {
+    /**
+     * Express IDs of all matching IFC entities.
+     */
+    express_ids?: number[]
+    /**
+     * GlobalId values for all matching IFC entities in the same order as express_ids.
+     */
+    guids?: string[]
   }
 }

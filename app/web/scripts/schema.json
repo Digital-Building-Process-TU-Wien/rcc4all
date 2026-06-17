@@ -328,6 +328,136 @@
         "inputs"
       ],
       "additionalProperties": false
+    },
+    "ifc_element_filter": {
+      "type": "object",
+      "title": "IfcElementFilter",
+      "description": "Filter IFC entities using table-based include and exclude rules.",
+      "categories": [
+        "IFC",
+        "Filter",
+        "Advanced"
+      ],
+      "markdownDescription": "The `ifc_element_filter` node filters IFC model elements with a component filter table. Each row defines one condition with entity type, optional `PredefinedType`, and optional attribute or PropertySet comparison. Include rows are combined with OR logic, then exclude rows are subtracted from the included result.\n\nUse this node when you need to:\n\n- Filter entities by IFC class such as `IFCWALL`, `IFCDOOR`, or `IFCSPACE`\n- Include or exclude matching elements per row\n- Filter by `GlobalId`, `Name`, `PredefinedType`, direct IFC attributes, or PropertySet values\n- Build combined selections from multiple rules\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `filter_rows` | `list[FilterRow]` | List of filter rows. Each row defines a complete filter condition. |\n\n## FilterRow structure\n\n| Name | Type | Description |\n|------|------|-------------|\n| `mode` | `include`, `exclude`, `disabled` | Include adds matching elements, exclude removes matching elements, disabled ignores the row. |\n| `entity_type` | `str` | IFC entity type name, for example `IFCWALL` or `IFCSLAB`. |\n| `predefined_type` | `str` | Optional `PredefinedType` enum value. Empty means any predefined type. If the value is not selected from the predefined list but entered manually, the program should treat it as a user-defined type: `PredefinedType == USERDEFINED` and `ObjectType == <entered value>`. |\n| `property_set` | `str` | Optional IFC PropertySet name, for example `Pset_WallCommon`. If `Attributes` is selected, it refers to the direct IFC attributes available for the selected entity. Empty allows direct attribute lookup or search across all PropertySets. |\n| `property_name` | `str` | Optional IFC attribute or PropertySet property name. Empty means no value comparison. |\n| `operator` | `str` | Comparison operator. |\n| `value` | `str` | Value to compare against. |\n\n## Operators\n\n- `==` equals\n- `!=` not equals\n- `<` less than\n- `>` greater than\n- `<=` less than or equals\n- `>=` greater than or equals\n- `contains` contains substring\n- `starts_with` starts with prefix\n- `ends_with` ends with suffix\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[int]` | Express IDs of all matching entities. |\n| `guids` | `list[str]` | `GlobalId` values of all matching entities in the same order as `express_ids`. |\n\n## Example\n\nFilter all walls, but exclude external walls:\n\n```json\n{\n  \"filter_rows\": [\n    {\n      \"mode\": \"include\",\n      \"entity_type\": \"IFCWALL\",\n      \"predefined_type\": \"\",\n      \"property_set\": \"\",\n      \"property_name\": \"\",\n      \"operator\": \"==\",\n      \"value\": \"\"\n    },\n    {\n      \"mode\": \"exclude\",\n      \"entity_type\": \"IFCWALL\",\n      \"predefined_type\": \"\",\n      \"property_set\": \"Pset_WallCommon\",\n      \"property_name\": \"IsExternal\",\n      \"operator\": \"==\",\n      \"value\": \"True\"\n    }\n  ]\n}\n```\n\n## Notes\n\n- Empty `filter_rows` returns an empty result.\n- Unknown IFC entity types return no matches.\n- String comparisons are case-insensitive.\n- Numeric comparison operators require numeric values.\n- PropertySet suggestions can later be backed by JSON files in `app/web/public/list` without changing the runner contract.",
+      "locales": {
+        "de": {
+          "title": "IfcElementFilter",
+          "description": "Filtert IFC-Entitaeten mit tabellenbasierten Include- und Exclude-Regeln.",
+          "categories": [
+            "IFC",
+            "Filter",
+            "Advanced"
+          ],
+          "markdownDescription": "Der `ifc_element_filter` Knoten filtert IFC-Modellelemente ueber eine Komponententabelle. Jede Zeile beschreibt eine Bedingung mit Entity-Typ, optionalem `PredefinedType` und optionalem Attribut- oder PropertySet-Vergleich. Include-Zeilen werden per OR-Logik zusammengefuehrt, danach werden Exclude-Zeilen vom Ergebnis abgezogen.\n\nVerwenden Sie diesen Knoten, wenn Sie:\n\n- Elemente nach IFC-Klasse wie `IFCWALL`, `IFCDOOR` oder `IFCSPACE` filtern moechten\n- Elemente pro Zeile einschliessen oder ausschliessen moechten\n- Nach `GlobalId`, `Name`, `PredefinedType`, direkten IFC-Attributen oder PropertySet-Werten filtern moechten\n- Komplexere Auswahlen aus mehreren Regeln aufbauen moechten\n\n## Einstellungen\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `filter_rows` | `list[FilterRow]` | Liste der Filterzeilen. Jede Zeile beschreibt eine vollstaendige Filterbedingung. |\n\n## FilterRow-Struktur\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `mode` | `include`, `exclude`, `disabled` | Include fuegt Treffer hinzu, exclude entfernt Treffer, disabled ignoriert die Zeile. |\n| `entity_type` | `str` | IFC-Entity-Typ, zum Beispiel `IFCWALL` oder `IFCSLAB`. |\n| `predefined_type` | `str` | Optionaler `PredefinedType`-Wert. Leer bedeutet beliebiger PredefinedType. Wenn der Wert nicht aus der PredefinedType-Liste ausgew\u00e4hlt, sondern manuell eingegeben wird, soll das Programm ihn als benutzerdefinierten Typ behandeln: `PredefinedType == USERDEFINED` und `ObjectType == <eingegebener Wert>`. |\n| `property_set` | `str` | Optionaler IFC-PropertySet-Name, zum Beispiel `Pset_WallCommon`. Wenn `Attributes` ausgew\u00e4hlt ist, sind damit die direkten IFC-Attribute der ausgew\u00e4hlten Entity gemeint. Leer erlaubt direkte Attributsuche oder Suche in allen PropertySets. |\n| `property_name` | `str` | Optionaler IFC-Attribut- oder PropertySet-Property-Name. Leer bedeutet kein Wertvergleich. |\n| `operator` | `str` | Vergleichsoperator. |\n| `value` | `str` | Vergleichswert. |\n\n## Operatoren\n\n- `==` gleich\n- `!=` ungleich\n- `<` kleiner als\n- `>` groesser als\n- `<=` kleiner oder gleich\n- `>=` groesser oder gleich\n- `contains` enthaelt Text\n- `starts_with` beginnt mit Text\n- `ends_with` endet mit Text\n\n## Ausgaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `express_ids` | `list[int]` | Express-IDs aller passenden Entitaeten. |\n| `guids` | `list[str]` | `GlobalId`-Werte aller passenden Entitaeten in derselben Reihenfolge wie `express_ids`. |\n\n## Beispiel\n\nAlle Waende filtern, aber externe Waende ausschliessen:\n\n```json\n{\n  \"filter_rows\": [\n    {\n      \"mode\": \"include\",\n      \"entity_type\": \"IFCWALL\",\n      \"predefined_type\": \"\",\n      \"property_set\": \"\",\n      \"property_name\": \"\",\n      \"operator\": \"==\",\n      \"value\": \"\"\n    },\n    {\n      \"mode\": \"exclude\",\n      \"entity_type\": \"IFCWALL\",\n      \"predefined_type\": \"\",\n      \"property_set\": \"Pset_WallCommon\",\n      \"property_name\": \"IsExternal\",\n      \"operator\": \"==\",\n      \"value\": \"True\"\n    }\n  ]\n}\n```\n\n## Hinweise\n\n- Leere `filter_rows` liefern ein leeres Ergebnis.\n- Unbekannte IFC-Entity-Typen liefern keine Treffer.\n- Stringvergleiche sind case-insensitive.\n- Numerische Vergleichsoperatoren benoetigen numerische Werte.\n- Vorschlagslisten fuer PropertySets koennen spaeter ueber JSON-Dateien in `app/web/public/list` angebunden werden, ohne den Runner-Vertrag zu aendern."
+        },
+        "en": {
+          "title": "IfcElementFilter",
+          "description": "Filter IFC entities using table-based include and exclude rules.",
+          "categories": [
+            "IFC",
+            "Filter",
+            "Advanced"
+          ],
+          "markdownDescription": "The `ifc_element_filter` node filters IFC model elements with a component filter table. Each row defines one condition with entity type, optional `PredefinedType`, and optional attribute or PropertySet comparison. Include rows are combined with OR logic, then exclude rows are subtracted from the included result.\n\nUse this node when you need to:\n\n- Filter entities by IFC class such as `IFCWALL`, `IFCDOOR`, or `IFCSPACE`\n- Include or exclude matching elements per row\n- Filter by `GlobalId`, `Name`, `PredefinedType`, direct IFC attributes, or PropertySet values\n- Build combined selections from multiple rules\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `filter_rows` | `list[FilterRow]` | List of filter rows. Each row defines a complete filter condition. |\n\n## FilterRow structure\n\n| Name | Type | Description |\n|------|------|-------------|\n| `mode` | `include`, `exclude`, `disabled` | Include adds matching elements, exclude removes matching elements, disabled ignores the row. |\n| `entity_type` | `str` | IFC entity type name, for example `IFCWALL` or `IFCSLAB`. |\n| `predefined_type` | `str` | Optional `PredefinedType` enum value. Empty means any predefined type. If the value is not selected from the predefined list but entered manually, the program should treat it as a user-defined type: `PredefinedType == USERDEFINED` and `ObjectType == <entered value>`. |\n| `property_set` | `str` | Optional IFC PropertySet name, for example `Pset_WallCommon`. If `Attributes` is selected, it refers to the direct IFC attributes available for the selected entity. Empty allows direct attribute lookup or search across all PropertySets. |\n| `property_name` | `str` | Optional IFC attribute or PropertySet property name. Empty means no value comparison. |\n| `operator` | `str` | Comparison operator. |\n| `value` | `str` | Value to compare against. |\n\n## Operators\n\n- `==` equals\n- `!=` not equals\n- `<` less than\n- `>` greater than\n- `<=` less than or equals\n- `>=` greater than or equals\n- `contains` contains substring\n- `starts_with` starts with prefix\n- `ends_with` ends with suffix\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[int]` | Express IDs of all matching entities. |\n| `guids` | `list[str]` | `GlobalId` values of all matching entities in the same order as `express_ids`. |\n\n## Example\n\nFilter all walls, but exclude external walls:\n\n```json\n{\n  \"filter_rows\": [\n    {\n      \"mode\": \"include\",\n      \"entity_type\": \"IFCWALL\",\n      \"predefined_type\": \"\",\n      \"property_set\": \"\",\n      \"property_name\": \"\",\n      \"operator\": \"==\",\n      \"value\": \"\"\n    },\n    {\n      \"mode\": \"exclude\",\n      \"entity_type\": \"IFCWALL\",\n      \"predefined_type\": \"\",\n      \"property_set\": \"Pset_WallCommon\",\n      \"property_name\": \"IsExternal\",\n      \"operator\": \"==\",\n      \"value\": \"True\"\n    }\n  ]\n}\n```\n\n## Notes\n\n- Empty `filter_rows` returns an empty result.\n- Unknown IFC entity types return no matches.\n- String comparisons are case-insensitive.\n- Numeric comparison operators require numeric values.\n- PropertySet suggestions can later be backed by JSON files in `app/web/public/list` without changing the runner contract."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "filter_rows": {
+              "default": [],
+              "description": "List of component filter rows. Include rows are unioned, exclude rows are subtracted.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "mode": {
+                    "default": "include",
+                    "description": "Row mode: include adds matches, exclude removes matches, disabled ignores the row.",
+                    "enum": [
+                      "include",
+                      "exclude",
+                      "disabled"
+                    ],
+                    "type": "string"
+                  },
+                  "entity_type": {
+                    "default": "IFCWALL",
+                    "description": "IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.",
+                    "type": "string"
+                  },
+                  "predefined_type": {
+                    "default": "",
+                    "description": "Optional PredefinedType value. Empty means any predefined type.",
+                    "type": "string"
+                  },
+                  "property_set": {
+                    "default": "",
+                    "description": "Optional IFC PropertySet name. Empty means direct attribute lookup or search all PropertySets.",
+                    "type": "string"
+                  },
+                  "property_name": {
+                    "default": "",
+                    "description": "Optional IFC attribute or PropertySet property name to compare.",
+                    "type": "string"
+                  },
+                  "operator": {
+                    "default": "==",
+                    "description": "Comparison operator used for property or attribute values.",
+                    "enum": [
+                      "==",
+                      "!=",
+                      "<",
+                      ">",
+                      "<=",
+                      ">=",
+                      "contains",
+                      "starts_with",
+                      "ends_with"
+                    ],
+                    "type": "string"
+                  },
+                  "value": {
+                    "default": "",
+                    "description": "Value to compare against when property_name is set.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "Express IDs of all matching IFC entities.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "guids": {
+              "default": [],
+              "description": "GlobalId values for all matching IFC entities in the same order as express_ids.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings"
+      ],
+      "additionalProperties": false
     }
   }
 }

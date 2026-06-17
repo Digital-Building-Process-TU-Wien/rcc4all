@@ -256,6 +256,24 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """Recursively remove title fields from a JSON schema to prevent named type generation."""
     import copy
     result = copy.deepcopy(schema)
+    defs = result.get("$defs", {})
+
+    def inline_local_refs(value: Any) -> Any:
+        if isinstance(value, dict):
+            ref = value.get("$ref")
+            if isinstance(ref, str) and ref.startswith("#/$defs/"):
+                def_name = ref.removeprefix("#/$defs/")
+                if def_name in defs:
+                    return inline_local_refs(copy.deepcopy(defs[def_name]))
+
+            return {key: inline_local_refs(item) for key, item in value.items() if key != "$defs"}
+
+        if isinstance(value, list):
+            return [inline_local_refs(item) for item in value]
+
+        return value
+
+    result = inline_local_refs(result)
     result.pop("title", None)
     
     if "properties" in result:

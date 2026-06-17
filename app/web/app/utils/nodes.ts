@@ -67,6 +67,7 @@ const nodeNameToComponent: Record<string, string> = {
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',
   get_name: 'GetName',
+  ifc_element_filter: 'IfcElementFilter',
 }
 
 /**

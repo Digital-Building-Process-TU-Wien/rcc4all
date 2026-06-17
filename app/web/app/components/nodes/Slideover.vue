@@ -47,6 +47,7 @@ const nodeDocs = computed(() => {
   <USlideover
     title="Node Details"
     description="Configure and inspect node properties"
+    :ui="{ content: 'max-w-4xl' }"
     @close="emit('close')"
   >
     <template #body>
