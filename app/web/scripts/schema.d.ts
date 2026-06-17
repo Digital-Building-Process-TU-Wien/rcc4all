@@ -109,7 +109,7 @@ export interface IfcElementFilter {
       /**
        * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
        */
-      mode?: ("include" | "exclude" | "disabled")
+      mode?: ('include' | 'exclude' | 'disabled')
       /**
        * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
        */
@@ -129,7 +129,7 @@ export interface IfcElementFilter {
       /**
        * Comparison operator used for property or attribute values.
        */
-      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
+      operator?: ('==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'starts_with' | 'ends_with')
       /**
        * Value to compare against when property_name is set.
        */
