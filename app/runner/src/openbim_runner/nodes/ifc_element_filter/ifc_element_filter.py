@@ -156,6 +156,7 @@ def _get_property_value(entity: Any, property_set: str, property_name: str) -> A
 
 
 def _matches_row(entity: Any, row: FilterRow) -> bool:
+    # TODO: Support USERDEFINED predefined type - match PredefinedType == USERDEFINED and ObjectType == <entered value>
     predefined_type = _clean(row.predefined_type)
     if predefined_type:
         entity_predefined_type = _string_value(_get_entity_attribute(entity, "PredefinedType"))
