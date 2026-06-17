@@ -29,12 +29,16 @@ const currentBindings = computed(() => node.value.data.input_bindings || {})
 
 function getBindingSource(inputName: string): string | undefined {
   const binding = currentBindings.value[inputName]
-  return binding?.split('.')[0]
+  if (!binding)
+    return undefined
+  return binding.includes('.') ? binding.split('.')[0] : binding
 }
 
 function getBindingOutput(inputName: string): string | undefined {
   const binding = currentBindings.value[inputName]
-  return binding?.split('.')[1]
+  if (!binding || !binding.includes('.'))
+    return undefined
+  return binding.split('.')[1]
 }
 
 function getSourceNodeOutputs(inputName: string): { label: string, value: string }[] {
@@ -71,7 +75,10 @@ function updateBinding(inputName: string, sourceId?: string, outputField?: strin
   if (newSource && newOutput) {
     bindings[inputName] = `${newSource}.${newOutput}`
   }
-  else {
+  else if (newSource && !outputField) {
+    bindings[inputName] = newSource
+  }
+  else if (!newSource) {
     delete bindings[inputName]
   }
 
@@ -123,8 +130,7 @@ function getTypeWarning(inputName: string): string | null {
         <USelect
           :model-value="getBindingOutput(inputName)"
           :items="getSourceNodeOutputs(inputName)"
-          value-key="value"
-          label-key="label"
+          item-key="value"
           placeholder="Select output..."
           :disabled="!getBindingSource(inputName)"
           @update:model-value="(output: string) => updateBinding(inputName, undefined, output)"
