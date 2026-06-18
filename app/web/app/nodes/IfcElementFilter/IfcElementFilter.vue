@@ -1,48 +1,7 @@
 <script setup lang="ts">
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { FilterRow, FilterRowOperator, FilterRows, IfcElementFilterNode, IfcFilterEntity, IfcFilterIndex, IfcFilterProperty, IfcFilterPropertySet } from './types'
 import { useScopedNode } from '~/composables/useScopedNode'
-
-type IfcElementFilterNode = SchemaNodeType<'ifc_element_filter'>
-type FilterRows = NonNullable<NonNullable<IfcElementFilterNode['data']['settings']>['filter_rows']>
-type FilterRow = FilterRows[number]
-
-interface IfcAllowedValue {
-  code: string
-  value: string
-  description: string
-}
-
-interface IfcFilterProperty {
-  code: string
-  name: string
-  definition: string
-  dataType: string
-  propertyValueKind: string
-  allowedValues: IfcAllowedValue[]
-}
-
-interface IfcFilterPropertySet {
-  code: string
-  properties: IfcFilterProperty[]
-}
-
-interface IfcFilterEntity {
-  code: string
-  ifcCode: string
-  name: string
-  definition: string
-  parentClassCode: string
-  predefinedTypes: Array<{
-    code: string
-    name: string
-    definition: string
-  }>
-  propertySets: IfcFilterPropertySet[]
-}
-
-interface IfcFilterIndex {
-  entities: IfcFilterEntity[]
-}
+import { exportFilterRowsToCsv, importFilterRowsFromCsv } from './utils/csv-import-export'
 
 interface Props {
   node: IfcElementFilterNode
@@ -50,6 +9,8 @@ interface Props {
 
 const props = defineProps<Props>()
 const node = useScopedNode<IfcElementFilterNode>(props.node.id)
+const csvInput = ref<HTMLInputElement | null>(null)
+const csvMessage = ref('')
 
 const { data: filterIndex, error: filterIndexError, pending: filterIndexPending } = useFetch<IfcFilterIndex>(
   '/list/ifc-4.3-filter-index.json',
@@ -59,7 +20,7 @@ const { data: filterIndex, error: filterIndexError, pending: filterIndexPending 
 const entities = computed(() => filterIndex.value?.entities ?? [])
 const filterRows = computed(() => node.value.data.settings?.filter_rows ?? [])
 
-const operators = [
+const operators: FilterRowOperator[] = [
   '==',
   '!=',
   '<',
@@ -218,6 +179,35 @@ function updateEntityType(row: FilterRow) {
 
 function updatePredefinedType(row: FilterRow) {
   row.predefined_type = (row.predefined_type ?? '').toUpperCase()
+}
+
+function exportCsv() {
+  exportFilterRowsToCsv(filterRows.value, 'ifc-element-filter.csv')
+  csvMessage.value = 'CSV exportiert.'
+}
+
+function openCsvImport() {
+  csvInput.value?.click()
+}
+
+async function importCsv(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  if (!file)
+    return
+
+  try {
+    const importedRows = await importFilterRowsFromCsv(file)
+    node.value.data.settings = { ...node.value.data.settings, filter_rows: importedRows }
+    csvMessage.value = `${importedRows.length} CSV-Zeilen importiert.`
+  }
+  catch {
+    csvMessage.value = 'CSV konnte nicht importiert werden.'
+  }
+  finally {
+    input.value = ''
+  }
 }
 </script>
 
@@ -429,13 +419,39 @@ function updatePredefinedType(row: FilterRow) {
       </div>
     </div>
 
-    <button
-      type="button"
-      class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
-      @click="addRow"
-    >
-      Add Filter Row
-    </button>
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+        @click="addRow"
+      >
+        Add Filter Row
+      </button>
+      <button
+        type="button"
+        class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        @click="openCsvImport"
+      >
+        Import CSV
+      </button>
+      <button
+        type="button"
+        class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        @click="exportCsv"
+      >
+        Export CSV
+      </button>
+      <span v-if="csvMessage" class="text-xs text-slate-500">
+        {{ csvMessage }}
+      </span>
+      <input
+        ref="csvInput"
+        type="file"
+        accept=".csv,text/csv"
+        class="hidden"
+        @change="importCsv"
+      >
+    </div>
 
     <div class="border-t border-slate-200 pt-3">
       <label class="mb-2 block text-xs font-semibold uppercase tracking-tight text-slate-500">Outputs</label>
