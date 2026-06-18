@@ -1,51 +1,7 @@
 <script setup lang="ts">
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { FilterRow, FilterRowOperator, FilterRows, IfcElementFilterNode, IfcFilterEntity, IfcFilterIndex, IfcFilterProperty, IfcFilterPropertySet } from './types'
 import { useScopedNode } from '~/composables/useScopedNode'
-
-type IfcElementFilterNode = SchemaNodeType<'ifc_element_filter'>
-type FilterRows = NonNullable<NonNullable<IfcElementFilterNode['data']['settings']>['filter_rows']>
-type FilterRow = FilterRows[number]
-type FilterRowKey = keyof FilterRow
-type FilterRowMode = NonNullable<FilterRow['mode']>
-type FilterRowOperator = NonNullable<FilterRow['operator']>
-
-interface IfcAllowedValue {
-  code: string
-  value: string
-  description: string
-}
-
-interface IfcFilterProperty {
-  code: string
-  name: string
-  definition: string
-  dataType: string
-  propertyValueKind: string
-  allowedValues: IfcAllowedValue[]
-}
-
-interface IfcFilterPropertySet {
-  code: string
-  properties: IfcFilterProperty[]
-}
-
-interface IfcFilterEntity {
-  code: string
-  ifcCode: string
-  name: string
-  definition: string
-  parentClassCode: string
-  predefinedTypes: Array<{
-    code: string
-    name: string
-    definition: string
-  }>
-  propertySets: IfcFilterPropertySet[]
-}
-
-interface IfcFilterIndex {
-  entities: IfcFilterEntity[]
-}
+import { exportFilterRowsToCsv, importFilterRowsFromCsv } from './utils/csv-import-export'
 
 interface Props {
   node: IfcElementFilterNode
@@ -74,16 +30,6 @@ const operators: FilterRowOperator[] = [
   'contains',
   'starts_with',
   'ends_with',
-]
-
-const csvColumns: Array<{ key: FilterRowKey, label: string }> = [
-  { key: 'mode', label: 'mode' },
-  { key: 'entity_type', label: 'entity_type' },
-  { key: 'predefined_type', label: 'predefined_type' },
-  { key: 'property_set', label: 'property_set' },
-  { key: 'property_name', label: 'property_name' },
-  { key: 'operator', label: 'operator' },
-  { key: 'value', label: 'value' },
 ]
 
 if (!node.value.data.settings)
@@ -235,122 +181,8 @@ function updatePredefinedType(row: FilterRow) {
   row.predefined_type = (row.predefined_type ?? '').toUpperCase()
 }
 
-function escapeCsvValue(value: string | undefined): string {
-  const text = value ?? ''
-
-  if (!/[";,\r\n]/.test(text))
-    return text
-
-  return `"${text.replaceAll('"', '""')}"`
-}
-
-function parseCsv(text: string, delimiter: ',' | ';'): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let value = ''
-  let inQuotes = false
-
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index]
-    const nextCharacter = text[index + 1]
-
-    if (character === '"') {
-      if (inQuotes && nextCharacter === '"') {
-        value += '"'
-        index += 1
-      }
-      else {
-        inQuotes = !inQuotes
-      }
-
-      continue
-    }
-
-    if (character === delimiter && !inQuotes) {
-      row.push(value)
-      value = ''
-      continue
-    }
-
-    if ((character === '\n' || character === '\r') && !inQuotes) {
-      if (character === '\r' && nextCharacter === '\n')
-        index += 1
-
-      row.push(value)
-      if (row.some(cell => cell !== ''))
-        rows.push(row)
-
-      row = []
-      value = ''
-      continue
-    }
-
-    value += character
-  }
-
-  row.push(value)
-  if (row.some(cell => cell !== ''))
-    rows.push(row)
-
-  return rows
-}
-
-function rowFromCsvRecord(record: Record<string, string>): FilterRow {
-  const mode = record.mode ?? ''
-  const operator = record.operator ?? ''
-
-  return {
-    mode: ['include', 'exclude', 'disabled'].includes(mode) ? mode as FilterRowMode : 'include',
-    entity_type: record.entity_type ?? '',
-    predefined_type: record.predefined_type ?? '',
-    property_set: record.property_set ?? '',
-    property_name: record.property_name ?? '',
-    operator: operators.includes(operator as FilterRowOperator) ? operator as FilterRowOperator : '==',
-    value: record.value ?? '',
-  }
-}
-
-function rowsFromCsv(text: string): FilterRows {
-  const csvText = text.trimStart().replace(/^\uFEFF/, '')
-  const firstLine = csvText.split(/\r?\n/, 1)[0]?.trim().toLowerCase() ?? ''
-  const delimiter = firstLine === 'sep=;' || firstLine.includes(';') ? ';' : ','
-  const parsedRows = parseCsv(csvText, delimiter)
-  if (parsedRows[0]?.[0]?.trim().toLowerCase() === 'sep=;')
-    parsedRows.shift()
-
-  if (!parsedRows.length)
-    return []
-
-  const header = parsedRows[0]?.map(cell => cell.trim()) ?? []
-  const hasHeader = csvColumns.every(column => header.includes(column.label))
-  const dataRows = hasHeader ? parsedRows.slice(1) : parsedRows
-  const columns = hasHeader ? header : csvColumns.map(column => column.label)
-
-  return dataRows.map((dataRow) => {
-    const record: Record<string, string> = {}
-
-    columns.forEach((column, index) => {
-      record[column] = dataRow[index] ?? ''
-    })
-
-    return rowFromCsvRecord(record)
-  }) as FilterRows
-}
-
 function exportCsv() {
-  const header = csvColumns.map(column => column.label).join(';')
-  const body = filterRows.value.map(row => csvColumns
-    .map(column => escapeCsvValue(row[column.key] ?? ''))
-    .join(';'))
-  const csv = `\uFEFF${['sep=;', header, ...body].join('\r\n')}\r\n`
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-
-  link.href = url
-  link.download = 'ifc-element-filter.csv'
-  link.click()
-  URL.revokeObjectURL(url)
+  exportFilterRowsToCsv(filterRows.value, 'ifc-element-filter.csv')
   csvMessage.value = 'CSV exportiert.'
 }
 
@@ -366,7 +198,7 @@ async function importCsv(event: Event) {
     return
 
   try {
-    const importedRows = rowsFromCsv(await file.text())
+    const importedRows = await importFilterRowsFromCsv(file)
     node.value.data.settings = { ...node.value.data.settings, filter_rows: importedRows }
     csvMessage.value = `${importedRows.length} CSV-Zeilen importiert.`
   }
