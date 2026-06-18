@@ -57,6 +57,7 @@ The workflow engine now resolves `node_id.field_name` references centrally. Node
 
 - **[uv](https://github.com/astral-sh/uv)**: Python package installer and resolver.
 - **[Ruff](https://docs.astral.sh/ruff/)**: Python linter and formatter.
+- **[Pyright](https://github.com/microsoft/pyright)**: Static type checker.
 - **[IfcOpenShell](http://ifcopenshell.org/)**: Open-source IFC toolkit and geometry engine.
 
 ## Getting Started
@@ -81,7 +82,8 @@ Ensure you have `uv` installed on your system for dependency management.
 
 ```bash
 uv run ruff check
-ruff check --fix
+uv run ruff check --fix
+uv run pyright
 ```
 
 ### Example Node
