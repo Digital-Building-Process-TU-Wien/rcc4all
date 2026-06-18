@@ -1,6 +1,5 @@
 export interface NodeRegistrySchema {
   concat_string?: ConcatenateStrings
-  element_filter?: FilterIFCElements
   generate_3d_cube?: Generate3DCube
   get_name?: ResolveObjectNames
   ifc_element_filter?: IfcElementFilter
@@ -26,23 +25,6 @@ export interface ConcatenateStrings {
      * Resolved values to concatenate.
      */
     values?: (string | null)[]
-  }
-}
-/**
- * Resolve all IFC entities of a requested type to their express IDs.
- */
-export interface FilterIFCElements {
-  settings: {
-    /**
-     * IFC entity name to filter by, for example IFCWALL.
-     */
-    entity_type?: string
-  }
-  result: {
-    /**
-     * Express IDs for all IFC entities matching the requested entity type.
-     */
-    express_ids?: number[]
   }
 }
 /**
@@ -109,7 +91,7 @@ export interface IfcElementFilter {
       /**
        * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
        */
-      mode?: ('include' | 'exclude' | 'disabled')
+      mode?: ("include" | "exclude" | "disabled")
       /**
        * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
        */
@@ -129,7 +111,7 @@ export interface IfcElementFilter {
       /**
        * Comparison operator used for property or attribute values.
        */
-      operator?: ('==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'starts_with' | 'ends_with')
+      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
       /**
        * Value to compare against when property_name is set.
        */

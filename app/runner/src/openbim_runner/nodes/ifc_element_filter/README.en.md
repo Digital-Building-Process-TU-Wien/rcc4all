@@ -1,5 +1,5 @@
 ---
-title: IfcElementFilter
+title: Ifc Element Filter
 description: Filter IFC entities using table-based include and exclude rules.
 categories: IFC, Filter, Advanced
 ---

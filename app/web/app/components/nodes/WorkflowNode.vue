@@ -71,6 +71,7 @@ function handleCancel() {
       </button>
     </div>
     <Handle
+      v-if="data?.nodeName !== 'JsonOutput'"
       id="output"
       type="source"
       :position="Position.Right"

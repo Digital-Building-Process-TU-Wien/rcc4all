@@ -27,6 +27,12 @@ const availableNodes = computed(() => {
     categories: ['Other'],
     description: 'Select an IFC file from local development files',
   })
+  nodes.push({
+    nodeName: 'JsonOutput',
+    label: 'JSON Output',
+    categories: ['Other'],
+    description: 'Visual endcap for workflow output',
+  })
   return nodes
 })
 
@@ -144,7 +150,7 @@ async function runWorkflow() {
 
   const workflowNodeIds = new Set<string>()
   const workflowNodes = nodes.value
-    .filter(node => node.data.nodeName !== 'FileInput')
+    .filter(node => node.data.nodeName !== 'FileInput' && node.data.nodeName !== 'JsonOutput')
     .map((node) => {
       workflowNodeIds.add(node.id)
       return {

@@ -29,6 +29,12 @@ const availableNodes = computed(() => {
     categories: ['Other'],
     description: 'Select an IFC file from local development files',
   })
+  nodes.push({
+    nodeName: 'JsonOutput',
+    label: 'JSON Output',
+    categories: ['Other'],
+    description: 'Outputs the workflow result as JSON',
+  })
   return nodes
 })
 
