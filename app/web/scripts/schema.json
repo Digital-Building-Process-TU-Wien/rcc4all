@@ -4,6 +4,227 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "collision": {
+      "type": "object",
+      "title": "Collision Detection",
+      "description": "Pairwise collision detection between two geometry lists via mesh boolean intersection.",
+      "categories": [
+        "geometry",
+        "collision"
+      ],
+      "markdownDescription": "The `collision` node performs pairwise (zip) collision detection between two lists of geometry handles. Each pair is tested using an AABB prefilter followed by a manifold boolean intersection. A pair collides when the intersection has positive volume.\n\n## Pairing\n\n- Equal-length lists: elements are paired by index (`A[i]` with `B[i]`).\n- Mismatched lengths raise an error.\n\n## Result\n\nEach pair produces a `CollisionPair` record with `collides` (`true`/`false`/`null`), `intersection_volume`, and an `error` field when the result is undecidable (e.g. non-watertight meshes or boolean failure).\n\n## Settings\n\n- **Include intersection mesh**: When enabled, colliding pairs store the intersection mesh in the geometry cache and carry an `intersection_key` handle. This enables a future workflow extension that writes intersection geometry back as IFC.\n\n## Notes\n\n- Non-watertight meshes are repaired best-effort (vertex welding, hole filling, pymeshfix). Unrepairable meshes report `collides=null` with `error=\"non-watertight\"`.\n- Face-touching pairs produce zero-volume intersections and count as non-colliding.",
+      "locales": {
+        "de": {
+          "title": "Kollisionserkennung",
+          "description": "Paarweise Kollisionserkennung zwischen zwei Geometrielisten mittels Boolescher Schnittmengenberechnung.",
+          "categories": [
+            "geometry",
+            "collision"
+          ],
+          "markdownDescription": "Der `collision` Knoten f\u00fchrt paarweise (zip) Kollisionserkennung zwischen zwei Listen von Geometrie-Handles durch. Jedes Paar wird mit einem AABB-Pr\u00e4filter und anschlie\u00dfender Boolescher Schnittmengenberechnung gepr\u00fcft. Eine Kollision liegt vor, wenn die Schnittmenge ein positives Volumen hat.\n\n## Paarbildung\n\n- Gleich lange Listen: Elemente werden nach Index gepaart (`A[i]` mit `B[i]`).\n- Ungleich lange Listen erzeugen einen Fehler.\n\n## Ergebnis\n\nJedes Paar erzeugt einen `CollisionPair`-Datensatz mit `collides` (`true`/`false`/`null`), `intersection_volume` und einem `error`-Feld, wenn das Ergebnis unentscheidbar ist (z.B. nicht wasserdichte Netze oder Boolesche-Fehlschlag).\n\n## Einstellungen\n\n- **Include intersection mesh**: Wenn aktiviert, speichern kollidierende Paare das Schnittmengennetz im Geometrie-Cache und tragen einen `intersection_key`-Handle. Dies erm\u00f6glicht eine zuk\u00fcnftige Workflow-Erweiterung, die Schnittmengengeometrie als IFC zur\u00fcckschreibt.\n\n## Hinweise\n\n- Nicht wasserdichte Netze werden bestm\u00f6glich repariert (Knotenverschwei\u00dfung, Lochf\u00fcllung, pymeshfix). Nicht reparierbare Netze melden `collides=null` mit `error=\"non-watertight\"`.\n- Sich ber\u00fchrende Paare erzeugen Schnittmengen mit null Volumen und gelten als nicht kollidierend."
+        },
+        "en": {
+          "title": "Collision Detection",
+          "description": "Pairwise collision detection between two geometry lists via mesh boolean intersection.",
+          "categories": [
+            "geometry",
+            "collision"
+          ],
+          "markdownDescription": "The `collision` node performs pairwise (zip) collision detection between two lists of geometry handles. Each pair is tested using an AABB prefilter followed by a manifold boolean intersection. A pair collides when the intersection has positive volume.\n\n## Pairing\n\n- Equal-length lists: elements are paired by index (`A[i]` with `B[i]`).\n- Mismatched lengths raise an error.\n\n## Result\n\nEach pair produces a `CollisionPair` record with `collides` (`true`/`false`/`null`), `intersection_volume`, and an `error` field when the result is undecidable (e.g. non-watertight meshes or boolean failure).\n\n## Settings\n\n- **Include intersection mesh**: When enabled, colliding pairs store the intersection mesh in the geometry cache and carry an `intersection_key` handle. This enables a future workflow extension that writes intersection geometry back as IFC.\n\n## Notes\n\n- Non-watertight meshes are repaired best-effort (vertex welding, hole filling, pymeshfix). Unrepairable meshes report `collides=null` with `error=\"non-watertight\"`.\n- Face-touching pairs produce zero-volume intersections and count as non-colliding."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "include_intersection_mesh": {
+              "default": false,
+              "description": "When enabled, colliding pairs store the intersection mesh in the geometry cache and carry an intersection_key handle. Enables a future workflow extension that writes intersection geometry back as IFC.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "pairs": {
+              "default": [],
+              "description": "One record per paired geometry pair (zip by index).",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "index": {
+                    "description": "Zero-based pair index within the result.",
+                    "type": "integer"
+                  },
+                  "key_a": {
+                    "description": "Cache key of the first geometry in the pair.",
+                    "type": "string"
+                  },
+                  "key_b": {
+                    "description": "Cache key of the second geometry in the pair.",
+                    "type": "string"
+                  },
+                  "express_id_a": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "IFC express ID of the first geometry, or None."
+                  },
+                  "express_id_b": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "IFC express ID of the second geometry, or None."
+                  },
+                  "collides": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "True if the pair intersects with positive volume, False if disjoint. None if undecidable (see error)."
+                  },
+                  "intersection_volume": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Volume of the intersection mesh when colliding, otherwise None."
+                  },
+                  "error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Error reason when collides is None, e.g. 'non-watertight' or 'boolean failed: ...'."
+                  },
+                  "intersection_key": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Geometry-cache handle for the intersection mesh, only when include_intersection_mesh is enabled and the pair collides. Enables a future workflow extension that writes intersection geometry back as IFC."
+                  }
+                },
+                "required": [
+                  "index",
+                  "key_a",
+                  "key_b"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "geometries_a": {
+              "default": [],
+              "description": "First list of geometry handles.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "description": "Key into the workflow-scoped geometry cache holding the trimesh mesh.",
+                    "type": "string"
+                  },
+                  "express_id": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "IFC express ID of the source element, or None for workflow-generated geometry."
+                  }
+                },
+                "required": [
+                  "key"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "geometries_b": {
+              "default": [],
+              "description": "Second list of geometry handles, paired pairwise with A.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "description": "Key into the workflow-scoped geometry cache holding the trimesh mesh.",
+                    "type": "string"
+                  },
+                  "express_id": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "IFC express ID of the source element, or None for workflow-generated geometry."
+                  }
+                },
+                "required": [
+                  "key"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
     "concat_string": {
       "type": "object",
       "title": "Concatenate Strings",
@@ -89,7 +310,7 @@
       "categories": [
         "3D operation"
       ],
-      "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `vertices` | `list[list[float]]` | List of 8 vertex coordinates as `[x, y, z]` lists |\n| `faces` | `list[list[int]]` | List of 6 face definitions as vertex index lists |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- Output format is compatible with `trimesh.Trimesh(vertices, faces)` constructor",
+      "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is a geometry handle referencing a cached trimesh mesh that can be used for collision detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `geometry` | `list[Geometry]` | 1-element geometry list (express_id=None) referencing the cached cube mesh |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- The output geometry handle can be fed directly into a `collision` node",
       "locales": {
         "de": {
           "title": "3D-W\u00fcrfel generieren",
@@ -97,7 +318,7 @@
           "categories": [
             "3D operation"
           ],
-          "markdownDescription": "Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation. Die Ausgabe sind trimesh-kompatible Geometriedaten, die f\u00fcr die Kollisionserkennung, Visualisierung oder weitere geometrische Operationen verwendet werden k\u00f6nnen.\n\n## Eingaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `position` | `list[float]` | Position des W\u00fcrfelzentrums als `[x, y, z]` Koordinaten. Standard: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation um X, Y, Z Achsen in Grad (Euler-Winkel). Standard: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Abmessungen des W\u00fcrfels als `[Breite, H\u00f6he, Tiefe]`. Standard: `[1.0, 1.0, 1.0]` |\n\n## Ausgaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `vertices` | `list[list[float]]` | Liste von 8 Vertex-Koordinaten als `[x, y, z]` Listen |\n| `faces` | `list[list[int]]` | Liste von 6 Fl\u00e4chendefinitionen als Vertex-Index-Listen |\n\n## Beispiel\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nDies erstellt einen 2\u00d72\u00d72 W\u00fcrfel zentriert bei (5, 3, 0), um 45 Grad um die Z-Achse rotiert.\n\n## Hinweise\n\n- Der W\u00fcrfel wird zuerst zentriert am Ursprung erstellt, dann rotiert und verschoben\n- Alle Gr\u00f6\u00dfenabmessungen m\u00fcssen positiv sein (gr\u00f6\u00dfer als 0)\n- Rotation folgt der Rechte-Hand-Regel\n- Ausgabeformat ist kompatibel mit `trimesh.Trimesh(vertices, faces)` Konstruktor"
+          "markdownDescription": "Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation. Die Ausgabe ist ein Geometrie-Handle, das auf ein zwischengespeichertes trimesh-Netz verweist und f\u00fcr Kollisionserkennung, Visualisierung oder weitere geometrische Operationen verwendet werden kann.\n\n## Eingaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `position` | `list[float]` | Position des W\u00fcrfelzentrums als `[x, y, z]` Koordinaten. Standard: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation um X, Y, Z Achsen in Grad (Euler-Winkel). Standard: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Abmessungen des W\u00fcrfels als `[Breite, H\u00f6he, Tiefe]`. Standard: `[1.0, 1.0, 1.0]` |\n\n## Ausgaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `geometry` | `list[Geometry]` | 1-elementige Geometrieliste (express_id=None), die auf das zwischengespeicherte W\u00fcrfelnetz verweist |\n\n## Beispiel\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nDies erstellt einen 2\u00d72\u00d72 W\u00fcrfel zentriert bei (5, 3, 0), um 45 Grad um die Z-Achse rotiert.\n\n## Hinweise\n\n- Der W\u00fcrfel wird zuerst zentriert am Ursprung erstellt, dann rotiert und verschoben\n- Alle Gr\u00f6\u00dfenabmessungen m\u00fcssen positiv sein (gr\u00f6\u00dfer als 0)\n- Rotation folgt der Rechte-Hand-Regel\n- Das Ausgabe-Geometrie-Handle kann direkt in einen `collision`-Knoten eingespeist werden"
         },
         "en": {
           "title": "Generate 3D Cube",
@@ -105,32 +326,40 @@
           "categories": [
             "3D operation"
           ],
-          "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `vertices` | `list[list[float]]` | List of 8 vertex coordinates as `[x, y, z]` lists |\n| `faces` | `list[list[int]]` | List of 6 face definitions as vertex index lists |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- Output format is compatible with `trimesh.Trimesh(vertices, faces)` constructor"
+          "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is a geometry handle referencing a cached trimesh mesh that can be used for collision detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `geometry` | `list[Geometry]` | 1-element geometry list (express_id=None) referencing the cached cube mesh |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- The output geometry handle can be fed directly into a `collision` node"
         }
       },
       "properties": {
         "result": {
           "additionalProperties": false,
           "properties": {
-            "vertices": {
+            "geometry": {
               "default": [],
-              "description": "List of 3D vertex coordinates [[x, y, z], ...] defining the cube geometry.",
+              "description": "The generated cube as a 1-element geometry list (express_id=None).",
               "items": {
-                "items": {
-                  "type": "number"
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "description": "Key into the workflow-scoped geometry cache holding the trimesh mesh.",
+                    "type": "string"
+                  },
+                  "express_id": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "IFC express ID of the source element, or None for workflow-generated geometry."
+                  }
                 },
-                "type": "array"
-              },
-              "type": "array"
-            },
-            "faces": {
-              "default": [],
-              "description": "List of face definitions [[v1, v2, v3], ...] as vertex indices forming triangles.",
-              "items": {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
+                "required": [
+                  "key"
+                ],
+                "type": "object"
               },
               "type": "array"
             }
@@ -182,6 +411,105 @@
       },
       "required": [
         "result",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
+    "get_geometry": {
+      "type": "object",
+      "title": "Get Geometry",
+      "description": "Tessellate IFC element body geometry in worldspace and return cache handles.",
+      "categories": [
+        "geometry",
+        "ifc"
+      ],
+      "markdownDescription": "The `get_geometry` node reads IFC entities by express ID, tessellates their body representation in worldspace coordinates, and returns geometry handles referencing meshes stored in the workflow-scoped geometry cache.\n\nUse this node to prepare geometry for collision detection or other geometric operations. Typically follows an `ifc_element_filter` that provides express IDs.\n\n## Settings\n\n- **Fail on missing**: When enabled, raises an error if an express ID does not exist in the model or an element has no body geometry representation. When disabled, missing elements are skipped.\n\n## Notes\n\n- Geometry is cached in-process for the duration of the workflow run. The returned handles carry a cache key and the source express ID.\n- Vertices are welded at tessellation time to improve watertightness.",
+      "locales": {
+        "de": {
+          "title": "Geometrie abrufen",
+          "description": "Tesselliert die K\u00f6rpergeometrie von IFC-Elementen im Weltkoordinatensystem und gibt Cache-Handles zur\u00fcck.",
+          "categories": [
+            "geometry",
+            "ifc"
+          ],
+          "markdownDescription": "Der `get_geometry` Knoten liest IFC-Entit\u00e4ten nach Express-ID, tesselliert deren K\u00f6rperdarstellung in Weltkoordinaten und gibt Geometrie-Handles zur\u00fcck, die auf im workflow-weiten Geometrie-Cache gespeicherte Netze verweisen.\n\nVerwenden Sie diesen Knoten, um Geometrie f\u00fcr Kollisionserkennung oder andere geometrische Operationen vorzubereiten. Folgt typischerweise auf einen `ifc_element_filter`, der Express-IDs bereitstellt.\n\n## Einstellungen\n\n- **Fail on missing**: Wenn aktiviert, wird ein Fehler ausgel\u00f6st, wenn eine Express-ID nicht im Modell existiert oder ein Element keine K\u00f6rpergeometrie-Darstellung hat. Wenn deaktiviert, werden fehlende Elemente \u00fcbersprungen.\n\n## Hinweise\n\n- Die Geometrie wird prozessintern f\u00fcr die Dauer des Workflow-Laufs zwischengespeichert. Die zur\u00fcckgegebenen Handles tragen einen Cache-Schl\u00fcssel und die Express-ID der Quelle.\n- Scheitelpunkte werden zur Tessellierungszeit verschwei\u00dft, um die Wasserdichtigkeit zu verbessern."
+        },
+        "en": {
+          "title": "Get Geometry",
+          "description": "Tessellate IFC element body geometry in worldspace and return cache handles.",
+          "categories": [
+            "geometry",
+            "ifc"
+          ],
+          "markdownDescription": "The `get_geometry` node reads IFC entities by express ID, tessellates their body representation in worldspace coordinates, and returns geometry handles referencing meshes stored in the workflow-scoped geometry cache.\n\nUse this node to prepare geometry for collision detection or other geometric operations. Typically follows an `ifc_element_filter` that provides express IDs.\n\n## Settings\n\n- **Fail on missing**: When enabled, raises an error if an express ID does not exist in the model or an element has no body geometry representation. When disabled, missing elements are skipped.\n\n## Notes\n\n- Geometry is cached in-process for the duration of the workflow run. The returned handles carry a cache key and the source express ID.\n- Vertices are welded at tessellation time to improve watertightness."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "fail_on_missing": {
+              "default": false,
+              "description": "When enabled, raises an error if an express ID does not exist in the model or an element has no body geometry representation.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "geometries": {
+              "default": [],
+              "description": "Geometry handles aligned with the input express IDs (missing elements are skipped).",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "description": "Key into the workflow-scoped geometry cache holding the trimesh mesh.",
+                    "type": "string"
+                  },
+                  "express_id": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "IFC express ID of the source element, or None for workflow-generated geometry."
+                  }
+                },
+                "required": [
+                  "key"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "Ordered list of IFC express IDs whose body geometry should be tessellated.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
         "inputs"
       ],
       "additionalProperties": false

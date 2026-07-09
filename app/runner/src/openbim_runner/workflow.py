@@ -169,6 +169,7 @@ async def execute_workflow_async(workflow_path: Path) -> tuple[dict[str, NodeMod
     node_registry = get_registry()
     ifc_model = ifcopenshell.open(str(resolve_ifc_path(workflow_path, workflow.ifc_path)))  # pyright: ignore[reportUnknownMemberType]
     node_outputs: dict[str, NodeModel] = {}
+    geometry_cache: dict[str, Any] = {}
 
     for node_id in execution_order:
         workflow_node = node_lookup[node_id]
@@ -181,7 +182,11 @@ async def execute_workflow_async(workflow_path: Path) -> tuple[dict[str, NodeMod
 
         settings_payload = workflow_node.settings
         input_payload = resolve_input_bindings(workflow_node, node_outputs)
-        context = ExecutionContext(ifc_model=ifc_model, node_outputs=node_outputs)
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs=node_outputs,
+            geometry_cache=geometry_cache,
+        )
         node_outputs[node_id] = await dispatch(
             workflow_node.type,
             settings_payload,

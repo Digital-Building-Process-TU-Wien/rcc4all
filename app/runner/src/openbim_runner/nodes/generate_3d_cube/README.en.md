@@ -4,7 +4,7 @@ description: Create a 3D cube geometry with customizable size, position, and rot
 categories: 3D operation,
 ---
 
-The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.
+The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is a geometry handle referencing a cached trimesh mesh that can be used for collision detection, visualization, or further geometric operations.
 
 ## Inputs
 
@@ -18,8 +18,7 @@ The `generate_3d_cube` node creates a 3D box geometry with configurable dimensio
 
 | Name | Type | Description |
 |------|------|-------------|
-| `vertices` | `list[list[float]]` | List of 8 vertex coordinates as `[x, y, z]` lists |
-| `faces` | `list[list[int]]` | List of 6 face definitions as vertex index lists |
+| `geometry` | `list[Geometry]` | 1-element geometry list (express_id=None) referencing the cached cube mesh |
 
 ## Example
 
@@ -38,4 +37,4 @@ This creates a 2×2×2 cube centered at (5, 3, 0), rotated 45 degrees around the
 - The cube is created centered at the origin first, then rotated and translated
 - All size dimensions must be positive (greater than 0)
 - Rotation follows the right-hand rule
-- Output format is compatible with `trimesh.Trimesh(vertices, faces)` constructor
+- The output geometry handle can be fed directly into a `collision` node

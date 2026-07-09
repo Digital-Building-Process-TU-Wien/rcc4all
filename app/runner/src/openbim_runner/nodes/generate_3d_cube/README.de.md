@@ -4,7 +4,7 @@ description: Erstellt eine 3D-Würfelgeometrie mit anpassbarer Größe, Position
 categories: 3D operation
 ---
 
-Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation. Die Ausgabe sind trimesh-kompatible Geometriedaten, die für die Kollisionserkennung, Visualisierung oder weitere geometrische Operationen verwendet werden können.
+Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation. Die Ausgabe ist ein Geometrie-Handle, das auf ein zwischengespeichertes trimesh-Netz verweist und für Kollisionserkennung, Visualisierung oder weitere geometrische Operationen verwendet werden kann.
 
 ## Eingaben
 
@@ -18,8 +18,7 @@ Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbare
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
-| `vertices` | `list[list[float]]` | Liste von 8 Vertex-Koordinaten als `[x, y, z]` Listen |
-| `faces` | `list[list[int]]` | Liste von 6 Flächendefinitionen als Vertex-Index-Listen |
+| `geometry` | `list[Geometry]` | 1-elementige Geometrieliste (express_id=None), die auf das zwischengespeicherte Würfelnetz verweist |
 
 ## Beispiel
 
@@ -38,4 +37,4 @@ Dies erstellt einen 2×2×2 Würfel zentriert bei (5, 3, 0), um 45 Grad um die Z
 - Der Würfel wird zuerst zentriert am Ursprung erstellt, dann rotiert und verschoben
 - Alle Größenabmessungen müssen positiv sein (größer als 0)
 - Rotation folgt der Rechte-Hand-Regel
-- Ausgabeformat ist kompatibel mit `trimesh.Trimesh(vertices, faces)` Konstruktor
+- Das Ausgabe-Geometrie-Handle kann direkt in einen `collision`-Knoten eingespeist werden

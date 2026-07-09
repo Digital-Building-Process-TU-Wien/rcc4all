@@ -6,6 +6,7 @@ import trimesh
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
+from openbim_runner.nodes.geometry import Geometry, cache_mesh
 
 class Generate3DCubeInputs(NodeModel):
     position: list[float] = Field(
@@ -26,15 +27,10 @@ class Generate3DCubeInputs(NodeModel):
 
 
 class Generate3DCubeResult(NodeModel):
-    vertices: list[list[float]] = Field(
+    geometry: list[Geometry] = Field(
         default=[],
-        title="Vertices",
-        description="List of 3D vertex coordinates [[x, y, z], ...] defining the cube geometry.",
-    )
-    faces: list[list[int]] = Field(
-        default=[],
-        title="Faces",
-        description="List of face definitions [[v1, v2, v3], ...] as vertex indices forming triangles.",
+        title="Geometry",
+        description="The generated cube as a 1-element geometry list (express_id=None).",
     )
 
 
@@ -69,7 +65,5 @@ async def generate_3d_cube(inputs: Generate3DCubeInputs, context: ExecutionConte
 
     box.apply_transform(transform_matrix)
 
-    return Generate3DCubeResult(
-        vertices=box.vertices.tolist(),
-        faces=box.faces.tolist(),
-    )
+    handle = cache_mesh(context, box)
+    return Generate3DCubeResult(geometry=[handle])
