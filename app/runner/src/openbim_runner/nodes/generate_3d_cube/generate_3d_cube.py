@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import math
+from typing import cast
 
+import numpy as np
+import numpy.typing as npt
 import trimesh
 from pydantic import Field
 
@@ -38,13 +41,15 @@ class Generate3DCubeResult(NodeModel):
     )
 
 
-def _euler_degrees_to_matrix(rotation: list[float]) -> trimesh.Transformations:
+def _euler_degrees_to_matrix(rotation: list[float]) -> npt.NDArray[np.float64]:
     x_rad = math.radians(rotation[0])
     y_rad = math.radians(rotation[1])
     z_rad = math.radians(rotation[2])
 
-    rotation_matrix = trimesh.transformations.euler_matrix(x_rad, y_rad, z_rad)
-    return rotation_matrix
+    return cast(
+        npt.NDArray[np.float64],
+        trimesh.transformations.euler_matrix(x_rad, y_rad, z_rad),  # pyright: ignore[reportUnknownMemberType]
+    )
 
 
 @node()
@@ -59,17 +64,20 @@ async def generate_3d_cube(inputs: Generate3DCubeInputs, context: ExecutionConte
     if len(inputs.size) != 3:
         raise ValueError("Size must be a 3D vector [width, height, depth]")
 
-    box = trimesh.creation.box(extents=inputs.size)
+    box = trimesh.creation.box(extents=inputs.size)  # pyright: ignore[reportUnknownMemberType]
 
     rotation_matrix = _euler_degrees_to_matrix(inputs.rotation)
 
-    translation_matrix = trimesh.transformations.translation_matrix(inputs.position)
+    translation_matrix = cast(
+        npt.NDArray[np.float64],
+        trimesh.transformations.translation_matrix(inputs.position),  # pyright: ignore[reportUnknownMemberType]
+    )
 
-    transform_matrix = translation_matrix @ rotation_matrix
+    transform_matrix: npt.NDArray[np.float64] = translation_matrix @ rotation_matrix
 
-    box.apply_transform(transform_matrix)
+    box.apply_transform(transform_matrix)  # pyright: ignore[reportUnknownMemberType]
 
     return Generate3DCubeResult(
-        vertices=box.vertices.tolist(),
-        faces=box.faces.tolist(),
+        vertices=cast(list[list[float]], box.vertices.tolist()),
+        faces=cast(list[list[int]], box.faces.tolist()),
     )

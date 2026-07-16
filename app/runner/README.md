@@ -29,7 +29,7 @@ tests/ <-- integration tests / multiple nodes / workflows
 
 - `base.py` defines the shared Pydantic base model, the `@node()` decorator, and the dispatcher.
 - Each node is a plain function with one typed settings model, an optional typed inputs model, and one typed result model.
-- `element_filter` resolves express IDs for all entities matching an IFC type such as `IFCWALL`.
+- `ifc_element_filter` filters IFC elements by entity type, predefined type, and property set values.
 - `get_name` resolves IFC object names from configured express IDs.
 - `concat_string` joins a string list that the workflow resolves before the node is called.
 

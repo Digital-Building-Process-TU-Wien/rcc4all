@@ -11,6 +11,6 @@ def test_registry_schema_includes_node_readme_metadata() -> None:
     assert concat_string_schema["description"] == "Join a list of resolved string values into one output string."
     assert "Use case example" in concat_string_schema["markdownDescription"]
 
-    for node_name in ["concat_string", "element_filter", "get_name"]:
+    for node_name in ["concat_string", "ifc_element_filter", "get_name"]:
         node_schema = schema["properties"][node_name]
         assert node_schema["markdownDescription"]

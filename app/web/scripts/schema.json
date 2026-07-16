@@ -193,7 +193,7 @@
       "categories": [
         "IFC"
       ],
-      "markdownDescription": "The `get_name` node reads IFC entities by express ID from its input and returns their `Name` values in the same order.\n\nUse this node to get human-readable labels for model elements, typically after an `element_filter` or other node that provides express IDs.\n\n## Use case example\n\nConnect an `element_filter` to get all walls, then use `get_name` to resolve their names for display or reporting.\n\n## Settings\n\n- **Fail on missing**: When enabled, raises an error if an express ID does not exist in the model. Entities without a name return `null` instead.",
+      "markdownDescription": "The `get_name` node reads IFC entities by express ID from its input and returns their `Name` values in the same order.\n\nUse this node to get human-readable labels for model elements, typically after an `ifc_element_filter` or other node that provides express IDs.\n\n## Use case example\n\nConnect an `ifc_element_filter` to get all walls, then use `get_name` to resolve their names for display or reporting.\n\n## Settings\n\n- **Fail on missing**: When enabled, raises an error if an express ID does not exist in the model. Entities without a name return `null` instead.",
       "locales": {
         "de": {
           "title": "Objektnamen aufl\u00f6sen",
@@ -201,7 +201,7 @@
           "categories": [
             "IFC"
           ],
-          "markdownDescription": "Der `get_name` Knoten liest IFC-Entit\u00e4ten nach Express-ID aus dem Eingang und gibt deren `Name`-Werte in der gleichen Reihenfolge zur\u00fcck.\n\nVerwenden Sie diesen Knoten f\u00fcr menschenlesbare Beschriftungen, typischerweise nach einem `element_filter` oder anderen Knoten, die Express-IDs bereitstellen.\n\n## Anwendungsbeispiel\n\nVerbinden Sie einen `element_filter`, um alle W\u00e4nde zu erhalten, und nutzen Sie dann `get_name`, um deren Namen f\u00fcr die Anzeige oder Berichterstattung aufzul\u00f6sen.\n\n## Einstellungen\n\n- **Fail on missing**: Wenn aktiviert, wird ein Fehler ausgel\u00f6st, wenn eine Express-ID nicht im Modell existiert. Entit\u00e4ten ohne Name geben `null` zur\u00fcck."
+          "markdownDescription": "Der `get_name` Knoten liest IFC-Entit\u00e4ten nach Express-ID aus dem Eingang und gibt deren `Name`-Werte in der gleichen Reihenfolge zur\u00fcck.\n\nVerwenden Sie diesen Knoten f\u00fcr menschenlesbare Beschriftungen, typischerweise nach einem `ifc_element_filter` oder anderen Knoten, die Express-IDs bereitstellen.\n\n## Anwendungsbeispiel\n\nVerbinden Sie einen `ifc_element_filter`, um alle W\u00e4nde zu erhalten, und nutzen Sie dann `get_name`, um deren Namen f\u00fcr die Anzeige oder Berichterstattung aufzul\u00f6sen.\n\n## Einstellungen\n\n- **Fail on missing**: Wenn aktiviert, wird ein Fehler ausgel\u00f6st, wenn eine Express-ID nicht im Modell existiert. Entit\u00e4ten ohne Name geben `null` zur\u00fcck."
         },
         "en": {
           "title": "Resolve Object Names",
@@ -209,7 +209,7 @@
           "categories": [
             "IFC"
           ],
-          "markdownDescription": "The `get_name` node reads IFC entities by express ID from its input and returns their `Name` values in the same order.\n\nUse this node to get human-readable labels for model elements, typically after an `element_filter` or other node that provides express IDs.\n\n## Use case example\n\nConnect an `element_filter` to get all walls, then use `get_name` to resolve their names for display or reporting.\n\n## Settings\n\n- **Fail on missing**: When enabled, raises an error if an express ID does not exist in the model. Entities without a name return `null` instead."
+          "markdownDescription": "The `get_name` node reads IFC entities by express ID from its input and returns their `Name` values in the same order.\n\nUse this node to get human-readable labels for model elements, typically after an `ifc_element_filter` or other node that provides express IDs.\n\n## Use case example\n\nConnect an `ifc_element_filter` to get all walls, then use `get_name` to resolve their names for display or reporting.\n\n## Settings\n\n- **Fail on missing**: When enabled, raises an error if an express ID does not exist in the model. Entities without a name return `null` instead."
         }
       },
       "properties": {
