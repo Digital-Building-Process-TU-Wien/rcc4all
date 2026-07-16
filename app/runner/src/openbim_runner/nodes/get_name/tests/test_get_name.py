@@ -18,7 +18,7 @@ class FakeEntity:
 class FakeIfcModel:
     def __init__(self, entities_by_id: dict[int, FakeEntity], *, failing_ids: set[int] | None = None) -> None:
         self.entities_by_id = entities_by_id
-        self.failing_ids = set() if failing_ids is None else failing_ids
+        self.failing_ids: set[int] = set() if failing_ids is None else failing_ids
 
     def by_id(self, express_id: int) -> FakeEntity:
         if express_id in self.failing_ids:

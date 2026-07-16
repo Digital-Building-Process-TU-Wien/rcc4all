@@ -63,7 +63,6 @@ function toPascalCase(str: string): string {
 
 const nodeNameToComponent: Record<string, string> = {
   concat_string: 'ConcatString',
-  element_filter: 'ElementFilter',
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',
   get_name: 'GetName',
