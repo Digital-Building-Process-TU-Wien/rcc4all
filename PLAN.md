@@ -24,7 +24,77 @@ Add two new runner nodes — `get_geometry` and `collision` — that let workflo
 | 12 | Geometry model + cache location | Shared module `nodes/geometry.py` (avoids a module literally named `types` for traceback clarity). `geometry_cache: dict[str, trimesh.Trimesh]` added to `ExecutionContext`. |
 | 13 | CollisionPair fields | `index`, `key_a`, `key_b`, `express_id_a`, `express_id_b`, `collides: bool \| None`, `intersection_volume: float \| None`, `error: str \| None`, and (when enabled) `intersection_key: str \| None`. |
 | 14 | Dependencies | Add to `app/runner/pyproject.toml`: `numpy` (used directly — currently only transitive), `manifold3d` (boolean engine), `pymeshfix` (repair ladder step 3). |
-| 15 | Performance posture | Prototype-grade: per-element `ifcopenshell.geom.create_shape` loop is acceptable and blocks the (sequential) asyncio loop — tolerated. `ifcopenshell.geom.iterator` (multithreaded) noted as the future fast path. |
+| 15 | Performance posture | Prototype-grade: per-element `ifcopenshell.geom.create_shape` loop is acceptable and blocks the (sequential) asyncio loop — tolerated. Benchmark findings (see §"Benchmark Findings" below) identify the `hybrid-cgal-simple-opencascade` kernel + a binary disk cache as the concrete fast path: 4.5x tessellation speedup, 1163x load speedup on cached re-runs. |
+
+---
+
+## Benchmark Findings
+
+Benchmarked three tessellation pipelines head-to-head on the 234 MB
+`BAM_1220_Donaustrasse_2022-09-06-13-30.ifc` model (22,574 shapes) to identify
+the fast path referenced in Decision 15. All produced a binary cache of
+tessellated meshes + a 3D rtree spatial index; the cache load path reads the
+binary files directly, skipping IFC parse and tessellation.
+
+### Efforts Tried
+
+**1. ifcopenshell default kernel (`opencascade`)**
+- Build: **92–103s** (load ~12s, tessellate ~78–93s).
+- CPU scaling test: 4 vs 20 CPUs → 91.9s vs 93.3s. Tessellation is **not
+  CPU-bound**; adding threads does not help.
+- Mesher deflection settings (`mesher-linear-deflection`,
+  `mesher-angular-deflection`) had **no effect** — the model is dominated by
+  planar extrusions.
+- Cache load: **0.08–0.09s** → **1163x speedup** over rebuild.
+- Cache size: 58.7 MB npz + 2 MB rtree = **~61 MB (26% of the 234 MB IFC)**.
+
+**2. web-ifc (Node.js)**
+- Single run: init + open + tessellate + save to `.bin`.
+- `StreamAllMeshes` requires `flatTransformation` to be set first; the function
+  receives `(wrapped_api, transformed_api)` and applies the object placement
+  chain.
+- `flatTransformation` applies **only** the object placement chain, **not**
+  `IfcMapConversion` (the survey transform). Result is world coords but with
+  Y/Z swapped vs ifcopenshell world coords.
+- Transform to align web-ifc → ifcopenshell world coords: `(x, y, z) → (x, -z,
+  y)` (90° rotation around X).
+- `shape.bbox` does **not** exist on `TriangulationElement`; bounding boxes must
+  be computed via `numpy.min/max` over vertices.
+- web-ifc tessellates **more finely** than ifcopenshell default (e.g. eid=6084:
+  4612 vs 1389 verts) — different tessellation algorithm/settings.
+- Shape count: 21,791 in web-ifc vs 22,574 in ifcopenshell; 21,469 common.
+
+**3. ifcopenshell hybrid kernel (`hybrid-cgal-simple-opencascade`)**
+- `iterator` accepts a `geometry_library` kwarg; available kernels are `cgal`,
+  `cgal-simple`, `opencascade`, `hybrid-cgal-simple-opencascade`.
+- Build: **64s** (load ~35s cold disk*, tessellate **20s**).
+- Tessellation alone dropped from ~90s → **20s (~4.5x faster)** than the
+  default `opencascade` kernel.
+- **Identical output**: 937,618 verts and 1,552,801 faces across 22,573 meshes
+  — same geometry quality at much higher speed.
+- Cache size unchanged at 58.7 MB.
+
+\* The 35s IFC load was a cold-disk anomaly (warm loads are ~12s); tessellation
+time is the relevant comparison.
+
+### Results Summary
+
+| Pipeline                       | Build    | Tessellate | Cache Load | Speedup  |
+|--------------------------------|----------|------------|------------|----------|
+| ifcopenshell `opencascade`     | 92–103s  | 78–93s     | 0.08s      | 1163x    |
+| ifcopenshell `hybrid-...`      | 64s      | 20s        | 0.08s      | ~800x    |
+| web-ifc                        | (single run) | —      | —          | —        |
+
+### Conclusion
+
+- The hybrid kernel gives a **4.5x tessellation speedup** with identical
+  geometry output — strictly better than the default kernel for this model.
+- The binary cache gives a **1163x load speedup** (0.08s vs ~92s), making
+  repeated runs effectively free.
+- web-ifc is a viable alternative but produces different geometry (finer
+  tessellation, different shape count) and requires a coordinate transform to
+  match ifcopenshell world coords. Its main appeal would be avoiding the
+  Python/C++ dependency chain in a JS-only deployment.
 
 ---
 
@@ -194,7 +264,7 @@ class Generate3DCubeResult(NodeModel):
 - **Frontend type-checker enhancement** — `parseTypeSchema` (`schema-helpers.ts:73`) `$ref`/object resolution, structural subtyping. Not needed; no hard enforcement exists today.
 - **Array/iteration architecture** — engine-level implicit broadcasting (n8n/Blender-fields style) or a map meta-node. For now: uniform `list[Geometry]` ports (Decision 6).
 - **Persist geometry cache / write results back as IFC** (root `README.md:40` roadmap) — a node that reads `intersection_key` meshes from the cache and writes them as IFC geometry. The handle scheme is designed to make this a drop-in.
-- **`ifcopenshell.geom.iterator`** fast path for large models.
+- **`ifcopenshell.geom.iterator` + binary disk cache fast path** for large models — resolved by the benchmark findings above: use the `hybrid-cgal-simple-opencascade` kernel + a `tessellations.npz`/rtree cache (0.08s cached load vs ~64–92s rebuild). Integration into `get_geometry` is the next step after the prototype lands.
 
 ---
 
