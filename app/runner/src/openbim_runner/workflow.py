@@ -10,6 +10,7 @@ import ifcopenshell
 from pydantic import Field
 
 from openbim_runner.nodes import ExecutionContext, NodeModel, dispatch, get_registry
+from openbim_runner.util.geometry import build_geometry_cache
 
 
 class WorkflowNode(NodeModel):
@@ -169,7 +170,7 @@ async def execute_workflow_async(workflow_path: Path) -> tuple[dict[str, NodeMod
     node_registry = get_registry()
     ifc_model = ifcopenshell.open(str(resolve_ifc_path(workflow_path, workflow.ifc_path)))  # pyright: ignore[reportUnknownMemberType]
     node_outputs: dict[str, NodeModel] = {}
-    geometry_cache: dict[str, Any] = {}
+    geometry_cache = build_geometry_cache(ifc_model)
 
     for node_id in execution_order:
         workflow_node = node_lookup[node_id]

@@ -13,129 +13,66 @@ from openbim_runner.nodes.collision.collision import (
     CollisionSettings,
     collision,
 )
-from openbim_runner.nodes.geometry import Geometry, cache_mesh
+from openbim_runner.util.geometry import cache_mesh, resolve_mesh
 
 
 def _context() -> ExecutionContext:
     return ExecutionContext(ifc_model=cast(Any, object()), node_outputs={})
 
 
-def _box(context: ExecutionContext, extents: list[float], translation: list[float], express_id: int | None = None) -> Geometry:
-    mesh = trimesh.creation.box(extents=extents)
+def _express_box(context: ExecutionContext, express_id: int, translation: list[float], extents: list[float] | None = None) -> None:
+    mesh = trimesh.creation.box(extents=extents or [2, 2, 2])
     mesh.apply_translation(translation)
-    return cache_mesh(context, mesh, express_id=express_id)
+    cache_mesh(context, mesh, express_id=express_id)
 
 
 def _run(settings: CollisionSettings, inputs: CollisionInputs, context: ExecutionContext) -> CollisionResult:
     return asyncio.run(collision(settings, inputs, context))
 
 
-def test_collision_disjoint_pair_is_false() -> None:
+def test_collision_disjoint_pair_is_not_emitted() -> None:
     context = _context()
-    a = _box(context, [1, 1, 1], [0, 0, 0])
-    b = _box(context, [1, 1, 1], [10, 0, 0])
-
-    result = _run(CollisionSettings(), CollisionInputs(geometries_a=[a], geometries_b=[b]), context)
-
-    assert len(result.pairs) == 1
-    assert result.pairs[0].collides is False
-    assert result.pairs[0].intersection_volume is None
-
-
-def test_collision_overlapping_pair_is_true_with_volume() -> None:
-    context = _context()
-    a = _box(context, [2, 2, 2], [0, 0, 0])
-    b = _box(context, [2, 2, 2], [1, 0, 0])
-
-    result = _run(CollisionSettings(), CollisionInputs(geometries_a=[a], geometries_b=[b]), context)
-
-    assert result.pairs[0].collides is True
-    assert result.pairs[0].intersection_volume is not None
-    assert result.pairs[0].intersection_volume > 0
-
-
-def test_collision_face_touching_pair_is_false_via_tolerance() -> None:
-    context = _context()
-    a = _box(context, [2, 2, 2], [0, 0, 0])
-    b = _box(context, [2, 2, 2], [2, 0, 0])
-
-    result = _run(CollisionSettings(), CollisionInputs(geometries_a=[a], geometries_b=[b]), context)
-
-    assert result.pairs[0].collides is False
-
-
-def test_collision_zip_pairing() -> None:
-    context = _context()
-    a1 = _box(context, [1, 1, 1], [0, 0, 0])
-    a2 = _box(context, [1, 1, 1], [10, 0, 0])
-    b1 = _box(context, [2, 2, 2], [0, 0, 0])
-    b2 = _box(context, [1, 1, 1], [100, 0, 0])
+    _express_box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _express_box(context, 2, [10, 0, 0], extents=[1, 1, 1])
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(geometries_a=[a1, a2], geometries_b=[b1, b2]),
+        CollisionInputs(list_a=[1], list_b=[2]),
         context,
     )
 
-    assert len(result.pairs) == 2
-    assert result.pairs[0].index == 0
-    assert result.pairs[0].collides is True
-    assert result.pairs[1].index == 1
-    assert result.pairs[1].collides is False
-    assert result.pairs[0].key_a == a1.key
-    assert result.pairs[0].key_b == b1.key
-    assert result.pairs[1].key_a == a2.key
-    assert result.pairs[1].key_b == b2.key
+    assert result.collisions == {}
+    assert result.errors == []
 
 
-def test_collision_length_one_a_raises() -> None:
+def test_collision_overlapping_pair_is_emitted_grouped() -> None:
     context = _context()
-    single = _box(context, [2, 2, 2], [0, 0, 0])
-    others = [
-        _box(context, [1, 1, 1], [0, 0, 0], express_id=1),
-        _box(context, [1, 1, 1], [10, 0, 0], express_id=2),
-        _box(context, [1, 1, 1], [0, 0, 0], express_id=3),
-    ]
+    _express_box(context, 1, [0, 0, 0])
+    _express_box(context, 2, [1, 0, 0])
 
-    with pytest.raises(ValueError, match="length mismatch"):
-        _run(
-            CollisionSettings(),
-            CollisionInputs(geometries_a=[single], geometries_b=others),
-            context,
-        )
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=[1], list_b=[2]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:1": ["ifc:2"]}
+    assert result.errors == []
 
 
-def test_collision_length_one_b_raises() -> None:
+def test_collision_face_touching_pair_is_not_emitted() -> None:
     context = _context()
-    others = [
-        _box(context, [1, 1, 1], [0, 0, 0], express_id=1),
-        _box(context, [1, 1, 1], [10, 0, 0], express_id=2),
-    ]
-    single = _box(context, [2, 2, 2], [0, 0, 0])
+    _express_box(context, 1, [0, 0, 0])
+    _express_box(context, 2, [2, 0, 0])
 
-    with pytest.raises(ValueError, match="length mismatch"):
-        _run(
-            CollisionSettings(),
-            CollisionInputs(geometries_a=others, geometries_b=[single]),
-            context,
-        )
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=[1], list_b=[2]),
+        context,
+    )
 
-
-def test_collision_mismatched_lengths_raise() -> None:
-    context = _context()
-    a_list = [_box(context, [1, 1, 1], [0, 0, 0]), _box(context, [1, 1, 1], [1, 0, 0])]
-    b_list = [
-        _box(context, [1, 1, 1], [0, 0, 0]),
-        _box(context, [1, 1, 1], [1, 0, 0]),
-        _box(context, [1, 1, 1], [2, 0, 0]),
-    ]
-
-    with pytest.raises(ValueError, match="length mismatch"):
-        _run(
-            CollisionSettings(),
-            CollisionInputs(geometries_a=a_list, geometries_b=b_list),
-            context,
-        )
+    assert result.collisions == {}
+    assert result.errors == []
 
 
 def test_collision_non_watertight_reports_error() -> None:
@@ -145,57 +82,167 @@ def test_collision_non_watertight_reports_error() -> None:
         faces=[[0, 1, 2]],
         process=False,
     )
-    a = cache_mesh(context, open_mesh)
-    b = _box(context, [2, 2, 2], [0, 0, 0])
-
-    result = _run(CollisionSettings(), CollisionInputs(geometries_a=[a], geometries_b=[b]), context)
-
-    pair = result.pairs[0]
-    assert pair.collides is None
-    assert pair.error == "non-watertight"
-
-
-def test_collision_include_intersection_mesh_stores_key_and_cache() -> None:
-    context = _context()
-    a = _box(context, [2, 2, 2], [0, 0, 0])
-    b = _box(context, [2, 2, 2], [1, 0, 0])
+    cache_mesh(context, open_mesh, object_id="broken")
+    _express_box(context, 2, [0, 0, 0])
 
     result = _run(
-        CollisionSettings(include_intersection_mesh=True),
-        CollisionInputs(geometries_a=[a], geometries_b=[b]),
+        CollisionSettings(),
+        CollisionInputs(list_a=["broken"], list_b=[2]),
         context,
     )
 
-    pair = result.pairs[0]
-    assert pair.collides is True
-    assert pair.intersection_key is not None
+    assert result.collisions == {}
+    assert len(result.errors) == 1
+    assert result.errors[0].key_a == "gen:broken"
+    assert result.errors[0].key_b == "ifc:2"
+    assert result.errors[0].error == "non-watertight"
+
+
+def test_collision_cartesian_product_groups_colliding_keys() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _express_box(context, 2, [10, 0, 0], extents=[1, 1, 1])
+    _express_box(context, 3, [0, 0, 0], extents=[2, 2, 2])
+    _express_box(context, 4, [100, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=[1, 2], list_b=[3, 4]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:1": ["ifc:3"]}
+    assert result.errors == []
+
+
+def test_collision_lists_mix_express_and_object_ids() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0])
+    mesh = trimesh.creation.box()
+    mesh.apply_translation([1, 0, 0])
+    cache_mesh(context, mesh, object_id="cube")
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=[1], list_b=["cube"]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:1": ["gen:cube"]}
+    assert result.errors == []
+
+
+def test_collision_groups_multiple_collisions_per_key() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0])
+    _express_box(context, 2, [1, 0, 0])
+    _express_box(context, 3, [0.5, 0, 0])
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=[1], list_b=[2, 3]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:1": ["ifc:2", "ifc:3"]}
+
+
+def test_collision_empty_b_falls_back_to_whole_model() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0])
+    _express_box(context, 2, [1, 0, 0])
+    _express_box(context, 3, [0.5, 0, 0])
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=[1], list_b=[]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:1": ["ifc:2", "ifc:3"]}
+
+
+def test_collision_empty_a_falls_back_to_whole_model() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0])
+    _express_box(context, 2, [1, 0, 0])
+    _express_box(context, 3, [0.5, 0, 0])
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=[], list_b=[1]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:2": ["ifc:1"], "ifc:3": ["ifc:1"]}
+
+
+def test_collision_self_pair_is_skipped_when_both_fall_back() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0])
+    _express_box(context, 2, [1, 0, 0])
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=[], list_b=[]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:1": ["ifc:2"], "ifc:2": ["ifc:1"]}
+
+
+def test_collision_mode_boolean_stores_no_intersection_mesh() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0])
+    _express_box(context, 2, [1, 0, 0])
+
+    result = _run(
+        CollisionSettings(mode="boolean"),
+        CollisionInputs(list_a=[1], list_b=[2]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:1": ["ifc:2"]}
+    assert context.geometry_cache is None or "inter:intersection_ifc:1_ifc:2" not in context.geometry_cache
+
+
+def test_collision_mode_intersection_mesh_stores_deterministic_key() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0])
+    _express_box(context, 2, [1, 0, 0])
+
+    result = _run(
+        CollisionSettings(mode="intersection_mesh"),
+        CollisionInputs(list_a=[1], list_b=[2]),
+        context,
+    )
+
+    assert result.collisions == {"ifc:1": ["ifc:2"]}
     assert context.geometry_cache is not None
-    assert pair.intersection_key in context.geometry_cache
+    key = "inter:intersection_ifc:1_ifc:2"
+    assert key in context.geometry_cache
+    assert resolve_mesh(context, key).volume > 0
 
 
-def test_collision_exclude_intersection_mesh_omits_key() -> None:
+def test_collision_missing_express_id_raises() -> None:
     context = _context()
-    a = _box(context, [2, 2, 2], [0, 0, 0])
-    b = _box(context, [2, 2, 2], [1, 0, 0])
+    _express_box(context, 1, [0, 0, 0])
 
-    result = _run(
-        CollisionSettings(include_intersection_mesh=False),
-        CollisionInputs(geometries_a=[a], geometries_b=[b]),
-        context,
-    )
-
-    pair = result.pairs[0]
-    assert pair.collides is True
-    assert pair.intersection_key is None
+    with pytest.raises(ValueError, match="Express ID 999 has no tessellated geometry"):
+        _run(
+            CollisionSettings(),
+            CollisionInputs(list_a=[1], list_b=[999]),
+            context,
+        )
 
 
-def test_collision_pair_carries_express_ids() -> None:
+def test_collision_missing_object_id_raises() -> None:
     context = _context()
-    a = _box(context, [2, 2, 2], [0, 0, 0], express_id=42)
-    b = _box(context, [2, 2, 2], [1, 0, 0], express_id=99)
+    _express_box(context, 1, [0, 0, 0])
 
-    result = _run(CollisionSettings(), CollisionInputs(geometries_a=[a], geometries_b=[b]), context)
-
-    pair = result.pairs[0]
-    assert pair.express_id_a == 42
-    assert pair.express_id_b == 99
+    with pytest.raises(ValueError, match="Object ID 'ghost' has no geometry"):
+        _run(
+            CollisionSettings(),
+            CollisionInputs(list_a=["ghost"], list_b=[1]),
+            context,
+        )

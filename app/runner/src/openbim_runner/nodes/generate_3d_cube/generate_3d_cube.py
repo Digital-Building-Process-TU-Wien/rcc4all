@@ -6,7 +6,7 @@ import trimesh
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
-from openbim_runner.nodes.geometry import Geometry, cache_mesh
+from openbim_runner.util.geometry import cache_mesh
 
 class Generate3DCubeInputs(NodeModel):
     position: list[float] = Field(
@@ -24,13 +24,17 @@ class Generate3DCubeInputs(NodeModel):
         title="Size",
         description="Dimensions [width, height, depth] in meters.",
     )
+    object_id: str = Field(
+        title="Object ID",
+        description="Unique identifier for the generated cube, used to reference it e.g. in a collision node.",
+    )
 
 
 class Generate3DCubeResult(NodeModel):
-    geometry: list[Geometry] = Field(
+    object_ids: list[str] = Field(
         default=[],
-        title="Geometry",
-        description="The generated cube as a 1-element geometry list (express_id=None).",
+        title="Object IDs",
+        description="1-element list with the object_id of the generated cube.",
     )
 
 
@@ -54,6 +58,8 @@ async def generate_3d_cube(inputs: Generate3DCubeInputs, context: ExecutionConte
         raise ValueError("Rotation must be a 3D vector [x, y, z] in degrees")
     if len(inputs.size) != 3:
         raise ValueError("Size must be a 3D vector [width, height, depth]")
+    if not inputs.object_id:
+        raise ValueError("object_id must be a non-empty string")
 
     box = trimesh.creation.box(extents=inputs.size)
 
@@ -65,5 +71,5 @@ async def generate_3d_cube(inputs: Generate3DCubeInputs, context: ExecutionConte
 
     box.apply_transform(transform_matrix)
 
-    handle = cache_mesh(context, box)
-    return Generate3DCubeResult(geometry=[handle])
+    cache_mesh(context, box, object_id=inputs.object_id)
+    return Generate3DCubeResult(object_ids=[inputs.object_id])

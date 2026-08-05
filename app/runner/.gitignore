@@ -9,3 +9,11 @@ wheels/
 # Virtual environments
 .venv
 .ruff_cache
+
+# Generated inspection output
+tests/artifacts/
+
+# Large local-only test models (keep directory; ignore contents)
+tests/testdata/models/large_models/*
+!tests/testdata/models/large_models/.gitkeep
+

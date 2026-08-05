@@ -27,21 +27,19 @@ def _run(inputs: Generate3DCubeInputs, context: ExecutionContext) -> Generate3DC
 
 def _mesh_from_result(result: Generate3DCubeResult, context: ExecutionContext):
     assert context.geometry_cache is not None
-    handle = result.geometry[0]
-    return context.geometry_cache[handle.key]
+    object_id = result.object_ids[0]
+    return context.geometry_cache[f"gen:{object_id}"]
 
 
 def test_generate_3d_cube_default_unit_cube_at_origin() -> None:
     context = _context()
 
-    result = _run(Generate3DCubeInputs(), context)
+    result = _run(Generate3DCubeInputs(object_id="cube1"), context)
 
     assert isinstance(result, Generate3DCubeResult)
-    assert len(result.geometry) == 1
-    handle = result.geometry[0]
-    assert handle.express_id is None
+    assert result.object_ids == ["cube1"]
     assert context.geometry_cache is not None
-    assert handle.key in context.geometry_cache
+    assert "gen:cube1" in context.geometry_cache
     mesh = _mesh_from_result(result, context)
     assert mesh.vertices.shape == (8, 3)
     assert mesh.faces.shape == (12, 3)
@@ -51,7 +49,7 @@ def test_generate_3d_cube_with_custom_position() -> None:
     context = _context()
 
     result = _run(
-        Generate3DCubeInputs(position=[5.0, 10.0, 15.0]),
+        Generate3DCubeInputs(position=[5.0, 10.0, 15.0], object_id="cube_pos"),
         context,
     )
 
@@ -66,7 +64,7 @@ def test_generate_3d_cube_with_custom_rotation() -> None:
     context = _context()
 
     result = _run(
-        Generate3DCubeInputs(rotation=[0.0, 0.0, 90.0]),
+        Generate3DCubeInputs(rotation=[0.0, 0.0, 90.0], object_id="cube_rot"),
         context,
     )
 
@@ -79,7 +77,7 @@ def test_generate_3d_cube_with_custom_size() -> None:
     context = _context()
 
     result = _run(
-        Generate3DCubeInputs(size=[2.0, 3.0, 4.0]),
+        Generate3DCubeInputs(size=[2.0, 3.0, 4.0], object_id="cube_size"),
         context,
     )
 
@@ -96,7 +94,7 @@ def test_generate_3d_cube_with_combined_transformations() -> None:
     context = _context()
 
     result = _run(
-        Generate3DCubeInputs(position=[10.0, 20.0, 30.0], rotation=[45.0, 90.0, 180.0], size=[2.0, 2.0, 2.0]),
+        Generate3DCubeInputs(position=[10.0, 20.0, 30.0], rotation=[45.0, 90.0, 180.0], size=[2.0, 2.0, 2.0], object_id="cube_comb"),
         context,
     )
 
@@ -109,24 +107,36 @@ def test_generate_3d_cube_with_zero_size_raises_error() -> None:
     context = _context()
 
     with pytest.raises(ValueError, match="Size dimensions must be positive"):
-        _run(Generate3DCubeInputs(size=[0.0, 0.0, 0.0]), context)
+        _run(Generate3DCubeInputs(size=[0.0, 0.0, 0.0], object_id="cube"), context)
 
 
 def test_generate_3d_cube_with_negative_size_raises_error() -> None:
     context = _context()
 
     with pytest.raises(ValueError, match="Size dimensions must be positive"):
-        _run(Generate3DCubeInputs(size=[-1.0, 1.0, 1.0]), context)
+        _run(Generate3DCubeInputs(size=[-1.0, 1.0, 1.0], object_id="cube"), context)
 
 
-def test_generate_3d_cube_output_is_geometry_handle() -> None:
+def test_generate_3d_cube_empty_object_id_raises_error() -> None:
     context = _context()
 
-    result = _run(Generate3DCubeInputs(), context)
+    with pytest.raises(ValueError, match="object_id must be a non-empty string"):
+        _run(Generate3DCubeInputs(object_id=""), context)
 
-    assert len(result.geometry) == 1
-    handle = result.geometry[0]
-    assert handle.key.startswith("gen:")
-    assert handle.express_id is None
+
+def test_generate_3d_cube_duplicate_object_id_raises_error() -> None:
+    context = _context()
+    _run(Generate3DCubeInputs(object_id="cube"), context)
+
+    with pytest.raises(ValueError, match="'gen:cube' already exists"):
+        _run(Generate3DCubeInputs(object_id="cube"), context)
+
+
+def test_generate_3d_cube_output_is_object_id() -> None:
+    context = _context()
+
+    result = _run(Generate3DCubeInputs(object_id="cube_out"), context)
+
+    assert result.object_ids == ["cube_out"]
     assert context.geometry_cache is not None
-    assert handle.key in context.geometry_cache
+    assert "gen:cube_out" in context.geometry_cache

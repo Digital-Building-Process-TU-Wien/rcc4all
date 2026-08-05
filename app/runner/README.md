@@ -174,6 +174,31 @@ The runner currently performs only minimal validation:
 
 Each node now uses a `settings` object plus an optional `input_bindings` object. `settings` is validated against the node's settings model, and the resolved binding payload is validated against the node's inputs model.
 
+## Geometry Testing
+
+Test IFC models live in `tests/testdata/models/`, grouped by category folder (e.g. `rail/`). Each committed model is discovered automatically — no registration needed. Use `large_models/` for big or local-only models; the folder is tracked via `.gitkeep` but its contents are ignored by git.
+
+To tessellate every model and export OBJ inspection artifacts:
+
+```bash
+uv run openbim-runner inspect-models
+```
+
+For each model this writes a combined `<model>_all.obj` and a `report.json` (mesh/element stats) under `tests/artifacts/<model>/`. Filter by category or name:
+
+```bash
+uv run openbim-runner inspect-models --category rail
+uv run openbim-runner inspect-models --pattern simple_railway
+```
+
+To export a single element of a specific model as its own OBJ, combine the name filter with its express ID:
+
+```bash
+uv run openbim-runner inspect-models --pattern simple_railway --express-id 252
+```
+
+The command exits non-zero if any model fails to process, doubling as a batch sanity check. Headless/assertable checks live in `tests/test_*.py` and run with `uv run pytest`.
+
 ## VS Code Setup
 
 To use the python virtual environment in VS Code:

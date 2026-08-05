@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import Literal
 
 import numpy as np
 import trimesh
@@ -8,82 +9,66 @@ import trimesh.boolean
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
-from openbim_runner.nodes.geometry import Geometry, cache_mesh, ensure_watertight, resolve_mesh
+from openbim_runner.util.geometry import (
+    cache_mesh,
+    ensure_watertight,
+    resolve_mesh,
+    resolve_side,
+)
 
 VOLUME_TOLERANCE = 1e-9
 
 
 class CollisionSettings(NodeModel):
-    include_intersection_mesh: bool = Field(
-        default=False,
-        title="Include intersection mesh",
+    mode: Literal["boolean", "intersection_mesh"] = Field(
+        default="boolean",
+        title="Mode",
         description=(
-            "When enabled, colliding pairs store the intersection mesh in the geometry cache "
-            "and carry an intersection_key handle. Enables a future workflow extension "
-            "that writes intersection geometry back as IFC."
+            "'boolean' reports which pairs collide without storing intersection geometry. "
+            "'intersection_mesh' additionally stores each collision's intersection mesh in the "
+            "geometry cache under a deterministic key (documented in the README)."
         ),
     )
 
 
 class CollisionInputs(NodeModel):
-    geometries_a: list[Geometry] = Field(
+    list_a: list[int | str] = Field(
         default=[],
-        title="Geometries A",
-        description="First list of geometry handles.",
+        title="List A",
+        description=(
+            "First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs "
+            "(str → `gen:<id>`), in the order to test. When empty, the whole model is used."
+        ),
     )
-    geometries_b: list[Geometry] = Field(
+    list_b: list[int | str] = Field(
         default=[],
-        title="Geometries B",
-        description="Second list of geometry handles, paired pairwise with A.",
+        title="List B",
+        description=(
+            "Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and "
+            "object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set."
+        ),
     )
 
 
-class CollisionPair(NodeModel):
-    index: int = Field(title="Index", description="Zero-based pair index within the result.")
-    key_a: str = Field(title="Key A", description="Cache key of the first geometry in the pair.")
-    key_b: str = Field(title="Key B", description="Cache key of the second geometry in the pair.")
-    express_id_a: int | None = Field(default=None, title="Express ID A", description="IFC express ID of the first geometry, or None.")
-    express_id_b: int | None = Field(default=None, title="Express ID B", description="IFC express ID of the second geometry, or None.")
-    collides: bool | None = Field(
-        default=None,
-        title="Collides",
-        description="True if the pair intersects with positive volume, False if disjoint. None if undecidable (see error).",
-    )
-    intersection_volume: float | None = Field(
-        default=None,
-        title="Intersection volume",
-        description="Volume of the intersection mesh when colliding, otherwise None.",
-    )
-    error: str | None = Field(
-        default=None,
+class CollisionError(NodeModel):
+    key_a: str = Field(title="Key A", description="Cache key of the first geometry in the failed pair.")
+    key_b: str = Field(title="Key B", description="Cache key of the second geometry in the failed pair.")
+    error: str = Field(
         title="Error",
-        description="Error reason when collides is None, e.g. 'non-watertight' or 'boolean failed: ...'.",
-    )
-    intersection_key: str | None = Field(
-        default=None,
-        title="Intersection key",
-        description="Geometry-cache handle for the intersection mesh, only when include_intersection_mesh is enabled and the pair collides. Enables a future workflow extension that writes intersection geometry back as IFC.",
+        description="Error reason, e.g. 'non-watertight' or 'boolean failed: ...'.",
     )
 
 
 class CollisionResult(NodeModel):
-    pairs: list[CollisionPair] = Field(
-        default=[],
-        title="Pairs",
-        description="One record per paired geometry pair (zip by index).",
+    collisions: dict[str, list[str]] = Field(
+        default={},
+        title="Collisions",
+        description="Grouped by side-A cache key; each value lists the side-B cache keys it collides with. Only colliding pairs are included.",
     )
-
-
-def _pair(geometries_a: list[Geometry], geometries_b: list[Geometry]) -> list[tuple[Geometry, Geometry]]:
-    len_a = len(geometries_a)
-    len_b = len(geometries_b)
-
-    if len_a == len_b:
-        return list(zip(geometries_a, geometries_b, strict=True))
-
-    raise ValueError(
-        f"Geometry list length mismatch: A has {len_a} elements, B has {len_b} elements. "
-        "Equal lengths required."
+    errors: list[CollisionError] = Field(
+        default=[],
+        title="Errors",
+        description="Pairs whose collision could not be decided (e.g. non-watertight or boolean failure).",
     )
 
 
@@ -99,58 +84,44 @@ async def collision(
     inputs: CollisionInputs,
     context: ExecutionContext,
 ) -> CollisionResult:
-    pairs_input = _pair(inputs.geometries_a, inputs.geometries_b)
-    pairs: list[CollisionPair] = []
+    keys_a = resolve_side(context, refs=inputs.list_a)
+    keys_b = resolve_side(context, refs=inputs.list_b)
 
-    for index, (geo_a, geo_b) in enumerate(pairs_input):
-        mesh_a = resolve_mesh(context, geo_a)
-        mesh_b = resolve_mesh(context, geo_b)
+    collisions: dict[str, list[str]] = {}
+    errors: list[CollisionError] = []
 
-        pair = CollisionPair(
-            index=index,
-            key_a=geo_a.key,
-            key_b=geo_b.key,
-            express_id_a=geo_a.express_id,
-            express_id_b=geo_b.express_id,
-        )
+    for key_a in keys_a:
+        for key_b in keys_b:
+            if key_a == key_b:
+                continue
 
-        if not _aabb_overlap(mesh_a, mesh_b):
-            pair.collides = False
-            pairs.append(pair)
-            continue
+            mesh_a = resolve_mesh(context, key_a)
+            mesh_b = resolve_mesh(context, key_b)
 
-        repaired_a, error_a = ensure_watertight(mesh_a)
-        repaired_b, error_b = ensure_watertight(mesh_b)
-        if repaired_a is None or repaired_b is None:
-            pair.collides = None
-            pair.error = "non-watertight"
-            pairs.append(pair)
-            continue
+            if not _aabb_overlap(mesh_a, mesh_b):
+                continue
 
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                result = trimesh.boolean.intersection(
-                    [repaired_a, repaired_b],
-                    engine="manifold",
-                    check_volume=False,
-                )
-        except Exception as exc:
-            pair.collides = None
-            pair.error = f"boolean failed: {exc}"
-            pairs.append(pair)
-            continue
+            repaired_a, error_a = ensure_watertight(mesh_a)
+            repaired_b, error_b = ensure_watertight(mesh_b)
+            if repaired_a is None or repaired_b is None:
+                errors.append(CollisionError(key_a=key_a, key_b=key_b, error="non-watertight"))
+                continue
 
-        collides = bool(
-            result is not None and len(result.faces) > 0 and result.volume > VOLUME_TOLERANCE
-        )
-        pair.collides = collides
-        if collides and result is not None:
-            pair.intersection_volume = float(result.volume)
-            if settings.include_intersection_mesh:
-                handle = cache_mesh(context, result)
-                pair.intersection_key = handle.key
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    result = trimesh.boolean.intersection(
+                        [repaired_a, repaired_b],
+                        engine="manifold",
+                        check_volume=False,
+                    )
+            except Exception as exc:
+                errors.append(CollisionError(key_a=key_a, key_b=key_b, error=f"boolean failed: {exc}"))
+                continue
 
-        pairs.append(pair)
+            if result is not None and len(result.faces) > 0 and result.volume > VOLUME_TOLERANCE:
+                collisions.setdefault(key_a, []).append(key_b)
+                if settings.mode == "intersection_mesh":
+                    cache_mesh(context, result, key=f"inter:intersection_{key_a}_{key_b}")
 
-    return CollisionResult(pairs=pairs)
+    return CollisionResult(collisions=collisions, errors=errors)

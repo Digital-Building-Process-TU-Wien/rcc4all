@@ -15,6 +15,7 @@ if (!node.value.data.inputs) {
     position: [0.0, 0.0, 0.0],
     rotation: [0.0, 0.0, 0.0],
     size: [1.0, 1.0, 1.0],
+    object_id: 'cube',
   }
 }
 
@@ -133,6 +134,16 @@ function updateArrayValue(
               @input="(e) => updateArrayValue(node.data.inputs!.size!, 2, (e.target as HTMLInputElement).value)"
             >
           </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Object ID</label>
+          <input
+            type="text"
+            :value="node.data.inputs?.object_id"
+            placeholder="object id"
+            class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+            @input="node.data.inputs!.object_id = (($event.target) as HTMLInputElement).value"
+          >
         </div>
       </div>
     </template>
