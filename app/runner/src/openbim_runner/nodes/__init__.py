@@ -2,6 +2,7 @@ from .base import ExecutionContext, NodeDefinition, NodeModel, dispatch, get_reg
 from .concat_string.concat_string import concat_string
 from .generate_3d_cube.generate_3d_cube import generate_3d_cube
 from .get_name.get_name import get_name
+from .ids_checker.ids_checker import ids_checker
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "get_name",
     "get_registry",
     "get_registry_schema",
+    "ids_checker",
     "ifc_element_filter",
     "node",
 ]

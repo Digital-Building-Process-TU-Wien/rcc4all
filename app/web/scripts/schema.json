@@ -267,6 +267,130 @@
       ],
       "additionalProperties": false
     },
+    "ids_checker": {
+      "type": "object",
+      "title": "IDS Checker",
+      "description": "Validates the IFC model against an IDS (Information Delivery Specification) file.",
+      "categories": [
+        "Validation"
+      ],
+      "markdownDescription": "The `ids_checker` node validates the loaded IFC model against an IDS specification file.\n\nUse this node when you need to verify that the IFC model meets the requirements defined in an IDS file.\n\n## Use case example\n\nCheck if the IFC model contains all required elements, properties, and classifications as specified in a project's IDS specification.",
+      "locales": {
+        "de": {
+          "title": "IDS-Pr\u00fcfer",
+          "description": "Validiert das IFC-Modell gegen eine IDS-Datei (Information Delivery Specification).",
+          "categories": [
+            "Validation"
+          ],
+          "markdownDescription": "Der `ids_checker` Knoten validiert das geladene IFC-Modell gegen eine IDS-Spezifikationsdatei.\n\nVerwenden Sie diesen Knoten, wenn Sie \u00fcberpr\u00fcfen m\u00fcssen, ob das IFC-Modell die in einer IDS-Datei definierten Anforderungen erf\u00fcllt.\n\n## Anwendungsbeispiel\n\n\u00dcberpr\u00fcfen Sie, ob das IFC-Modell alle erforderlichen Elemente, Eigenschaften und Klassifikationen enth\u00e4lt, wie in der IDS-Spezifikation des Projekts festgelegt."
+        },
+        "en": {
+          "title": "IDS Checker",
+          "description": "Validates the IFC model against an IDS (Information Delivery Specification) file.",
+          "categories": [
+            "Validation"
+          ],
+          "markdownDescription": "The `ids_checker` node validates the loaded IFC model against an IDS specification file.\n\nUse this node when you need to verify that the IFC model meets the requirements defined in an IDS file.\n\n## Use case example\n\nCheck if the IFC model contains all required elements, properties, and classifications as specified in a project's IDS specification."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "ids_file": {
+              "default": "",
+              "description": "Path to the IDS specification file to validate against.",
+              "type": "string"
+            },
+            "output_mode": {
+              "default": "combined",
+              "description": "Controls how results are structured: 'combined' produces flat lists across all specifications, 'per_specification' produces a per-specification breakdown, 'both' produces both.",
+              "enum": [
+                "combined",
+                "per_specification",
+                "both"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "failed_express_ids": {
+              "default": [],
+              "description": "List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "passed_express_ids": {
+              "default": [],
+              "description": "List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "specifications": {
+              "default": [],
+              "description": "Per-specification breakdown of passed and failed express IDs.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "default": "",
+                    "description": "Name of the IDS specification.",
+                    "type": "string"
+                  },
+                  "failed_express_ids": {
+                    "default": [],
+                    "description": "List of express IDs of entities that failed this specification's requirements.",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "passed_express_ids": {
+                    "default": [],
+                    "description": "List of express IDs of entities that passed this specification's requirements.",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
     "ifc_element_filter": {
       "type": "object",
       "title": "Ifc Element Filter",

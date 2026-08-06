@@ -2,6 +2,7 @@ export interface NodeRegistrySchema {
   concat_string?: ConcatenateStrings
   generate_3d_cube?: Generate3DCube
   get_name?: ResolveObjectNames
+  ids_checker?: IDSChecker
   ifc_element_filter?: IfcElementFilter
 }
 /**
@@ -80,6 +81,54 @@ export interface ResolveObjectNames {
   }
 }
 /**
+ * Validates the IFC model against an IDS (Information Delivery Specification) file.
+ */
+export interface IDSChecker {
+  settings: {
+    /**
+     * Path to the IDS specification file to validate against.
+     */
+    ids_file?: string
+    /**
+     * Controls how results are structured: 'combined' produces flat lists across all specifications, 'per_specification' produces a per-specification breakdown, 'both' produces both.
+     */
+    output_mode?: ('combined' | 'per_specification' | 'both')
+  }
+  result: {
+    /**
+     * List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).
+     */
+    failed_express_ids?: number[]
+    /**
+     * List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).
+     */
+    passed_express_ids?: number[]
+    /**
+     * Per-specification breakdown of passed and failed express IDs.
+     */
+    specifications?: {
+      /**
+       * Name of the IDS specification.
+       */
+      name?: string
+      /**
+       * List of express IDs of entities that failed this specification's requirements.
+       */
+      failed_express_ids?: number[]
+      /**
+       * List of express IDs of entities that passed this specification's requirements.
+       */
+      passed_express_ids?: number[]
+    }[]
+  }
+  inputs: {
+    /**
+     * Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.
+     */
+    express_ids?: number[]
+  }
+}
+/**
  * Filter IFC entities using table-based include and exclude rules.
  */
 export interface IfcElementFilter {
@@ -91,7 +140,7 @@ export interface IfcElementFilter {
       /**
        * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
        */
-      mode?: ("include" | "exclude" | "disabled")
+      mode?: ('include' | 'exclude' | 'disabled')
       /**
        * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
        */
@@ -111,7 +160,7 @@ export interface IfcElementFilter {
       /**
        * Comparison operator used for property or attribute values.
        */
-      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
+      operator?: ('==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'starts_with' | 'ends_with')
       /**
        * Value to compare against when property_name is set.
        */

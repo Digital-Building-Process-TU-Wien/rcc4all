@@ -181,7 +181,7 @@ async def execute_workflow_async(workflow_path: Path) -> tuple[dict[str, NodeMod
 
         settings_payload = workflow_node.settings
         input_payload = resolve_input_bindings(workflow_node, node_outputs)
-        context = ExecutionContext(ifc_model=ifc_model, node_outputs=node_outputs)
+        context = ExecutionContext(ifc_model=ifc_model, node_outputs=node_outputs, workflow_dir=workflow_path.parent)
         node_outputs[node_id] = await dispatch(
             workflow_node.type,
             settings_payload,

@@ -15,9 +15,15 @@ class NodeModel(BaseModel):
 
 
 class ExecutionContext:
-    def __init__(self, ifc_model: ifcopenshell.file, node_outputs: dict[str, NodeModel]) -> None:
+    def __init__(
+        self,
+        ifc_model: ifcopenshell.file,
+        node_outputs: dict[str, NodeModel],
+        workflow_dir: Path | None = None,
+    ) -> None:
         self.ifc_model = ifc_model
         self.node_outputs = node_outputs
+        self.workflow_dir = workflow_dir
 
 
 @dataclass(frozen=True)
