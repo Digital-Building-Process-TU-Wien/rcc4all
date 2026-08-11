@@ -177,4 +177,4 @@ def ensure_watertight(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh | None, st
 def reshape_flat(verts: tuple[float, ...], faces: tuple[int, ...]) -> trimesh.Trimesh:
     vertices = np.asarray(verts, dtype=np.float64).reshape(-1, 3)
     face_array = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
-    return trimesh.Trimesh(vertices=vertices, faces=face_array, process=True)
+    return trimesh.Trimesh(vertices=vertices, faces=face_array, process=False)

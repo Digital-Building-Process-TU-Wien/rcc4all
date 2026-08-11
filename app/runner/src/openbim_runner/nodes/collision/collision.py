@@ -70,12 +70,42 @@ class CollisionResult(NodeModel):
         title="Errors",
         description="Pairs whose collision could not be decided (e.g. non-watertight or boolean failure).",
     )
+    intersection_meshes: dict[str, str | None] = Field(
+        default={},
+        title="Intersection Meshes",
+        description=(
+            "Only populated in 'intersection_mesh' mode. Maps a pair key "
+            "'{key_a}__{key_b}' to the geometry-cache key "
+            "'inter:intersection_{key_a}_{key_b}' under which the intersection mesh was stored. "
+            "A null value signals an FCL-decided collision (mesh non-repairable or boolean "
+            "failed) for which no intersection mesh could be generated. Empty in 'boolean' mode."
+        ),
+    )
 
 
 def _aabb_overlap(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool:
     a_min, a_max = a.bounds
     b_min, b_max = b.bounds
     return bool(np.all(a_min <= b_max) and np.all(b_min <= a_max))
+
+
+def _fcl_collision(mesh_a: trimesh.Trimesh, mesh_b: trimesh.Trimesh) -> bool | None:
+    """Triangle-based collision test via FCL (no watertight requirement).
+
+    Returns True if the meshes collide, False if not, or None when FCL is
+    unavailable (graceful degradation: caller falls through to ``errors``).
+    """
+    try:
+        from trimesh.collision import CollisionManager
+    except Exception:
+        return None
+    try:
+        manager = CollisionManager()
+        manager.add_object("a", mesh_a)
+        manager.add_object("b", mesh_b)
+        return bool(manager.in_collision_internal())
+    except Exception:
+        return None
 
 
 @node()
@@ -89,6 +119,7 @@ async def collision(
 
     collisions: dict[str, list[str]] = {}
     errors: list[CollisionError] = []
+    intersection_meshes: dict[str, str | None] = {}
 
     for key_a in keys_a:
         for key_b in keys_b:
@@ -103,25 +134,42 @@ async def collision(
 
             repaired_a, error_a = ensure_watertight(mesh_a)
             repaired_b, error_b = ensure_watertight(mesh_b)
-            if repaired_a is None or repaired_b is None:
-                errors.append(CollisionError(key_a=key_a, key_b=key_b, error="non-watertight"))
-                continue
 
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    result = trimesh.boolean.intersection(
-                        [repaired_a, repaired_b],
-                        engine="manifold",
-                        check_volume=False,
-                    )
-            except Exception as exc:
-                errors.append(CollisionError(key_a=key_a, key_b=key_b, error=f"boolean failed: {exc}"))
+            boolean_error: str | None = None
+            result: trimesh.Trimesh | None = None
+            if repaired_a is None or repaired_b is None:
+                boolean_error = "non-watertight"
+            else:
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        result = trimesh.boolean.intersection(
+                            [repaired_a, repaired_b],
+                            engine="manifold",
+                            check_volume=False,
+                        )
+                except Exception as exc:
+                    boolean_error = f"boolean failed: {exc}"
+
+            if boolean_error is not None:
+                fcl_result = _fcl_collision(mesh_a, mesh_b)
+                if fcl_result is True:
+                    collisions.setdefault(key_a, []).append(key_b)
+                    if settings.mode == "intersection_mesh":
+                        intersection_meshes[f"{key_a}__{key_b}"] = None
+                elif fcl_result is None:
+                    errors.append(CollisionError(key_a=key_a, key_b=key_b, error=boolean_error))
                 continue
 
             if result is not None and len(result.faces) > 0 and result.volume > VOLUME_TOLERANCE:
                 collisions.setdefault(key_a, []).append(key_b)
                 if settings.mode == "intersection_mesh":
-                    cache_mesh(context, result, key=f"inter:intersection_{key_a}_{key_b}")
+                    inter_key = f"inter:intersection_{key_a}_{key_b}"
+                    cache_mesh(context, result, key=inter_key)
+                    intersection_meshes[f"{key_a}__{key_b}"] = inter_key
 
-    return CollisionResult(collisions=collisions, errors=errors)
+    return CollisionResult(
+        collisions=collisions,
+        errors=errors,
+        intersection_meshes=intersection_meshes,
+    )

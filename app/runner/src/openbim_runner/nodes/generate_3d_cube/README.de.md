@@ -6,7 +6,7 @@ categories: 3D operation
 
 Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation und speichert sie unter einer vom Benutzer vergebenen `object_id` im Geometrie-Cache. Die Objekt-ID ist die Adresse, über die der Würfel später referenziert wird, z. B. in einem `collision`-Knoten.
 
-## Eingaben
+## Einstellungen
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
@@ -25,10 +25,12 @@ Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbare
 
 ```json
 {
-  "position": [5.0, 3.0, 0.0],
-  "rotation": [0.0, 0.0, 45.0],
-  "size": [2.0, 2.0, 2.0],
-  "object_id": "box_a"
+  "settings": {
+    "position": [5.0, 3.0, 0.0],
+    "rotation": [0.0, 0.0, 45.0],
+    "size": [2.0, 2.0, 2.0],
+    "object_id": "box_a"
+  }
 }
 ```
 

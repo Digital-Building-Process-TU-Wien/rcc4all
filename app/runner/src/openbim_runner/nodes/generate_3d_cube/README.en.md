@@ -6,7 +6,7 @@ categories: 3D operation,
 
 The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation, and stores it in the geometry cache under a user-supplied `object_id`. The object ID is the address used to reference the cube later, e.g. in a `collision` node.
 
-## Inputs
+## Settings
 
 | Name | Type | Description |
 |------|------|-------------|
@@ -25,10 +25,12 @@ The `generate_3d_cube` node creates a 3D box geometry with configurable dimensio
 
 ```json
 {
-  "position": [5.0, 3.0, 0.0],
-  "rotation": [0.0, 0.0, 45.0],
-  "size": [2.0, 2.0, 2.0],
-  "object_id": "box_a"
+  "settings": {
+    "position": [5.0, 3.0, 0.0],
+    "rotation": [0.0, 0.0, 45.0],
+    "size": [2.0, 2.0, 2.0],
+    "object_id": "box_a"
+  }
 }
 ```
 

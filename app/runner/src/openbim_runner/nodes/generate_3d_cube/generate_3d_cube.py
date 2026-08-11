@@ -8,7 +8,7 @@ from pydantic import Field
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 from openbim_runner.util.geometry import cache_mesh
 
-class Generate3DCubeInputs(NodeModel):
+class Generate3DCubeSettings(NodeModel):
     position: list[float] = Field(
         default=[0.0, 0.0, 0.0],
         title="Position",
@@ -48,28 +48,28 @@ def _euler_degrees_to_matrix(rotation: list[float]) -> trimesh.Transformations:
 
 
 @node()
-async def generate_3d_cube(inputs: Generate3DCubeInputs, context: ExecutionContext) -> Generate3DCubeResult:
-    if any(dim <= 0 for dim in inputs.size):
+async def generate_3d_cube(settings: Generate3DCubeSettings, context: ExecutionContext) -> Generate3DCubeResult:
+    if any(dim <= 0 for dim in settings.size):
         raise ValueError("Size dimensions must be positive")
 
-    if len(inputs.position) != 3:
+    if len(settings.position) != 3:
         raise ValueError("Position must be a 3D vector [x, y, z]")
-    if len(inputs.rotation) != 3:
+    if len(settings.rotation) != 3:
         raise ValueError("Rotation must be a 3D vector [x, y, z] in degrees")
-    if len(inputs.size) != 3:
+    if len(settings.size) != 3:
         raise ValueError("Size must be a 3D vector [width, height, depth]")
-    if not inputs.object_id:
+    if not settings.object_id:
         raise ValueError("object_id must be a non-empty string")
 
-    box = trimesh.creation.box(extents=inputs.size)
+    box = trimesh.creation.box(extents=settings.size)
 
-    rotation_matrix = _euler_degrees_to_matrix(inputs.rotation)
+    rotation_matrix = _euler_degrees_to_matrix(settings.rotation)
 
-    translation_matrix = trimesh.transformations.translation_matrix(inputs.position)
+    translation_matrix = trimesh.transformations.translation_matrix(settings.position)
 
     transform_matrix = translation_matrix @ rotation_matrix
 
     box.apply_transform(transform_matrix)
 
-    cache_mesh(context, box, object_id=inputs.object_id)
-    return Generate3DCubeResult(object_ids=[inputs.object_id])
+    cache_mesh(context, box, object_id=settings.object_id)
+    return Generate3DCubeResult(object_ids=[settings.object_id])

@@ -4,6 +4,11 @@
 
 Refine the `collision` runner node. It performs **clash detection** between cached geometries. A side is described by references and tested **list A against list B** (cartesian product, not zip). When a side is empty, it falls back to the **whole model** (everything in the workflow geometry cache). A new `mode` setting switches the node between **boolean** collision reporting and **intersection mesh** generation.
 
+## OPEN TODO
+
+- Web implementation
+- Testing by user
+
 ---
 
 ## Node contract

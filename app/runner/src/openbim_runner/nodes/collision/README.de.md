@@ -1,52 +1,56 @@
 ---
 title: Kollisionserkennung
-description: Clash-Detection zwischen zwei Geometrielisten über ein kartesisches Produkt von Booleschen Schnittmengen. Eine leere Liste fällt auf das gesamte Modell zurück.
+description: Clash-Detection zwischen zwei Geometrielisten über AABB-Präfilter, Boolesche Schnittmenge und FCL-Fallback für nicht reparierbare Netze.
 categories: geometry,collision
 ---
 
-Der `collision`-Knoten führt **Clash-Detection** zwischen zwei Listen zwischengespeicherter Geometrien durch. Jede Seite wird durch Referenzen beschrieben: **Express-IDs** für interne IFC-Elemente (`ifc:<id>`) und **Objekt-IDs** für externe/generierte Elemente (`gen:<object_id>`). Er testet **Liste A gegen Liste B** (das vollständige kartesische Produkt — jedes `A[i]` wird gegen jedes `B[j]` geprüft), sodass keine gleiche Listenlänge erforderlich ist. Jedes Paar wird mit einem AABB-Präfilter und anschließender Boolescher Schnittmengenberechnung geprüft. Eine Kollision liegt vor, wenn die Schnittmenge ein positives Volumen hat.
+Der `collision`-Knoten erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **Express-IDs** (`int` → `ifc:<id>`) für IFC-Elemente oder **Objekt-IDs** (`str` → `gen:<id>`) für generierte Geometrie. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
+
+1. **AABB-Präfilter** — Paare ohne überlappende Bounding-Boxes überspringen.
+2. **Boolesche Schnittmenge** — beide Netze zu wasserdichten Netzen reparieren, Schnittmenge berechnen. Eine Kollision liegt vor, wenn die Schnittmenge positives Volumen hat.
+3. **FCL-Fallback** — wenn Reparatur oder Boolesche Operation fehlschlagen, FCL dreiecksbasierte Kollisionserkennung auf den rohen Netzen verwenden. Über FCL entschiedene Kollisionen werden gemeldet, erzeugen aber kein Schnittmengennetz.
 
 ## Eingaben
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
-| `list_a` | `list[number \| string]` | Erste Liste von Referenzen — Mischung aus Express-IDs (`int` → `ifc:<id>`) und Objekt-IDs (`str` → `gen:<id>`), in der Test-Reihenfolge |
-| `list_b` | `list[number \| string]` | Zweite (optionale) Liste von Referenzen — gleiche Kodierung wie `list_a` |
+| `list_a` | `list[number \| string]` | Erste Liste von Referenzen — Express-IDs (`int`) und/oder Objekt-IDs (`str`) |
+| `list_b` | `list[number \| string]` | Zweite Liste von Referenzen — gleiche Kodierung. Wenn leer, Fallback auf das gesamte Modell. |
 
-Jedes Element ist eine Referenz auf eine zwischengespeicherte Geometrie: ein **int** ist eine IFC-Express-ID, ein **str** eine Objekt-ID (z. B. von einem Würfel-Knoten). Die Elemente behalten ihre Reihenfolge in der aufgelösten Liste. Eine Referenz ohne zwischengespeicherte Geometrie löst einen Fehler aus.
+Beide Listen sind standardmäßig leer und erweitern sich auf das gesamte Modell. Eine Referenz ohne zwischengespeicherte Geometrie löst einen Fehler aus.
 
 ## Paarbildung
 
-- **Kartesisches Produkt**: jedes Element von Seite A wird gegen jedes Element von Seite B getestet. Ungleiche Listengrößen sind erlaubt.
-- **Fallback auf das gesamte Modell**: sind beide Listen einer Seite leer, wird diese Seite durch **alle zwischengespeicherten Geometrien** ersetzt (das gesamte Modell). Eine leere B-Seite prüft beispielsweise jedes A-Element gegen das gesamte Modell.
-- **Selbstpaare** (eine Geometrie gegen sich selbst) werden immer übersprungen.
-- Paare werden nicht dedupliziert: Sowohl `X↔Y` als auch `Y↔X` werden ausgegeben.
+- **Kartesisches Produkt**: jedes A-Element wird gegen jedes B-Element getestet. Ungleiche Listengrößen sind erlaubt.
+- **Fallback auf das gesamte Modell**: wenn eine Liste leer ist, wird diese Seite auf alle zwischengespeicherten Geometrien erweitert.
+- **Selbstpaare** werden übersprungen. Paare werden nicht dedupliziert: sowohl `X↔Y` als auch `Y↔X` werden ausgegeben.
 
 ## Modus
 
 - **`boolean`** (Standard): meldet, welche Paare kollidieren, ohne Schnittmengengeometrie zu speichern.
-- **`intersection_mesh`**: speichert zusätzlich das Schnittmengennetz jedes kollidierenden Paares unter einem **deterministischen Schlüssel** (unten) im Geometrie-Cache, sodass kollidierende Geometrie von einer zukünftigen Workflow-Erweiterung zurückgeschrieben werden kann (z. B. als IFC).
+- **`intersection_mesh`**: speichert zusätzlich das Schnittmengennetz jedes kollidierenden Paares unter einer deterministischen ID im Geometrie-Cache.
 
 ## Ergebnis
 
-`CollisionResult` enthält zwei Felder:
+`CollisionResult` enthält drei Felder:
 
-- `collisions: dict[key_a, list[key_b]]` — gruppiert nach Seiten-A-Cache-Schlüssel; es werden nur **kollidierende** Paare aufgenommen. `key_a` erscheint einmal, und sein Wert listet jeden Seiten-B-Cache-Schlüssel auf, mit dem es kollidiert.
-- `errors: list[{key_a, key_b, error}]` — Paare, deren Kollision nicht entschieden werden konnte (z. B. `non-watertight` oder `boolean failed: ...`).
+- `collisions: dict[key_a, list[key_b]]` — kollidierende Paare, gruppiert nach Seiten-A-ID.
+- `errors: list[{key_a, key_b, error}]` — Paare, die nicht entschieden werden konnten (sowohl Boolesche Operation als auch FCL fehlgeschlagen, oder FCL nicht verfügbar).
+- `intersection_meshes: dict[paar_id, cache_id | null]` — nur im Modus `intersection_mesh`. Ordnet `"{key_a}__{key_b}"` die Cache-ID `inter:intersection_{key_a}_{key_b}` zu. `null` für über FCL entschiedene Kollisionen (kein Netz erzeugt). Im Modus `boolean` leer.
 
-Nicht kollidierende Paare (disjunkt oder flächenberührend) fehlen im Ergebnis einfach. `key_a`/`key_b` sind die Cache-Schlüssel (`ifc:<express_id>` oder `gen:<object_id>`) und identifizieren jedes Element eindeutig.
+Nicht kollidierende Paare fehlen im Ergebnis.
 
-## Schlüssel der Schnittmengennetze
+## IDs der Schnittmengennetze
 
-Im Modus `intersection_mesh` wird jedes kollidierende Paar `(key_a, key_b)` zusätzlich unter dem deterministischen Schlüssel gespeichert:
+Im Modus `intersection_mesh` wird jedes über die Boolesche Operation entschiedene kollidierende Paar unter folgender ID gespeichert:
 
 ```
 inter:intersection_{key_a}_{key_b}
 ```
 
-Kollidiert beispielsweise `ifc:1` mit `ifc:2`, wird der Eintrag `inter:intersection_ifc:1_ifc:2` in den Geometrie-Cache geschrieben. Der Schlüssel ist **nicht** Teil des Ergebnisses — bei Bedarf über `resolve_mesh` nachschlagen. Da es sich um einen `inter:`-Schlüssel handelt, ist er von Kollisionseingaben und vom Ganzmodell-Fallback ausgeschlossen. Da Paare nicht dedupliziert werden, erhalten das symmetrische Paar `X↔Y` und `Y↔X` jeweils einen eigenen Schlüssel in der jeweiligen Richtung.
+Da es sich um eine `inter:`-ID handelt, ist sie von Kollisionseingaben und vom Ganzmodell-Fallback ausgeschlossen. Da Paare nicht dedupliziert werden, erhalten `X↔Y` und `Y↔X` jeweils eine eigene ID. Über FCL entschiedene Kollisionen erscheinen mit einem `null`-Wert — es wird kein Netz gespeichert.
 
 ## Hinweise
 
-- Nicht wasserdichte Netze werden bestmöglich repariert (Knotenverschweißung, Lochfüllung, pymeshfix). Nicht reparierbare Netze werden in `errors` mit `error="non-watertight"` festgehalten.
+- Nicht wasserdichte Netze werden bestmöglich repariert (Knotenverschweißung, Lochfüllung, pymeshfix). Wenn Reparatur oder Boolesche Operation fehlschlagen, bietet FCL (Flexible Collision Library) dreiecksbasierte Kollisionserkennung auf rohen Dreiecksnetzen. Paare landen nur dann in `errors`, wenn sowohl Boolesche Operation als auch FCL fehlschlagen (erfordert `python-fcl`).
 - Sich berührende Paare erzeugen Schnittmengen mit null Volumen und gelten als nicht kollidierend.

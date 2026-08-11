@@ -243,21 +243,7 @@
         }
       },
       "properties": {
-        "result": {
-          "additionalProperties": false,
-          "properties": {
-            "object_ids": {
-              "default": [],
-              "description": "1-element list with the object_id of the generated cube.",
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          "type": "object"
-        },
-        "inputs": {
+        "settings": {
           "additionalProperties": false,
           "properties": {
             "position": {
@@ -305,11 +291,25 @@
             "object_id"
           ],
           "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "object_ids": {
+              "default": [],
+              "description": "1-element list with the object_id of the generated cube.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
         }
       },
       "required": [
         "result",
-        "inputs"
+        "settings"
       ],
       "additionalProperties": false
     },

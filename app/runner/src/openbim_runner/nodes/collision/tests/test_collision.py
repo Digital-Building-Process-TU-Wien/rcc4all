@@ -75,7 +75,7 @@ def test_collision_face_touching_pair_is_not_emitted() -> None:
     assert result.errors == []
 
 
-def test_collision_non_watertight_reports_error() -> None:
+def test_collision_non_watertight_overlapping_reports_collision() -> None:
     context = _context()
     open_mesh = trimesh.Trimesh(
         vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
@@ -91,11 +91,50 @@ def test_collision_non_watertight_reports_error() -> None:
         context,
     )
 
+    assert result.collisions == {"gen:broken": ["ifc:2"]}
+    assert result.errors == []
+    assert result.intersection_meshes == {}
+
+
+def test_collision_non_watertight_disjoint_no_collision() -> None:
+    context = _context()
+    open_mesh = trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    cache_mesh(context, open_mesh, object_id="broken")
+    _express_box(context, 2, [10, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=["broken"], list_b=[2]),
+        context,
+    )
+
     assert result.collisions == {}
-    assert len(result.errors) == 1
-    assert result.errors[0].key_a == "gen:broken"
-    assert result.errors[0].key_b == "ifc:2"
-    assert result.errors[0].error == "non-watertight"
+    assert result.errors == []
+
+
+def test_collision_non_watertight_inside_convex_reports_collision() -> None:
+    context = _context()
+    _express_box(context, 1, [0, 0, 0], extents=[2, 2, 2])
+    floating_triangle = trimesh.Trimesh(
+        vertices=[[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    cache_mesh(context, floating_triangle, object_id="floating")
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(list_a=["floating"], list_b=[1]),
+        context,
+    )
+
+    assert result.collisions == {"gen:floating": ["ifc:1"]}
+    assert result.errors == []
+    assert result.intersection_meshes == {}
 
 
 def test_collision_cartesian_product_groups_colliding_keys() -> None:
@@ -203,6 +242,8 @@ def test_collision_mode_boolean_stores_no_intersection_mesh() -> None:
     )
 
     assert result.collisions == {"ifc:1": ["ifc:2"]}
+    assert result.errors == []
+    assert result.intersection_meshes == {}
     assert context.geometry_cache is None or "inter:intersection_ifc:1_ifc:2" not in context.geometry_cache
 
 
@@ -218,10 +259,34 @@ def test_collision_mode_intersection_mesh_stores_deterministic_key() -> None:
     )
 
     assert result.collisions == {"ifc:1": ["ifc:2"]}
+    assert result.errors == []
+    assert result.intersection_meshes == {"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2"}
     assert context.geometry_cache is not None
     key = "inter:intersection_ifc:1_ifc:2"
     assert key in context.geometry_cache
     assert resolve_mesh(context, key).volume > 0
+
+
+def test_collision_mode_intersection_mesh_fcl_pair_gets_null() -> None:
+    context = _context()
+    open_mesh = trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    cache_mesh(context, open_mesh, object_id="broken")
+    _express_box(context, 2, [0, 0, 0])
+
+    result = _run(
+        CollisionSettings(mode="intersection_mesh"),
+        CollisionInputs(list_a=["broken"], list_b=[2]),
+        context,
+    )
+
+    assert result.collisions == {"gen:broken": ["ifc:2"]}
+    assert result.errors == []
+    assert result.intersection_meshes == {"gen:broken__ifc:2": None}
+    assert context.geometry_cache is None or "inter:intersection_gen:broken_ifc:2" not in context.geometry_cache
 
 
 def test_collision_missing_express_id_raises() -> None:

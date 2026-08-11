@@ -78,13 +78,7 @@ export interface ConcatenateStrings {
  * Create a 3D cube geometry with customizable size, position, and rotation for clash detection.
  */
 export interface Generate3DCube {
-  result: {
-    /**
-     * 1-element list with the object_id of the generated cube.
-     */
-    object_ids?: string[]
-  }
-  inputs: {
+  settings: {
     /**
      * 3D position [x, y, z] for the cube center in meters.
      */
@@ -101,6 +95,12 @@ export interface Generate3DCube {
      * Unique identifier for the generated cube, used to reference it e.g. in a collision node.
      */
     object_id: string
+  }
+  result: {
+    /**
+     * 1-element list with the object_id of the generated cube.
+     */
+    object_ids?: string[]
   }
 }
 /**

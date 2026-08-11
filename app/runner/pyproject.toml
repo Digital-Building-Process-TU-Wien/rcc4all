@@ -12,6 +12,7 @@ dependencies = [
     "ifcopenshell>=0.8.3",
     "manifold3d",
     "numpy",
+    "python-fcl",
     "pymeshfix",
     "pydantic>=2.11.0",
     "trimesh>=4.0.0",
