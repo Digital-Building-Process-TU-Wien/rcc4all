@@ -12,7 +12,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      payloadUrl: 'http://localhost:3000/api',
+      payloadUrl: '',
     },
   },
   eslint: {
