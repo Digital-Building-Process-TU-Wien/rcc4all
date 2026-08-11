@@ -1,8 +1,55 @@
 export interface NodeRegistrySchema {
+  collision?: CollisionDetection
   concat_string?: ConcatenateStrings
   generate_3d_cube?: Generate3DCube
   get_name?: ResolveObjectNames
   ifc_element_filter?: IfcElementFilter
+}
+/**
+ * Clash detection between two geometry lists via a cartesian product of mesh boolean intersections. An empty list falls back to the whole model.
+ */
+export interface CollisionDetection {
+  settings: {
+    /**
+     * 'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).
+     */
+    mode?: ("boolean" | "intersection_mesh")
+  }
+  result: {
+    /**
+     * Grouped by side-A cache key; each value lists the side-B cache keys it collides with. Only colliding pairs are included.
+     */
+    collisions?: {
+      [k: string]: string[]
+    }
+    /**
+     * Pairs whose collision could not be decided (e.g. non-watertight or boolean failure).
+     */
+    errors?: {
+      /**
+       * Cache key of the first geometry in the failed pair.
+       */
+      key_a: string
+      /**
+       * Cache key of the second geometry in the failed pair.
+       */
+      key_b: string
+      /**
+       * Error reason, e.g. 'non-watertight' or 'boolean failed: ...'.
+       */
+      error: string
+    }[]
+  }
+  inputs: {
+    /**
+     * First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`), in the order to test. When empty, the whole model is used.
+     */
+    list_a?: (number | string)[]
+    /**
+     * Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set.
+     */
+    list_b?: (number | string)[]
+  }
 }
 /**
  * Join a list of resolved string values into one output string.
@@ -31,17 +78,7 @@ export interface ConcatenateStrings {
  * Create a 3D cube geometry with customizable size, position, and rotation for clash detection.
  */
 export interface Generate3DCube {
-  result: {
-    /**
-     * List of 3D vertex coordinates [[x, y, z], ...] defining the cube geometry.
-     */
-    vertices?: number[][]
-    /**
-     * List of face definitions [[v1, v2, v3], ...] as vertex indices forming triangles.
-     */
-    faces?: number[][]
-  }
-  inputs: {
+  settings: {
     /**
      * 3D position [x, y, z] for the cube center in meters.
      */
@@ -54,6 +91,16 @@ export interface Generate3DCube {
      * Dimensions [width, height, depth] in meters.
      */
     size?: number[]
+    /**
+     * Unique identifier for the generated cube, used to reference it e.g. in a collision node.
+     */
+    object_id: string
+  }
+  result: {
+    /**
+     * 1-element list with the object_id of the generated cube.
+     */
+    object_ids?: string[]
   }
 }
 /**
