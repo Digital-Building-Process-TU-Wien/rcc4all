@@ -24,6 +24,7 @@ openbim-runner = "openbim_runner.main:main"
 dev = [
     "pytest>=8.4.2",
     "ruff>=0.15.5",
+    "pyright>=1.1.400",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -34,3 +35,13 @@ testpaths = [
     "src/openbim_runner/nodes",
     "tests",
 ]
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__", ".venv", "dist", "**/node_modules", "**/.*"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = "warning"
+reportUnknownMemberType = "warning"
+reportUnknownArgumentType = "warning"
+reportUnknownVariableType = "warning"

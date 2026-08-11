@@ -191,9 +191,9 @@ Add your import and export:
 ```python
 from .base import ExecutionContext, NodeDefinition, NodeModel, dispatch, get_registry, get_registry_schema, node
 from .concat_string.concat_string import concat_string
-from .element_filter.element_filter import element_filter
 from .generate_3d_cube.generate_3d_cube import generate_3d_cube
 from .get_name.get_name import get_name
+from .ifc_element_filter.ifc_element_filter import ifc_element_filter
 from .template_node.template_node import template_node  # ← ADD THIS
 
 __all__ = [
@@ -202,11 +202,11 @@ __all__ = [
     "NodeModel",
     "concat_string",
     "dispatch",
-    "element_filter",
     "generate_3d_cube",
     "get_name",
     "get_registry",
     "get_registry_schema",
+    "ifc_element_filter",
     "node",
     "template_node",  # ← ADD THIS
 ]
@@ -308,10 +308,10 @@ Add the mapping in `nodeNameToComponent`:
 ```typescript
 const nodeNameToComponent: Record<string, string> = {
   concat_string: 'ConcatString',
-  element_filter: 'ElementFilter',
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',
   get_name: 'GetName',
+  ifc_element_filter: 'IfcElementFilter',
   template_node: 'TemplateNode',  // ← ADD THIS
 }
 ```
@@ -391,7 +391,7 @@ npm run dev
 |---------|----------|--------|---------|---------|
 | Settings + Inputs | ✓ | ✓ | ✗ | `template_node`, `concat_string` |
 | Settings + Inputs + Context | ✓ | ✓ | ✓ | `get_name` |
-| Settings + Context | ✓ | ✗ | ✓ | `element_filter` |
+| Settings + Context | ✓ | ✗ | ✓ | `ifc_element_filter` |
 | Inputs + Context | ✗ | ✓ | ✓ | `generate_3d_cube` |
 
 ### Function Signature Rules

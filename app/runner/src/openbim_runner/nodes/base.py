@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from inspect import Parameter, getfile, isawaitable, signature
+from inspect import getfile, isawaitable, signature
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, cast, get_type_hints
 
@@ -123,60 +123,28 @@ def load_node_documentation_all_locales(definition: NodeDefinition) -> dict[str,
     return all_locales
 
 
-def node(name: str | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def node(
+    name: str | None = None,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         hints = get_type_hints(func)
-        sig = signature(func)
-        parameters = list(sig.parameters.values())
+        param_names = set(signature(func).parameters)
 
-        if not parameters:
-            raise TypeError(f"{func.__name__} must define at least a 'settings' or 'inputs' parameter")
-        
-        takes_settings = False
-        takes_inputs = False
-        takes_context = False
-        
-        if parameters[0].name == "settings":
-            takes_settings = True
-            if len(parameters) > 1:
-                second_param = parameters[1].name
-                if second_param == "inputs":
-                    takes_inputs = True
-                    if len(parameters) > 2 and parameters[2].name == "context":
-                        takes_context = True
-                elif second_param == "context":
-                    takes_context = True
-                else:
-                    raise TypeError(f"{func.__name__} may only use 'inputs' or 'context' after 'settings'")
-        elif parameters[0].name == "inputs":
-            takes_inputs = True
-            if len(parameters) > 1 and parameters[1].name == "context":
-                takes_context = True
-        else:
-            raise TypeError(f"{func.__name__} must start with 'settings' or 'inputs' parameter")
-        
-        if len(parameters) > 3:
-            raise TypeError(f"{func.__name__} may only define 'settings', optional 'inputs', and optional 'context' parameters")
-        if any(parameter.kind not in {Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY} for parameter in parameters):
-            raise TypeError(f"{func.__name__} must use standard named parameters")
-
-        if len(parameters) == 2 and takes_settings and takes_context:
-            pass
-        elif len(parameters) == 2 and takes_inputs and not takes_context:
-            pass
-        elif len(parameters) == 3:
-            if not (takes_settings or takes_inputs) or not takes_context:
-                raise TypeError(f"{func.__name__} must use 'context' as third parameter")
-            if takes_settings and not takes_inputs:
-                raise TypeError(f"{func.__name__} cannot have 'context' as second parameter after 'settings', use 'inputs' first")
+        takes_settings = "settings" in param_names
+        takes_inputs = "inputs" in param_names
+        takes_context = "context" in param_names
 
         settings_model = hints.get("settings") if takes_settings else None
         inputs_model = hints.get("inputs") if takes_inputs else None
         result_model = hints.get("return")
-        
-        if takes_settings and (not isinstance(settings_model, type) or not issubclass(settings_model, BaseModel)):
+
+        if takes_settings and (
+            not isinstance(settings_model, type) or not issubclass(settings_model, BaseModel)
+        ):
             raise TypeError(f"{func.__name__}.settings must be a BaseModel subclass")
-        if takes_inputs and (not isinstance(inputs_model, type) or not issubclass(inputs_model, BaseModel)):
+        if takes_inputs and (
+            not isinstance(inputs_model, type) or not issubclass(inputs_model, BaseModel)
+        ):
             raise TypeError(f"{func.__name__}.inputs must be a BaseModel subclass")
         if not isinstance(result_model, type) or not issubclass(result_model, BaseModel):
             raise TypeError(f"{func.__name__}.return must be a BaseModel subclass")
@@ -263,41 +231,43 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """Recursively remove title fields from a JSON schema to prevent named type generation."""
     import copy
     result = copy.deepcopy(schema)
-    defs = result.get("$defs", {})
+    defs = cast(dict[str, object], result.get("$defs", {}))
 
-    def inline_local_refs(value: Any) -> Any:
+    def inline_local_refs(value: object) -> object:
         if isinstance(value, dict):
-            ref = value.get("$ref")
+            schema_node = cast(dict[str, object], value)
+            ref = schema_node.get("$ref")
             if isinstance(ref, str) and ref.startswith("#/$defs/"):
                 def_name = ref.removeprefix("#/$defs/")
                 if def_name in defs:
                     return inline_local_refs(copy.deepcopy(defs[def_name]))
 
-            return {key: inline_local_refs(item) for key, item in value.items() if key != "$defs"}
+            return {key: inline_local_refs(item) for key, item in schema_node.items() if key != "$defs"}
 
         if isinstance(value, list):
-            return [inline_local_refs(item) for item in value]
+            return [inline_local_refs(item) for item in cast(list[object], value)]
 
         return value
 
-    result = inline_local_refs(result)
+    result = cast(dict[str, Any], inline_local_refs(result))
     result.pop("title", None)
-    
+
     if "properties" in result:
+        properties = cast(dict[str, object], result["properties"])
         result["properties"] = {
-            key: _remove_titles_from_schema(value) if isinstance(value, dict) else value
-            for key, value in result["properties"].items()
+            key: _remove_titles_from_schema(cast(dict[str, Any], value)) if isinstance(value, dict) else value
+            for key, value in properties.items()
         }
-    
+
     if "items" in result and isinstance(result["items"], dict):
-        result["items"] = _remove_titles_from_schema(result["items"])
-    
+        result["items"] = _remove_titles_from_schema(cast(dict[str, object], result["items"]))
+
     if "anyOf" in result:
         result["anyOf"] = [
-            _remove_titles_from_schema(item) if isinstance(item, dict) else item
-            for item in result["anyOf"]
+            _remove_titles_from_schema(cast(dict[str, Any], item)) if isinstance(item, dict) else item
+            for item in cast(list[object], result["anyOf"])
         ]
-    
+
     return result
 
 

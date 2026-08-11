@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import asyncio
 from importlib import import_module
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.ifc_element_filter.ifc_element_filter import (
     FilterRow,
+    IfcElementFilterResult,
     IfcElementFilterSettings,
     ifc_element_filter,
 )
@@ -19,7 +20,7 @@ filter_module = import_module("openbim_runner.nodes.ifc_element_filter.ifc_eleme
 class FakeEntity:
     def __init__(self, express_id: int, **attributes: Any) -> None:
         self._express_id = express_id
-        self._psets = attributes.pop("psets", {})
+        self.psets: dict[str, dict[str, object]] = attributes.pop("psets", {})
         for key, value in attributes.items():
             setattr(self, key, value)
 
@@ -38,8 +39,12 @@ class FakeIfcModel:
         return self.entities_by_type.get(entity_type, [])
 
 
-def run_filter(settings: IfcElementFilterSettings, ifc_model: FakeIfcModel):
-    context = ExecutionContext(ifc_model=ifc_model, node_outputs={})
+def _fake_get_psets(entity: FakeEntity) -> dict[str, dict[str, object]]:
+    return entity.psets
+
+
+def run_filter(settings: IfcElementFilterSettings, ifc_model: FakeIfcModel) -> IfcElementFilterResult:
+    context = ExecutionContext(ifc_model=cast(Any, ifc_model), node_outputs={})
     return asyncio.run(ifc_element_filter(settings, context))
 
 
@@ -59,7 +64,7 @@ def test_ifc_element_filter_include_and_exclude_rows(monkeypatch: pytest.MonkeyP
         psets={"Pset_WallCommon": {"IsExternal": True}},
     )
 
-    monkeypatch.setattr(filter_module, "get_psets", lambda entity: entity._psets)
+    monkeypatch.setattr(filter_module, "get_psets", _fake_get_psets)
 
     result = run_filter(
         IfcElementFilterSettings(
@@ -85,7 +90,7 @@ def test_ifc_element_filter_matches_attribute_and_predefined_type(monkeypatch: p
     door = FakeEntity(10, GlobalId="door-1", Name="Main Entrance", PredefinedType="DOOR")
     gate = FakeEntity(11, GlobalId="gate-1", Name="Main Gate", PredefinedType="GATE")
 
-    monkeypatch.setattr(filter_module, "get_psets", lambda entity: entity._psets)
+    monkeypatch.setattr(filter_module, "get_psets", _fake_get_psets)
 
     result = run_filter(
         IfcElementFilterSettings(
@@ -129,7 +134,7 @@ def test_ifc_element_filter_empty_entity_type_searches_all_ifc_elements(monkeypa
         psets={"Pset_WallCommon": {"IsExternal": True}},
     )
 
-    monkeypatch.setattr(filter_module, "get_psets", lambda entity: entity._psets)
+    monkeypatch.setattr(filter_module, "get_psets", _fake_get_psets)
 
     result = run_filter(
         IfcElementFilterSettings(
