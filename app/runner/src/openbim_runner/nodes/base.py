@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Callable, cast, get_type_hints
 from pydantic import BaseModel, ConfigDict
 if TYPE_CHECKING:
     import ifcopenshell
+    import trimesh
 
 
 class NodeModel(BaseModel):
@@ -20,10 +21,12 @@ class ExecutionContext:
         ifc_model: ifcopenshell.file,
         node_outputs: dict[str, NodeModel],
         workflow_dir: Path | None = None,
+        geometry_cache: dict[str, "trimesh.Trimesh"] | None = None,
     ) -> None:
         self.ifc_model = ifc_model
         self.node_outputs = node_outputs
         self.workflow_dir = workflow_dir
+        self.geometry_cache: dict[str, trimesh.Trimesh] | None = {} if geometry_cache is None else geometry_cache
 
 
 @dataclass(frozen=True)

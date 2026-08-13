@@ -264,21 +264,21 @@ def test_ids_checker_output_modes() -> None:
         ifc_file = ifcopenshell.file()
         ifc_file.create_entity("IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV")
         wall = ifc_file.create_entity("IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV")
-        door = ifc_file.create_entity("IfcDoor", Name="Door 1", GlobalId="2y$yN$DPH95gqWMb$mqAOV")
+        ifc_file.create_entity("IfcDoor", Name="Door 1", GlobalId="2y$yN$DPH95gqWMb$mqAOV")
         ifc_file.write(str(ifc_file_path))
 
         my_ids = ifc_ids.Ids(title="Multi Spec IDS")
-        
+
         wall_spec = ifc_ids.Specification(name="Wall Check")
         wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
         wall_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
         my_ids.specifications.append(wall_spec)
-        
+
         door_spec = ifc_ids.Specification(name="Door Check")
         door_spec.applicability.append(ifc_ids.Entity(name="IFCDOOR"))
         door_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Door 1"))
         my_ids.specifications.append(door_spec)
-        
+
         ids_file = tmpdir_path / "test.ids"
         my_ids.to_xml(str(ids_file))
 
