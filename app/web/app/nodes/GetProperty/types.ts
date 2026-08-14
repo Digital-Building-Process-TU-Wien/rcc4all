@@ -4,7 +4,6 @@ export type GetPropertyNode = SchemaNodeType<'get_property'>
 export type GetPropertySettings = NonNullable<GetPropertyNode['data']['settings']>
 export type Requirements = NonNullable<GetPropertySettings['selections']>
 export type PropertySelection = Requirements[number]
-export type ValueSource = NonNullable<PropertySelection['source']>
 export type OutputMode = NonNullable<GetPropertySettings['output_mode']>
 
 // Reuse IFC filter types from IfcElementFilter for property set/entity data

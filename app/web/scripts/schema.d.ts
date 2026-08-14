@@ -24,7 +24,7 @@ export interface NodeRegistrySchema {
   ifc_element_filter?: IfcElementFilter
 }
 /**
- * Clash detection between two geometry lists via a cartesian product of mesh boolean intersections. An empty list falls back to the whole model.
+ * Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.
  */
 export interface CollisionDetection {
   settings: {
@@ -57,6 +57,12 @@ export interface CollisionDetection {
        */
       error: string
     }[]
+    /**
+     * Only populated in 'intersection_mesh' mode. Maps a pair key '{key_a}__{key_b}' to the geometry-cache key 'inter:intersection_{key_a}_{key_b}' under which the intersection mesh was stored. A null value signals an FCL-decided collision (mesh non-repairable or boolean failed) for which no intersection mesh could be generated. Empty in 'boolean' mode.
+     */
+    intersection_meshes?: {
+      [k: string]: (string | null)
+    }
   }
   inputs: {
     /**
@@ -145,7 +151,7 @@ export interface ResolveObjectNames {
   }
 }
 /**
- * Define property values manually or read them from IFC entities for downstream processing.
+ * Read property values from IFC entities for downstream processing.
  */
 export interface GetProperty {
   settings: {
@@ -169,22 +175,6 @@ export interface GetProperty {
        * Name of the property to read within the PropertySet.
        */
       property_name?: string
-      /**
-       * Where to get the property value: 'from_model' (read from IFC), 'fallback' (use manual value if model value is missing or empty), 'override' (always use manual value), or 'condition' (use manual value when model value meets a condition).
-       */
-      source?: ("from_model" | "fallback" | "override" | "condition")
-      /**
-       * Manual value to use when source is 'fallback', 'override', or 'condition'.
-       */
-      manual_value?: string
-      /**
-       * Comparison operator for 'condition' source: greater than, greater or equal, less than, less or equal, equal, or not equal.
-       */
-      condition_operator?: (">" | ">=" | "<" | "<=" | "==" | "!=")
-      /**
-       * Threshold value to compare against for 'condition' source.
-       */
-      condition_value?: string
     }[]
   }
   result: {

@@ -7,7 +7,6 @@ from pydantic import Field
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 
 
-ValueSource = Literal["from_model", "fallback", "override", "condition"]
 OutputMode = Literal["elements", "by_class", "model"]
 
 
@@ -26,26 +25,6 @@ class PropertySelection(NodeModel):
         default="",
         title="Property name",
         description="Name of the property to read within the PropertySet.",
-    )
-    source: ValueSource = Field(
-        default="from_model",
-        title="Source",
-        description="Where to get the property value: 'from_model' (read from IFC), 'fallback' (use manual value if model value is missing or empty), 'override' (always use manual value), or 'condition' (use manual value when model value meets a condition).",
-    )
-    manual_value: str = Field(
-        default="",
-        title="Manual value",
-        description="Manual value to use when source is 'fallback', 'override', or 'condition'.",
-    )
-    condition_operator: Literal[">", ">=", "<", "<=", "==", "!="] = Field(
-        default=">",
-        title="Condition operator",
-        description="Comparison operator for 'condition' source: greater than, greater or equal, less than, less or equal, equal, or not equal.",
-    )
-    condition_value: str = Field(
-        default="",
-        title="Condition value",
-        description="Threshold value to compare against for 'condition' source.",
     )
 
 
@@ -139,14 +118,10 @@ async def get_property(
     if not settings.selections:
         raise ValueError("At least one property selection must be specified.")
 
-    # Validate each selection
+    # Validate each selection has a property name
     for i, sel in enumerate(settings.selections):
         if not sel.property_name:
             raise ValueError(f"Selection {i + 1} must have a property name.")
-        if sel.source in ("fallback", "override", "condition") and not sel.manual_value:
-            raise ValueError(f"Selection {i + 1} requires a manual value when source is '{sel.source}'.")
-        if sel.source == "condition" and not sel.condition_value:
-            raise ValueError(f"Selection {i + 1} requires a condition value when source is 'condition'.")
 
     # Resolve per-entity properties (common for all output modes)
     resolved: list[tuple[int, str, dict[str, str | None]]] = []  # (express_id, class, properties)
@@ -171,35 +146,11 @@ async def get_property(
             # Build the property key
             key = _build_key(sel.property_set, sel.property_name, settings.output_mode)
 
-            # Resolve the property value based on source
-            if sel.source == "from_model":
-                value = _get_property_value(entity, psets, sel.property_set, sel.property_name)
-                elem_props[key] = _stringify_value(value)
-            elif sel.source == "fallback":
-                model_value = _get_property_value(entity, psets, sel.property_set, sel.property_name)
-                value_str = _stringify_value(model_value)
-                elem_props[key] = value_str if value_str not in (None, "") else sel.manual_value
-            elif sel.source == "override":
-                elem_props[key] = sel.manual_value
-            else:  # condition
-                model_value = _get_property_value(entity, psets, sel.property_set, sel.property_name)
-                value_str = _stringify_value(model_value)
-                if _condition_matches(model_value, sel.condition_operator, sel.condition_value):
-                    elem_props[key] = sel.manual_value
-                else:
-                    elem_props[key] = value_str
+            # Read the property value from the model
+            value = _get_property_value(entity, psets, sel.property_set, sel.property_name)
+            elem_props[key] = _stringify_value(value)
 
         resolved.append((express_id, entity_class, elem_props))
-
-    # When no input elements are connected, synthesize entries from manual values
-    # so that by_class / model output reflects manually defined values.
-    # Elements mode is excluded since it requires actual elements.
-    if not inputs.express_ids and settings.output_mode in ("by_class", "model"):
-        for sel in settings.selections:
-            if sel.source in ("fallback", "override") and sel.manual_value:
-                key = _build_key(sel.property_set, sel.property_name, settings.output_mode)
-                cls = sel.entity_type.strip().upper() or "unknown"
-                resolved.append((0, cls, {key: sel.manual_value}))
 
     # Build output based on mode
     if settings.output_mode == "elements":
@@ -310,42 +261,3 @@ def _entity_matches_type(entity: Any, entity_type: str) -> bool:
         return bool(is_a(entity_type))
     except TypeError:
         return is_a().upper() == entity_type
-
-
-def _condition_matches(model_value: Any, operator: str, condition_value: str) -> bool:
-    """Check if a model value matches a condition.
-    
-    Tries numeric comparison first; if either side is non-numeric,
-    falls back to string comparison for == and != operators.
-    Ordering operators on non-numeric values return False.
-    """
-    if model_value is None:
-        return False
-    
-    try:
-        lhs = float(model_value)
-        rhs = float(condition_value)
-        # Numeric comparison
-        if operator == ">":
-            return lhs > rhs
-        if operator == ">=":
-            return lhs >= rhs
-        if operator == "<":
-            return lhs < rhs
-        if operator == "<=":
-            return lhs <= rhs
-        if operator == "==":
-            return lhs == rhs
-        if operator == "!=":
-            return lhs != rhs
-        return False
-    except (TypeError, ValueError):
-        # Non-numeric: only == and != make sense as string comparison
-        # Use consistent stringification with _stringify_value (lowercase booleans)
-        lhs_str = _stringify_value(model_value) or ""
-        if operator == "==":
-            return lhs_str == condition_value
-        if operator == "!=":
-            return lhs_str != condition_value
-        # Ordering on non-numeric: condition doesn't match
-        return False

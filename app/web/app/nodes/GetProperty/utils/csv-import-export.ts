@@ -1,4 +1,4 @@
-import type { PropertySelection, Requirements, ValueSource } from '../types'
+import type { PropertySelection, Requirements } from '../types'
 
 interface CsvColumn {
   key: keyof PropertySelection
@@ -9,14 +9,6 @@ export const CSV_COLUMNS: Array<CsvColumn> = [
   { key: 'entity_type', label: 'entity_type' },
   { key: 'property_set', label: 'property_set' },
   { key: 'property_name', label: 'property_name' },
-  { key: 'source', label: 'source' },
-  { key: 'manual_value', label: 'manual_value' },
-]
-
-const SOURCES: ValueSource[] = [
-  'from_model',
-  'fallback',
-  'override',
 ]
 
 export function escapeCsvValue(value: string | undefined): string {
@@ -80,14 +72,10 @@ export function parseCsv(text: string, delimiter: ',' | ';'): string[][] {
 }
 
 function rowFromCsvRecord(record: Record<string, string>): PropertySelection {
-  const source = record.source ?? ''
-
   return {
     entity_type: record.entity_type ?? '',
     property_set: record.property_set ?? '',
     property_name: record.property_name ?? '',
-    source: SOURCES.includes(source as ValueSource) ? source as ValueSource : 'from_model',
-    manual_value: record.manual_value ?? '',
   }
 }
 
