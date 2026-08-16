@@ -1,12 +1,30 @@
+/**
+ * A distinct property value.
+ */
+export type Value = string
+/**
+ * Number of occurrences of this value.
+ */
+export type Count = number
+/**
+ * A distinct property value.
+ */
+export type Value1 = string
+/**
+ * Number of occurrences of this value.
+ */
+export type Count1 = number
+
 export interface NodeRegistrySchema {
   collision?: CollisionDetection
   concat_string?: ConcatenateStrings
   generate_3d_cube?: Generate3DCube
   get_name?: ResolveObjectNames
+  get_property?: GetProperty
   ifc_element_filter?: IfcElementFilter
 }
 /**
- * Clash detection between two geometry lists via a cartesian product of mesh boolean intersections. An empty list falls back to the whole model.
+ * Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.
  */
 export interface CollisionDetection {
   settings: {
@@ -39,6 +57,12 @@ export interface CollisionDetection {
        */
       error: string
     }[]
+    /**
+     * Only populated in 'intersection_mesh' mode. Maps a pair key '{key_a}__{key_b}' to the geometry-cache key 'inter:intersection_{key_a}_{key_b}' under which the intersection mesh was stored. A null value signals an FCL-decided collision (mesh non-repairable or boolean failed) for which no intersection mesh could be generated. Empty in 'boolean' mode.
+     */
+    intersection_meshes?: {
+      [k: string]: (string | null)
+    }
   }
   inputs: {
     /**
@@ -125,6 +149,90 @@ export interface ResolveObjectNames {
      */
     express_ids?: number[]
   }
+}
+/**
+ * Read property values from IFC entities for downstream processing.
+ */
+export interface GetProperty {
+  settings: {
+    /**
+     * Output granularity: 'elements' (per entity), 'by_class' (grouped by element class), or 'model' (distinct values across all entities).
+     */
+    output_mode?: ("elements" | "by_class" | "model")
+    /**
+     * List of properties to read from each entity.
+     */
+    selections?: {
+      /**
+       * Optional IFC entity type (e.g., IFCWALL, IFCDOOR). Empty means any entity type. Used for UI preselection only.
+       */
+      entity_type?: string
+      /**
+       * IFC PropertySet name (e.g., Pset_WallCommon) or custom property set name.
+       */
+      property_set?: string
+      /**
+       * Name of the property to read within the PropertySet.
+       */
+      property_name?: string
+    }[]
+  }
+  result: {
+    /**
+     * The output mode used to generate this result.
+     */
+    mode: ("elements" | "by_class" | "model")
+    /**
+     * List of elements with their property values (output_mode = elements).
+     */
+    elements?: ({
+      /**
+       * The express ID of the IFC entity.
+       */
+      express_id: number
+      /**
+       * Dictionary of property values keyed by 'Pset.Property' format.
+       */
+      properties?: {
+        [k: string]: (string | null)
+      }
+    }[] | null)
+    /**
+     * Elements grouped by IFC class (output_mode = by_class).
+     */
+    classes?: ({
+      /**
+       * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
+       */
+      id: string
+      /**
+       * Distinct values with counts per property for this class.
+       */
+      properties?: {
+        [k: string]: ValueWithCount[]
+      }
+    }[] | null)
+    /**
+     * Distinct values with counts per property (output_mode = model).
+     */
+    properties?: ({
+      [k: string]: ValueWithCount1[]
+    } | null)
+  }
+  inputs: {
+    /**
+     * List of IFC express IDs to read property values from.
+     */
+    express_ids?: number[]
+  }
+}
+export interface ValueWithCount {
+  value: Value
+  count: Count
+}
+export interface ValueWithCount1 {
+  value: Value1
+  count: Count1
 }
 /**
  * Filter IFC entities using table-based include and exclude rules.
