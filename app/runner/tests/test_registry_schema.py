@@ -24,3 +24,12 @@ def test_registry_schema_node_keys_are_sorted() -> None:
 
     node_names = list(schema["properties"].keys())
     assert node_names == sorted(node_names)
+
+
+def test_registry_schema_locales_are_sorted() -> None:
+    schema = get_registry_schema()
+
+    for node_schema in schema["properties"].values():
+        locales = list(node_schema["locales"].keys())
+        assert locales == sorted(locales), node_schema["title"]
+        assert "en" in locales

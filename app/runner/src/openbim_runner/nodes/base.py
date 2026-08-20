@@ -356,6 +356,8 @@ def get_registry_schema() -> dict[str, Any]:
         categories = en_docs.categories if en_docs else []
         markdown_description = en_docs.body if en_docs else ""
 
+        # Sorted by locale so the exported schema is deterministic regardless of
+        # the (filesystem-dependent) order in which locale readmes are discovered.
         locales_data = {
             locale: {
                 "title": docs.title,
@@ -363,7 +365,7 @@ def get_registry_schema() -> dict[str, Any]:
                 "categories": docs.categories,
                 "markdownDescription": docs.body,
             }
-            for locale, docs in all_locales.items()
+            for locale, docs in sorted(all_locales.items())
         }
 
         nodes_schemas[name] = {
