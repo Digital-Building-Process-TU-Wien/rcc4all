@@ -319,7 +319,9 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
 
 def get_registry_schema() -> dict[str, Any]:
     nodes_schemas: dict[str, Any] = {}
-    for name, definition in REGISTRY.items():
+    # Sorted so the exported schema (and the generated types derived from it)
+    # are deterministic regardless of node import/registration order.
+    for name, definition in sorted(REGISTRY.items()):
         all_locales = load_node_documentation_all_locales(definition)
         required_fields = ["result"]
 

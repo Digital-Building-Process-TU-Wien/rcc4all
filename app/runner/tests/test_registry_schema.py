@@ -17,3 +17,10 @@ def test_registry_schema_includes_node_readme_metadata() -> None:
     for node_name in ["concat_string", "ifc_element_filter", "get_name"]:
         node_schema = schema["properties"][node_name]
         assert node_schema["markdownDescription"]
+
+
+def test_registry_schema_node_keys_are_sorted() -> None:
+    schema = get_registry_schema()
+
+    node_names = list(schema["properties"].keys())
+    assert node_names == sorted(node_names)
