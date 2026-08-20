@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: '3.11'
 
@@ -73,7 +73,7 @@ jobs:
       - name: Typecheck (nuxt typecheck)
         run: npm run typecheck
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: '3.11'
 
