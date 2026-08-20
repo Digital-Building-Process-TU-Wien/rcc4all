@@ -41,11 +41,11 @@ async def get_name(
             object_name = getattr(entity, "Name", None)
             if object_name is not None:
                 object_name = str(object_name)
-        except RuntimeError:
+        except RuntimeError as err:
             if settings.fail_on_missing:
                 raise ValueError(
                     f"Could not resolve a name for express ID {express_id}."
-                )
+                ) from err
             object_name = None
 
         object_names.append(object_name)

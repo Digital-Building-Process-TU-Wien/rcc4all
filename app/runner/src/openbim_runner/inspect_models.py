@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import ifcopenshell
 import trimesh
@@ -42,8 +43,8 @@ def discover_models(
 
 def _mesh_report(mesh: trimesh.Trimesh) -> dict[str, Any]:
     return {
-        "verts": int(len(mesh.vertices)),
-        "faces": int(len(mesh.faces)),
+        "verts": len(mesh.vertices),
+        "faces": len(mesh.faces),
         "watertight": bool(mesh.is_watertight),
     }
 
@@ -72,7 +73,7 @@ def process_model(
     if combined:
         merged = trimesh.util.concatenate(combined)
         merged.export(str(mesh_dir / f"{ifc_path.stem}_all.obj"))
-        combined_verts = int(len(merged.vertices))
+        combined_verts = len(merged.vertices)
 
     report = {
         "model": ifc_path.stem,
@@ -115,7 +116,7 @@ def inspect_models(
     for rel_category, ifc_path in models:
         try:
             report = process_model(ifc_path, artifacts_root, express_id=express_id)
-        except Exception as exc:  # noqa: BLE001 - report any unprocessable model
+        except Exception as exc:
             failures += 1
             print(f"{ifc_path.stem:40} {rel_category:14} {'-':7} FAIL: {exc}")
             continue

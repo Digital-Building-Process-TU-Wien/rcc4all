@@ -749,7 +749,7 @@ def test_get_property_model_mode_merges_across_psets(
     # Both psets merge into Pset_*.Compartmentation
     assert "Pset_*.Compartmentation" in result.properties
     values = result.properties["Pset_*.Compartmentation"]
-    # true×2 (walls), false×1 (slab)
+    # true x2 (walls), false x1 (slab)
     assert len(values) == 2
     assert values[0].value == "true"
     assert values[0].count == 2

@@ -7,7 +7,6 @@ from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 
-
 FilterMode = Literal["include", "exclude", "disabled"]
 FilterOperator = Literal[
     "==", "!=", "<", ">", "<=", ">=", "contains", "starts_with", "ends_with"

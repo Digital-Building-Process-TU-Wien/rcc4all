@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from inspect import getfile, isawaitable, signature
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, cast, get_type_hints
+from typing import TYPE_CHECKING, Any, cast, get_type_hints
 
 from pydantic import BaseModel, ConfigDict
 
@@ -21,7 +22,7 @@ class ExecutionContext:
         self,
         ifc_model: ifcopenshell.file,
         node_outputs: dict[str, NodeModel],
-        geometry_cache: dict[str, "trimesh.Trimesh"] | None = None,
+        geometry_cache: dict[str, trimesh.Trimesh] | None = None,
     ) -> None:
         self.ifc_model = ifc_model
         self.node_outputs = node_outputs
@@ -184,7 +185,7 @@ def node(
             takes_context=takes_context,
             takes_settings=takes_settings,
         )
-        setattr(func, "meta", definition)
+        func.meta = definition
         REGISTRY[key] = definition
         return func
 

@@ -111,7 +111,7 @@ def add_dependency(
 def build_execution_order(workflow: WorkflowDefinition) -> list[str]:
     node_lookup = build_node_lookup(workflow)
     adjacency: dict[str, set[str]] = {node_id: set() for node_id in node_lookup}
-    indegree: dict[str, int] = {node_id: 0 for node_id in node_lookup}
+    indegree: dict[str, int] = dict.fromkeys(node_lookup, 0)
 
     for edge in workflow.edges:
         if edge.source not in node_lookup:

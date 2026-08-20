@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from openbim_runner.nodes import get_registry_schema
 from openbim_runner.workflow import dump_results, execute_workflow
