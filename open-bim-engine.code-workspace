@@ -16,5 +16,11 @@
       "name": "web",
       "path": "app/web"
     }
-  ]
+  ],
+  "settings": {
+    "i18n-ally.localesPaths": [
+      "app/web/i18n",
+      "app/web/i18n/locales"
+    ]
+  }
 }

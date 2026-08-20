@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { Node } from '@vue-flow/core'
-import type { NodeData } from '~/utils/nodes'
+import type { NodeData, SupportedLocale } from '~/utils/nodes'
 import { Comark } from '@comark/vue'
 import InputBindingsSection from '~/components/nodes/InputBindingsSection.vue'
-import { usei18n } from '~/composables/usei18n'
 import { useScopedNode } from '~/composables/useScopedNode'
 import { useFlowStore } from '~/stores/flow'
 import { getAvailableNodes, getNodeComponent } from '~/utils/nodes'
@@ -17,7 +16,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { currentLocale } = usei18n()
+const { locale, t } = useI18n()
 const store = useFlowStore()
 const node = useScopedNode<Node<NodeData>>(props.nodeId)
 
@@ -38,15 +37,15 @@ const component = computed(() => {
 })
 
 const nodeDocs = computed(() => {
-  const availableNodes = getAvailableNodes(currentLocale.value)
+  const availableNodes = getAvailableNodes(locale.value as SupportedLocale)
   return availableNodes.find(n => n.nodeName === node.value?.data?.nodeName)
 })
 </script>
 
 <template>
   <USlideover
-    title="Node Details"
-    description="Configure and inspect node properties"
+    :title="t('slideover.nodeDetails')"
+    :description="t('slideover.description')"
     :ui="{ content: 'max-w-4xl' }"
     @close="emit('close')"
   >
@@ -56,15 +55,15 @@ const nodeDocs = computed(() => {
           <template v-if="node && component">
             <div class="mb-4">
               <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
-                Node Label
+                {{ t('slideover.nodeLabel') }}
               </label>
               <UInput
                 v-model="node.data!.label"
-                placeholder="Enter custom label..."
+                :placeholder="t('slideover.customLabelPlaceholder')"
                 class="mt-1"
               />
               <p class="mt-1 text-xs text-muted">
-                This label will be shown in the graph and binding dropdowns
+                {{ t('slideover.labelHint') }}
               </p>
             </div>
 
@@ -81,7 +80,7 @@ const nodeDocs = computed(() => {
 
             <div v-if="nodeDocs" class="mt-6 border-t border-default pt-4">
               <h3 class="text-sm font-semibold text-highlighted mb-2">
-                Documentation
+                {{ t('slideover.documentation') }}
               </h3>
               <p v-if="nodeDocs.description" class="text-sm text-muted mb-3">
                 {{ nodeDocs.description }}
@@ -93,7 +92,7 @@ const nodeDocs = computed(() => {
                 {{ nodeDocs.markdownDescription }}
               </Comark>
               <div v-else class="text-sm text-muted italic">
-                No detailed documentation available
+                {{ t('slideover.noDetailedDocs') }}
               </div>
             </div>
           </template>
@@ -103,16 +102,16 @@ const nodeDocs = computed(() => {
             class="text-sm text-slate-500"
           >
             <p class="font-semibold mb-2">
-              {{ node?.data?.label || 'Unknown Node' }}
+              {{ node?.data?.label || t('slideover.unknownNode') }}
             </p>
-            <p>Node component not found: {{ node.data!.nodeName }}</p>
+            <p>{{ t('slideover.componentNotFound') }}: {{ node.data!.nodeName }}</p>
           </div>
 
           <div
             v-else
             class="text-sm text-slate-400"
           >
-            Select a node to view details
+            {{ t('slideover.selectNode') }}
           </div>
         </div>
 
@@ -123,7 +122,7 @@ const nodeDocs = computed(() => {
             block
             @click="handleDelete"
           >
-            Delete Node
+            {{ t('slideover.deleteNode') }}
           </UButton>
         </div>
       </div>

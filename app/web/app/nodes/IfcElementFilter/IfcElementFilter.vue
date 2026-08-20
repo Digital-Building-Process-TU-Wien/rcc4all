@@ -9,6 +9,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const node = useScopedNode<IfcElementFilterNode>(props.node.id)
+const { t } = useI18n()
 const csvInput = ref<HTMLInputElement | null>(null)
 const csvMessage = ref('')
 
@@ -365,7 +366,7 @@ async function importCsv(event: Event) {
               class="w-full rounded border border-slate-200 bg-white px-1 py-1 text-xs text-slate-800"
             >
               <option value="">
-                Any
+                {{ t('node.property.any') }}
               </option>
               <option
                 v-for="allowedValue in getPropertyForRow(row)?.allowedValues"
@@ -381,7 +382,7 @@ async function importCsv(event: Event) {
               class="w-full rounded border border-slate-200 bg-white px-1 py-1 text-xs text-slate-800"
             >
               <option value="">
-                Any
+                {{ t('node.property.any') }}
               </option>
               <option value="true">
                 true
@@ -394,14 +395,14 @@ async function importCsv(event: Event) {
               v-else-if="isNumberProperty(getPropertyForRow(row))"
               :value="row.value"
               type="number"
-              placeholder="Value"
+              :placeholder="t('node.property.value')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
               @input="row.value = (($event.target as HTMLInputElement).value)"
             >
             <input
               v-else
               v-model="row.value"
-              placeholder="Value"
+              :placeholder="t('node.property.value')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
             >
           </div>
@@ -410,10 +411,10 @@ async function importCsv(event: Event) {
             <button
               type="button"
               class="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-              title="Remove row"
+              :title="t('node.property.removeRow')"
               @click="removeRow(index)"
             >
-              Remove
+              {{ t('node.property.remove') }}
             </button>
           </div>
         </div>
@@ -426,21 +427,21 @@ async function importCsv(event: Event) {
         class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
         @click="addRow"
       >
-        Add Filter Row
+        {{ t('node.property.addFilterRow') }}
       </button>
       <button
         type="button"
         class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         @click="openCsvImport"
       >
-        Import CSV
+        {{ t('node.property.importCsv') }}
       </button>
       <button
         type="button"
         class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         @click="exportCsv"
       >
-        Export CSV
+        {{ t('node.property.exportCsv') }}
       </button>
       <span v-if="csvMessage" class="text-xs text-slate-500">
         {{ csvMessage }}
@@ -455,7 +456,7 @@ async function importCsv(event: Event) {
     </div>
 
     <div class="border-t border-slate-200 pt-3">
-      <label class="mb-2 block text-xs font-semibold uppercase tracking-tight text-slate-500">Outputs</label>
+      <label class="mb-2 block text-xs font-semibold uppercase tracking-tight text-slate-500">{{ t('node.property.outputs') }}</label>
       <div class="flex flex-wrap gap-2">
         <span class="rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">express_ids</span>
         <span class="rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">guids</span>

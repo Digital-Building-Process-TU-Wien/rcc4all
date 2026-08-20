@@ -18,6 +18,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const node = useScopedNode<PropertyComparisonNode>(props.node.id)
+const { t } = useI18n()
 const csvInput = ref<HTMLInputElement | null>(null)
 const csvMessage = ref('')
 
@@ -358,11 +359,11 @@ async function importCsv(event: Event) {
               <div class="mt-1 flex items-center gap-2 text-xs text-slate-600">
                 <label class="flex items-center gap-1">
                   <input v-model="row.inclusive_min" type="checkbox" class="accent-slate-600">
-                  incl. Min
+                  {{ t('node.property.inclMin') }}
                 </label>
                 <label class="flex items-center gap-1">
                   <input v-model="row.inclusive_max" type="checkbox" class="accent-slate-600">
-                  incl. Max
+                  {{ t('node.property.inclMax') }}
                 </label>
               </div>
             </template>
@@ -377,7 +378,7 @@ async function importCsv(event: Event) {
                   <input
                     :value="row.allowed_values?.[valueIndex]"
                     :list="hasEnumValues(resolvedType(row)) ? `property-comparison-oneof-${index}` : undefined"
-                    placeholder="Value"
+                    :placeholder="t('node.property.value')"
                     class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
                     @input="updateAllowedValue(row, valueIndex, $event)"
                     @keyup.enter="ensureValueEditSlot(row)"
@@ -385,8 +386,8 @@ async function importCsv(event: Event) {
                   <button
                     type="button"
                     class="shrink-0 rounded p-0.5 text-xs text-red-600 hover:bg-red-50"
-                    aria-label="Remove value"
-                    title="Remove value"
+                    :aria-label="t('node.property.removeValue')"
+                    :title="t('node.property.removeValue')"
                     @click="removeAllowedValue(row, valueIndex)"
                   >
                     <Icon name="i-lucide-x" class="size-3.5" />
@@ -408,7 +409,7 @@ async function importCsv(event: Event) {
                 <input
                   v-model="row.expected_value"
                   :list="hasTargetSuggestions(row) ? `property-comparison-targets-${index}` : undefined"
-                  placeholder="Value"
+                  :placeholder="t('node.property.value')"
                   class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
                 >
               </UTooltip>
@@ -443,12 +444,12 @@ async function importCsv(event: Event) {
           </div>
 
           <div class="flex items-center justify-center bg-white p-1">
-            <UTooltip text="Duplicate this row (copies all fields)">
+            <UTooltip :text="t('node.property.duplicateRowTitle')">
               <button
                 type="button"
                 class="rounded p-1 text-xs text-blue-600 hover:bg-blue-50"
-                aria-label="Duplicate row"
-                title="Duplicate this row (copies all fields)"
+                :aria-label="t('node.property.duplicateRow')"
+                :title="t('node.property.duplicateRowTitle')"
                 @click="duplicateRow(index)"
               >
                 <Icon name="i-lucide-copy-plus" class="size-4" />
@@ -457,12 +458,12 @@ async function importCsv(event: Event) {
           </div>
 
           <div class="flex items-center justify-center bg-white p-1">
-            <UTooltip text="Remove this row">
+            <UTooltip :text="t('node.property.removeRow')">
               <button
                 type="button"
                 class="rounded p-1 text-xs text-red-600 hover:bg-red-50"
-                aria-label="Remove row"
-                title="Remove this row"
+                :aria-label="t('node.property.removeRow')"
+                :title="t('node.property.removeRow')"
                 @click="removeRow(index)"
               >
                 <Icon name="i-lucide-trash-2" class="size-4" />
@@ -479,21 +480,21 @@ async function importCsv(event: Event) {
         class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
         @click="addRow"
       >
-        Add Row
+        {{ t('node.property.addRow') }}
       </button>
       <button
         type="button"
         class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         @click="openCsvImport"
       >
-        Import CSV
+        {{ t('node.property.importCsv') }}
       </button>
       <button
         type="button"
         class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         @click="exportCsv"
       >
-        Export CSV
+        {{ t('node.property.exportCsv') }}
       </button>
       <span v-if="csvMessage" class="text-xs text-slate-500">
         {{ csvMessage }}
