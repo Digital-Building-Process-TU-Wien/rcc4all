@@ -45,7 +45,8 @@ def _euler_degrees_to_matrix(rotation: list[float]) -> np.ndarray:
     y_rad = math.radians(rotation[1])
     z_rad = math.radians(rotation[2])
 
-    return trimesh.transformations.euler_matrix(x_rad, y_rad, z_rad)
+    rotation_matrix = trimesh.transformations.euler_matrix(x_rad, y_rad, z_rad)
+    return rotation_matrix  # noqa: RET504 - typed local keeps pyright strict happy (bare ndarray generic)
 
 
 @node()

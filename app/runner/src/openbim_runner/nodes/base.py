@@ -185,7 +185,7 @@ def node(
             takes_context=takes_context,
             takes_settings=takes_settings,
         )
-        func.meta = definition
+        setattr(func, "meta", definition)  # noqa: B010 - dot-assign blocked by pyright strict (FunctionType has no "meta")
         REGISTRY[key] = definition
         return func
 
