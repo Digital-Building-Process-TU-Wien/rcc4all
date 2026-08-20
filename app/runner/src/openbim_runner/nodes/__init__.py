@@ -13,6 +13,7 @@ from .generate_3d_cube.generate_3d_cube import generate_3d_cube
 from .get_name.get_name import get_name
 from .get_property.get_property import get_property
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
+from .property_comparison.property_comparison import property_comparison
 
 __all__ = [
     "ExecutionContext",
@@ -28,4 +29,5 @@ __all__ = [
     "get_registry_schema",
     "ifc_element_filter",
     "node",
+    "property_comparison",
 ]
