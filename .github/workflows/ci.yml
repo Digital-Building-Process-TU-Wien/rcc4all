@@ -6,6 +6,10 @@ on:
     branches:
       - master
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   runner:
     name: Runner (Python)
@@ -15,6 +19,8 @@ jobs:
         working-directory: app/runner
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
 
       - uses: astral-sh/setup-uv@v6
         with:
@@ -43,6 +49,8 @@ jobs:
         working-directory: app/web
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
 
       - uses: actions/setup-node@v7
         with:
@@ -53,8 +61,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: ESLint cache
+        uses: actions/cache@v5
+        with:
+          path: app/web/.eslintcache
+          key: eslint-${{ runner.os }}-${{ hashFiles('app/web/package.json', 'app/web/eslint.config.mjs') }}
+
       - name: Lint (eslint)
-        run: npx eslint .
+        run: npx eslint . --cache
 
       - name: Typecheck (nuxt typecheck)
         run: npm run typecheck
