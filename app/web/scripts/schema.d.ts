@@ -1,20 +1,3 @@
-/**
- * A distinct property value.
- */
-export type Value = string
-/**
- * Number of occurrences of this value.
- */
-export type Count = number
-/**
- * A distinct property value.
- */
-export type Value1 = string
-/**
- * Number of occurrences of this value.
- */
-export type Count1 = number
-
 export interface NodeRegistrySchema {
   collision?: CollisionDetection
   concat_string?: ConcatenateStrings
@@ -209,14 +192,32 @@ export interface GetProperty {
        * Distinct values with counts per property for this class.
        */
       properties?: {
-        [k: string]: ValueWithCount[]
+        [k: string]: {
+          /**
+           * A distinct property value.
+           */
+          value: string
+          /**
+           * Number of occurrences of this value.
+           */
+          count: number
+        }[]
       }
     }[] | null)
     /**
      * Distinct values with counts per property (output_mode = model).
      */
     properties?: ({
-      [k: string]: ValueWithCount1[]
+      [k: string]: {
+        /**
+         * A distinct property value.
+         */
+        value: string
+        /**
+         * Number of occurrences of this value.
+         */
+        count: number
+      }[]
     } | null)
   }
   inputs: {
@@ -225,14 +226,6 @@ export interface GetProperty {
      */
     express_ids?: number[]
   }
-}
-export interface ValueWithCount {
-  value: Value
-  count: Count
-}
-export interface ValueWithCount1 {
-  value: Value1
-  count: Count1
 }
 /**
  * Filter IFC entities using table-based include and exclude rules.

@@ -548,12 +548,10 @@
                             "properties": {
                               "value": {
                                 "description": "A distinct property value.",
-                                "title": "Value",
                                 "type": "string"
                               },
                               "count": {
                                 "description": "Number of occurrences of this value.",
-                                "title": "Count",
                                 "type": "integer"
                               }
                             },
@@ -561,7 +559,6 @@
                               "value",
                               "count"
                             ],
-                            "title": "ValueWithCount",
                             "type": "object"
                           },
                           "type": "array"
@@ -593,12 +590,10 @@
                       "properties": {
                         "value": {
                           "description": "A distinct property value.",
-                          "title": "Value",
                           "type": "string"
                         },
                         "count": {
                           "description": "Number of occurrences of this value.",
-                          "title": "Count",
                           "type": "integer"
                         }
                       },
@@ -606,7 +601,6 @@
                         "value",
                         "count"
                       ],
-                      "title": "ValueWithCount",
                       "type": "object"
                     },
                     "type": "array"

@@ -262,6 +262,11 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
     if "items" in result and isinstance(result["items"], dict):
         result["items"] = _remove_titles_from_schema(cast(dict[str, object], result["items"]))
 
+    if "additionalProperties" in result and isinstance(result["additionalProperties"], dict):
+        result["additionalProperties"] = _remove_titles_from_schema(
+            cast(dict[str, object], result["additionalProperties"])
+        )
+
     if "anyOf" in result:
         result["anyOf"] = [
             _remove_titles_from_schema(cast(dict[str, Any], item)) if isinstance(item, dict) else item
