@@ -42,6 +42,10 @@ const viewMode = ref<'all' | 'categories'>('all')
 const searchQuery = ref('')
 const expandedCategories = ref<Set<string>>(new Set(['IFC', '3D operation', 'Demo', 'Filter', 'Other']))
 
+function setViewMode(mode: 'all' | 'categories') {
+  viewMode.value = mode
+}
+
 const filteredNodes = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query)
@@ -184,7 +188,7 @@ function handleAddNode(node: AvailableNode) {
             label="All"
             icon="i-lucide-list"
             class="flex-1"
-            @click="viewMode = 'all'"
+            @click="setViewMode('all')"
           />
           <UButton
             :variant="viewMode === 'categories' ? 'soft' : 'ghost'"
@@ -193,7 +197,7 @@ function handleAddNode(node: AvailableNode) {
             label="Categories"
             icon="i-lucide-folder-tree"
             class="flex-1"
-            @click="viewMode = 'categories'"
+            @click="setViewMode('categories')"
           />
         </div>
 

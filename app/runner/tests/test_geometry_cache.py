@@ -16,28 +16,68 @@ from openbim_runner.util.geometry import (
 )
 
 UNIT_CUBE_VERTS = (
-    0.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    1.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 0.0, 1.0,
-    1.0, 0.0, 1.0,
-    1.0, 1.0, 1.0,
-    0.0, 1.0, 1.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    1.0,
+    1.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    1.0,
+    0.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.0,
+    1.0,
+    1.0,
 )
 UNIT_CUBE_FACES = (
-    0, 1, 2,
-    0, 2, 3,
-    4, 6, 5,
-    4, 7, 6,
-    0, 4, 5,
-    0, 5, 1,
-    1, 5, 6,
-    1, 6, 2,
-    2, 6, 7,
-    2, 7, 3,
-    3, 7, 4,
-    3, 4, 0,
+    0,
+    1,
+    2,
+    0,
+    2,
+    3,
+    4,
+    6,
+    5,
+    4,
+    7,
+    6,
+    0,
+    4,
+    5,
+    0,
+    5,
+    1,
+    1,
+    5,
+    6,
+    1,
+    6,
+    2,
+    2,
+    6,
+    7,
+    2,
+    7,
+    3,
+    3,
+    7,
+    4,
+    3,
+    4,
+    0,
 )
 
 
@@ -56,13 +96,17 @@ class FakeGeometry:
 
 
 class FakeShape:
-    def __init__(self, express_id: int, verts: tuple[float, ...], faces: tuple[int, ...]) -> None:
+    def __init__(
+        self, express_id: int, verts: tuple[float, ...], faces: tuple[int, ...]
+    ) -> None:
         self.id = express_id
         self.geometry = FakeGeometry(verts, faces)
 
 
 class FakeIterator:
-    def __init__(self, shapes: list[FakeShape], *, initialize_raises: bool = False) -> None:
+    def __init__(
+        self, shapes: list[FakeShape], *, initialize_raises: bool = False
+    ) -> None:
         self.shapes = list(shapes)
         self._initialize_raises = initialize_raises
         self._pos = -1
@@ -86,7 +130,9 @@ class FakeIterator:
 
 
 class FakeGeom:
-    def __init__(self, shapes: list[FakeShape], *, initialize_raises: bool = False) -> None:
+    def __init__(
+        self, shapes: list[FakeShape], *, initialize_raises: bool = False
+    ) -> None:
         self.shapes = shapes
         self.captured_settings: FakeSettings | None = None
         self.captured_iterator: FakeIterator | None = None
@@ -96,7 +142,9 @@ class FakeGeom:
         self.captured_settings = FakeSettings()
         return self.captured_settings
 
-    def iterator(self, settings: Any, ifc_model: Any, geometry_library: str = "opencascade") -> FakeIterator:
+    def iterator(
+        self, settings: Any, ifc_model: Any, geometry_library: str = "opencascade"
+    ) -> FakeIterator:
         it = FakeIterator(self.shapes, initialize_raises=self._initialize_raises)
         it.settings = settings
         it.ifc_model = ifc_model
@@ -206,7 +254,9 @@ def test_cache_mesh_keras_and_resolve() -> None:
 
 def test_cache_mesh_requires_an_id_kind() -> None:
     context = _context()
-    with pytest.raises(ValueError, match="requires express_id, object_id, intermediate=True, or a key"):
+    with pytest.raises(
+        ValueError, match="requires express_id, object_id, intermediate=True, or a key"
+    ):
         cache_mesh(context, trimesh.creation.box())
 
 
@@ -224,8 +274,12 @@ def test_cache_mesh_explicit_key_duplicate_raises() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), key="inter:intersection_ifc:1_ifc:2")
 
-    with pytest.raises(ValueError, match="'inter:intersection_ifc:1_ifc:2' already exists"):
-        cache_mesh(context, trimesh.creation.box(), key="inter:intersection_ifc:1_ifc:2")
+    with pytest.raises(
+        ValueError, match="'inter:intersection_ifc:1_ifc:2' already exists"
+    ):
+        cache_mesh(
+            context, trimesh.creation.box(), key="inter:intersection_ifc:1_ifc:2"
+        )
 
 
 def test_cache_mesh_duplicate_key_raises() -> None:

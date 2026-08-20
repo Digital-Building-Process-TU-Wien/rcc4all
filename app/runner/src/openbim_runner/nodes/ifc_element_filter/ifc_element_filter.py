@@ -9,7 +9,9 @@ from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 
 
 FilterMode = Literal["include", "exclude", "disabled"]
-FilterOperator = Literal["==", "!=", "<", ">", "<=", ">=", "contains", "starts_with", "ends_with"]
+FilterOperator = Literal[
+    "==", "!=", "<", ">", "<=", ">=", "contains", "starts_with", "ends_with"
+]
 
 
 class FilterRow(NodeModel):
@@ -127,7 +129,14 @@ def _get_entity_attribute(entity: Any, name: str) -> Any:
         return getattr(entity, name)
 
     lower_name = name.lower()
-    for attribute_name in ("GlobalId", "Name", "Description", "ObjectType", "Tag", "PredefinedType"):
+    for attribute_name in (
+        "GlobalId",
+        "Name",
+        "Description",
+        "ObjectType",
+        "Tag",
+        "PredefinedType",
+    ):
         if attribute_name.lower() == lower_name and hasattr(entity, attribute_name):
             return getattr(entity, attribute_name)
 
@@ -159,7 +168,9 @@ def _matches_row(entity: Any, row: FilterRow) -> bool:
     # TODO: Support USERDEFINED predefined type - match PredefinedType == USERDEFINED and ObjectType == <entered value>
     predefined_type = _clean(row.predefined_type)
     if predefined_type:
-        entity_predefined_type = _string_value(_get_entity_attribute(entity, "PredefinedType"))
+        entity_predefined_type = _string_value(
+            _get_entity_attribute(entity, "PredefinedType")
+        )
         if entity_predefined_type.lower() != predefined_type.lower():
             return False
 
@@ -194,7 +205,11 @@ async def ifc_element_filter(
         if row.mode == "disabled":
             continue
 
-        matching_entities = [entity for entity in _entities_for_row(context, row) if _matches_row(entity, row)]
+        matching_entities = [
+            entity
+            for entity in _entities_for_row(context, row)
+            if _matches_row(entity, row)
+        ]
         if row.mode == "include":
             for entity in matching_entities:
                 included[entity.id()] = entity
@@ -202,6 +217,9 @@ async def ifc_element_filter(
             excluded.update(entity.id() for entity in matching_entities)
 
     express_ids = [express_id for express_id in included if express_id not in excluded]
-    guids = [_string_value(_get_entity_attribute(included[express_id], "GlobalId")) for express_id in express_ids]
+    guids = [
+        _string_value(_get_entity_attribute(included[express_id], "GlobalId"))
+        for express_id in express_ids
+    ]
 
     return IfcElementFilterResult(express_ids=express_ids, guids=guids)

@@ -3,9 +3,10 @@
 Before committing, always run:
 
 ```bash
-npm run lint
-npm run typecheck
+npm run check
 ```
+
+This aggregates linting and typechecking. (Equivalent to `npm run lint` + `npm run typecheck`.)
 
 This ensures your code passes ESLint and TypeScript validation.
 

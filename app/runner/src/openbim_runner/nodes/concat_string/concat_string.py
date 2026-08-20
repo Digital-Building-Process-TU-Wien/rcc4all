@@ -30,6 +30,8 @@ class ConcatStringResult(NodeModel):
 
 
 @node()
-async def concat_string(settings: ConcatStringSettings, inputs: ConcatStringInputs) -> ConcatStringResult:
+async def concat_string(
+    settings: ConcatStringSettings, inputs: ConcatStringInputs
+) -> ConcatStringResult:
     filtered_strings = [str(value) for value in inputs.values if value is not None]
     return ConcatStringResult(value=settings.separator.join(filtered_strings))

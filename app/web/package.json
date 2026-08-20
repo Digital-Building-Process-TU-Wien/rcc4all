@@ -10,6 +10,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
+    "check": "npm run lint && npm run typecheck",
     "generate:schema": "uv run --directory ../runner openbim-runner export-schema ../web/scripts/schema.json && tsx scripts/generate-types.ts"
   },
   "dependencies": {
@@ -37,6 +38,8 @@
     "@types/node": "^24.11.1",
     "json-schema-to-typescript-lite": "^15.0.0",
     "rcc4all-payload-types": "file:../../shared/cms-types",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.3",
+    "vue-tsc": "^3.3.10"
   }
 }
