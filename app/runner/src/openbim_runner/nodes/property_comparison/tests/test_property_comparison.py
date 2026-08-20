@@ -412,7 +412,8 @@ def test_string_leading_trailing_whitespace_insensitive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     wall = FakeEntity(
-        101, psets={"Pset_A": {"Material": "  Reinforced Concrete  ", "Name": "Fire Wall"}}
+        101,
+        psets={"Pset_A": {"Material": "  Reinforced Concrete  ", "Name": "Fire Wall"}},
     )
     result = _run(
         monkeypatch,
