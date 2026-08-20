@@ -1,10 +1,17 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
+from openbim_runner.util.ifc_properties import (
+    build_property_key,
+    entity_matches_type,
+    get_property_value,
+    is_any_entity_type,
+    stringify_value,
+)
 
 
 ComparisonCondition = Literal[
@@ -194,6 +201,7 @@ async def property_comparison(
             raise ValueError(f"Comparison row {i + 1} must have a property name.")
         _validate_range(row, i + 1)
         _validate_one_of(row, i + 1)
+        _validate_contains(row, i + 1)
 
     elements: list[ComparisonElement] = []
     total_checks = 0
@@ -203,17 +211,23 @@ async def property_comparison(
     # matching at least one are emitted. If ANY row uses an "Any Element" signal
     # (empty component or the literal "any" token), filtering is disabled and all
     # input elements are tested/emitted.
-    if any(_is_any_entity_type(row.entity_type) for row in settings.rows):
+    if any(is_any_entity_type(row.entity_type) for row in settings.rows):
         specified_types: set[str] = set()
     else:
-        specified_types = {row.entity_type.strip().upper() for row in settings.rows if row.entity_type.strip()}
+        specified_types = {
+            row.entity_type.strip().upper()
+            for row in settings.rows
+            if row.entity_type.strip()
+        }
 
     # Optional express_ids input: when empty (unconnected), gather all elements
     # from the model context, consistent with the element filter's IfcElement default.
     express_ids = inputs.express_ids
     if not express_ids:
         try:
-            express_ids = [entity.id() for entity in context.ifc_model.by_type("IfcElement")]
+            express_ids = [
+                entity.id() for entity in context.ifc_model.by_type("IfcElement")
+            ]
         except RuntimeError:
             express_ids = []
 
@@ -232,7 +246,9 @@ async def property_comparison(
                 )
             continue
 
-        if specified_types and not any(_entity_matches_type(entity, entity_type) for entity_type in specified_types):
+        if specified_types and not any(
+            entity_matches_type(entity, entity_type) for entity_type in specified_types
+        ):
             continue
 
         psets = get_psets(entity)
@@ -242,11 +258,13 @@ async def property_comparison(
         element_failed = False
 
         for row in settings.rows:
-            if not _entity_matches_type(entity, row.entity_type):
+            if not entity_matches_type(entity, row.entity_type):
                 continue
 
-            actual_raw = _get_property_value(entity, psets, row.property_set, row.property_name)
-            actual = _stringify_value(actual_raw)
+            actual_raw = get_property_value(
+                entity, psets, row.property_set, row.property_name
+            )
+            actual = stringify_value(actual_raw)
 
             if row.condition in ("between", "outside"):
                 range_min = row.range_min.strip()
@@ -264,7 +282,9 @@ async def property_comparison(
                 expected_min = range_min
                 expected_max = range_max
             elif row.condition == "one_of":
-                accepted = [value.strip() for value in row.allowed_values if value.strip()]
+                accepted = [
+                    value.strip() for value in row.allowed_values if value.strip()
+                ]
                 passed = _check_one_of(actual, accepted)
                 condition = row.condition
                 expected = ", ".join(accepted)
@@ -277,7 +297,7 @@ async def property_comparison(
                 expected_min = None
                 expected_max = None
 
-            prop_key = _build_key(row.property_set, row.property_name)
+            prop_key = build_property_key(row.property_set, row.property_name)
             checks.append(
                 PropertyCheckResult(
                     id=prop_key,
@@ -314,7 +334,9 @@ async def property_comparison(
     )
 
 
-def _check_passes(condition: ComparisonCondition, actual: str | None, expected: str) -> bool:
+def _check_passes(
+    condition: ComparisonCondition, actual: str | None, expected: str
+) -> bool:
     """Evaluate a single comparison against an (already stringified) property value."""
     if condition in ("is_true", "is_false"):
         return _check_truth(condition, actual)
@@ -325,14 +347,15 @@ def _check_passes(condition: ComparisonCondition, actual: str | None, expected: 
 
     expected_str = str(expected)
 
-    if condition == "equals":
-        return actual.strip().lower() == expected_str.strip().lower()
-
-    if condition == "not_equals":
-        return actual.strip().lower() != expected_str.strip().lower()
-
-    if condition == "contains":
-        return expected_str.strip().lower() in actual.strip().lower()
+    if condition in ("equals", "not_equals", "contains"):
+        actual_norm = _normalize_for_compare(actual)
+        expected_norm = _normalize_for_compare(expected_str)
+        if condition == "equals":
+            return actual_norm == expected_norm
+        if condition == "not_equals":
+            return actual_norm != expected_norm
+        # contains: expected is a substring of actual (both whitespace/case-normalized)
+        return expected_norm in actual_norm
 
     # Numeric comparisons: non-numeric values fail the check.
     if condition in ("lt", "le", "gt", "ge"):
@@ -351,6 +374,11 @@ def _check_passes(condition: ComparisonCondition, actual: str | None, expected: 
         return actual_num >= expected_num
 
     return False
+
+
+def _normalize_for_compare(value: str) -> str:
+    """Lowercase and strip ALL whitespace so comparisons are whitespace-insensitive."""
+    return "".join(value.split()).lower()
 
 
 def _check_truth(condition: ComparisonCondition, actual: str | None) -> bool:
@@ -375,12 +403,17 @@ def _validate_range(row: ComparisonRow, row_number: int) -> None:
         )
 
     try:
-        float(row.range_min)
-        float(row.range_max)
+        min_num = float(row.range_min)
+        max_num = float(row.range_max)
     except ValueError:
         raise ValueError(
             f"Comparison row {row_number}: range_min and range_max must both be numeric values."
         ) from None
+
+    if min_num > max_num:
+        raise ValueError(
+            f"Comparison row {row_number}: range_min must be less than or equal to range_max."
+        )
 
 
 def _validate_one_of(row: ComparisonRow, row_number: int) -> None:
@@ -394,13 +427,26 @@ def _validate_one_of(row: ComparisonRow, row_number: int) -> None:
         )
 
 
+def _validate_contains(row: ComparisonRow, row_number: int) -> None:
+    """Validate contains rows: require a non-empty target value."""
+    if row.condition != "contains":
+        return
+
+    if not row.expected_value.strip():
+        raise ValueError(
+            f"Comparison row {row_number}: condition 'contains' requires a non-empty expected value."
+        )
+
+
 def _check_one_of(actual: str | None, allowed_values: list[str]) -> bool:
-    """Evaluate a case-insensitive 'one of' check. Missing actual fails."""
+    """Evaluate a case- and whitespace-insensitive 'one of' check. Missing actual fails."""
     if actual is None:
         return False
 
-    actual_normalized = actual.strip().lower()
-    return any(value.strip().lower() == actual_normalized for value in allowed_values)
+    actual_normalized = _normalize_for_compare(actual)
+    return any(
+        _normalize_for_compare(value) == actual_normalized for value in allowed_values
+    )
 
 
 def _check_range_passes(
@@ -427,60 +473,3 @@ def _check_range_passes(
     inside = min_ok and max_ok
 
     return inside if condition == "between" else not inside
-
-
-def _get_property_value(
-    entity: Any,
-    psets: dict[str, dict[str, Any]],
-    property_set: str,
-    property_name: str,
-) -> Any | None:
-    """Get a property value from an entity, mirroring get_property."""
-    if property_set:
-        pset = psets.get(property_set)
-        if pset:
-            return pset.get(property_name)
-        return None
-
-    property_name_lower = property_name.lower()
-    for pset in psets.values():
-        for candidate_name, candidate_value in pset.items():
-            if candidate_name.lower() == property_name_lower:
-                return candidate_value
-
-    return None
-
-
-def _build_key(property_set: str, property_name: str) -> str:
-    """Build the property key in 'Pset.Property' or 'Property' format."""
-    if property_set:
-        return f"{property_set}.{property_name}"
-    return property_name
-
-
-def _stringify_value(value: Any) -> str | None:
-    """Convert a property value to string, None if missing."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return str(value).lower()
-    return str(value)
-
-
-def _is_any_entity_type(entity_type: str) -> bool:
-    """Return True for the 'Any Element' signal: empty or the literal 'any' token."""
-    return entity_type.strip().upper() in ("", "ANY")
-
-
-def _entity_matches_type(entity: Any, entity_type: str) -> bool:
-    """Check whether an entity matches a given IFC entity type (mirrors get_property)."""
-    if _is_any_entity_type(entity_type):
-        return True
-    entity_type = entity_type.strip().upper()
-    is_a = getattr(entity, "is_a", None)
-    if is_a is None:
-        return False
-    try:
-        return bool(is_a(entity_type))
-    except TypeError:
-        return is_a().upper() == entity_type

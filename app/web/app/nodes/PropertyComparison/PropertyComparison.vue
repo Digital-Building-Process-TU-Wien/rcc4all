@@ -169,7 +169,14 @@ function removeAllowedValue(row: ComparisonRow, index: number) {
 
 function duplicateRow(index: number) {
   const original = node.value.data.settings!.rows![index]
-  node.value.data.settings!.rows!.splice(index + 1, 0, { ...original })
+  if (!original)
+    return
+  // Copy the row including a fresh allowed_values array so the two rows do not
+  // share the same array reference (previously editing one mutated the other).
+  node.value.data.settings!.rows!.splice(index + 1, 0, {
+    ...original,
+    allowed_values: [...(original.allowed_values ?? [])],
+  })
 }
 
 function removeRow(index: number) {
@@ -197,8 +204,8 @@ async function importCsv(event: Event) {
     node.value.data.settings = { ...node.value.data.settings, rows: importedRows }
     csvMessage.value = `${importedRows.length} CSV rows imported.`
   }
-  catch {
-    csvMessage.value = 'CSV import failed.'
+  catch (error) {
+    csvMessage.value = error instanceof Error ? error.message : 'CSV import failed.'
   }
   finally {
     input.value = ''
@@ -368,7 +375,7 @@ async function importCsv(event: Event) {
                   class="flex items-center gap-1"
                 >
                   <input
-                    :value="row.allowed_values[valueIndex]"
+                    :value="row.allowed_values?.[valueIndex]"
                     :list="hasEnumValues(resolvedType(row)) ? `property-comparison-oneof-${index}` : undefined"
                     placeholder="Value"
                     class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"

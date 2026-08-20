@@ -1,4 +1,4 @@
-import type { ComparisonRow, IfcAllowedValue, IfcFilterIndex, IfcFilterProperty } from '../types'
+import type { ComparisonRow, IfcAllowedValue, IfcFilterIndex, IfcFilterPropertySet } from '../types'
 
 export interface ResolvedPropertyType {
   dataType: string
@@ -40,7 +40,7 @@ export function resolvePropertyType(
     return noType
 
   // Candidate property sets: restricted to matching entity, or union across entities.
-  let candidatePsets: Array<{ properties: IfcFilterProperty[] }> = []
+  let candidatePsets: IfcFilterPropertySet[] = []
   if (entityType) {
     const entity = entities.find(e => e.code.toUpperCase() === entityType)
     if (!entity)
@@ -75,7 +75,18 @@ export function resolvePropertyType(
   if (distinctTypes.size > 1)
     return noType
 
-  const chosen = matches.find(match => match.dataType !== '') ?? matches[0]
-  const dataType = distinctTypes.size === 1 ? Array.from(distinctTypes)[0] : ''
-  return { dataType, allowedValues: chosen.allowedValues }
+  // Only trust allowedValues when every match agrees on the same value set
+  // (the previous code could combine a dataType from one match with
+  // allowedValues from a different one).
+  const allowedSets = new Set(matches.map(match => allowedValuesKey(match.allowedValues)))
+  if (allowedSets.size > 1)
+    return noType
+
+  const dataType = distinctTypes.size === 1 ? Array.from(distinctTypes)[0]! : ''
+  const first = matches[0]!
+  return { dataType, allowedValues: first.allowedValues }
+}
+
+function allowedValuesKey(allowed: IfcAllowedValue[] | undefined): string {
+  return (allowed ?? []).map(value => value.code).join('\u0000')
 }

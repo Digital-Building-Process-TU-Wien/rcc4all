@@ -1,4 +1,5 @@
 import type { ComparisonRow, Rows } from '../types'
+import { CONDITION_LIST, isValidCondition } from '../types'
 
 interface CsvColumn {
   key: keyof ComparisonRow
@@ -96,11 +97,18 @@ function rowFromCsvRecord(record: Record<string, string>): ComparisonRow {
     return value.toLowerCase() === 'true' || value === '1'
   }
 
+  const rawCondition = record.condition?.trim() || 'equals'
+  if (!isValidCondition(rawCondition)) {
+    throw new Error(
+      `Invalid condition "${record.condition}" in CSV: expected one of ${CONDITION_LIST}.`,
+    )
+  }
+
   return {
     entity_type: record.entity_type ?? '',
     property_set: record.property_set ?? '',
     property_name: record.property_name ?? '',
-    condition: (record.condition || 'equals') as ComparisonRow['condition'],
+    condition: rawCondition as ComparisonRow['condition'],
     expected_value: record.expected_value ?? '',
     allowed_values: parseAllowedValues(record.allowed_values),
     range_min: record.range_min ?? '',

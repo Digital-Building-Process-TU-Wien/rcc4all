@@ -21,6 +21,12 @@ export const CONDITION_OPTIONS: Array<{ value: ComparisonCondition, label: strin
   { value: 'is_false', label: 'is false' },
 ]
 
+export function isValidCondition(value: string | undefined): boolean {
+  return CONDITION_OPTIONS.some(option => option.value === value)
+}
+
+export const CONDITION_LIST = CONDITION_OPTIONS.map(option => option.value).join(', ')
+
 export function requiresExpectedValue(condition: ComparisonCondition | undefined): boolean {
   return condition === 'equals'
     || condition === 'not_equals'
@@ -39,41 +45,11 @@ export function isOneOfCondition(condition: ComparisonCondition | undefined): bo
   return condition === 'one_of'
 }
 
-// Reuse IFC filter types from GetProperty for entity/pset/property data
-export interface IfcAllowedValue {
-  code: string
-  value: string
-  description: string
-}
-
-export interface IfcFilterProperty {
-  code: string
-  name: string
-  definition: string
-  dataType: string
-  propertyValueKind: string
-  allowedValues: IfcAllowedValue[]
-}
-
-export interface IfcFilterPropertySet {
-  code: string
-  properties: IfcFilterProperty[]
-}
-
-export interface IfcFilterEntity {
-  code: string
-  ifcCode: string
-  name: string
-  definition: string
-  parentClassCode: string
-  predefinedTypes: Array<{
-    code: string
-    name: string
-    definition: string
-  }>
-  propertySets: IfcFilterPropertySet[]
-}
-
-export interface IfcFilterIndex {
-  entities: IfcFilterEntity[]
-}
+// IFC filter-index types are shared across nodes (see ~/utils/ifc-filter-types)
+export type {
+  IfcAllowedValue,
+  IfcFilterEntity,
+  IfcFilterIndex,
+  IfcFilterProperty,
+  IfcFilterPropertySet,
+} from '~/utils/ifc-filter-types'

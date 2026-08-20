@@ -16,7 +16,9 @@ from openbim_runner.nodes.property_comparison.property_comparison import (
 
 
 class FakeEntity:
-    def __init__(self, express_id: int, entity_type: str = "IFCWALL", **attributes: Any) -> None:
+    def __init__(
+        self, express_id: int, entity_type: str = "IFCWALL", **attributes: Any
+    ) -> None:
         self._express_id = express_id
         self._entity_type = entity_type.upper()
         self.psets: dict[str, dict[str, Any]] = attributes.pop("psets", {})
@@ -79,7 +81,14 @@ def test_comparison_emits_class(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_WallCommon", property_name="FireRating", condition="equals", expected_value="F90")],
+        [
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="FireRating",
+                condition="equals",
+                expected_value="F90",
+            )
+        ],
         [101],
     )
 
@@ -97,7 +106,14 @@ def test_equals_pass_and_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_WallCommon", property_name="IsExternal", condition="equals", expected_value="true")],
+        [
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="IsExternal",
+                condition="equals",
+                expected_value="true",
+            )
+        ],
         [101],
     )
 
@@ -118,9 +134,24 @@ def test_not_equals_and_multi_row(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch,
         FakeIfcModel({101: wall}),
         [
-            ComparisonRow(property_set="Pset_WallCommon", property_name="LoadBearing", condition="equals", expected_value="true"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="lt", expected_value="10"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="not_equals", expected_value="11"),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="LoadBearing",
+                condition="equals",
+                expected_value="true",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="lt",
+                expected_value="10",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="not_equals",
+                expected_value="11",
+            ),
         ],
         [101],
     )
@@ -137,17 +168,54 @@ def test_numeric_matrix(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch,
         FakeIfcModel({101: wall}),
         [
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="lt", expected_value="6"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="le", expected_value="5"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="gt", expected_value="4"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="ge", expected_value="5"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="lt", expected_value="5"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="gt", expected_value="5"),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="lt",
+                expected_value="6",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="le",
+                expected_value="5",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="gt",
+                expected_value="4",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="ge",
+                expected_value="5",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="lt",
+                expected_value="5",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="gt",
+                expected_value="5",
+            ),
         ],
         [101],
     )
 
-    assert [check.passed for check in result.elements[0].checks] == [True, True, True, True, False, False]
+    assert [check.passed for check in result.elements[0].checks] == [
+        True,
+        True,
+        True,
+        True,
+        False,
+        False,
+    ]
 
 
 def test_numeric_non_numeric_value_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -155,7 +223,14 @@ def test_numeric_non_numeric_value_fails(monkeypatch: pytest.MonkeyPatch) -> Non
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_WallCommon", property_name="FireRating", condition="lt", expected_value="10")],
+        [
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="FireRating",
+                condition="lt",
+                expected_value="10",
+            )
+        ],
         [101],
     )
 
@@ -169,7 +244,14 @@ def test_numeric_non_numeric_expected_fails(monkeypatch: pytest.MonkeyPatch) -> 
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="lt", expected_value="abc")],
+        [
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="lt",
+                expected_value="abc",
+            )
+        ],
         [101],
     )
 
@@ -182,9 +264,24 @@ def test_contains_case_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch,
         FakeIfcModel({101: wall}),
         [
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Name", condition="contains", expected_value="Wall"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Name", condition="contains", expected_value="wall"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Name", condition="contains", expected_value="FIRE"),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Name",
+                condition="contains",
+                expected_value="Wall",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Name",
+                condition="contains",
+                expected_value="wall",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Name",
+                condition="contains",
+                expected_value="FIRE",
+            ),
         ],
         [101],
     )
@@ -192,38 +289,92 @@ def test_contains_case_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:
     assert [check.passed for check in result.elements[0].checks] == [True, True, True]
 
 
-def test_equals_and_not_equals_case_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_equals_and_not_equals_case_insensitive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     wall = FakeEntity(101, psets={"Pset_A": {"Material": "Concrete"}})
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
         [
-            ComparisonRow(property_set="Pset_A", property_name="Material", condition="equals", expected_value="concrete"),
-            ComparisonRow(property_set="Pset_A", property_name="Material", condition="equals", expected_value="CONCRETE"),
-            ComparisonRow(property_set="Pset_A", property_name="Material", condition="not_equals", expected_value="wood"),
-            ComparisonRow(property_set="Pset_A", property_name="Material", condition="not_equals", expected_value="Concrete"),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="equals",
+                expected_value="concrete",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="equals",
+                expected_value="CONCRETE",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="not_equals",
+                expected_value="wood",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="not_equals",
+                expected_value="Concrete",
+            ),
         ],
         [101],
     )
 
-    assert [check.passed for check in result.elements[0].checks] == [True, True, True, False]
+    assert [check.passed for check in result.elements[0].checks] == [
+        True,
+        True,
+        True,
+        False,
+    ]
 
 
-def test_equals_not_equals_whitespace_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_equals_not_equals_whitespace_insensitive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     wall = FakeEntity(101, psets={"Pset_A": {"Material": "  Concrete "}})
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
         [
-            ComparisonRow(property_set="Pset_A", property_name="Material", condition="equals", expected_value="concrete"),
-            ComparisonRow(property_set="Pset_A", property_name="Material", condition="equals", expected_value="  Concrete  "),
-            ComparisonRow(property_set="Pset_A", property_name="Material", condition="not_equals", expected_value="wood"),
-            ComparisonRow(property_set="Pset_A", property_name="Material", condition="not_equals", expected_value=" Concrete"),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="equals",
+                expected_value="concrete",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="equals",
+                expected_value="  Concrete  ",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="not_equals",
+                expected_value="wood",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="not_equals",
+                expected_value=" Concrete",
+            ),
         ],
         [101],
     )
 
-    assert [check.passed for check in result.elements[0].checks] == [True, True, True, False]
+    assert [check.passed for check in result.elements[0].checks] == [
+        True,
+        True,
+        True,
+        False,
+    ]
 
 
 def test_contains_whitespace_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -232,14 +383,75 @@ def test_contains_whitespace_insensitive(monkeypatch: pytest.MonkeyPatch) -> Non
         monkeypatch,
         FakeIfcModel({101: wall}),
         [
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Name", condition="contains", expected_value="wall"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Name", condition="contains", expected_value="  fire  "),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Name", condition="contains", expected_value="slab"),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Name",
+                condition="contains",
+                expected_value="wall",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Name",
+                condition="contains",
+                expected_value="  fire  ",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Name",
+                condition="contains",
+                expected_value="slab",
+            ),
         ],
         [101],
     )
 
     assert [check.passed for check in result.elements[0].checks] == [True, True, False]
+
+
+def test_string_internal_whitespace_insensitive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wall = FakeEntity(
+        101, psets={"Pset_A": {"Material": "Reinforced  Concrete", "Name": "Fire Wall"}}
+    )
+    result = _run(
+        monkeypatch,
+        FakeIfcModel({101: wall}),
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="equals",
+                expected_value="Reinforced Concrete",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="not_equals",
+                expected_value="ReinforcedConcrete",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Name",
+                condition="contains",
+                expected_value="firewall",
+            ),
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="one_of",
+                allowed_values=["Reinforced    Concrete"],
+            ),
+        ],
+        [101],
+    )
+
+    assert [check.passed for check in result.elements[0].checks] == [
+        True,
+        False,
+        True,
+        True,
+    ]
 
 
 def test_is_true_accepts_variants(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -251,16 +463,32 @@ def test_is_true_accepts_variants(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch,
         FakeIfcModel({101: wall}),
         [
-            ComparisonRow(property_set="Pset_A", property_name="A", condition="is_true"),
-            ComparisonRow(property_set="Pset_A", property_name="B", condition="is_true"),
-            ComparisonRow(property_set="Pset_A", property_name="C", condition="is_true"),
-            ComparisonRow(property_set="Pset_A", property_name="D", condition="is_false"),
-            ComparisonRow(property_set="Pset_A", property_name="E", condition="is_false"),
+            ComparisonRow(
+                property_set="Pset_A", property_name="A", condition="is_true"
+            ),
+            ComparisonRow(
+                property_set="Pset_A", property_name="B", condition="is_true"
+            ),
+            ComparisonRow(
+                property_set="Pset_A", property_name="C", condition="is_true"
+            ),
+            ComparisonRow(
+                property_set="Pset_A", property_name="D", condition="is_false"
+            ),
+            ComparisonRow(
+                property_set="Pset_A", property_name="E", condition="is_false"
+            ),
         ],
         [101],
     )
 
-    assert [check.passed for check in result.elements[0].checks] == [True, True, True, True, True]
+    assert [check.passed for check in result.elements[0].checks] == [
+        True,
+        True,
+        True,
+        True,
+        True,
+    ]
 
 
 def test_is_true_unknown_is_failed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -281,8 +509,17 @@ def test_missing_property_fails_all(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch,
         FakeIfcModel({101: wall}),
         [
-            ComparisonRow(property_set="Pset_WallCommon", property_name="AcousticRating", condition="equals", expected_value="x"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="AcousticRating", condition="is_true"),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="AcousticRating",
+                condition="equals",
+                expected_value="x",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="AcousticRating",
+                condition="is_true",
+            ),
         ],
         [101],
     )
@@ -299,7 +536,15 @@ def test_entity_type_filters_rows(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall, 202: door}),
-        [ComparisonRow(entity_type="IFCWALL", property_set="Pset_A", property_name="X", condition="equals", expected_value="1")],
+        [
+            ComparisonRow(
+                entity_type="IFCWALL",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
         [101, 202],
     )
 
@@ -320,8 +565,20 @@ def test_entity_type_multiple_components_union(monkeypatch: pytest.MonkeyPatch) 
         monkeypatch,
         FakeIfcModel({101: wall, 202: slab, 303: door}),
         [
-            ComparisonRow(entity_type="IFCWALL", property_set="Pset_A", property_name="X", condition="equals", expected_value="1"),
-            ComparisonRow(entity_type="IFCSLAB", property_set="Pset_A", property_name="X", condition="equals", expected_value="2"),
+            ComparisonRow(
+                entity_type="IFCWALL",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            ),
+            ComparisonRow(
+                entity_type="IFCSLAB",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="2",
+            ),
         ],
         [101, 202, 303],
     )
@@ -331,12 +588,22 @@ def test_entity_type_multiple_components_union(monkeypatch: pytest.MonkeyPatch) 
     assert result.element_count == 2
 
 
-def test_entity_type_missing_express_id_excluded(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_entity_type_missing_express_id_excluded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_A": {"X": "1"}})
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(entity_type="IFCWALL", property_set="Pset_A", property_name="X", condition="equals", expected_value="1")],
+        [
+            ComparisonRow(
+                entity_type="IFCWALL",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
         [101, 999],
     )
 
@@ -351,7 +618,14 @@ def test_entity_type_empty_keeps_all_input(monkeypatch: pytest.MonkeyPatch) -> N
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall, 202: door}),
-        [ComparisonRow(property_set="Pset_A", property_name="X", condition="equals", expected_value="1")],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
         [101, 202],
     )
 
@@ -369,8 +643,20 @@ def test_any_element_empty_row_disables_filter(monkeypatch: pytest.MonkeyPatch) 
         monkeypatch,
         FakeIfcModel({101: wall, 202: door}),
         [
-            ComparisonRow(entity_type="IFCWALL", property_set="Pset_A", property_name="X", condition="equals", expected_value="1"),
-            ComparisonRow(entity_type="", property_set="Pset_A", property_name="X", condition="equals", expected_value="2"),
+            ComparisonRow(
+                entity_type="IFCWALL",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            ),
+            ComparisonRow(
+                entity_type="",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="2",
+            ),
         ],
         [101, 202],
     )
@@ -392,8 +678,20 @@ def test_literal_any_token_disables_filter(monkeypatch: pytest.MonkeyPatch) -> N
         monkeypatch,
         FakeIfcModel({101: wall, 202: door}),
         [
-            ComparisonRow(entity_type="IFCWALL", property_set="Pset_A", property_name="X", condition="equals", expected_value="1"),
-            ComparisonRow(entity_type="Any", property_set="Pset_A", property_name="X", condition="equals", expected_value="2"),
+            ComparisonRow(
+                entity_type="IFCWALL",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            ),
+            ComparisonRow(
+                entity_type="Any",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="2",
+            ),
         ],
         [101, 202],
     )
@@ -411,7 +709,14 @@ def test_missing_express_id_unknown_class(monkeypatch: pytest.MonkeyPatch) -> No
     result = _run(
         monkeypatch,
         FakeIfcModel({}),
-        [ComparisonRow(property_set="Pset_A", property_name="X", condition="equals", expected_value="1")],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
         [999],
     )
 
@@ -422,7 +727,9 @@ def test_missing_express_id_unknown_class(monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_requires_at_least_one_row() -> None:
     context = ExecutionContext(ifc_model=cast(Any, FakeIfcModel({})), node_outputs={})
-    with pytest.raises(ValueError, match="At least one comparison row must be specified"):
+    with pytest.raises(
+        ValueError, match="At least one comparison row must be specified"
+    ):
         asyncio.run(
             property_comparison(
                 PropertyComparisonSettings(rows=[]),
@@ -438,7 +745,14 @@ def test_requires_property_name() -> None:
         asyncio.run(
             property_comparison(
                 PropertyComparisonSettings(
-                    rows=[ComparisonRow(property_set="Pset_A", property_name="", condition="equals", expected_value="1")]
+                    rows=[
+                        ComparisonRow(
+                            property_set="Pset_A",
+                            property_name="",
+                            condition="equals",
+                            expected_value="1",
+                        )
+                    ]
                 ),
                 PropertyComparisonInputs(express_ids=[]),
                 context,
@@ -447,15 +761,29 @@ def test_requires_property_name() -> None:
 
 
 def test_company_level_counters(monkeypatch: pytest.MonkeyPatch) -> None:
-    wall1 = FakeEntity(101, psets={"Pset_WallCommon": {"LoadBearing": False, "Length": 12}})
-    wall2 = FakeEntity(102, psets={"Pset_WallCommon": {"LoadBearing": True, "Length": 14}})
+    wall1 = FakeEntity(
+        101, psets={"Pset_WallCommon": {"LoadBearing": False, "Length": 12}}
+    )
+    wall2 = FakeEntity(
+        102, psets={"Pset_WallCommon": {"LoadBearing": True, "Length": 14}}
+    )
 
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall1, 102: wall2}),
         [
-            ComparisonRow(property_set="Pset_WallCommon", property_name="LoadBearing", condition="equals", expected_value="true"),
-            ComparisonRow(property_set="Pset_WallCommon", property_name="Length", condition="lt", expected_value="10"),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="LoadBearing",
+                condition="equals",
+                expected_value="true",
+            ),
+            ComparisonRow(
+                property_set="Pset_WallCommon",
+                property_name="Length",
+                condition="lt",
+                expected_value="10",
+            ),
         ],
         [101, 102],
     )
@@ -471,7 +799,14 @@ def test_float_coercion(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Ratio", condition="le", expected_value="1")],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Ratio",
+                condition="le",
+                expected_value="1",
+            )
+        ],
         [101],
     )
     # NaN cannot be meaningfully compared; float('nan') converts but comparisons are False
@@ -483,7 +818,17 @@ def test_range_between_inclusive_boundaries(monkeypatch: pytest.MonkeyPatch) -> 
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Length", condition="between", range_min="3", range_max="5", inclusive_min=True, inclusive_max=True)],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Length",
+                condition="between",
+                range_min="3",
+                range_max="5",
+                inclusive_min=True,
+                inclusive_max=True,
+            )
+        ],
         [101],
     )
     check = result.elements[0].checks[0]
@@ -498,18 +843,40 @@ def test_range_between_exclusive_boundaries(monkeypatch: pytest.MonkeyPatch) -> 
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Length", condition="between", range_min="3", range_max="5", inclusive_min=False, inclusive_max=False)],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Length",
+                condition="between",
+                range_min="3",
+                range_max="5",
+                inclusive_min=False,
+                inclusive_max=False,
+            )
+        ],
         [101],
     )
     assert result.elements[0].checks[0].passed is False  # == max, exclusive -> out
 
 
-def test_range_between_inclusive_mixed_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_range_between_inclusive_mixed_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     wall = FakeEntity(101, psets={"Pset_A": {"Length": 5}})
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Length", condition="between", range_min="5", range_max="6", inclusive_min=True, inclusive_max=False)],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Length",
+                condition="between",
+                range_min="5",
+                range_max="6",
+                inclusive_min=True,
+                inclusive_max=False,
+            )
+        ],
         [101],
     )
     assert result.elements[0].checks[0].passed is True  # min inclusive
@@ -520,18 +887,40 @@ def test_range_outside_inclusive_boundaries(monkeypatch: pytest.MonkeyPatch) -> 
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Length", condition="outside", range_min="4", range_max="10", inclusive_min=True, inclusive_max=True)],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Length",
+                condition="outside",
+                range_min="4",
+                range_max="10",
+                inclusive_min=True,
+                inclusive_max=True,
+            )
+        ],
         [101],
     )
     assert result.elements[0].checks[0].passed is True  # 3 outside [4,10]
 
 
-def test_range_outside_exclusive_boundary_equal_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_range_outside_exclusive_boundary_equal_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     wall = FakeEntity(101, psets={"Pset_A": {"Length": 4}})
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Length", condition="outside", range_min="4", range_max="10", inclusive_min=True, inclusive_max=True)],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Length",
+                condition="outside",
+                range_min="4",
+                range_max="10",
+                inclusive_min=True,
+                inclusive_max=True,
+            )
+        ],
         [101],
     )
     # 4 equals the (inclusive) min -> inside -> not outside
@@ -543,7 +932,15 @@ def test_range_non_numeric_actual_fails(monkeypatch: pytest.MonkeyPatch) -> None
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Length", condition="between", range_min="3", range_max="5")],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Length",
+                condition="between",
+                range_min="3",
+                range_max="5",
+            )
+        ],
         [101],
     )
     assert result.elements[0].checks[0].passed is False
@@ -554,7 +951,15 @@ def test_range_non_numeric_barrier_raises(monkeypatch: pytest.MonkeyPatch) -> No
         _run(
             monkeypatch,
             FakeIfcModel({}),
-            [ComparisonRow(property_set="Pset_A", property_name="L", condition="between", range_min="abc", range_max="5")],
+            [
+                ComparisonRow(
+                    property_set="Pset_A",
+                    property_name="L",
+                    condition="between",
+                    range_min="abc",
+                    range_max="5",
+                )
+            ],
             [],
         )
 
@@ -564,7 +969,34 @@ def test_range_partial_barrier_raises(monkeypatch: pytest.MonkeyPatch) -> None:
         _run(
             monkeypatch,
             FakeIfcModel({}),
-            [ComparisonRow(property_set="Pset_A", property_name="L", condition="between", range_min="3")],
+            [
+                ComparisonRow(
+                    property_set="Pset_A",
+                    property_name="L",
+                    condition="between",
+                    range_min="3",
+                )
+            ],
+            [],
+        )
+
+
+def test_range_inverted_barriers_raise(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(
+        ValueError, match="range_min must be less than or equal to range_max"
+    ):
+        _run(
+            monkeypatch,
+            FakeIfcModel({}),
+            [
+                ComparisonRow(
+                    property_set="Pset_A",
+                    property_name="L",
+                    condition="between",
+                    range_min="10",
+                    range_max="2",
+                )
+            ],
             [],
         )
 
@@ -574,7 +1006,14 @@ def test_single_mode_ignores_range_when_empty(monkeypatch: pytest.MonkeyPatch) -
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Length", condition="ge", expected_value="4")],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Length",
+                condition="ge",
+                expected_value="4",
+            )
+        ],
         [101],
     )
     check = result.elements[0].checks[0]
@@ -589,7 +1028,14 @@ def test_one_of_matches_any_allowed_value(monkeypatch: pytest.MonkeyPatch) -> No
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Material", condition="one_of", allowed_values=["wood", "concrete", "masonry"])],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="one_of",
+                allowed_values=["wood", "concrete", "masonry"],
+            )
+        ],
         [101],
     )
     check = result.elements[0].checks[0]
@@ -603,7 +1049,14 @@ def test_one_of_no_match_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Material", condition="one_of", allowed_values=["wood", "concrete", "masonry"])],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="one_of",
+                allowed_values=["wood", "concrete", "masonry"],
+            )
+        ],
         [101],
     )
     assert result.elements[0].checks[0].passed is False
@@ -614,7 +1067,14 @@ def test_one_of_case_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Material", condition="one_of", allowed_values=["concrete"])],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="one_of",
+                allowed_values=["concrete"],
+            )
+        ],
         [101],
     )
     assert result.elements[0].checks[0].passed is True
@@ -625,7 +1085,14 @@ def test_one_of_ignores_blank_allowed_values(monkeypatch: pytest.MonkeyPatch) ->
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Material", condition="one_of", allowed_values=["", "wood", "", "  "])],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="one_of",
+                allowed_values=["", "wood", "", "  "],
+            )
+        ],
         [101],
     )
     assert result.elements[0].checks[0].passed is True
@@ -637,7 +1104,14 @@ def test_one_of_missing_property_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall}),
-        [ComparisonRow(property_set="Pset_A", property_name="Material", condition="one_of", allowed_values=["wood"])],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="Material",
+                condition="one_of",
+                allowed_values=["wood"],
+            )
+        ],
         [101],
     )
     check = result.elements[0].checks[0]
@@ -650,19 +1124,52 @@ def test_one_of_requires_allowed_value(monkeypatch: pytest.MonkeyPatch) -> None:
         _run(
             monkeypatch,
             FakeIfcModel({}),
-            [ComparisonRow(property_set="Pset_A", property_name="Material", condition="one_of", allowed_values=[])],
+            [
+                ComparisonRow(
+                    property_set="Pset_A",
+                    property_name="Material",
+                    condition="one_of",
+                    allowed_values=[],
+                )
+            ],
             [],
         )
 
 
-def test_optional_input_without_component_uses_all(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_contains_requires_non_empty_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(ValueError, match="requires a non-empty expected value"):
+        _run(
+            monkeypatch,
+            FakeIfcModel({}),
+            [
+                ComparisonRow(
+                    property_set="Pset_A",
+                    property_name="Name",
+                    condition="contains",
+                    expected_value="   ",
+                )
+            ],
+            [],
+        )
+
+
+def test_optional_input_without_component_uses_all(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_A": {"X": "1"}})
     door = FakeEntity(202, entity_type="IFCDOOR", psets={"Pset_A": {"X": "2"}})
 
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall, 202: door}),
-        [ComparisonRow(property_set="Pset_A", property_name="X", condition="equals", expected_value="1")],
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
         [],  # no express_ids -> fall back to all elements from context
     )
 
@@ -678,7 +1185,15 @@ def test_optional_input_with_component_filters(monkeypatch: pytest.MonkeyPatch) 
     result = _run(
         monkeypatch,
         FakeIfcModel({101: wall, 202: door}),
-        [ComparisonRow(entity_type="IFCWALL", property_set="Pset_A", property_name="X", condition="equals", expected_value="1")],
+        [
+            ComparisonRow(
+                entity_type="IFCWALL",
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
         [],  # no express_ids -> use all elements, then Component filters to walls
     )
 
