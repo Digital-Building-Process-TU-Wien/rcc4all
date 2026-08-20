@@ -59,10 +59,12 @@ multiple checks per element simultaneously.
 2. **is_true / is_false:** ignore `expected_value`. Truthy set:
    `true/1/yes/y/t`; falsy set: `false/0/no/n/f` (case-insensitive,
    whitespace-trimmed). Anything else → failed.
-3. **Non-matching rows:** a row whose property is missing on an element simply
-   produces no matching check; that element still appears in the output (see
-   Output filtering below for how the Component column changes which elements are
-   emitted). Element with zero applicable checks → `failed=False`.
+3. **Non-matching rows:** a row whose Component type does not match the element
+   produces no check for that element (see Output filtering below for how the
+   Component column changes which elements are emitted). A row that DOES apply but
+   whose property is missing on the element still emits a check with
+   `actual=None, passed=False` (missing property → failed). Element with zero
+   applicable checks → `failed=False`.
 4. **Check `id`:** equals `property_key` (user chose over row-based).
 5. **equals / not_equals / contains / one_of:** all string conditions compare
    **case-insensitively AND whitespace-insensitively** (user decision — both

@@ -408,11 +408,11 @@ def test_contains_whitespace_insensitive(monkeypatch: pytest.MonkeyPatch) -> Non
     assert [check.passed for check in result.elements[0].checks] == [True, True, False]
 
 
-def test_string_internal_whitespace_insensitive(
+def test_string_leading_trailing_whitespace_insensitive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     wall = FakeEntity(
-        101, psets={"Pset_A": {"Material": "Reinforced  Concrete", "Name": "Fire Wall"}}
+        101, psets={"Pset_A": {"Material": "  Reinforced Concrete  ", "Name": "Fire Wall"}}
     )
     result = _run(
         monkeypatch,
@@ -434,13 +434,13 @@ def test_string_internal_whitespace_insensitive(
                 property_set="Pset_A",
                 property_name="Name",
                 condition="contains",
-                expected_value="firewall",
+                expected_value="fire wall",
             ),
             ComparisonRow(
                 property_set="Pset_A",
                 property_name="Material",
                 condition="one_of",
-                allowed_values=["Reinforced    Concrete"],
+                allowed_values=["   Reinforced Concrete   "],
             ),
         ],
         [101],
@@ -448,7 +448,7 @@ def test_string_internal_whitespace_insensitive(
 
     assert [check.passed for check in result.elements[0].checks] == [
         True,
-        False,
+        True,
         True,
         True,
     ]

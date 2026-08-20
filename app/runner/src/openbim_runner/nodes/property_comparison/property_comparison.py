@@ -377,8 +377,8 @@ def _check_passes(
 
 
 def _normalize_for_compare(value: str) -> str:
-    """Lowercase and strip ALL whitespace so comparisons are whitespace-insensitive."""
-    return "".join(value.split()).lower()
+    """Trim leading/trailing whitespace and lowercase for comparison."""
+    return value.strip().lower()
 
 
 def _check_truth(condition: ComparisonCondition, actual: str | None) -> bool:
