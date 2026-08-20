@@ -210,8 +210,6 @@ async def get_property(
     properties: dict[str, list[ValueWithCount]] = {}
     for key, value_counts in prop_value_counts.items():
         sorted_values = sorted(value_counts.items(), key=lambda x: (-x[1], x[0]))
-        properties[key] = [
-            ValueWithCount(value=v, count=c) for v, c in sorted_values
-        ]
+        properties[key] = [ValueWithCount(value=v, count=c) for v, c in sorted_values]
 
     return GetPropertyResult(mode="model", properties=properties)
