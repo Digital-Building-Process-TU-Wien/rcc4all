@@ -9,6 +9,7 @@ from pydantic import Field
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 from openbim_runner.util.geometry import cache_mesh
 
+
 class Generate3DCubeSettings(NodeModel):
     position: list[float] = Field(
         default=[0.0, 0.0, 0.0],
@@ -49,7 +50,9 @@ def _euler_degrees_to_matrix(rotation: list[float]) -> np.ndarray:
 
 
 @node()
-async def generate_3d_cube(settings: Generate3DCubeSettings, context: ExecutionContext) -> Generate3DCubeResult:
+async def generate_3d_cube(
+    settings: Generate3DCubeSettings, context: ExecutionContext
+) -> Generate3DCubeResult:
     if any(dim <= 0 for dim in settings.size):
         raise ValueError("Size dimensions must be positive")
 

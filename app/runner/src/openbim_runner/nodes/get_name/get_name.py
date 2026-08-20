@@ -30,7 +30,9 @@ class GetNameResult(NodeModel):
 
 
 @node()
-async def get_name(settings: GetNameSettings, inputs: GetNameInputs, context: ExecutionContext) -> GetNameResult:
+async def get_name(
+    settings: GetNameSettings, inputs: GetNameInputs, context: ExecutionContext
+) -> GetNameResult:
     object_names: list[str | None] = []
 
     for express_id in inputs.express_ids:
@@ -41,7 +43,9 @@ async def get_name(settings: GetNameSettings, inputs: GetNameInputs, context: Ex
                 object_name = str(object_name)
         except RuntimeError:
             if settings.fail_on_missing:
-                raise ValueError(f"Could not resolve a name for express ID {express_id}.")
+                raise ValueError(
+                    f"Could not resolve a name for express ID {express_id}."
+                )
             object_name = None
 
         object_names.append(object_name)

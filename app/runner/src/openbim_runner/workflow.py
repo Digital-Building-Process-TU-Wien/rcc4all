@@ -59,7 +59,9 @@ class WorkflowDefinition(NodeModel):
 
 
 def load_workflow(workflow_path: Path) -> WorkflowDefinition:
-    return WorkflowDefinition.model_validate_json(workflow_path.read_text(encoding="utf-8"))
+    return WorkflowDefinition.model_validate_json(
+        workflow_path.read_text(encoding="utf-8")
+    )
 
 
 def resolve_ifc_path(workflow_path: Path, ifc_path: str) -> Path:
@@ -82,10 +84,14 @@ def parse_reference(reference: str) -> tuple[str, str]:
     try:
         node_id, field_name = reference.split(".", maxsplit=1)
     except ValueError as error:
-        raise ValueError(f"Invalid reference format '{reference}'. Expected '<node_id>.<field_name>'.") from error
+        raise ValueError(
+            f"Invalid reference format '{reference}'. Expected '<node_id>.<field_name>'."
+        ) from error
 
     if not node_id or not field_name:
-        raise ValueError(f"Invalid reference format '{reference}'. Expected '<node_id>.<field_name>'.")
+        raise ValueError(
+            f"Invalid reference format '{reference}'. Expected '<node_id>.<field_name>'."
+        )
 
     return node_id, field_name
 
@@ -123,9 +129,13 @@ def build_execution_order(workflow: WorkflowDefinition) -> list[str]:
                     f"Node '{workflow_node.id}' input binding references unknown node '{source_node_id}'."
                 )
 
-            add_dependency(adjacency, indegree, source=source_node_id, target=workflow_node.id)
+            add_dependency(
+                adjacency, indegree, source=source_node_id, target=workflow_node.id
+            )
 
-    queue: deque[str] = deque(node.id for node in workflow.nodes if indegree[node.id] == 0)
+    queue: deque[str] = deque(
+        node.id for node in workflow.nodes if indegree[node.id] == 0
+    )
     execution_order: list[str] = []
 
     while queue:
@@ -143,7 +153,9 @@ def build_execution_order(workflow: WorkflowDefinition) -> list[str]:
     return execution_order
 
 
-def resolve_input_bindings(workflow_node: WorkflowNode, node_outputs: dict[str, NodeModel]) -> dict[str, Any]:
+def resolve_input_bindings(
+    workflow_node: WorkflowNode, node_outputs: dict[str, NodeModel]
+) -> dict[str, Any]:
     input_payload: dict[str, Any] = {}
 
     for input_name, reference in workflow_node.input_bindings.items():
@@ -163,12 +175,16 @@ def resolve_input_bindings(workflow_node: WorkflowNode, node_outputs: dict[str, 
     return input_payload
 
 
-async def execute_workflow_async(workflow_path: Path) -> tuple[dict[str, NodeModel], dict[str, WorkflowNode]]:
+async def execute_workflow_async(
+    workflow_path: Path,
+) -> tuple[dict[str, NodeModel], dict[str, WorkflowNode]]:
     workflow = load_workflow(workflow_path)
     node_lookup = build_node_lookup(workflow)
     execution_order = build_execution_order(workflow)
     node_registry = get_registry()
-    ifc_model = ifcopenshell.open(str(resolve_ifc_path(workflow_path, workflow.ifc_path)))  # pyright: ignore[reportUnknownMemberType]
+    ifc_model = ifcopenshell.open(
+        str(resolve_ifc_path(workflow_path, workflow.ifc_path))
+    )  # pyright: ignore[reportUnknownMemberType]
     node_outputs: dict[str, NodeModel] = {}
     geometry_cache = build_geometry_cache(ifc_model)
 
@@ -179,7 +195,9 @@ async def execute_workflow_async(workflow_path: Path) -> tuple[dict[str, NodeMod
             raise ValueError(f"Unknown node type '{workflow_node.type}'.")
 
         if workflow_node.input_bindings and not definition.takes_inputs:
-            raise ValueError(f"Node '{workflow_node.id}' does not accept input bindings.")
+            raise ValueError(
+                f"Node '{workflow_node.id}' does not accept input bindings."
+            )
 
         settings_payload = workflow_node.settings
         input_payload = resolve_input_bindings(workflow_node, node_outputs)
@@ -198,11 +216,15 @@ async def execute_workflow_async(workflow_path: Path) -> tuple[dict[str, NodeMod
     return node_outputs, node_lookup
 
 
-def execute_workflow(workflow_path: Path) -> tuple[dict[str, NodeModel], dict[str, WorkflowNode]]:
+def execute_workflow(
+    workflow_path: Path,
+) -> tuple[dict[str, NodeModel], dict[str, WorkflowNode]]:
     return asyncio.run(execute_workflow_async(workflow_path))
 
 
-def dump_results(node_outputs: dict[str, NodeModel], node_lookup: dict[str, WorkflowNode]) -> str:
+def dump_results(
+    node_outputs: dict[str, NodeModel], node_lookup: dict[str, WorkflowNode]
+) -> str:
     return json.dumps(
         {
             node_id: {

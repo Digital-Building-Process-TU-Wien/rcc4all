@@ -51,8 +51,13 @@ class CollisionInputs(NodeModel):
 
 
 class CollisionError(NodeModel):
-    key_a: str = Field(title="Key A", description="Cache key of the first geometry in the failed pair.")
-    key_b: str = Field(title="Key B", description="Cache key of the second geometry in the failed pair.")
+    key_a: str = Field(
+        title="Key A", description="Cache key of the first geometry in the failed pair."
+    )
+    key_b: str = Field(
+        title="Key B",
+        description="Cache key of the second geometry in the failed pair.",
+    )
     error: str = Field(
         title="Error",
         description="Error reason, e.g. 'non-watertight' or 'boolean failed: ...'.",
@@ -158,10 +163,16 @@ async def collision(
                     if settings.mode == "intersection_mesh":
                         intersection_meshes[f"{key_a}__{key_b}"] = None
                 elif fcl_result is None:
-                    errors.append(CollisionError(key_a=key_a, key_b=key_b, error=boolean_error))
+                    errors.append(
+                        CollisionError(key_a=key_a, key_b=key_b, error=boolean_error)
+                    )
                 continue
 
-            if result is not None and len(result.faces) > 0 and result.volume > VOLUME_TOLERANCE:
+            if (
+                result is not None
+                and len(result.faces) > 0
+                and result.volume > VOLUME_TOLERANCE
+            ):
                 collisions.setdefault(key_a, []).append(key_b)
                 if settings.mode == "intersection_mesh":
                     inter_key = f"inter:intersection_{key_a}_{key_b}"

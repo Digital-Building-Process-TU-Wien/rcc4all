@@ -51,7 +51,9 @@ def build_geometry_cache(
             geometry = shape.geometry  # pyright: ignore[reportAttributeAccessIssue]
             if len(geometry.verts) > 0 and len(geometry.faces) > 0:
                 express_id = shape.id  # pyright: ignore[reportAttributeAccessIssue]
-                cache[f"ifc:{express_id}"] = reshape_flat(geometry.verts, geometry.faces)
+                cache[f"ifc:{express_id}"] = reshape_flat(
+                    geometry.verts, geometry.faces
+                )
         if not iterator.next():
             break
 
@@ -94,7 +96,9 @@ def cache_mesh(
     elif intermediate:
         key = f"inter:{uuid.uuid4()}"
     else:
-        raise ValueError("cache_mesh requires express_id, object_id, intermediate=True, or a key.")
+        raise ValueError(
+            "cache_mesh requires express_id, object_id, intermediate=True, or a key."
+        )
 
     cache = _ensure_cache(context)
     if key in cache:
@@ -106,7 +110,9 @@ def cache_mesh(
 def resolve_mesh(context: ExecutionContext, key: str) -> trimesh.Trimesh:
     cache = _ensure_cache(context)
     if key not in cache:
-        raise ValueError(f"Geometry cache key '{key}' is not present in the workflow cache.")
+        raise ValueError(
+            f"Geometry cache key '{key}' is not present in the workflow cache."
+        )
     return cache[key]
 
 
@@ -115,7 +121,9 @@ def is_model_key(key: str) -> bool:
     return key.startswith("ifc:") or key.startswith("gen:")
 
 
-def resolve_side(context: ExecutionContext, *, refs: list[int | str] | None = None) -> list[str]:
+def resolve_side(
+    context: ExecutionContext, *, refs: list[int | str] | None = None
+) -> list[str]:
     """Resolve a list of mixed references into ordered geometry-cache keys.
 
     An ``int`` reference is an express ID mapping to ``ifc:<id>``; a ``str`` reference
@@ -134,7 +142,9 @@ def resolve_side(context: ExecutionContext, *, refs: list[int | str] | None = No
         if isinstance(ref, int):
             key = f"ifc:{ref}"
             if key not in cache:
-                raise ValueError(f"Express ID {ref} has no tessellated geometry in the cache.")
+                raise ValueError(
+                    f"Express ID {ref} has no tessellated geometry in the cache."
+                )
         else:
             key = f"gen:{ref}"
             if key not in cache:
@@ -147,7 +157,9 @@ def _is_watertight(mesh: trimesh.Trimesh) -> bool:
     return bool(mesh.is_watertight and mesh.is_winding_consistent and mesh.volume > 0)
 
 
-def ensure_watertight(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh | None, str | None]:
+def ensure_watertight(
+    mesh: trimesh.Trimesh,
+) -> tuple[trimesh.Trimesh | None, str | None]:
     if _is_watertight(mesh):
         return mesh, None
 
