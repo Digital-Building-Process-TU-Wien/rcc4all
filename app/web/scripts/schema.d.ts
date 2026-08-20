@@ -279,6 +279,12 @@ export interface IfcElementFilter {
      */
     guids?: string[]
   }
+  inputs: {
+    /**
+     * Optional list of IFC express IDs to filter within. When empty, the whole model is scanned.
+     */
+    express_ids?: number[]
+  }
 }
 /**
  * Check IFC property values against expected target values with table-based rules.

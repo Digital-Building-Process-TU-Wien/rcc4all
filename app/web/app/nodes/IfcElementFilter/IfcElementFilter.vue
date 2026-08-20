@@ -392,10 +392,11 @@ async function importCsv(event: Event) {
             </select>
             <input
               v-else-if="isNumberProperty(getPropertyForRow(row))"
-              v-model="row.value"
+              :value="row.value"
               type="number"
               placeholder="Value"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
+              @input="row.value = (($event.target as HTMLInputElement).value)"
             >
             <input
               v-else

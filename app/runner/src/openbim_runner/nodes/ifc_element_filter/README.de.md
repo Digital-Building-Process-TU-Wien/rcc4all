@@ -43,6 +43,14 @@ Verwenden Sie diesen Knoten, wenn Sie:
 - `starts_with` beginnt mit Text
 - `ends_with` endet mit Text
 
+## Eingaben
+
+| Name | Typ | Beschreibung |
+|------|-----|--------------|
+| `express_ids` | `list[int]` | Optionale Liste von IFC-Express-IDs, auf die der Filter eingeschraenkt wird. Die Ausgabe behaelt die Eingabereihenfolge bei, doppelte IDs werden entfernt. Bei leerer oder unverbundener Eingabe wird das ganze Modell durchsucht. |
+
+Wenn `express_ids` verbunden ist, werden nur die gelisteten Entitaeten betrachtet, und jede muss weiterhin den Filterzeilen entsprechen (Entity-Typ, `PredefinedType` und Eigenschaftsvergleiche).
+
 ## Ausgaben
 
 | Name | Typ | Beschreibung |
