@@ -59,6 +59,14 @@ class IfcElementFilterSettings(NodeModel):
     )
 
 
+class IfcElementFilterInputs(NodeModel):
+    express_ids: list[int] | None = Field(
+        default=None,
+        title="Express IDs",
+        description="Optional list of IFC express IDs to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result.",
+    )
+
+
 class IfcElementFilterResult(NodeModel):
     express_ids: list[int] = Field(
         default=[],
@@ -163,8 +171,21 @@ def _get_property_value(entity: Any, property_set: str, property_name: str) -> A
     return None
 
 
+def _entity_matches_type(entity: Any, entity_type: str) -> bool:
+    entity_type = _clean(entity_type).upper()
+    if not entity_type:
+        return True
+    try:
+        return bool(entity.is_a(entity_type))
+    except (AttributeError, TypeError, RuntimeError):
+        return False
+
+
 def _matches_row(entity: Any, row: FilterRow) -> bool:
     # TODO: Support USERDEFINED predefined type - match PredefinedType == USERDEFINED and ObjectType == <entered value>
+    if not _entity_matches_type(entity, row.entity_type):
+        return False
+
     predefined_type = _clean(row.predefined_type)
     if predefined_type:
         entity_predefined_type = _string_value(
@@ -181,44 +202,73 @@ def _matches_row(entity: Any, row: FilterRow) -> bool:
     return _compare(actual_value, row.operator, row.value)
 
 
-def _entities_for_row(context: ExecutionContext, row: FilterRow) -> list[Any]:
-    entity_type = _clean(row.entity_type)
-    if not entity_type:
-        entity_type = "IfcElement"
+def _candidate_entities(
+    context: ExecutionContext,
+    inputs: IfcElementFilterInputs,
+    rows: list[FilterRow],
+) -> list[Any]:
+    seen: set[int] = set()
+    candidates: list[Any] = []
 
-    try:
-        return list(context.ifc_model.by_type(entity_type))
-    except RuntimeError:
-        return []
+    if inputs.express_ids is not None:
+        for express_id in inputs.express_ids:
+            if express_id in seen:
+                continue
+            seen.add(express_id)
+            try:
+                candidates.append(context.ifc_model.by_id(express_id))
+            except RuntimeError:
+                continue
+        return candidates
+
+    # No input: gather candidates from every non-disabled row's entity type so
+    # entity types that are not IfcElement subclasses (e.g. IFCSPACE) still match.
+    for row in rows:
+        if row.mode == "disabled":
+            continue
+        entity_type = _clean(row.entity_type) or "IfcElement"
+        try:
+            entities = context.ifc_model.by_type(entity_type)
+        except RuntimeError:
+            entities = []
+        for entity in entities:
+            express_id = entity.id()
+            if express_id in seen:
+                continue
+            seen.add(express_id)
+            candidates.append(entity)
+
+    return candidates
 
 
 @node()
 async def ifc_element_filter(
     settings: IfcElementFilterSettings,
+    inputs: IfcElementFilterInputs,
     context: ExecutionContext,
 ) -> IfcElementFilterResult:
-    included: dict[int, Any] = {}
-    excluded: set[int] = set()
+    matched: list[Any] = []
 
-    for row in settings.filter_rows:
-        if row.mode == "disabled":
-            continue
+    for entity in _candidate_entities(context, inputs, settings.filter_rows):
+        matches_include = False
+        matches_exclude = False
 
-        matching_entities = [
-            entity
-            for entity in _entities_for_row(context, row)
-            if _matches_row(entity, row)
-        ]
-        if row.mode == "include":
-            for entity in matching_entities:
-                included[entity.id()] = entity
-        elif row.mode == "exclude":
-            excluded.update(entity.id() for entity in matching_entities)
+        for row in settings.filter_rows:
+            if row.mode == "disabled":
+                continue
+            if not _matches_row(entity, row):
+                continue
+            if row.mode == "exclude":
+                matches_exclude = True
+                break
+            matches_include = True
 
-    express_ids = [express_id for express_id in included if express_id not in excluded]
+        if matches_include and not matches_exclude:
+            matched.append(entity)
+
+    express_ids = [entity.id() for entity in matched]
     guids = [
-        _string_value(_get_entity_attribute(included[express_id], "GlobalId"))
-        for express_id in express_ids
+        _string_value(_get_entity_attribute(entity, "GlobalId")) for entity in matched
     ]
 
     return IfcElementFilterResult(express_ids=express_ids, guids=guids)
