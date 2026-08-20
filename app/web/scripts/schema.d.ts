@@ -22,6 +22,7 @@ export interface NodeRegistrySchema {
   get_name?: ResolveObjectNames
   get_property?: GetProperty
   ifc_element_filter?: IfcElementFilter
+  property_comparison?: PropertyComparison
 }
 /**
  * Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.
@@ -31,7 +32,7 @@ export interface CollisionDetection {
     /**
      * 'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).
      */
-    mode?: ("boolean" | "intersection_mesh")
+    mode?: ('boolean' | 'intersection_mesh')
   }
   result: {
     /**
@@ -158,7 +159,7 @@ export interface GetProperty {
     /**
      * Output granularity: 'elements' (per entity), 'by_class' (grouped by element class), or 'model' (distinct values across all entities).
      */
-    output_mode?: ("elements" | "by_class" | "model")
+    output_mode?: ('elements' | 'by_class' | 'model')
     /**
      * List of properties to read from each entity.
      */
@@ -181,7 +182,7 @@ export interface GetProperty {
     /**
      * The output mode used to generate this result.
      */
-    mode: ("elements" | "by_class" | "model")
+    mode: ('elements' | 'by_class' | 'model')
     /**
      * List of elements with their property values (output_mode = elements).
      */
@@ -246,7 +247,7 @@ export interface IfcElementFilter {
       /**
        * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
        */
-      mode?: ("include" | "exclude" | "disabled")
+      mode?: ('include' | 'exclude' | 'disabled')
       /**
        * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
        */
@@ -266,7 +267,7 @@ export interface IfcElementFilter {
       /**
        * Comparison operator used for property or attribute values.
        */
-      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
+      operator?: ('==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'starts_with' | 'ends_with')
       /**
        * Value to compare against when property_name is set.
        */
@@ -282,5 +283,135 @@ export interface IfcElementFilter {
      * GlobalId values for all matching IFC entities in the same order as express_ids.
      */
     guids?: string[]
+  }
+}
+/**
+ * Check IFC property values against expected target values with table-based rules.
+ */
+export interface PropertyComparison {
+  settings: {
+    /**
+     * List of property comparison rules. Each row is checked against every input element.
+     */
+    rows?: {
+      /**
+       * Optional IFC entity type (e.g., IFCWALL, IFCDOOR). Empty means any entity type. Used for UI preselection only.
+       */
+      entity_type?: string
+      /**
+       * IFC PropertySet name (e.g., Pset_WallCommon) or custom property set name.
+       */
+      property_set?: string
+      /**
+       * Name of the property to compare within the PropertySet.
+       */
+      property_name?: string
+      /**
+       * Comparison operator applied to the property value. 'between' / 'outside' use the numeric range barriers.
+       */
+      condition: ('equals' | 'not_equals' | 'lt' | 'le' | 'gt' | 'ge' | 'contains' | 'one_of' | 'is_true' | 'is_false' | 'between' | 'outside')
+      /**
+       * Target value the property is compared against. Ignored for is_true / is_false and range checks.
+       */
+      expected_value?: string
+      /**
+       * List of accepted values for the 'one_of' condition. Empty entries are ignored.
+       */
+      allowed_values?: string[]
+      /**
+       * Lower barrier for numeric range checks (condition = between / outside).
+       */
+      range_min?: string
+      /**
+       * Upper barrier for numeric range checks (condition = between / outside).
+       */
+      range_max?: string
+      /**
+       * If True the range includes values equal to the lower barrier (>=); otherwise it is strictly greater (>).
+       */
+      inclusive_min?: boolean
+      /**
+       * If True the range includes values equal to the upper barrier (<=); otherwise it is strictly less (<).
+       */
+      inclusive_max?: boolean
+    }[]
+  }
+  result: {
+    /**
+     * Number of elements processed.
+     */
+    element_count: number
+    /**
+     * Total number of property checks across all elements.
+     */
+    total_checks: number
+    /**
+     * Total number of failed checks across all elements.
+     */
+    failed_count: number
+    /**
+     * Ordered list of elements with their property check results.
+     */
+    elements?: {
+      /**
+       * The express ID of the IFC entity.
+       */
+      express_id: number
+      /**
+       * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
+       */
+      class_name: string
+      /**
+       * True if at least one check on this element failed.
+       */
+      failed: boolean
+      /**
+       * List of property check results for this element.
+       */
+      checks?: {
+        /**
+         * Stable identifier for this check (the property key, e.g., 'Pset.X' or 'X').
+         */
+        id: string
+        /**
+         * Property key in 'Pset.Property' or 'Property' format.
+         */
+        property_key: string
+        /**
+         * Name of the property being compared.
+         */
+        property_name: string
+        /**
+         * The comparison operator that was applied.
+         */
+        condition: ('equals' | 'not_equals' | 'lt' | 'le' | 'gt' | 'ge' | 'contains' | 'one_of' | 'is_true' | 'is_false' | 'between' | 'outside')
+        /**
+         * Expected value as a string (empty for is_true / is_false and range checks).
+         */
+        expected?: string
+        /**
+         * Lower barrier used for numeric range checks, or None for single-value checks.
+         */
+        expected_min?: (string | null)
+        /**
+         * Upper barrier used for numeric range checks, or None for single-value checks.
+         */
+        expected_max?: (string | null)
+        /**
+         * Actual property value as a string, or None if the property is missing.
+         */
+        actual?: (string | null)
+        /**
+         * Whether the property value satisfies the condition.
+         */
+        passed: boolean
+      }[]
+    }[]
+  }
+  inputs: {
+    /**
+     * Optional list of IFC express IDs to run property comparisons against. When empty (not connected), all IFC elements in the model are checked.
+     */
+    express_ids?: number[]
   }
 }
