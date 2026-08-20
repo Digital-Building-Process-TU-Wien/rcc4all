@@ -23,7 +23,7 @@ filter_module = import_module(
 class FakeEntity:
     def __init__(self, express_id: int, **attributes: Any) -> None:
         self._express_id = express_id
-        self._type = attributes.pop("_type", "IFCWALL")
+        self.type_name = attributes.pop("type_name", "IFCWALL")
         self.psets: dict[str, dict[str, object]] = attributes.pop("psets", {})
         for key, value in attributes.items():
             setattr(self, key, value)
@@ -33,8 +33,8 @@ class FakeEntity:
 
     def is_a(self, name: str | None = None) -> bool | str:
         if name is None:
-            return self._type
-        return self._type == name.upper()
+            return self.type_name
+        return self.type_name == name.upper()
 
 
 class FakeIfcModel:
@@ -44,7 +44,7 @@ class FakeIfcModel:
         for key, entities in entities_by_type.items():
             type_name = key.upper()
             for entity in entities:
-                entity._type = type_name
+                entity.type_name = type_name
                 self.entities_by_id[entity.id()] = entity
             self.entities_by_type[type_name] = entities
 
