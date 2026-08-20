@@ -1,3 +1,5 @@
+/* GENERATED FILE - DO NOT EDIT. Regenerate with `npm run generate:schema`. */
+
 export interface NodeRegistrySchema {
   collision?: CollisionDetection
   concat_string?: ConcatenateStrings
@@ -14,7 +16,7 @@ export interface CollisionDetection {
     /**
      * 'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).
      */
-    mode?: ("boolean" | "intersection_mesh")
+    mode?: ('boolean' | 'intersection_mesh')
   }
   result: {
     /**
@@ -141,7 +143,7 @@ export interface GetProperty {
     /**
      * Output granularity: 'elements' (per entity), 'by_class' (grouped by element class), or 'model' (distinct values across all entities).
      */
-    output_mode?: ("elements" | "by_class" | "model")
+    output_mode?: ('elements' | 'by_class' | 'model')
     /**
      * List of properties to read from each entity.
      */
@@ -164,7 +166,7 @@ export interface GetProperty {
     /**
      * The output mode used to generate this result.
      */
-    mode: ("elements" | "by_class" | "model")
+    mode: ('elements' | 'by_class' | 'model')
     /**
      * List of elements with their property values (output_mode = elements).
      */
@@ -239,7 +241,7 @@ export interface IfcElementFilter {
       /**
        * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
        */
-      mode?: ("include" | "exclude" | "disabled")
+      mode?: ('include' | 'exclude' | 'disabled')
       /**
        * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
        */
@@ -259,7 +261,7 @@ export interface IfcElementFilter {
       /**
        * Comparison operator used for property or attribute values.
        */
-      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
+      operator?: ('==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'starts_with' | 'ends_with')
       /**
        * Value to compare against when property_name is set.
        */
