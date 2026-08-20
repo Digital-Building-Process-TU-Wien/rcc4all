@@ -34,6 +34,10 @@ function goBack() {
   router.push('/node-demo')
 }
 
+function selectTab(tab: 'output' | 'results') {
+  currentTab.value = tab
+}
+
 function handleComplete(result: CompleteResult) {
   emit('complete', result)
   if (result.success) {
@@ -85,7 +89,7 @@ watch(() => props.workflow, (newWorkflow) => {
           :color="currentTab === 'output' ? 'primary' : 'neutral'"
           :variant="currentTab === 'output' ? 'solid' : 'outline'"
           size="sm"
-          @click="currentTab = 'output'"
+          @click="selectTab('output')"
         />
         <UButton
           label="JSON Results"
@@ -93,7 +97,7 @@ watch(() => props.workflow, (newWorkflow) => {
           :variant="currentTab === 'results' ? 'solid' : 'outline'"
           size="sm"
           :disabled="isRunning"
-          @click="currentTab = 'results'"
+          @click="selectTab('results')"
         />
       </div>
     </div>

@@ -85,7 +85,9 @@ def process_model(
     if express_id is not None:
         target_key = f"ifc:{express_id}"
         if target_key not in cache:
-            raise ValueError(f"Express ID {express_id} not found in model '{ifc_path.stem}'.")
+            raise ValueError(
+                f"Express ID {express_id} not found in model '{ifc_path.stem}'."
+            )
         cache[target_key].export(str(mesh_dir / f"ifc_{express_id}.obj"))
         report["exported_express_id"] = express_id
 
@@ -123,9 +125,13 @@ def inspect_models(
             status = f"OK (exported {report['exported_express_id']})"
         elif report["mesh_count"] == 0:
             status = "NO-GEOMETRY"
-        print(f"{ifc_path.stem:40} {rel_category:14} {report['mesh_count']:<7} {status}")
+        print(
+            f"{ifc_path.stem:40} {rel_category:14} {report['mesh_count']:<7} {status}"
+        )
 
-    print(f"\nProcessed {len(models) - failures}/{len(models)} models -> {artifacts_root}")
+    print(
+        f"\nProcessed {len(models) - failures}/{len(models)} models -> {artifacts_root}"
+    )
     return 1 if failures else 0
 
 
@@ -135,9 +141,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="inspect-models")
     parser.add_argument("--models-root", type=Path, default=MODELS_ROOT)
     parser.add_argument("--artifacts-root", type=Path, default=ARTIFACTS_ROOT)
-    parser.add_argument("--category", default=None, help="Only process this category (e.g. rail, large_models).")
-    parser.add_argument("--pattern", default=None, help="Only process models whose stem matches (case-insensitive).")
-    parser.add_argument("--express-id", type=int, default=None, help="Also export this single express ID as OBJ for each model.")
+    parser.add_argument(
+        "--category",
+        default=None,
+        help="Only process this category (e.g. rail, large_models).",
+    )
+    parser.add_argument(
+        "--pattern",
+        default=None,
+        help="Only process models whose stem matches (case-insensitive).",
+    )
+    parser.add_argument(
+        "--express-id",
+        type=int,
+        default=None,
+        help="Also export this single express ID as OBJ for each model.",
+    )
     args = parser.parse_args(argv)
 
     return inspect_models(

@@ -16,7 +16,9 @@ from openbim_runner.nodes.get_property.get_property import (
 
 
 class FakeEntity:
-    def __init__(self, express_id: int, entity_type: str = "IFCWALL", **attributes: Any) -> None:
+    def __init__(
+        self, express_id: int, entity_type: str = "IFCWALL", **attributes: Any
+    ) -> None:
         self._express_id = express_id
         self._entity_type = entity_type.upper()
         self.psets: dict[str, dict[str, Any]] = attributes.pop("psets", {})
@@ -138,7 +140,9 @@ def test_get_property_multiple_entities(monkeypatch: pytest.MonkeyPatch) -> None
     assert result.elements[2].properties == {"Pset_WallCommon.FireRating": "F60"}
 
 
-def test_get_property_missing_property_returns_null(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_missing_property_returns_null(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that missing properties return null."""
     wall = FakeEntity(
         101,
@@ -177,7 +181,9 @@ def test_get_property_missing_property_returns_null(monkeypatch: pytest.MonkeyPa
     }
 
 
-def test_get_property_missing_express_id_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_missing_express_id_returns_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that missing express_id returns element with empty properties."""
     wall = FakeEntity(
         101,
@@ -213,7 +219,9 @@ def test_get_property_missing_express_id_returns_empty(monkeypatch: pytest.Monke
     assert result.elements[1].properties == {}
 
 
-def test_get_property_without_property_set_searches_all(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_without_property_set_searches_all(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that empty property_set searches across all psets."""
     wall = FakeEntity(
         101,
@@ -255,7 +263,9 @@ def test_get_property_requires_at_least_one_selection() -> None:
         node_outputs={},
     )
 
-    with pytest.raises(ValueError, match="At least one property selection must be specified"):
+    with pytest.raises(
+        ValueError, match="At least one property selection must be specified"
+    ):
         asyncio.run(
             get_property(
                 GetPropertySettings(
@@ -293,9 +303,15 @@ def test_get_property_requires_property_name_in_each_selection() -> None:
 
 def test_get_property_output_mode_by_class(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that by_class mode aggregates values with counts per class."""
-    wall1 = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}})
-    wall2 = FakeEntity(205, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}})
-    door = FakeEntity(307, entity_type="IFCDOOR", psets={"Pset_DoorCommon": {"IsExternal": "true"}})
+    wall1 = FakeEntity(
+        101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}}
+    )
+    wall2 = FakeEntity(
+        205, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}}
+    )
+    door = FakeEntity(
+        307, entity_type="IFCDOOR", psets={"Pset_DoorCommon": {"IsExternal": "true"}}
+    )
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -309,8 +325,12 @@ def test_get_property_output_mode_by_class(monkeypatch: pytest.MonkeyPatch) -> N
             GetPropertySettings(
                 output_mode="by_class",
                 selections=[
-                    PropertySelection(property_set="Pset_WallCommon", property_name="FireRating"),
-                    PropertySelection(property_set="Pset_DoorCommon", property_name="IsExternal"),
+                    PropertySelection(
+                        property_set="Pset_WallCommon", property_name="FireRating"
+                    ),
+                    PropertySelection(
+                        property_set="Pset_DoorCommon", property_name="IsExternal"
+                    ),
                 ],
             ),
             GetPropertyInputs(express_ids=[101, 205, 307]),
@@ -326,23 +346,47 @@ def test_get_property_output_mode_by_class(monkeypatch: pytest.MonkeyPatch) -> N
     assert result.classes[1].id == "IFCWALL"
     # IFCDOOR has one value for IsExternal
     assert "Pset_DoorCommon.IsExternal" in result.classes[0].properties
-    assert result.classes[0].properties["Pset_DoorCommon.IsExternal"] == [ValueWithCount(value="true", count=1)]
+    assert result.classes[0].properties["Pset_DoorCommon.IsExternal"] == [
+        ValueWithCount(value="true", count=1)
+    ]
     # IFCWALL has two F90 values
     assert "Pset_WallCommon.FireRating" in result.classes[1].properties
-    assert result.classes[1].properties["Pset_WallCommon.FireRating"] == [ValueWithCount(value="F90", count=2)]
+    assert result.classes[1].properties["Pset_WallCommon.FireRating"] == [
+        ValueWithCount(value="F90", count=2)
+    ]
 
 
-def test_get_property_output_mode_by_class_multiple_properties(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_output_mode_by_class_multiple_properties(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that by_class mode handles multiple properties with distinct values."""
-    wall1 = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": "Yes", "Combustible": "REI30"}})
-    wall2 = FakeEntity(205, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": "Yes", "Combustible": "REI30"}})
-    wall3 = FakeEntity(307, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": "No", "Combustible": "EI60"}})
-    column = FakeEntity(408, entity_type="IFCCOLUMN", psets={"Pset_ColumnCommon": {"LoadBearing": "Yes"}})
+    wall1 = FakeEntity(
+        101,
+        entity_type="IFCWALL",
+        psets={"Pset_WallCommon": {"LoadBearing": "Yes", "Combustible": "REI30"}},
+    )
+    wall2 = FakeEntity(
+        205,
+        entity_type="IFCWALL",
+        psets={"Pset_WallCommon": {"LoadBearing": "Yes", "Combustible": "REI30"}},
+    )
+    wall3 = FakeEntity(
+        307,
+        entity_type="IFCWALL",
+        psets={"Pset_WallCommon": {"LoadBearing": "No", "Combustible": "EI60"}},
+    )
+    column = FakeEntity(
+        408,
+        entity_type="IFCCOLUMN",
+        psets={"Pset_ColumnCommon": {"LoadBearing": "Yes"}},
+    )
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
     context = ExecutionContext(
-        ifc_model=cast(Any, FakeIfcModel({101: wall1, 205: wall2, 307: wall3, 408: column})),
+        ifc_model=cast(
+            Any, FakeIfcModel({101: wall1, 205: wall2, 307: wall3, 408: column})
+        ),
         node_outputs={},
     )
 
@@ -351,9 +395,15 @@ def test_get_property_output_mode_by_class_multiple_properties(monkeypatch: pyte
             GetPropertySettings(
                 output_mode="by_class",
                 selections=[
-                    PropertySelection(property_set="Pset_WallCommon", property_name="LoadBearing"),
-                    PropertySelection(property_set="Pset_WallCommon", property_name="Combustible"),
-                    PropertySelection(property_set="Pset_ColumnCommon", property_name="LoadBearing"),
+                    PropertySelection(
+                        property_set="Pset_WallCommon", property_name="LoadBearing"
+                    ),
+                    PropertySelection(
+                        property_set="Pset_WallCommon", property_name="Combustible"
+                    ),
+                    PropertySelection(
+                        property_set="Pset_ColumnCommon", property_name="LoadBearing"
+                    ),
                 ],
             ),
             GetPropertyInputs(express_ids=[101, 205, 307, 408]),
@@ -367,7 +417,9 @@ def test_get_property_output_mode_by_class_multiple_properties(monkeypatch: pyte
 
     # IFCCOLUMN
     column_class = next(c for c in result.classes if c.id == "IFCCOLUMN")
-    assert column_class.properties["Pset_ColumnCommon.LoadBearing"] == [ValueWithCount(value="Yes", count=1)]
+    assert column_class.properties["Pset_ColumnCommon.LoadBearing"] == [
+        ValueWithCount(value="Yes", count=1)
+    ]
 
     # IFCWALL
     wall_class = next(c for c in result.classes if c.id == "IFCWALL")
@@ -385,9 +437,15 @@ def test_get_property_output_mode_by_class_multiple_properties(monkeypatch: pyte
 
 def test_get_property_output_mode_model(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that model mode aggregates distinct values with counts."""
-    wall1 = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}})
-    wall2 = FakeEntity(205, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}})
-    wall3 = FakeEntity(307, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F30"}})
+    wall1 = FakeEntity(
+        101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}}
+    )
+    wall2 = FakeEntity(
+        205, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}}
+    )
+    wall3 = FakeEntity(
+        307, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F30"}}
+    )
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -401,7 +459,9 @@ def test_get_property_output_mode_model(monkeypatch: pytest.MonkeyPatch) -> None
             GetPropertySettings(
                 output_mode="model",
                 selections=[
-                    PropertySelection(property_set="Pset_WallCommon", property_name="FireRating"),
+                    PropertySelection(
+                        property_set="Pset_WallCommon", property_name="FireRating"
+                    ),
                 ],
             ),
             GetPropertyInputs(express_ids=[101, 205, 307]),
@@ -421,10 +481,16 @@ def test_get_property_output_mode_model(monkeypatch: pytest.MonkeyPatch) -> None
     assert values[1].count == 1
 
 
-def test_get_property_output_mode_model_skips_null(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_output_mode_model_skips_null(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that model mode excludes null (missing) values."""
-    wall1 = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}})
-    wall2 = FakeEntity(205, entity_type="IFCWALL", psets={"Pset_WallCommon": {}})  # missing FireRating
+    wall1 = FakeEntity(
+        101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}}
+    )
+    wall2 = FakeEntity(
+        205, entity_type="IFCWALL", psets={"Pset_WallCommon": {}}
+    )  # missing FireRating
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -438,7 +504,9 @@ def test_get_property_output_mode_model_skips_null(monkeypatch: pytest.MonkeyPat
             GetPropertySettings(
                 output_mode="model",
                 selections=[
-                    PropertySelection(property_set="Pset_WallCommon", property_name="FireRating"),
+                    PropertySelection(
+                        property_set="Pset_WallCommon", property_name="FireRating"
+                    ),
                 ],
             ),
             GetPropertyInputs(express_ids=[101, 205]),
@@ -455,9 +523,13 @@ def test_get_property_output_mode_model_skips_null(monkeypatch: pytest.MonkeyPat
     assert result.properties["Pset_*.FireRating"][0].count == 1
 
 
-def test_get_property_output_mode_default_elements(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_output_mode_default_elements(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that default output_mode is 'elements' for backward compatibility."""
-    wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}})
+    wall = FakeEntity(
+        101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"FireRating": "F90"}}
+    )
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -471,7 +543,9 @@ def test_get_property_output_mode_default_elements(monkeypatch: pytest.MonkeyPat
         get_property(
             GetPropertySettings(
                 selections=[
-                    PropertySelection(property_set="Pset_WallCommon", property_name="FireRating"),
+                    PropertySelection(
+                        property_set="Pset_WallCommon", property_name="FireRating"
+                    ),
                 ],
             ),
             GetPropertyInputs(express_ids=[101]),
@@ -486,10 +560,16 @@ def test_get_property_output_mode_default_elements(monkeypatch: pytest.MonkeyPat
     assert result.elements[0].properties == {"Pset_WallCommon.FireRating": "F90"}
 
 
-def test_get_property_entity_type_filters_model_output(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_entity_type_filters_model_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that entity_type in a selection filters which entities contribute to the model output."""
-    wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": True}})
-    slab = FakeEntity(202, entity_type="IFCSLAB", psets={"Pset_SlabCommon": {"LoadBearing": False}})
+    wall = FakeEntity(
+        101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": True}}
+    )
+    slab = FakeEntity(
+        202, entity_type="IFCSLAB", psets={"Pset_SlabCommon": {"LoadBearing": False}}
+    )
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -524,10 +604,16 @@ def test_get_property_entity_type_filters_model_output(monkeypatch: pytest.Monke
     assert result.properties["Pset_*.LoadBearing"][0].count == 1
 
 
-def test_get_property_entity_type_filters_by_class_output(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_entity_type_filters_by_class_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that entity_type in a selection filters which entities contribute to the by_class output."""
-    wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": True}})
-    slab = FakeEntity(202, entity_type="IFCSLAB", psets={"Pset_SlabCommon": {"LoadBearing": False}})
+    wall = FakeEntity(
+        101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": True}}
+    )
+    slab = FakeEntity(
+        202, entity_type="IFCSLAB", psets={"Pset_SlabCommon": {"LoadBearing": False}}
+    )
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -567,10 +653,16 @@ def test_get_property_entity_type_filters_by_class_output(monkeypatch: pytest.Mo
     assert "Pset_WallCommon.LoadBearing" not in slab_class.properties
 
 
-def test_get_property_empty_entity_type_no_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_empty_entity_type_no_filter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that empty entity_type does not filter (all entities contribute)."""
-    wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": True}})
-    slab = FakeEntity(202, entity_type="IFCSLAB", psets={"Pset_WallCommon": {"LoadBearing": True}})
+    wall = FakeEntity(
+        101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"LoadBearing": True}}
+    )
+    slab = FakeEntity(
+        202, entity_type="IFCSLAB", psets={"Pset_WallCommon": {"LoadBearing": True}}
+    )
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -603,11 +695,25 @@ def test_get_property_empty_entity_type_no_filter(monkeypatch: pytest.MonkeyPatc
     assert result.properties["Pset_*.LoadBearing"][0].count == 2
 
 
-def test_get_property_model_mode_merges_across_psets(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_model_mode_merges_across_psets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that model mode merges counts from the same property name across different psets."""
-    wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_WallCommon": {"Compartmentation": True}})
-    wall2 = FakeEntity(102, entity_type="IFCWALL", psets={"Pset_WallCommon": {"Compartmentation": True}})
-    slab = FakeEntity(201, entity_type="IFCSLAB", psets={"Pset_SlabCommon": {"Compartmentation": False}})
+    wall = FakeEntity(
+        101,
+        entity_type="IFCWALL",
+        psets={"Pset_WallCommon": {"Compartmentation": True}},
+    )
+    wall2 = FakeEntity(
+        102,
+        entity_type="IFCWALL",
+        psets={"Pset_WallCommon": {"Compartmentation": True}},
+    )
+    slab = FakeEntity(
+        201,
+        entity_type="IFCSLAB",
+        psets={"Pset_SlabCommon": {"Compartmentation": False}},
+    )
 
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -651,7 +757,9 @@ def test_get_property_model_mode_merges_across_psets(monkeypatch: pytest.MonkeyP
     assert values[1].count == 1
 
 
-def test_get_property_from_model_with_empty_inputs_contributes_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_from_model_with_empty_inputs_contributes_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that from_model selections with no input elements produce no output."""
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -682,7 +790,9 @@ def test_get_property_from_model_with_empty_inputs_contributes_nothing(monkeypat
     assert len(result.classes) == 0  # No inputs → empty output
 
 
-def test_get_property_by_class_empty_entity_type_groups_as_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_by_class_empty_entity_type_groups_as_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that selections with empty entity_type are grouped under 'unknown' when entity is missing."""
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 
@@ -717,7 +827,9 @@ def test_get_property_by_class_empty_entity_type_groups_as_unknown(monkeypatch: 
     assert result.classes[0].properties == {}
 
 
-def test_get_property_elements_mode_with_empty_inputs_produces_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_property_elements_mode_with_empty_inputs_produces_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that elements mode with no input elements produces empty output."""
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
 

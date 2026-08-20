@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CompleteResult } from '~/components/WorkflowExecutionView.vue'
+import type { CompleteResult } from '~/composables/useWorkflowExecution'
 import { useFlowStore } from '~/stores/flow'
 
 const router = useRouter()
@@ -66,6 +66,7 @@ else {
 
     <div v-else class="h-full">
       <WorkflowExecutionView
+        v-if="workflowData"
         :workflow="workflowData"
         @complete="handleExecutionComplete"
       />

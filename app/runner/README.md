@@ -81,10 +81,19 @@ Ensure you have `uv` installed on your system for dependency management.
 ### Linting and Code Formatting
 
 ```bash
-uv run ruff check
-uv run ruff check --fix
-uv run pyright
+uv run ruff check           # lint
+uv run ruff format          # format (auto-fix)
+uv run ruff format --check  # verify formatting is applied
+uv run pyright              # type checking
 ```
+
+Run everything (lint, format, type check, tests) with:
+
+```bash
+uv run ruff check && uv run ruff format --check && uv run pyright && uv run pytest
+```
+
+Ruff's settings (line length, target version) live in the `[tool.ruff]` section of `pyproject.toml`.
 
 ### Example Node
 

@@ -4,6 +4,155 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "collision": {
+      "type": "object",
+      "title": "Collision Detection",
+      "description": "Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.",
+      "categories": [
+        "geometry",
+        "collision"
+      ],
+      "markdownDescription": "The `collision` node detects clashes between two lists of cached geometries. References are **express IDs** (`int` \u2192 `ifc:<id>`) for IFC elements or **object IDs** (`str` \u2192 `gen:<id>`) for generated geometry. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:\n\n1. **AABB prefilter** \u2014 skip pairs with non-overlapping bounding boxes.\n2. **Boolean intersection** \u2014 repair both meshes to watertight, compute the intersection. A pair collides when the intersection has positive volume.\n3. **FCL fallback** \u2014 when repair or boolean fails, use FCL triangle-based collision detection on the raw meshes. FCL-decided collisions are reported but cannot produce intersection meshes.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `list_a` | `list[number \\| string]` | First list of references \u2014 express IDs (`int`) and/or object IDs (`str`) |\n| `list_b` | `list[number \\| string]` | Second list of references \u2014 same encoding. When empty, falls back to the whole model. |\n\nBoth lists default to empty, which expands to the whole model. A reference with no cached geometry raises an error.\n\n## Pairing\n\n- **Cartesian product**: every A element is tested against every B element. Unequal list sizes are fine.\n- **Whole-model fallback**: when a list is empty, that side expands to all cached geometries.\n- **Self-pairs** are skipped. Pairs are not deduplicated: both `X\u2194Y` and `Y\u2194X` are emitted.\n\n## Mode\n\n- **`boolean`** (default): reports which pairs collide, no intersection geometry stored.\n- **`intersection_mesh`**: additionally stores each colliding pair's intersection mesh in the geometry cache under a deterministic key.\n\n## Result\n\n`CollisionResult` contains three fields:\n\n- `collisions: dict[key_a, list[key_b]]` \u2014 colliding pairs, grouped by side-A key.\n- `errors: list[{key_a, key_b, error}]` \u2014 pairs that could not be decided (both boolean and FCL failed, or FCL unavailable).\n- `intersection_meshes: dict[pair_key, cache_key | null]` \u2014 only in `intersection_mesh` mode. Maps `\"{key_a}__{key_b}\"` to the cache key `inter:intersection_{key_a}_{key_b}`. `null` for FCL-decided collisions (no mesh generated). Empty in `boolean` mode.\n\nNon-colliding pairs are absent from the result.\n\n## Intersection-mesh keys\n\nIn `intersection_mesh` mode, each boolean-decided colliding pair is cached under:\n\n```\ninter:intersection_{key_a}_{key_b}\n```\n\nIt is an `inter:` key, so it is excluded from collision inputs and the whole-model fallback. Because pairs are not deduplicated, `X\u2194Y` and `Y\u2194X` each get their own key. FCL-decided collisions appear with a `null` value \u2014 no mesh is stored.\n\n## Notes\n\n- Non-watertight meshes are repaired best-effort (vertex welding, hole filling, pymeshfix). When repair or boolean fails, FCL (Flexible Collision Library) provides triangle-based collision detection on raw triangle soups. Pairs reach `errors` only when both boolean and FCL fail (requires `python-fcl`).\n- Face-touching pairs produce zero-volume intersections and count as non-colliding.",
+      "locales": {
+        "de": {
+          "title": "Kollisionserkennung",
+          "description": "Clash-Detection zwischen zwei Geometrielisten \u00fcber AABB-Pr\u00e4filter, Boolesche Schnittmenge und FCL-Fallback f\u00fcr nicht reparierbare Netze.",
+          "categories": [
+            "geometry",
+            "collision"
+          ],
+          "markdownDescription": "Der `collision`-Knoten erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **Express-IDs** (`int` \u2192 `ifc:<id>`) f\u00fcr IFC-Elemente oder **Objekt-IDs** (`str` \u2192 `gen:<id>`) f\u00fcr generierte Geometrie. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchl\u00e4uft eine dreistufige Pipeline:\n\n1. **AABB-Pr\u00e4filter** \u2014 Paare ohne \u00fcberlappende Bounding-Boxes \u00fcberspringen.\n2. **Boolesche Schnittmenge** \u2014 beide Netze zu wasserdichten Netzen reparieren, Schnittmenge berechnen. Eine Kollision liegt vor, wenn die Schnittmenge positives Volumen hat.\n3. **FCL-Fallback** \u2014 wenn Reparatur oder Boolesche Operation fehlschlagen, FCL dreiecksbasierte Kollisionserkennung auf den rohen Netzen verwenden. \u00dcber FCL entschiedene Kollisionen werden gemeldet, erzeugen aber kein Schnittmengennetz.\n\n## Eingaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `list_a` | `list[number \\| string]` | Erste Liste von Referenzen \u2014 Express-IDs (`int`) und/oder Objekt-IDs (`str`) |\n| `list_b` | `list[number \\| string]` | Zweite Liste von Referenzen \u2014 gleiche Kodierung. Wenn leer, Fallback auf das gesamte Modell. |\n\nBeide Listen sind standardm\u00e4\u00dfig leer und erweitern sich auf das gesamte Modell. Eine Referenz ohne zwischengespeicherte Geometrie l\u00f6st einen Fehler aus.\n\n## Paarbildung\n\n- **Kartesisches Produkt**: jedes A-Element wird gegen jedes B-Element getestet. Ungleiche Listengr\u00f6\u00dfen sind erlaubt.\n- **Fallback auf das gesamte Modell**: wenn eine Liste leer ist, wird diese Seite auf alle zwischengespeicherten Geometrien erweitert.\n- **Selbstpaare** werden \u00fcbersprungen. Paare werden nicht dedupliziert: sowohl `X\u2194Y` als auch `Y\u2194X` werden ausgegeben.\n\n## Modus\n\n- **`boolean`** (Standard): meldet, welche Paare kollidieren, ohne Schnittmengengeometrie zu speichern.\n- **`intersection_mesh`**: speichert zus\u00e4tzlich das Schnittmengennetz jedes kollidierenden Paares unter einer deterministischen ID im Geometrie-Cache.\n\n## Ergebnis\n\n`CollisionResult` enth\u00e4lt drei Felder:\n\n- `collisions: dict[key_a, list[key_b]]` \u2014 kollidierende Paare, gruppiert nach Seiten-A-ID.\n- `errors: list[{key_a, key_b, error}]` \u2014 Paare, die nicht entschieden werden konnten (sowohl Boolesche Operation als auch FCL fehlgeschlagen, oder FCL nicht verf\u00fcgbar).\n- `intersection_meshes: dict[paar_id, cache_id | null]` \u2014 nur im Modus `intersection_mesh`. Ordnet `\"{key_a}__{key_b}\"` die Cache-ID `inter:intersection_{key_a}_{key_b}` zu. `null` f\u00fcr \u00fcber FCL entschiedene Kollisionen (kein Netz erzeugt). Im Modus `boolean` leer.\n\nNicht kollidierende Paare fehlen im Ergebnis.\n\n## IDs der Schnittmengennetze\n\nIm Modus `intersection_mesh` wird jedes \u00fcber die Boolesche Operation entschiedene kollidierende Paar unter folgender ID gespeichert:\n\n```\ninter:intersection_{key_a}_{key_b}\n```\n\nDa es sich um eine `inter:`-ID handelt, ist sie von Kollisionseingaben und vom Ganzmodell-Fallback ausgeschlossen. Da Paare nicht dedupliziert werden, erhalten `X\u2194Y` und `Y\u2194X` jeweils eine eigene ID. \u00dcber FCL entschiedene Kollisionen erscheinen mit einem `null`-Wert \u2014 es wird kein Netz gespeichert.\n\n## Hinweise\n\n- Nicht wasserdichte Netze werden bestm\u00f6glich repariert (Knotenverschwei\u00dfung, Lochf\u00fcllung, pymeshfix). Wenn Reparatur oder Boolesche Operation fehlschlagen, bietet FCL (Flexible Collision Library) dreiecksbasierte Kollisionserkennung auf rohen Dreiecksnetzen. Paare landen nur dann in `errors`, wenn sowohl Boolesche Operation als auch FCL fehlschlagen (erfordert `python-fcl`).\n- Sich ber\u00fchrende Paare erzeugen Schnittmengen mit null Volumen und gelten als nicht kollidierend."
+        },
+        "en": {
+          "title": "Collision Detection",
+          "description": "Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.",
+          "categories": [
+            "geometry",
+            "collision"
+          ],
+          "markdownDescription": "The `collision` node detects clashes between two lists of cached geometries. References are **express IDs** (`int` \u2192 `ifc:<id>`) for IFC elements or **object IDs** (`str` \u2192 `gen:<id>`) for generated geometry. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:\n\n1. **AABB prefilter** \u2014 skip pairs with non-overlapping bounding boxes.\n2. **Boolean intersection** \u2014 repair both meshes to watertight, compute the intersection. A pair collides when the intersection has positive volume.\n3. **FCL fallback** \u2014 when repair or boolean fails, use FCL triangle-based collision detection on the raw meshes. FCL-decided collisions are reported but cannot produce intersection meshes.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `list_a` | `list[number \\| string]` | First list of references \u2014 express IDs (`int`) and/or object IDs (`str`) |\n| `list_b` | `list[number \\| string]` | Second list of references \u2014 same encoding. When empty, falls back to the whole model. |\n\nBoth lists default to empty, which expands to the whole model. A reference with no cached geometry raises an error.\n\n## Pairing\n\n- **Cartesian product**: every A element is tested against every B element. Unequal list sizes are fine.\n- **Whole-model fallback**: when a list is empty, that side expands to all cached geometries.\n- **Self-pairs** are skipped. Pairs are not deduplicated: both `X\u2194Y` and `Y\u2194X` are emitted.\n\n## Mode\n\n- **`boolean`** (default): reports which pairs collide, no intersection geometry stored.\n- **`intersection_mesh`**: additionally stores each colliding pair's intersection mesh in the geometry cache under a deterministic key.\n\n## Result\n\n`CollisionResult` contains three fields:\n\n- `collisions: dict[key_a, list[key_b]]` \u2014 colliding pairs, grouped by side-A key.\n- `errors: list[{key_a, key_b, error}]` \u2014 pairs that could not be decided (both boolean and FCL failed, or FCL unavailable).\n- `intersection_meshes: dict[pair_key, cache_key | null]` \u2014 only in `intersection_mesh` mode. Maps `\"{key_a}__{key_b}\"` to the cache key `inter:intersection_{key_a}_{key_b}`. `null` for FCL-decided collisions (no mesh generated). Empty in `boolean` mode.\n\nNon-colliding pairs are absent from the result.\n\n## Intersection-mesh keys\n\nIn `intersection_mesh` mode, each boolean-decided colliding pair is cached under:\n\n```\ninter:intersection_{key_a}_{key_b}\n```\n\nIt is an `inter:` key, so it is excluded from collision inputs and the whole-model fallback. Because pairs are not deduplicated, `X\u2194Y` and `Y\u2194X` each get their own key. FCL-decided collisions appear with a `null` value \u2014 no mesh is stored.\n\n## Notes\n\n- Non-watertight meshes are repaired best-effort (vertex welding, hole filling, pymeshfix). When repair or boolean fails, FCL (Flexible Collision Library) provides triangle-based collision detection on raw triangle soups. Pairs reach `errors` only when both boolean and FCL fail (requires `python-fcl`).\n- Face-touching pairs produce zero-volume intersections and count as non-colliding."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "default": "boolean",
+              "description": "'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).",
+              "enum": [
+                "boolean",
+                "intersection_mesh"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "collisions": {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "default": {},
+              "description": "Grouped by side-A cache key; each value lists the side-B cache keys it collides with. Only colliding pairs are included.",
+              "type": "object"
+            },
+            "errors": {
+              "default": [],
+              "description": "Pairs whose collision could not be decided (e.g. non-watertight or boolean failure).",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "key_a": {
+                    "description": "Cache key of the first geometry in the failed pair.",
+                    "type": "string"
+                  },
+                  "key_b": {
+                    "description": "Cache key of the second geometry in the failed pair.",
+                    "type": "string"
+                  },
+                  "error": {
+                    "description": "Error reason, e.g. 'non-watertight' or 'boolean failed: ...'.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key_a",
+                  "key_b",
+                  "error"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "intersection_meshes": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "default": {},
+              "description": "Only populated in 'intersection_mesh' mode. Maps a pair key '{key_a}__{key_b}' to the geometry-cache key 'inter:intersection_{key_a}_{key_b}' under which the intersection mesh was stored. A null value signals an FCL-decided collision (mesh non-repairable or boolean failed) for which no intersection mesh could be generated. Empty in 'boolean' mode.",
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "list_a": {
+              "default": [],
+              "description": "First list of references \u2014 mix of express IDs (int \u2192 `ifc:<id>`) and object IDs (str \u2192 `gen:<id>`), in the order to test. When empty, the whole model is used.",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "list_b": {
+              "default": [],
+              "description": "Second (optional) list of references \u2014 mix of express IDs (int \u2192 `ifc:<id>`) and object IDs (str \u2192 `gen:<id>`). When empty, the whole model is used as the counterpart set.",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
     "concat_string": {
       "type": "object",
       "title": "Concatenate Strings",
@@ -89,7 +238,7 @@
       "categories": [
         "3D operation"
       ],
-      "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `vertices` | `list[list[float]]` | List of 8 vertex coordinates as `[x, y, z]` lists |\n| `faces` | `list[list[int]]` | List of 6 face definitions as vertex index lists |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- Output format is compatible with `trimesh.Trimesh(vertices, faces)` constructor",
+      "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation, and stores it in the geometry cache under a user-supplied `object_id`. The object ID is the address used to reference the cube later, e.g. in a `collision` node.\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n| `object_id` | `string` | Unique identifier for the generated cube (required). Duplicates are rejected. |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `object_ids` | `list[string]` | 1-element list with the cube's `object_id`. Feed this into a `collision` node's object-ID input. |\n\n## Example\n\n```json\n{\n  \"settings\": {\n    \"position\": [5.0, 3.0, 0.0],\n    \"rotation\": [0.0, 0.0, 45.0],\n    \"size\": [2.0, 2.0, 2.0],\n    \"object_id\": \"box_a\"\n  }\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis, cached under the object ID `box_a`.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- `object_id` must be non-empty and unique within a run; reusing one raises an error",
       "locales": {
         "de": {
           "title": "3D-W\u00fcrfel generieren",
@@ -97,7 +246,7 @@
           "categories": [
             "3D operation"
           ],
-          "markdownDescription": "Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation. Die Ausgabe sind trimesh-kompatible Geometriedaten, die f\u00fcr die Kollisionserkennung, Visualisierung oder weitere geometrische Operationen verwendet werden k\u00f6nnen.\n\n## Eingaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `position` | `list[float]` | Position des W\u00fcrfelzentrums als `[x, y, z]` Koordinaten. Standard: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation um X, Y, Z Achsen in Grad (Euler-Winkel). Standard: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Abmessungen des W\u00fcrfels als `[Breite, H\u00f6he, Tiefe]`. Standard: `[1.0, 1.0, 1.0]` |\n\n## Ausgaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `vertices` | `list[list[float]]` | Liste von 8 Vertex-Koordinaten als `[x, y, z]` Listen |\n| `faces` | `list[list[int]]` | Liste von 6 Fl\u00e4chendefinitionen als Vertex-Index-Listen |\n\n## Beispiel\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nDies erstellt einen 2\u00d72\u00d72 W\u00fcrfel zentriert bei (5, 3, 0), um 45 Grad um die Z-Achse rotiert.\n\n## Hinweise\n\n- Der W\u00fcrfel wird zuerst zentriert am Ursprung erstellt, dann rotiert und verschoben\n- Alle Gr\u00f6\u00dfenabmessungen m\u00fcssen positiv sein (gr\u00f6\u00dfer als 0)\n- Rotation folgt der Rechte-Hand-Regel\n- Ausgabeformat ist kompatibel mit `trimesh.Trimesh(vertices, faces)` Konstruktor"
+          "markdownDescription": "Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation und speichert sie unter einer vom Benutzer vergebenen `object_id` im Geometrie-Cache. Die Objekt-ID ist die Adresse, \u00fcber die der W\u00fcrfel sp\u00e4ter referenziert wird, z. B. in einem `collision`-Knoten.\n\n## Einstellungen\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `position` | `list[float]` | Position des W\u00fcrfelzentrums als `[x, y, z]` Koordinaten. Standard: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation um X, Y, Z Achsen in Grad (Euler-Winkel). Standard: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Abmessungen des W\u00fcrfels als `[Breite, H\u00f6he, Tiefe]`. Standard: `[1.0, 1.0, 1.0]` |\n| `object_id` | `string` | Eindeutige Kennung f\u00fcr den generierten W\u00fcrfel (erforderlich). Duplikate werden abgelehnt. |\n\n## Ausgaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `object_ids` | `list[string]` | 1-elementige Liste mit der `object_id` des W\u00fcrfels. Geben Sie dies in den Objekt-ID-Eingang eines `collision`-Knotens. |\n\n## Beispiel\n\n```json\n{\n  \"settings\": {\n    \"position\": [5.0, 3.0, 0.0],\n    \"rotation\": [0.0, 0.0, 45.0],\n    \"size\": [2.0, 2.0, 2.0],\n    \"object_id\": \"box_a\"\n  }\n}\n```\n\nDies erstellt einen 2\u00d72\u00d72 W\u00fcrfel zentriert bei (5, 3, 0), um 45 Grad um die Z-Achse rotiert, zwischengespeichert unter der Objekt-ID `box_a`.\n\n## Hinweise\n\n- Der W\u00fcrfel wird zuerst zentriert am Ursprung erstellt, dann rotiert und verschoben\n- Alle Gr\u00f6\u00dfenabmessungen m\u00fcssen positiv sein (gr\u00f6\u00dfer als 0)\n- Rotation folgt der Rechte-Hand-Regel\n- `object_id` muss nicht leer und innerhalb eines Laufs eindeutig sein; eine Wiederverwendung l\u00f6st einen Fehler aus"
         },
         "en": {
           "title": "Generate 3D Cube",
@@ -105,39 +254,11 @@
           "categories": [
             "3D operation"
           ],
-          "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation. The output is trimesh-compatible geometry data that can be used for clash detection, visualization, or further geometric operations.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `vertices` | `list[list[float]]` | List of 8 vertex coordinates as `[x, y, z]` lists |\n| `faces` | `list[list[int]]` | List of 6 face definitions as vertex index lists |\n\n## Example\n\n```json\n{\n  \"position\": [5.0, 3.0, 0.0],\n  \"rotation\": [0.0, 0.0, 45.0],\n  \"size\": [2.0, 2.0, 2.0]\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- Output format is compatible with `trimesh.Trimesh(vertices, faces)` constructor"
+          "markdownDescription": "The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation, and stores it in the geometry cache under a user-supplied `object_id`. The object ID is the address used to reference the cube later, e.g. in a `collision` node.\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position of the cube center as `[x, y, z]` coordinates. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n| `size` | `list[float]` | Dimensions of the cube as `[width, height, depth]`. Default: `[1.0, 1.0, 1.0]` |\n| `object_id` | `string` | Unique identifier for the generated cube (required). Duplicates are rejected. |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `object_ids` | `list[string]` | 1-element list with the cube's `object_id`. Feed this into a `collision` node's object-ID input. |\n\n## Example\n\n```json\n{\n  \"settings\": {\n    \"position\": [5.0, 3.0, 0.0],\n    \"rotation\": [0.0, 0.0, 45.0],\n    \"size\": [2.0, 2.0, 2.0],\n    \"object_id\": \"box_a\"\n  }\n}\n```\n\nThis creates a 2\u00d72\u00d72 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis, cached under the object ID `box_a`.\n\n## Notes\n\n- The cube is created centered at the origin first, then rotated and translated\n- All size dimensions must be positive (greater than 0)\n- Rotation follows the right-hand rule\n- `object_id` must be non-empty and unique within a run; reusing one raises an error"
         }
       },
       "properties": {
-        "result": {
-          "additionalProperties": false,
-          "properties": {
-            "vertices": {
-              "default": [],
-              "description": "List of 3D vertex coordinates [[x, y, z], ...] defining the cube geometry.",
-              "items": {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              "type": "array"
-            },
-            "faces": {
-              "default": [],
-              "description": "List of face definitions [[v1, v2, v3], ...] as vertex indices forming triangles.",
-              "items": {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
-              },
-              "type": "array"
-            }
-          },
-          "type": "object"
-        },
-        "inputs": {
+        "settings": {
           "additionalProperties": false,
           "properties": {
             "position": {
@@ -175,6 +296,27 @@
                 "type": "number"
               },
               "type": "array"
+            },
+            "object_id": {
+              "description": "Unique identifier for the generated cube, used to reference it e.g. in a collision node.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "object_id"
+          ],
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "object_ids": {
+              "default": [],
+              "description": "1-element list with the object_id of the generated cube.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             }
           },
           "type": "object"
@@ -182,7 +324,7 @@
       },
       "required": [
         "result",
-        "inputs"
+        "settings"
       ],
       "additionalProperties": false
     },
@@ -251,6 +393,363 @@
             "express_ids": {
               "default": [],
               "description": "Ordered list of IFC express IDs whose object names should be resolved.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
+    "get_property": {
+      "type": "object",
+      "title": "Get Property",
+      "description": "Read property values from IFC entities for downstream processing.",
+      "categories": [
+        "IFC"
+      ],
+      "markdownDescription": "The `get_property` node reads property values from IFC entities. Each selection specifies an optional entity type, an optional property set, and a required property name. The node outputs property values in one of three modes: per explicit element, per element class, or without element class distinction.\n\n## Use case example\n\n- Read `FireRating` from `Pset_WallCommon` for all walls filtered by an `ifc_element_filter`\n- Extract `LoadBearing` status from multiple element classes for analysis\n- Gather distinct property values with occurrence counts for model-wide statistics\n\n## Settings\n\n### Output mode\n\nDetermines the granularity of the output.\n\n| Value | Label | When to use |\n|-------|-------|-------------|\n| `elements` | **Per explicit element** | Each element in the input gets its own entry with resolved property values. Use when you need to process each element individually downstream. Requires an input binding. |\n| `by_class` | **Per element class** | Elements are grouped by their actual runtime class (e.g., `IFCWALL`, `IFCDOOR`). Each class shows distinct property values with occurrence counts. Use when you want statistics per element type. |\n| `model` | **Without element class distinction** | Distinct property values with occurrence counts across all entities and property sets. Property keys use a wildcard `Pset_*.PropertyName` to merge counts from different psets. Use when you want overall model-wide statistics. |\n\n### Selections table\n\n| Column | Description |\n|--------|-------------|\n| **Entity** (optional) | IFC entity type (e.g., `IFCWALL`, `IFCDOOR`). Placeholder: \"Any Element\". When set, only entities matching this type contribute to the property output (acts as a filter). Empty means any entity type. |\n| **Pset** (optional) | IFC PropertySet name (e.g., `Pset_WallCommon`) or a custom property set name. Placeholder: \"Any PSET\". When set, restricts lookup to that property set. When empty, searches across all property sets for the property name. |\n| **Property** (required) | The name of the property to read from the model. Placeholder: \"Required\". |\n\n## Inputs\n\n- **Express IDs** (optional): List of IFC express IDs to read property values from. Typically connected to the output of an `ifc_element_filter`. When unconnected, the output will be empty (no elements to read from).\n\n## Outputs\n\nOutput structure depends on **Output mode**:\n\n### Per explicit element\n\nList of elements with their express IDs and property values. Each element contains:\n- `express_id`: The IFC entity's express ID\n- `properties`: Dictionary of property values keyed by `PropertySet.PropertyName`. Values are strings, or `null` for missing model values.\n\n### Per element class\n\nAggregated by IFC class. Output contains:\n- `classes`: Array of class groups, each with:\n  - `id`: IFC class name (e.g., `IFCWALL`, `IFCDOOR`, or `unknown` for missing entities)\n  - `properties`: Dictionary of distinct values with counts per property, sorted by count (descending) then value (ascending). Missing/null values are excluded.\n\n### Without element class distinction\n\nDistinct values with counts per property, aggregated across all property sets and classes. Output contains:\n- `properties`: Dictionary keyed by `Pset_*.PropertyName` (wildcard pset to aggregate across psets), each containing:\n  - Array of `{ value, count }` objects sorted by count (descending) then value (ascending)\n  - Missing/null values are excluded from the count\n\n## Example Configuration\n\n### Example 1: Read property values from elements\n\n**Selections:**\n1. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `IsExternal`\n\n**Output** for a wall with express_id 101 (model has FireRating=\"F90\", IsExternal=false):\n\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": 101,\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": \"F90\",\n        \"Pset_WallCommon.IsExternal\": \"false\"\n      }\n    }\n  ]\n}\n```\n\n### Example 2: Missing property returns null\n\nIf the model doesn't have a property, the value is `null`.\n\n**Selection:** Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `AcousticRating` (not present in model)\n\n**Output:**\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": 101,\n      \"properties\": {\n        \"Pset_WallCommon.AcousticRating\": null\n      }\n    }\n  ]\n}\n```\n\n### Example 3: Output mode \u2014 Per element class\n\n**Scenario:** Three entities (two IFCWALL with FireRating F90, one IFCDOOR with IsExternal true).\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `IFCDOOR`, Pset: `Pset_DoorCommon`, Property: `IsExternal`\n\n**Output:**\n```json\n{\n  \"mode\": \"by_class\",\n  \"classes\": [\n    {\n      \"id\": \"IFCDOOR\",\n      \"properties\": {\n        \"Pset_DoorCommon.IsExternal\": [{\"value\": \"true\", \"count\": 1}]\n      }\n    },\n    {\n      \"id\": \"IFCWALL\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": [{\"value\": \"F90\", \"count\": 2}]\n      }\n    }\n  ]\n}\n```\n\n### Example 4: Output mode \u2014 Without element class distinction (with cross-pset aggregation)\n\n**Scenario:** Multiple walls and slabs with `Compartmentation` property. Walls store it in `Pset_WallCommon`, slabs in `Pset_SlabCommon`. You want overall model-wide counts.\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `Compartmentation`\n2. Entity: `IFCSLAB`, Pset: `Pset_SlabCommon`, Property: `Compartmentation`\n\n**Output:**\n```json\n{\n  \"mode\": \"model\",\n  \"properties\": {\n    \"Pset_*.Compartmentation\": [\n      { \"value\": \"true\", \"count\": 20 },\n      { \"value\": \"false\", \"count\": 5 }\n    ]\n  }\n}\n```\n\nNote how counts from both property sets are merged into `Pset_*.Compartmentation`. This is the key difference from **Per element class** mode.\n\n## CSV Import/Export\n\nProperty selections can be imported and exported as CSV files. The CSV format includes the following columns:\n\n```csv\nentity_type,property_set,property_name\nIFCWALL,Pset_WallCommon,FireRating\nIFCWALL,Pset_WallCommon,IsExternal\n```\n\n- **entity_type**: Optional. Used primarily for UI preselection and entity filtering.\n- **property_set**: Optional. Leave empty to search across all property sets.\n- **property_name**: Required.",
+      "locales": {
+        "de": {
+          "title": "Get Property",
+          "description": "Liest Eigenschaftswerte aus IFC-Elementen f\u00fcr die Weiterverarbeitung.",
+          "categories": [
+            "IFC"
+          ],
+          "markdownDescription": "Der `get_property` Knoten liest Eigenschaftswerte aus IFC-Elementen. Jede Auswahl spezifiziert einen optionalen Entity-Typ, einen optionalen PropertySet und einen erforderlichen Property-Namen. Der Knoten gibt Eigenschaftswerte in einem von drei Modi aus: Per explicit element, Per element class oder Without element class distinction.\n\n## Anwendungsbeispiel\n\n- `FireRating` aus `Pset_WallCommon` f\u00fcr alle W\u00e4nde lesen, die von einem `ifc_element_filter` gefiltert wurden\n- `LoadBearing`-Status von mehreren Elementklassen f\u00fcr die Analyse extrahieren\n- Unterschiedliche Eigenschaftswerte mit Vorkommensz\u00e4hlern f\u00fcr modellweite Statistiken sammeln\n\n## Einstellungen\n\n### Output mode\n\nBestimmt die Granularit\u00e4t der Ausgabe.\n\n| Wert | Label | Wann verwenden |\n|------|-------|----------------|\n| `elements` | **Per explicit element** | Jedes Element im Eingang erh\u00e4lt einen eigenen Eintrag mit aufgel\u00f6sten Eigenschaftswerten. Verwenden, wenn Sie jedes Element einzeln nachgelagert verarbeiten m\u00f6chten. Erfordert eine Input-Bindung. |\n| `by_class` | **Per element class** | Elemente werden nach ihrer tats\u00e4chlichen Laufzeitklasse gruppiert (z.B. `IFCWALL`, `IFCDOOR`). Jede Klasse zeigt unterschiedliche Eigenschaftswerte mit Vorkommensz\u00e4hlern. Verwenden, wenn Sie Statistiken pro Elementtyp m\u00f6chten. |\n| `model` | **Without element class distinction** | Unterschiedliche Eigenschaftswerte mit Vorkommensz\u00e4hlern \u00fcber alle Entit\u00e4ten und PropertySets hinweg. Eigenschaftsschl\u00fcssel verwenden einen Wildcard `Pset_*.PropertyName`, um Z\u00e4hler aus verschiedenen PropertySets zusammenzuf\u00fchren. Verwenden, wenn Sie modellweite Statistiken m\u00f6chten. |\n\n### Selections Tabelle\n\n| Spalte | Beschreibung |\n|--------|--------------|\n| **Entity** (optional) | IFC-Elementtyp (z.B. `IFCWALL`, `IFCDOOR`). Platzhalter: \"Any Element\". Wenn gesetzt, tragen nur Elemente dieses Typs zur Eigenschaftsausgabe bei (wirkt als Filter). Leer bedeutet jeden Elementtyp. |\n| **Pset** (optional) | IFC PropertySet-Name (z.B. `Pset_WallCommon`) oder ein benutzerdefinierter PropertySet-Name. Platzhalter: \"Any PSET\". Wenn gesetzt, beschr\u00e4nkt die Suche auf diesen PropertySet. Wenn leer, durchsucht alle PropertySets nach dem Property-Namen. |\n| **Property** (erforderlich) | Der Name der zu lesenden Eigenschaft aus dem Modell. Platzhalter: \"Required\". |\n\n## Inputs\n\n- **Express IDs** (optional): Liste von IFC Express-IDs, von denen Eigenschaftswerte gelesen werden sollen. Typischerweise mit dem Ausgang eines `ifc_element_filter` verbunden. Wenn unverbunden, ist die Ausgabe leer (keine Elemente zum Lesen).\n\n## Outputs\n\nAusgabestruktur h\u00e4ngt vom **Output mode** ab:\n\n### Per explicit element\n\nListe von Elementen mit ihren Express-IDs und Eigenschaftswerten. Jedes Element enth\u00e4lt:\n- `express_id`: Die Express-ID des IFC-Elements\n- `properties`: W\u00f6rterbuch von Eigenschaftswerten, geschl\u00fcsselt nach `PropertySet.PropertyName`. Werte sind Strings oder `null` f\u00fcr fehlende Modellwerte.\n\n### Per element class\n\nAggregiert nach IFC-Klasse. Ausgabe enth\u00e4lt:\n- `classes`: Array von Klassengruppen, jede mit:\n  - `id`: IFC-Klassenname (z.B. `IFCWALL`, `IFCDOOR` oder `unknown` f\u00fcr fehlende Entit\u00e4ten)\n  - `properties`: W\u00f6rterbuch von unterschiedlichen Werten mit Z\u00e4hlern pro Eigenschaft, sortiert nach Anzahl (absteigend) dann Wert (aufsteigend). Fehlende/null-Werte sind ausgeschlossen.\n\n### Without element class distinction\n\nUnterschiedliche Werte mit Z\u00e4hlern pro Eigenschaft, aggregiert \u00fcber alle PropertySets und Klassen hinweg. Ausgabe enth\u00e4lt:\n- `properties`: W\u00f6rterbuch geschl\u00fcsselt nach `Pset_*.PropertyName` (Wildcard-PropertySet zur Aggregation \u00fcber PropertySets hinweg), jedes enthaltend:\n  - Array von `{ value, count }` Objekten, sortiert nach Anzahl (absteigend) dann Wert (aufsteigend)\n  - Fehlende/null-Werte sind von der Z\u00e4hlung ausgeschlossen\n\n## Beispielkonfiguration\n\n### Beispiel 1: Eigenschaftswerte aus Elementen lesen\n\n**Selections:**\n1. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `IsExternal`\n\n**Ausgabe** f\u00fcr eine Wand mit Express-ID 101 (Modell hat FireRating=\"F90\", IsExternal=false):\n\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": 101,\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": \"F90\",\n        \"Pset_WallCommon.IsExternal\": \"false\"\n      }\n    }\n  ]\n}\n```\n\n### Beispiel 2: Fehlende Eigenschaft gibt null zur\u00fcck\n\nWenn das Modell eine Eigenschaft nicht hat, ist der Wert `null`.\n\n**Selection:** Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `AcousticRating` (im Modell nicht vorhanden)\n\n**Ausgabe:**\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": 101,\n      \"properties\": {\n        \"Pset_WallCommon.AcousticRating\": null\n      }\n    }\n  ]\n}\n```\n\n### Beispiel 3: Output mode \u2014 Per element class\n\n**Szenario:** Drei Entit\u00e4ten (zwei IFCWALL mit FireRating F90, eine IFCDOOR mit IsExternal true).\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `IFCDOOR`, Pset: `Pset_DoorCommon`, Property: `IsExternal`\n\n**Ausgabe:**\n```json\n{\n  \"mode\": \"by_class\",\n  \"classes\": [\n    {\n      \"id\": \"IFCDOOR\",\n      \"properties\": {\n        \"Pset_DoorCommon.IsExternal\": [{\"value\": \"true\", \"count\": 1}]\n      }\n    },\n    {\n      \"id\": \"IFCWALL\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": [{\"value\": \"F90\", \"count\": 2}]\n      }\n    }\n  ]\n}\n```\n\n### Beispiel 4: Output mode \u2014 Without element class distinction (mit \u00fcbergreifender PropertySet-Aggregation)\n\n**Szenario:** Mehrere W\u00e4nde und Platten mit `Compartmentation` Eigenschaft. W\u00e4nde speichern sie in `Pset_WallCommon`, Platten in `Pset_SlabCommon`. Sie m\u00f6chten modellweite Gesamtz\u00e4hler.\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `Compartmentation`\n2. Entity: `IFCSLAB`, Pset: `Pset_SlabCommon`, Property: `Compartmentation`\n\n**Ausgabe:**\n```json\n{\n  \"mode\": \"model\",\n  \"properties\": {\n    \"Pset_*.Compartmentation\": [\n      { \"value\": \"true\", \"count\": 20 },\n      { \"value\": \"false\", \"count\": 5 }\n    ]\n  }\n}\n```\n\nBeachten Sie wie Z\u00e4hler aus beiden PropertySets in `Pset_*.Compartmentation` zusammengef\u00fchrt werden. Dies ist der Hauptunterschied zum **Per element class** Modus.\n\n## CSV Import/Export\n\nEigenschaftsauswahlen k\u00f6nnen als CSV-Dateien importiert und exportiert werden. Das CSV-Format umfasst die folgenden Spalten:\n\n```csv\nentity_type,property_set,property_name\nIFCWALL,Pset_WallCommon,FireRating\nIFCWALL,Pset_WallCommon,IsExternal\n```\n\n- **entity_type**: Optional. Dient haupts\u00e4chlich der UI-Vorauswahl und Elementfilterung.\n- **property_set**: Optional. Leer lassen, um \u00fcber alle PropertySets zu suchen.\n- **property_name**: Erforderlich."
+        },
+        "en": {
+          "title": "Get Property",
+          "description": "Read property values from IFC entities for downstream processing.",
+          "categories": [
+            "IFC"
+          ],
+          "markdownDescription": "The `get_property` node reads property values from IFC entities. Each selection specifies an optional entity type, an optional property set, and a required property name. The node outputs property values in one of three modes: per explicit element, per element class, or without element class distinction.\n\n## Use case example\n\n- Read `FireRating` from `Pset_WallCommon` for all walls filtered by an `ifc_element_filter`\n- Extract `LoadBearing` status from multiple element classes for analysis\n- Gather distinct property values with occurrence counts for model-wide statistics\n\n## Settings\n\n### Output mode\n\nDetermines the granularity of the output.\n\n| Value | Label | When to use |\n|-------|-------|-------------|\n| `elements` | **Per explicit element** | Each element in the input gets its own entry with resolved property values. Use when you need to process each element individually downstream. Requires an input binding. |\n| `by_class` | **Per element class** | Elements are grouped by their actual runtime class (e.g., `IFCWALL`, `IFCDOOR`). Each class shows distinct property values with occurrence counts. Use when you want statistics per element type. |\n| `model` | **Without element class distinction** | Distinct property values with occurrence counts across all entities and property sets. Property keys use a wildcard `Pset_*.PropertyName` to merge counts from different psets. Use when you want overall model-wide statistics. |\n\n### Selections table\n\n| Column | Description |\n|--------|-------------|\n| **Entity** (optional) | IFC entity type (e.g., `IFCWALL`, `IFCDOOR`). Placeholder: \"Any Element\". When set, only entities matching this type contribute to the property output (acts as a filter). Empty means any entity type. |\n| **Pset** (optional) | IFC PropertySet name (e.g., `Pset_WallCommon`) or a custom property set name. Placeholder: \"Any PSET\". When set, restricts lookup to that property set. When empty, searches across all property sets for the property name. |\n| **Property** (required) | The name of the property to read from the model. Placeholder: \"Required\". |\n\n## Inputs\n\n- **Express IDs** (optional): List of IFC express IDs to read property values from. Typically connected to the output of an `ifc_element_filter`. When unconnected, the output will be empty (no elements to read from).\n\n## Outputs\n\nOutput structure depends on **Output mode**:\n\n### Per explicit element\n\nList of elements with their express IDs and property values. Each element contains:\n- `express_id`: The IFC entity's express ID\n- `properties`: Dictionary of property values keyed by `PropertySet.PropertyName`. Values are strings, or `null` for missing model values.\n\n### Per element class\n\nAggregated by IFC class. Output contains:\n- `classes`: Array of class groups, each with:\n  - `id`: IFC class name (e.g., `IFCWALL`, `IFCDOOR`, or `unknown` for missing entities)\n  - `properties`: Dictionary of distinct values with counts per property, sorted by count (descending) then value (ascending). Missing/null values are excluded.\n\n### Without element class distinction\n\nDistinct values with counts per property, aggregated across all property sets and classes. Output contains:\n- `properties`: Dictionary keyed by `Pset_*.PropertyName` (wildcard pset to aggregate across psets), each containing:\n  - Array of `{ value, count }` objects sorted by count (descending) then value (ascending)\n  - Missing/null values are excluded from the count\n\n## Example Configuration\n\n### Example 1: Read property values from elements\n\n**Selections:**\n1. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `IsExternal`\n\n**Output** for a wall with express_id 101 (model has FireRating=\"F90\", IsExternal=false):\n\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": 101,\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": \"F90\",\n        \"Pset_WallCommon.IsExternal\": \"false\"\n      }\n    }\n  ]\n}\n```\n\n### Example 2: Missing property returns null\n\nIf the model doesn't have a property, the value is `null`.\n\n**Selection:** Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `AcousticRating` (not present in model)\n\n**Output:**\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": 101,\n      \"properties\": {\n        \"Pset_WallCommon.AcousticRating\": null\n      }\n    }\n  ]\n}\n```\n\n### Example 3: Output mode \u2014 Per element class\n\n**Scenario:** Three entities (two IFCWALL with FireRating F90, one IFCDOOR with IsExternal true).\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `IFCDOOR`, Pset: `Pset_DoorCommon`, Property: `IsExternal`\n\n**Output:**\n```json\n{\n  \"mode\": \"by_class\",\n  \"classes\": [\n    {\n      \"id\": \"IFCDOOR\",\n      \"properties\": {\n        \"Pset_DoorCommon.IsExternal\": [{\"value\": \"true\", \"count\": 1}]\n      }\n    },\n    {\n      \"id\": \"IFCWALL\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": [{\"value\": \"F90\", \"count\": 2}]\n      }\n    }\n  ]\n}\n```\n\n### Example 4: Output mode \u2014 Without element class distinction (with cross-pset aggregation)\n\n**Scenario:** Multiple walls and slabs with `Compartmentation` property. Walls store it in `Pset_WallCommon`, slabs in `Pset_SlabCommon`. You want overall model-wide counts.\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `Compartmentation`\n2. Entity: `IFCSLAB`, Pset: `Pset_SlabCommon`, Property: `Compartmentation`\n\n**Output:**\n```json\n{\n  \"mode\": \"model\",\n  \"properties\": {\n    \"Pset_*.Compartmentation\": [\n      { \"value\": \"true\", \"count\": 20 },\n      { \"value\": \"false\", \"count\": 5 }\n    ]\n  }\n}\n```\n\nNote how counts from both property sets are merged into `Pset_*.Compartmentation`. This is the key difference from **Per element class** mode.\n\n## CSV Import/Export\n\nProperty selections can be imported and exported as CSV files. The CSV format includes the following columns:\n\n```csv\nentity_type,property_set,property_name\nIFCWALL,Pset_WallCommon,FireRating\nIFCWALL,Pset_WallCommon,IsExternal\n```\n\n- **entity_type**: Optional. Used primarily for UI preselection and entity filtering.\n- **property_set**: Optional. Leave empty to search across all property sets.\n- **property_name**: Required."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "output_mode": {
+              "default": "elements",
+              "description": "Output granularity: 'elements' (per entity), 'by_class' (grouped by element class), or 'model' (distinct values across all entities).",
+              "enum": [
+                "elements",
+                "by_class",
+                "model"
+              ],
+              "type": "string"
+            },
+            "selections": {
+              "default": [],
+              "description": "List of properties to read from each entity.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "entity_type": {
+                    "default": "",
+                    "description": "Optional IFC entity type (e.g., IFCWALL, IFCDOOR). Empty means any entity type. Used for UI preselection only.",
+                    "type": "string"
+                  },
+                  "property_set": {
+                    "default": "",
+                    "description": "IFC PropertySet name (e.g., Pset_WallCommon) or custom property set name.",
+                    "type": "string"
+                  },
+                  "property_name": {
+                    "default": "",
+                    "description": "Name of the property to read within the PropertySet.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "description": "The output mode used to generate this result.",
+              "enum": [
+                "elements",
+                "by_class",
+                "model"
+              ],
+              "type": "string"
+            },
+            "elements": {
+              "anyOf": [
+                {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "express_id": {
+                        "description": "The express ID of the IFC entity.",
+                        "type": "integer"
+                      },
+                      "properties": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "default": {},
+                        "description": "Dictionary of property values keyed by 'Pset.Property' format."
+                      }
+                    },
+                    "required": [
+                      "express_id"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "List of elements with their property values (output_mode = elements)."
+            },
+            "classes": {
+              "anyOf": [
+                {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "description": "IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.",
+                        "type": "string"
+                      },
+                      "properties": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "value": {
+                                "description": "A distinct property value.",
+                                "type": "string"
+                              },
+                              "count": {
+                                "description": "Number of occurrences of this value.",
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "value",
+                              "count"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "default": {},
+                        "description": "Distinct values with counts per property for this class."
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Elements grouped by IFC class (output_mode = by_class)."
+            },
+            "properties": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "value": {
+                          "description": "A distinct property value.",
+                          "type": "string"
+                        },
+                        "count": {
+                          "description": "Number of occurrences of this value.",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "count"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Distinct values with counts per property (output_mode = model)."
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "List of IFC express IDs to read property values from.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
+    "ids_checker": {
+      "type": "object",
+      "title": "IDS Checker",
+      "description": "Validates the IFC model against an IDS (Information Delivery Specification) file.",
+      "categories": [
+        "Validation"
+      ],
+      "markdownDescription": "The `ids_checker` node validates the loaded IFC model against an IDS specification file.\n\nUse this node when you need to verify that the IFC model meets the requirements defined in an IDS file.\n\n## Use case example\n\nCheck if the IFC model contains all required elements, properties, and classifications as specified in a project's IDS specification.",
+      "locales": {
+        "de": {
+          "title": "IDS-Pr\u00fcfer",
+          "description": "Validiert das IFC-Modell gegen eine IDS-Datei (Information Delivery Specification).",
+          "categories": [
+            "Validation"
+          ],
+          "markdownDescription": "Der `ids_checker` Knoten validiert das geladene IFC-Modell gegen eine IDS-Spezifikationsdatei.\n\nVerwenden Sie diesen Knoten, wenn Sie \u00fcberpr\u00fcfen m\u00fcssen, ob das IFC-Modell die in einer IDS-Datei definierten Anforderungen erf\u00fcllt.\n\n## Anwendungsbeispiel\n\n\u00dcberpr\u00fcfen Sie, ob das IFC-Modell alle erforderlichen Elemente, Eigenschaften und Klassifikationen enth\u00e4lt, wie in der IDS-Spezifikation des Projekts festgelegt."
+        },
+        "en": {
+          "title": "IDS Checker",
+          "description": "Validates the IFC model against an IDS (Information Delivery Specification) file.",
+          "categories": [
+            "Validation"
+          ],
+          "markdownDescription": "The `ids_checker` node validates the loaded IFC model against an IDS specification file.\n\nUse this node when you need to verify that the IFC model meets the requirements defined in an IDS file.\n\n## Use case example\n\nCheck if the IFC model contains all required elements, properties, and classifications as specified in a project's IDS specification."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "ids_file": {
+              "default": "",
+              "description": "Path to the IDS specification file to validate against.",
+              "type": "string"
+            },
+            "output_mode": {
+              "default": "combined",
+              "description": "Controls how results are structured: 'combined' produces flat lists across all specifications, 'per_specification' produces a per-specification breakdown, 'both' produces both.",
+              "enum": [
+                "combined",
+                "per_specification",
+                "both"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "failed_express_ids": {
+              "default": [],
+              "description": "List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "passed_express_ids": {
+              "default": [],
+              "description": "List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "specifications": {
+              "default": [],
+              "description": "Per-specification breakdown of passed and failed express IDs.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "default": "",
+                    "description": "Name of the IDS specification.",
+                    "type": "string"
+                  },
+                  "failed_express_ids": {
+                    "default": [],
+                    "description": "List of express IDs of entities that failed this specification's requirements.",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "passed_express_ids": {
+                    "default": [],
+                    "description": "List of express IDs of entities that passed this specification's requirements.",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.",
               "items": {
                 "type": "integer"
               },

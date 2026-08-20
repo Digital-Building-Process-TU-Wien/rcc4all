@@ -20,13 +20,20 @@ def _context() -> ExecutionContext:
     return ExecutionContext(ifc_model=cast(Any, object()), node_outputs={})
 
 
-def _express_box(context: ExecutionContext, express_id: int, translation: list[float], extents: list[float] | None = None) -> None:
+def _express_box(
+    context: ExecutionContext,
+    express_id: int,
+    translation: list[float],
+    extents: list[float] | None = None,
+) -> None:
     mesh = trimesh.creation.box(extents=extents or [2, 2, 2])
     mesh.apply_translation(translation)
     cache_mesh(context, mesh, express_id=express_id)
 
 
-def _run(settings: CollisionSettings, inputs: CollisionInputs, context: ExecutionContext) -> CollisionResult:
+def _run(
+    settings: CollisionSettings, inputs: CollisionInputs, context: ExecutionContext
+) -> CollisionResult:
     return asyncio.run(collision(settings, inputs, context))
 
 
@@ -244,7 +251,10 @@ def test_collision_mode_boolean_stores_no_intersection_mesh() -> None:
     assert result.collisions == {"ifc:1": ["ifc:2"]}
     assert result.errors == []
     assert result.intersection_meshes == {}
-    assert context.geometry_cache is None or "inter:intersection_ifc:1_ifc:2" not in context.geometry_cache
+    assert (
+        context.geometry_cache is None
+        or "inter:intersection_ifc:1_ifc:2" not in context.geometry_cache
+    )
 
 
 def test_collision_mode_intersection_mesh_stores_deterministic_key() -> None:
@@ -260,7 +270,9 @@ def test_collision_mode_intersection_mesh_stores_deterministic_key() -> None:
 
     assert result.collisions == {"ifc:1": ["ifc:2"]}
     assert result.errors == []
-    assert result.intersection_meshes == {"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2"}
+    assert result.intersection_meshes == {
+        "ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2"
+    }
     assert context.geometry_cache is not None
     key = "inter:intersection_ifc:1_ifc:2"
     assert key in context.geometry_cache
@@ -286,7 +298,10 @@ def test_collision_mode_intersection_mesh_fcl_pair_gets_null() -> None:
     assert result.collisions == {"gen:broken": ["ifc:2"]}
     assert result.errors == []
     assert result.intersection_meshes == {"gen:broken__ifc:2": None}
-    assert context.geometry_cache is None or "inter:intersection_gen:broken_ifc:2" not in context.geometry_cache
+    assert (
+        context.geometry_cache is None
+        or "inter:intersection_gen:broken_ifc:2" not in context.geometry_cache
+    )
 
 
 def test_collision_missing_express_id_raises() -> None:
