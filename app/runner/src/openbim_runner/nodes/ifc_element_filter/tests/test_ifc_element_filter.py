@@ -297,7 +297,7 @@ def test_ifc_element_filter_input_applies_exclude_rows(
     assert result.guids == ["wall-inside"]
 
 
-def test_ifc_element_filter_empty_input_falls_back_to_whole_model(
+def test_ifc_element_filter_connected_empty_input_returns_empty(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     wall = FakeEntity(1, GlobalId="wall-1")
@@ -305,10 +305,31 @@ def test_ifc_element_filter_empty_input_falls_back_to_whole_model(
 
     monkeypatch.setattr(filter_module, "get_psets", _fake_get_psets)
 
+    # A connected input that resolved to no matches must NOT fall back to
+    # scanning the whole model.
     result = run_filter(
         IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCWALL")]),
         FakeIfcModel({"IFCWALL": [wall], "IFCDOOR": [door]}),
         inputs=IfcElementFilterInputs(express_ids=[]),
+    )
+
+    assert result.express_ids == []
+    assert result.guids == []
+
+
+def test_ifc_element_filter_unbound_input_scans_whole_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wall = FakeEntity(1, GlobalId="wall-1")
+    door = FakeEntity(2, GlobalId="door-1")
+
+    monkeypatch.setattr(filter_module, "get_psets", _fake_get_psets)
+
+    # No input connected (express_ids defaults to None) keeps the legacy
+    # whole-model behavior.
+    result = run_filter(
+        IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCWALL")]),
+        FakeIfcModel({"IFCWALL": [wall], "IFCDOOR": [door]}),
     )
 
     assert result.express_ids == [1]

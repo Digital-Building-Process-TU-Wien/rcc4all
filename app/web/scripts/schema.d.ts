@@ -281,9 +281,9 @@ export interface IfcElementFilter {
   }
   inputs: {
     /**
-     * Optional list of IFC express IDs to filter within. When empty, the whole model is scanned.
+     * Optional list of IFC express IDs to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result.
      */
-    express_ids?: number[]
+    express_ids?: (number[] | null)
   }
 }
 /**

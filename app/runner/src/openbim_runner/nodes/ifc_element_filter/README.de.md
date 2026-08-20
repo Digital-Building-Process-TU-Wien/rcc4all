@@ -47,9 +47,9 @@ Verwenden Sie diesen Knoten, wenn Sie:
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
-| `express_ids` | `list[int]` | Optionale Liste von IFC-Express-IDs, auf die der Filter eingeschraenkt wird. Die Ausgabe behaelt die Eingabereihenfolge bei, doppelte IDs werden entfernt. Bei leerer oder unverbundener Eingabe wird das ganze Modell durchsucht. |
+| `express_ids` | `list[int]` | Optionale Liste von IFC-Express-IDs, auf die der Filter eingeschraenkt wird. Die Ausgabe behaelt die Eingabereihenfolge bei, doppelte IDs werden entfernt. Wenn der Eingang nicht verbunden ist, wird das ganze Modell durchsucht; bei verbundenem Eingang liefert eine leere Liste ein leeres Ergebnis. |
 
-Wenn `express_ids` verbunden ist, werden nur die gelisteten Entitaeten betrachtet, und jede muss weiterhin den Filterzeilen entsprechen (Entity-Typ, `PredefinedType` und Eigenschaftsvergleiche).
+Wenn `express_ids` verbunden ist, werden nur die gelisteten Entitaeten betrachtet, und jede muss weiterhin den Filterzeilen entsprechen (Entity-Typ, `PredefinedType` und Eigenschaftsvergleiche). Eine verbundene leere Liste bleibt leer, damit verkettete Filter nicht stillschweigend das ganze Modell erneut durchsuchen.
 
 ## Ausgaben
 
