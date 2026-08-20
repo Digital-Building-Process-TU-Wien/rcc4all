@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import trimesh
 from pydantic import Field
 
@@ -38,7 +39,7 @@ class Generate3DCubeResult(NodeModel):
     )
 
 
-def _euler_degrees_to_matrix(rotation: list[float]) -> trimesh.Transformations:
+def _euler_degrees_to_matrix(rotation: list[float]) -> np.ndarray:
     x_rad = math.radians(rotation[0])
     y_rad = math.radians(rotation[1])
     z_rad = math.radians(rotation[2])

@@ -132,8 +132,8 @@ async def collision(
             if not _aabb_overlap(mesh_a, mesh_b):
                 continue
 
-            repaired_a, error_a = ensure_watertight(mesh_a)
-            repaired_b, error_b = ensure_watertight(mesh_b)
+            repaired_a, _error_a = ensure_watertight(mesh_a)
+            repaired_b, _error_b = ensure_watertight(mesh_b)
 
             boolean_error: str | None = None
             result: trimesh.Trimesh | None = None

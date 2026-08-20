@@ -11,7 +11,7 @@ import trimesh
 
 from openbim_runner.nodes.base import ExecutionContext
 
-GEOMETRY_LIBRARY = "hybrid-cgal-simple-opencascade"
+GEOMETRY_LIBRARY: ifcopenshell.geom.GEOMETRY_LIBRARY = "hybrid-cgal-simple-opencascade"
 
 
 def build_geometry_cache(
@@ -19,7 +19,7 @@ def build_geometry_cache(
     *,
     settings_factory: Callable[..., Any] | None = None,
     shape_iterator: Callable[..., Any] | None = None,
-    geometry_library: str = GEOMETRY_LIBRARY,
+    geometry_library: ifcopenshell.geom.GEOMETRY_LIBRARY = GEOMETRY_LIBRARY,
 ) -> dict[str, trimesh.Trimesh]:
     """Tessellate the whole IFC model into a geometry cache.
 
@@ -46,9 +46,11 @@ def build_geometry_cache(
     while True:
         shape = iterator.get()
         if shape is not None:
-            geometry = shape.geometry
+            # ifcopenshell stubs model iterator.get() as a union that lacks the
+            # runtime shape_tuple attributes; both members expose them at runtime.
+            geometry = shape.geometry  # pyright: ignore[reportAttributeAccessIssue]
             if len(geometry.verts) > 0 and len(geometry.faces) > 0:
-                express_id = shape.id
+                express_id = shape.id  # pyright: ignore[reportAttributeAccessIssue]
                 cache[f"ifc:{express_id}"] = reshape_flat(geometry.verts, geometry.faces)
         if not iterator.next():
             break
@@ -164,7 +166,7 @@ def ensure_watertight(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh | None, st
 
     try:
         vfx = pymeshfix.MeshFix(repaired.vertices, repaired.faces)
-        vfx.repair(verbose=False)
+        vfx.repair()
         pymesh = trimesh.Trimesh(vertices=vfx.mesh[0], faces=vfx.mesh[1], process=False)
         if _is_watertight(pymesh):
             return pymesh, None
