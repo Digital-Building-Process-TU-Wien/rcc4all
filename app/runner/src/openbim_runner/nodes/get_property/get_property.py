@@ -12,7 +12,6 @@ from openbim_runner.util.ifc_properties import (
     stringify_value,
 )
 
-
 OutputMode = Literal["elements", "by_class", "model"]
 
 
@@ -172,7 +171,7 @@ async def get_property(
         ]
         return GetPropertyResult(mode="elements", elements=elements)
 
-    elif settings.output_mode == "by_class":
+    if settings.output_mode == "by_class":
         # Aggregate per class, per property, per value with counts
         class_props: dict[str, dict[str, dict[str, int]]] = {}
         for _, cls, props in resolved:
@@ -194,25 +193,25 @@ async def get_property(
             classes.append(ClassGroup(id=cls, properties=property_lists))
         return GetPropertyResult(mode="by_class", classes=classes)
 
-    else:  # model
-        # Aggregate distinct values with counts per property key
-        prop_value_counts: dict[str, dict[str, int]] = {}  # key -> {value: count}
-        for _, _, props in resolved:
-            for key, value in props.items():
-                if value is None:  # skip missing values
-                    continue
-                if key not in prop_value_counts:
-                    prop_value_counts[key] = {}
-                if value not in prop_value_counts[key]:
-                    prop_value_counts[key][value] = 0
-                prop_value_counts[key][value] += 1
+    # model
+    # Aggregate distinct values with counts per property key
+    prop_value_counts: dict[str, dict[str, int]] = {}  # key -> {value: count}
+    for _, _, props in resolved:
+        for key, value in props.items():
+            if value is None:  # skip missing values
+                continue
+            if key not in prop_value_counts:
+                prop_value_counts[key] = {}
+            if value not in prop_value_counts[key]:
+                prop_value_counts[key][value] = 0
+            prop_value_counts[key][value] += 1
 
-        # Convert to ValueWithCount lists, sorted by count desc then value asc
-        properties: dict[str, list[ValueWithCount]] = {}
-        for key, value_counts in prop_value_counts.items():
-            sorted_values = sorted(value_counts.items(), key=lambda x: (-x[1], x[0]))
-            properties[key] = [
-                ValueWithCount(value=v, count=c) for v, c in sorted_values
-            ]
+    # Convert to ValueWithCount lists, sorted by count desc then value asc
+    properties: dict[str, list[ValueWithCount]] = {}
+    for key, value_counts in prop_value_counts.items():
+        sorted_values = sorted(value_counts.items(), key=lambda x: (-x[1], x[0]))
+        properties[key] = [
+            ValueWithCount(value=v, count=c) for v, c in sorted_values
+        ]
 
-        return GetPropertyResult(mode="model", properties=properties)
+    return GetPropertyResult(mode="model", properties=properties)

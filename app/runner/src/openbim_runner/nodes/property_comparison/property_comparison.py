@@ -13,7 +13,6 @@ from openbim_runner.util.ifc_properties import (
     stringify_value,
 )
 
-
 ComparisonCondition = Literal[
     "equals",
     "not_equals",
