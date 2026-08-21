@@ -1,15 +1,16 @@
-# Node Development Prompt (RCC4ALL) — property_comparison
+# Node Development Prompt (RCC4ALL) — loi_check
 
-This file is the persistent memory for the **property_comparison** node. Read it
+This file is the persistent memory for the **LOI-Check** node. Read it
 before starting any session on this node.
 
 ## Node identity
-- **Name (registry key):** `property_comparison`
+- **Name (registry key):** `loi_check`
+- **Display name:** LOI-Check
 - **Category:** IFC
 - **Purpose:** Table-based property checks. Pure logic node that
   emits a slim structured result (NO human-readable `message` field); the
   downstream `bcf_export` node generates messages.
-- **Relationship:** Part 1 of the Property Comparison + BCF Export effort.
+- **Relationship:** Part 1 of the LOI-Check + BCF Export effort.
   `bcf_export` NOT yet built.
 
 ## Decided architecture
@@ -42,6 +43,12 @@ multiple checks per element simultaneously.
 ### Result (slim — NO message field)
 - `element_count`, `total_checks`, `failed_count` (failed_count = count of failed
   *checks* across all elements, confirmed via design example)
+- `passed_express_ids`, `failed_express_ids`: flat lists of express IDs of the
+  elements that were actually checked (had ≥1 applied check). An element whose
+  checks all passed is in `passed_express_ids`; an element with ≥1 failed check
+  is in `failed_express_ids` (the two lists partition the checked elements).
+  Elements with zero applied checks (e.g. missing/invalid express IDs emitted as
+  class `unknown`) are excluded from both lists. Order follows `elements`.
 - `elements`: ordered list of
   - `express_id`, `class_name`, `failed`
   - `checks`: list of `PropertyCheckResult`
@@ -144,13 +151,13 @@ User requirement: provide a list of accepted values (e.g. wall material in
 - Bool property values stringified as "true"/"false" (get_property convention).
 
 ## Layout & registration
-- Runner file: `app/runner/src/openbim_runner/nodes/property_comparison/property_comparison.py`
+- Runner file: `app/runner/src/openbim_runner/nodes/loi_check/loi_check.py`
 - README.en.md / README.de.md (frontmatter title/description/categories).
-- tests: `tests/test_property_comparison.py`
+- tests: `tests/test_loi_check.py`
 - Registered in `nodes/__init__.py` (import + `__all__`).
-- Web component: `app/web/app/nodes/PropertyComparison/PropertyComparison.vue`
+- Web component: `app/web/app/nodes/LoiCheck/LoiCheck.vue`
   (+ `types.ts`, `utils/csv-import-export.ts`, `utils/property-type.ts`).
-- Registered in `app/web/app/utils/nodes.ts` (`property_comparison: 'PropertyComparison'`).
+- Registered in `app/web/app/utils/nodes.ts` (`loi_check: 'LoiCheck'`).
 - Schema regenerated via `npm run generate:schema` (Python is source of truth).
 
 ## UI decision — type-aware target value widget

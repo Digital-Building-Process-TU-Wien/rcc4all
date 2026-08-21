@@ -153,7 +153,7 @@ export function rowsFromCsv(text: string): Rows {
   }) as Rows
 }
 
-export function exportRowsToCsv(rows: Rows, filename: string = 'property-comparison.csv'): void {
+export function exportRowsToCsv(rows: Rows, filename: string = 'loi-check.csv'): void {
   const header = CSV_COLUMNS.map(column => column.label).join(';')
   const body = rows.map((sel) => {
     return CSV_COLUMNS
