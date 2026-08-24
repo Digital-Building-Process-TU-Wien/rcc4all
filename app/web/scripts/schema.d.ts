@@ -22,6 +22,7 @@ export interface NodeRegistrySchema {
   get_name?: ResolveObjectNames
   get_property?: GetProperty
   ifc_element_filter?: IfcElementFilter
+  measurement?: Measurement
 }
 /**
  * Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.
@@ -31,7 +32,7 @@ export interface CollisionDetection {
     /**
      * 'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).
      */
-    mode?: ("boolean" | "intersection_mesh")
+    mode?: ('boolean' | 'intersection_mesh')
   }
   result: {
     /**
@@ -158,7 +159,7 @@ export interface GetProperty {
     /**
      * Output granularity: 'elements' (per entity), 'by_class' (grouped by element class), or 'model' (distinct values across all entities).
      */
-    output_mode?: ("elements" | "by_class" | "model")
+    output_mode?: ('elements' | 'by_class' | 'model')
     /**
      * List of properties to read from each entity.
      */
@@ -181,7 +182,7 @@ export interface GetProperty {
     /**
      * The output mode used to generate this result.
      */
-    mode: ("elements" | "by_class" | "model")
+    mode: ('elements' | 'by_class' | 'model')
     /**
      * List of elements with their property values (output_mode = elements).
      */
@@ -246,7 +247,7 @@ export interface IfcElementFilter {
       /**
        * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
        */
-      mode?: ("include" | "exclude" | "disabled")
+      mode?: ('include' | 'exclude' | 'disabled')
       /**
        * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
        */
@@ -266,7 +267,7 @@ export interface IfcElementFilter {
       /**
        * Comparison operator used for property or attribute values.
        */
-      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
+      operator?: ('==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'starts_with' | 'ends_with')
       /**
        * Value to compare against when property_name is set.
        */
@@ -282,5 +283,51 @@ export interface IfcElementFilter {
      * GlobalId values for all matching IFC entities in the same order as express_ids.
      */
     guids?: string[]
+  }
+}
+/**
+ * Compute geometric measurements (volume, surface area) of IFC elements or cached geometries.
+ */
+export interface Measurement {
+  settings: {
+    /**
+     * The type of measurement to compute. In v1, only 'volume' and 'surface_area' are implemented.
+     */
+    measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
+  }
+  result: {
+    /**
+     * The measurement type used to generate this result.
+     */
+    type: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
+    /**
+     * The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).
+     */
+    unit: string
+    /**
+     * List of per-element measurements.
+     */
+    measurements?: {
+      /**
+       * The geometry cache key (e.g., `ifc:123`, `gen:abc`, `inter:...`) of the measured element.
+       */
+      reference: string
+      /**
+       * The measured value. Null if geometry is missing or measurement failed.
+       */
+      value?: (number | null)
+      /**
+       * Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight').
+       */
+      error?: (string | null)
+    }[]
+  }
+  inputs: {
+    /**
+     * List of element references to measure — mix of express IDs (int → `ifc:<id>`), object IDs (str → `gen:<id>`), and full geometry-cache keys (`ifc:`, `gen:`, `inter:`). When empty, the whole model is used. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are measured.
+     */
+    elements?: ((number | string)[] | {
+      [k: string]: (string | null)
+    })
   }
 }
