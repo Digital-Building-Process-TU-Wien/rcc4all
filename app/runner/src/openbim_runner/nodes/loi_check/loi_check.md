@@ -9,13 +9,15 @@ before starting any session on this node.
 - **Category:** IFC
 - **Purpose:** Table-based property checks. Pure logic node that
   emits a slim structured result (NO human-readable `message` field); the
-  downstream `bcf_export` node generates messages.
-- **Relationship:** Part 1 of the LOI-Check + BCF Export effort.
-  `bcf_export` NOT yet built.
+  downstream `bcf_output` node generates messages.
+- **Relationship:** Part 1 of the LOI-Check + BCF effort. The downstream BCF
+  node is `bcf_output` (built; see `../bcf_output/bcf_output.md`). The earlier
+  draft name `bcf_export` was renamed to `bcf_output`.
 
 ## Decided architecture
 - Comparison node = pure logic, emits slim structured result (no messages).
-- BCF generation = separate downstream `bcf_export` node (NOT built yet).
+- BCF generation = separate downstream `bcf_output` node (built; see
+  `../bcf_output/bcf_output.md`).
 - The BCF node resolves the GlobalId from the `express_id` via the model
   (`ExecutionContext.ifc_model.by_id(express_id).GlobalId`); comparisons therefore
   do NOT emit a `ifc_guid` field (kept slim).

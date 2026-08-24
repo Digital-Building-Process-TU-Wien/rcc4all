@@ -7,6 +7,7 @@ from .base import (
     get_registry_schema,
     node,
 )
+from .bcf_output.bcf_output import bcf_output
 from .collision.collision import collision
 from .concat_string.concat_string import concat_string
 from .generate_3d_cube.generate_3d_cube import generate_3d_cube
@@ -19,6 +20,7 @@ __all__ = [
     "ExecutionContext",
     "NodeDefinition",
     "NodeModel",
+    "bcf_output",
     "collision",
     "concat_string",
     "dispatch",

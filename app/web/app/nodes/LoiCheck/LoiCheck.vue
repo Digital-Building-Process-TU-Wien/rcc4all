@@ -339,8 +339,8 @@ async function importCsv(event: Event) {
                 <UTooltip :text="decimalTooltip" class="w-full">
                   <input
                     v-model="row.range_min"
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputmode="decimal"
                     placeholder="Min"
                     class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
                   >
@@ -348,8 +348,8 @@ async function importCsv(event: Event) {
                 <UTooltip :text="decimalTooltip" class="w-full">
                   <input
                     v-model="row.range_max"
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputmode="decimal"
                     placeholder="Max"
                     class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
                   >
