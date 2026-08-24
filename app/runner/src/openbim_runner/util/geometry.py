@@ -57,7 +57,7 @@ def build_geometry_cache(
         if not iterator.next():
             break
 
-    return cache
+    return _merge_decomposed_parents(ifc_model, cache)
 
 
 def _ensure_cache(context: ExecutionContext) -> dict[str, trimesh.Trimesh]:
@@ -192,3 +192,49 @@ def reshape_flat(verts: tuple[float, ...], faces: tuple[int, ...]) -> trimesh.Tr
     vertices = np.asarray(verts, dtype=np.float64).reshape(-1, 3)
     face_array = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
     return trimesh.Trimesh(vertices=vertices, faces=face_array, process=False)
+
+
+def _merge_decomposed_parents(
+    ifc_model: Any, cache: dict[str, trimesh.Trimesh]
+) -> dict[str, trimesh.Trimesh]:
+    """Synthesize geometry for aggregation/nesting parents that have no own body.
+
+    A parent whose immediate parts all have cached geometry (and which itself has
+    none) gets an `ifc:<parent_id>` entry built by concatenating its parts' meshes
+    (world coordinates already applied by the iterator). Parents with their own
+    geometry are left untouched to avoid double-counting.
+    """
+    try:
+        rel_types = ["IfcRelAggregates", "IfcRelNests"]
+        rels = [rel for rt in rel_types for rel in ifc_model.by_type(rt)]
+    except Exception:
+        return cache
+
+    for rel in rels:
+        parent = getattr(rel, "RelatingObject", None)
+        parts = getattr(rel, "RelatedObjects", None) or []
+        if parent is None or not parts:
+            continue
+        parent_id = getattr(parent, "id", None)
+        if parent_id is None:
+            continue
+        parent_id_val = parent_id()
+        key = f"ifc:{parent_id_val}"
+        if key in cache:
+            continue
+        part_meshes: list[trimesh.Trimesh] = []
+        all_parts_cached = True
+        for part in parts:
+            part_id = getattr(part, "id", None)
+            if part_id is None:
+                all_parts_cached = False
+                break
+            part_key = f"ifc:{part_id()}"
+            part_mesh = cache.get(part_key)
+            if part_mesh is None:
+                all_parts_cached = False
+                break
+            part_meshes.append(part_mesh)
+        if all_parts_cached:
+            cache[key] = trimesh.util.concatenate(part_meshes)
+    return cache
