@@ -17,18 +17,33 @@ class NodeModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+@dataclass(frozen=True)
+class AutoBind:
+    """Opt-in marker for a node input field.
+
+    When an input is marked with this and is left unbound in a workflow, the
+    runner auto-resolves it at execution time to the single, directly-upstream
+    node (via workflow edges) whose result exposes a field of a compatible
+    type. Explicit ``input_bindings`` always take precedence. The marker is
+    intended as ``pydantic`` field metadata and never appears in the exported
+    JSON schema.
+    """
+
+
 class ExecutionContext:
     def __init__(
         self,
         ifc_model: ifcopenshell.file,
         node_outputs: dict[str, NodeModel],
         geometry_cache: dict[str, trimesh.Trimesh] | None = None,
+        output_dir: Path | None = None,
     ) -> None:
         self.ifc_model = ifc_model
         self.node_outputs = node_outputs
         self.geometry_cache: dict[str, trimesh.Trimesh] | None = (
             {} if geometry_cache is None else geometry_cache
         )
+        self.output_dir = output_dir
 
 
 @dataclass(frozen=True)
