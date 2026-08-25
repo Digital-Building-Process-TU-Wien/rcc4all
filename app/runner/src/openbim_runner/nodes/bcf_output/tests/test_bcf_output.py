@@ -326,7 +326,9 @@ def test_generic_placeholders_resolve(tmp_path: Path) -> None:
     )
 
     assert result.topics[0].title == "failed ThermalTransmittance"
-    assert result.topics[0].description == ("prop=ThermalTransmittance actual=15 expected=10 cond=lt")
+    assert result.topics[0].description == (
+        "prop=ThermalTransmittance actual=15 expected=10 cond=lt"
+    )
 
 
 def test_condition_symbol_map(tmp_path: Path) -> None:
@@ -361,7 +363,10 @@ def test_condition_symbol_map(tmp_path: Path) -> None:
         tmp_path,
     )
 
-    assert [topic.title for topic in result.topics] == ["ThermalTransmittance<10", "ThermalTransmittance>=10"]
+    assert [topic.title for topic in result.topics] == [
+        "ThermalTransmittance<10",
+        "ThermalTransmittance>=10",
+    ]
     assert [topic.description for topic in result.topics] == ["c=<", "c=>="]
 
 
@@ -485,7 +490,9 @@ def test_failure_reason_with_present_actual(tmp_path: Path) -> None:
         elements,
         tmp_path,
     )
-    assert result.topics[0].title == ("property ThermalTransmittance is 15 (expected < 10)")
+    assert result.topics[0].title == (
+        "property ThermalTransmittance is 15 (expected < 10)"
+    )
 
 
 def test_failure_reason_with_missing_actual(tmp_path: Path) -> None:
@@ -509,7 +516,9 @@ def test_failure_reason_with_missing_actual(tmp_path: Path) -> None:
         tmp_path,
     )
     assert result.topics[0].title == "missing"
-    assert result.topics[0].description == ("property ThermalTransmittance is missing (expected < 10)")
+    assert result.topics[0].description == (
+        "property ThermalTransmittance is missing (expected < 10)"
+    )
 
 
 def test_report_issue_between_bounds_are_included(tmp_path: Path) -> None:

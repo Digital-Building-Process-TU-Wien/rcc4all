@@ -1334,4 +1334,3 @@ def test_flat_lists_empty_when_nothing_checked(monkeypatch: pytest.MonkeyPatch) 
 
     assert result.passed_express_ids == []
     assert result.failed_express_ids == []
-
