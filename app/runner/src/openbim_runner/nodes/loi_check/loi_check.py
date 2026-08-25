@@ -85,7 +85,7 @@ class ComparisonRow(NodeModel):
     )
 
 
-class PropertyComparisonSettings(NodeModel):
+class LoiCheckSettings(NodeModel):
     rows: list[ComparisonRow] = Field(
         default=[],
         title="Comparison rows",
@@ -93,7 +93,7 @@ class PropertyComparisonSettings(NodeModel):
     )
 
 
-class PropertyComparisonInputs(NodeModel):
+class LoiCheckInputs(NodeModel):
     express_ids: list[int] = Field(
         default=[],
         title="Express IDs",
@@ -164,7 +164,7 @@ class ComparisonElement(NodeModel):
     )
 
 
-class PropertyComparisonResult(NodeModel):
+class LoiCheckResult(NodeModel):
     element_count: int = Field(
         title="Element count",
         description="Number of elements processed.",
@@ -177,6 +177,16 @@ class PropertyComparisonResult(NodeModel):
         title="Failed count",
         description="Total number of failed checks across all elements.",
     )
+    passed_express_ids: list[int] = Field(
+        default=[],
+        title="Passed express IDs",
+        description="Express IDs of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.",
+    )
+    failed_express_ids: list[int] = Field(
+        default=[],
+        title="Failed express IDs",
+        description="Express IDs of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.",
+    )
     elements: list[ComparisonElement] = Field(
         default=[],
         title="Elements",
@@ -185,11 +195,11 @@ class PropertyComparisonResult(NodeModel):
 
 
 @node()
-async def property_comparison(
-    settings: PropertyComparisonSettings,
-    inputs: PropertyComparisonInputs,
+async def loi_check(
+    settings: LoiCheckSettings,
+    inputs: LoiCheckInputs,
     context: ExecutionContext,
-) -> PropertyComparisonResult:
+) -> LoiCheckResult:
     from ifcopenshell.util.element import get_psets
 
     if not settings.rows:
@@ -325,10 +335,18 @@ async def property_comparison(
             )
         )
 
-    return PropertyComparisonResult(
+    checked = [element for element in elements if element.checks]
+
+    return LoiCheckResult(
         element_count=len(elements),
         total_checks=total_checks,
         failed_count=failed_count,
+        passed_express_ids=[
+            element.express_id for element in checked if not element.failed
+        ],
+        failed_express_ids=[
+            element.express_id for element in checked if element.failed
+        ],
         elements=elements,
     )
 

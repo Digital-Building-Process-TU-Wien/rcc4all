@@ -5,7 +5,7 @@ import type {
   IfcFilterIndex,
   IfcFilterProperty,
   IfcFilterPropertySet,
-  PropertyComparisonNode,
+  LoiCheckNode,
 } from './types'
 import { useScopedNode } from '~/composables/useScopedNode'
 import { CONDITION_OPTIONS, isOneOfCondition, isRangeCondition, requiresExpectedValue } from './types'
@@ -13,11 +13,11 @@ import { exportRowsToCsv, importRowsFromCsv } from './utils/csv-import-export'
 import { hasEnumValues, isBooleanType, isNumericType, resolvePropertyType } from './utils/property-type'
 
 interface Props {
-  node: PropertyComparisonNode
+  node: LoiCheckNode
 }
 
 const props = defineProps<Props>()
-const node = useScopedNode<PropertyComparisonNode>(props.node.id)
+const node = useScopedNode<LoiCheckNode>(props.node.id)
 const csvInput = ref<HTMLInputElement | null>(null)
 const csvMessage = ref('')
 
@@ -184,7 +184,7 @@ function removeRow(index: number) {
 }
 
 function exportCsv() {
-  exportRowsToCsv(rows.value, 'property-comparison.csv')
+  exportRowsToCsv(rows.value, 'loi-check.csv')
   csvMessage.value = 'CSV exported.'
 }
 
@@ -217,7 +217,7 @@ async function importCsv(event: Event) {
   <div class="flex flex-col gap-3">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-        Property Comparison
+        LOI-Check
       </div>
       <p class="mt-1 text-xs text-slate-500">
         Check IFC property values against expected target values. Add one rule per row in the table below.

@@ -7,7 +7,7 @@ export interface NodeRegistrySchema {
   get_name?: ResolveObjectNames
   get_property?: GetProperty
   ifc_element_filter?: IfcElementFilter
-  property_comparison?: PropertyComparison
+  loi_check?: LOICheck
 }
 /**
  * Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.
@@ -289,7 +289,7 @@ export interface IfcElementFilter {
 /**
  * Check IFC property values against expected target values with table-based rules.
  */
-export interface PropertyComparison {
+export interface LOICheck {
   settings: {
     /**
      * List of property comparison rules. Each row is checked against every input element.
@@ -350,6 +350,14 @@ export interface PropertyComparison {
      * Total number of failed checks across all elements.
      */
     failed_count: number
+    /**
+     * Express IDs of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.
+     */
+    passed_express_ids?: number[]
+    /**
+     * Express IDs of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.
+     */
+    failed_express_ids?: number[]
     /**
      * Ordered list of elements with their property check results.
      */
