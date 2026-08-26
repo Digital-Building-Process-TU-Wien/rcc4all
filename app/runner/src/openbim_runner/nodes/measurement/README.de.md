@@ -4,7 +4,7 @@ description: Berechnet geometrische Messungen (Volumen, Oberfläche, projizierte
 categories: Measurement
 ---
 
-Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder anderen zwischengespeicherten Geometrien (z. B. Schnittmengen aus dem collision-Knoten). Jede Messung wird pro Element mit Referenz, Wert und ggf. Fehler ausgegeben. In v2 unterstützt der Knoten Volumen-, Oberflächen-, projizierte Flächen- und Bauteilhöhenberechnungen.
+Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder anderen zwischengespeicherten Geometrien (z. B. Schnittmengen aus dem collision-Knoten). Jede Messung wird pro Element mit Referenz, Wert und ggf. Fehler ausgegeben. In v3 unterstützt der Knoten Volumen-, Oberflächen-, projizierte Flächen-, Bauteilhöhen- und Abstand-zwischen-Berechnungen.
 
 ## Anwendungsbeispiel
 
@@ -16,7 +16,7 @@ Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder
 
 ### Messungstyp (measurement_type)
 
-Der Typ der zu berechnenden Messung. In v2 sind `volume`, `surface_area`, `projected_area` und `component_height` implementiert.
+Der Typ der zu berechnenden Messung. In v3 sind `volume`, `surface_area`, `projected_area`, `component_height` und `distance_between` implementiert.
 
 | Wert | Bezeichnung | Wann verwenden |
 |------|-------------|----------------|
@@ -24,7 +24,7 @@ Der Typ der zu berechnenden Messung. In v2 sind `volume`, `surface_area`, `proje
 | `surface_area` | **Oberfläche** | Berechnet die Gesamtoberfläche jedes Elements. Funktioniert mit jedem Mesh. |
 | `projected_area` | **Projizierte Fläche** | Berechnet die Fläche eines Elements, projiziert auf eine Ebene senkrecht zum angegebenen Normalenvektor. Standardnormal [0,0,1] berechnet die Grundrissfläche (Draufsicht). Funktioniert mit jedem Mesh. |
 | `component_height` | **Bauteilhöhe** | Berechnet die Ausdehnung eines Elements entlang eines Richtungsvektors. Standardrichtung [0,0,1] berechnet die vertikale Höhe. Funktioniert mit jedem Mesh. |
-| `distance_between` | **Abstand zwischen** | (Geplant) Berechnet den minimalen Abstand zwischen Elementpaaren. |
+| `distance_between` | **Abstand zwischen** | Berechnet den minimalen Oberflächenabstand zwischen Elementpaaren mit dem List A / List B-Muster. **List B leer:** alle ungeordneten Paare innerhalb von List A (n über 2), jedes in **beiden Richtungen** ausgegeben. **List B nicht leer:** kartesisches Produkt A×B (Selbstpaare überspringen), eine Richtung pro Paar. Referenzformat: `dist:distance_<SchlüsselA>_<SchlüsselB>` (directional, **NICHT** sortiert). Funktioniert mit jedem Mesh. **Sich schneidende Paare geben `0.0` zurück** (erkannt via AABB + FCL Dreieck-Dreieck-Kollision vor der Abstandsabfrage). **Hinweis:** Nur Elemente mit tessellierter Body-Geometrie sind messbar. Parametrische Elemente wie Alignments (IfcAlignment) ohne Body-Repräsentationen erzeugen Fehlereinträge. |
 | `distance_to_reference` | **Abstand zur Referenz** | (Geplant) Berechnet den Abstand von Elementen zu einem Referenzpunkt oder einer Ebene. |
 
 ### Projektionsnormal (v2+)
@@ -53,19 +53,20 @@ Nur verwendet, wenn **Messungstyp** `component_height` ist. Gibt den Richtungsve
 
 ## Eingaben
 
-- **Elements** (optional): Liste der zu messenden Elementreferenzen. Akzeptiert:
+- **List A** (optional): Erste Liste von Elementreferenzen. Akzeptiert:
   - Express-IDs (int → `ifc:<id>`)
   - Objekt-IDs (str → `gen:<id>`)
-  - Vollständige Geometrie-Cache-Schlüssel (`ifc:`, `gen:`, `inter:`) — nützlich zum Messen von Schnittmengen aus collision
+  - Vollständige Geometrie-Cache-Schlüssel (`ifc:`, `gen:`, `inter:`)
   - Leer = gesamtes Modell (alle zwischengespeicherten Geometrien)
-  - **Dict-Eingabe**: Akzeptiert auch ein Dict (z. B. die `intersection_meshes`-Ausgabe des collision-Knotens). In diesem Fall werden die Nicht-Null-Werte des Dicts (Schnittmengen-Cache-Schlüssel wie `inter:...`) gemessen; Null-Einträge (FCL-entschiedene Kollisionen ohne gespeicherte Geometrie) werden übersprungen.
+  - **Dict-Eingabe**: Akzeptiert auch ein Dict (z. B. die `intersection_meshes`-Ausgabe des collision-Knotens). Die Nicht-Null-Werte des Dicts (Schnittmengen-Cache-Schlüssel) werden verwendet.
+- **List B** (optional): Zweite Liste von Elementreferenzen (gleiches Format wie List A). Leer = Paare innerhalb von List A (beide Richtungen). Nicht leer = kartesisches Produkt A×B (eine Richtung pro Paar).
 
 ## Ausgaben
 
-- **Type**: Der verwendete Messungstyp (z. B. `volume`, `surface_area`, `projected_area`, `component_height`)
-- **Unit**: Die Maßeinheit (`volume_unit` für Volumen, `area_unit` für Oberfläche und projizierte Fläche, `length_unit` für Bauteilhöhe, in Modell-Einheiten)
-- **Measurements**: Liste der Messungen pro Element, jeweils mit:
-  - `reference`: Der Geometrie-Cache-Schlüssel (z. B. `ifc:123`, `gen:abc`)
+- **Type**: Der verwendete Messungstyp (z. B. `volume`, `surface_area`, `projected_area`, `component_height`, `distance_between`)
+- **Unit**: Die Maßeinheit (`volume_unit` für Volumen, `area_unit` für Oberfläche und projizierte Fläche, `length_unit` für Bauteilhöhe und Abstand zwischen, in Modell-Einheiten)
+- **Measurements**: Liste der Messungen, jeweils mit:
+  - `reference`: Der Geometrie-Cache-Schlüssel (z. B. `ifc:123`, `gen:abc`) oder für distance_between: `dist:distance_<SchlüsselA>_<SchlüsselB>` (directional, NICHT sortiert)
   - `value`: Der gemessene Wert (null wenn Geometrie fehlt oder Messung fehlgeschlagen)
   - `error`: Fehlergrund falls Messung fehlgeschlagen (z. B. `no cached geometry`, `non-watertight`)
 
@@ -258,6 +259,56 @@ Hinweis: Der Modus `surface_area` funktioniert weiterhin mit nicht wasserdichten
 }
 ```
 
+### Beispiel 10: Abstand zwischen zwei Elementen
+
+**Einstellungen:**
+- Messungstyp: `distance_between`
+
+**Eingaben:**
+- List A: `[101, 102]` (Express-IDs von zwei getrennten Wänden)
+- List B: `[]` (leer → Paare innerhalb von List A, beide Richtungen)
+
+**Ausgabe:**
+```json
+{
+  "type": "distance_between",
+  "unit": "length_unit",
+  "measurements": [
+    { "reference": "dist:distance_ifc:101_ifc:102", "value": 2.5, "error": null },
+    { "reference": "dist:distance_ifc:102_ifc:101", "value": 2.5, "error": null }
+  ]
+}
+```
+
+Hinweis: Bei leerer List B wird jedes ungeordnete Paar in beiden Richtungen ausgegeben.
+
+### Beispiel 11: Abstand zwischen mehreren Elementen (alle Paare, beide Richtungen)
+
+**Einstellungen:**
+- Messungstyp: `distance_between`
+
+**Eingaben:**
+- List A: `[101, 102, 103]` (Express-IDs von drei Elementen)
+- List B: `[]` (leer → Paare innerhalb von List A, beide Richtungen)
+
+**Ausgabe:**
+```json
+{
+  "type": "distance_between",
+  "unit": "length_unit",
+  "measurements": [
+    { "reference": "dist:distance_ifc:101_ifc:102", "value": 2.5, "error": null },
+    { "reference": "dist:distance_ifc:102_ifc:101", "value": 2.5, "error": null },
+    { "reference": "dist:distance_ifc:101_ifc:103", "value": 5.1, "error": null },
+    { "reference": "dist:distance_ifc:103_ifc:101", "value": 5.1, "error": null },
+    { "reference": "dist:distance_ifc:102_ifc:103", "value": 3.2, "error": null },
+    { "reference": "dist:distance_ifc:103_ifc:102", "value": 3.2, "error": null }
+  ]
+}
+```
+
+Hinweis: Für n Elemente mit leerer List B berechnet der Knoten alle n über 2 ungeordneten Paare (3 Paare für 3 Elemente) und gibt jedes in beiden Richtungen aus (insgesamt 6 Messungen).
+
 ## Einheiten
 
 Messungen werden in **Modell-Einheiten** (den nativen Einheiten der IFC-Modellgeometrie) ausgegeben. Wenn das IFC-Modell Meter verwendet:
@@ -274,5 +325,10 @@ Wenn das Modell Millimeter verwendet:
 - **Oberfläche funktioniert mit jedem Mesh**: Die Oberfläche wird aus den Mesh-Dreiecken berechnet und erfordert keine wasserdichte Geometrie.
 - **Projizierte Fläche funktioniert mit jedem Mesh**: Wie die Oberfläche funktioniert auch die projizierte Flächenberechnung mit jedem Mesh, unabhängig von der Wasserdichtigkeit.
 - **Bauteilhöhe funktioniert mit jedem Mesh**: Die Ausdehnung wird aus Vertex-Projektionen berechnet und erfordert keine wasserdichte Geometrie.
-- **Gesamtmodell-Fallback**: Wenn `elements` leer ist, misst der Knoten alle zwischengespeicherten Geometrien (IFC-Elemente und generierte Geometrien).
-- **Zukünftige Modi**: Die Modi `distance_between` und `distance_to_reference` sind für zukünftige Versionen geplant. Die Auswahl führt in v2 zu einem Fehler.
+- **Abstand zwischen funktioniert mit jedem Mesh**: Der minimale Oberflächenabstand wird mit BVH-basierten Nächster-Punkt-Abfragen berechnet. Sich schneidende Paare werden zuerst via AABB + FCL Dreieck-Dreieck-Kollision erkannt und geben sofort `0.0` zurück. Funktioniert mit jedem Mesh (konvex oder nicht-konvex).
+- **Abstand zwischen Paarformat**: Referenzen folgen dem Format `dist:distance_<SchlüsselA>_<SchlüsselB>` (directional, **NICHT** sortiert). Bei leerer List B wird jedes ungeordnete Paar in **beiden Richtungen** ausgegeben. Bei nicht-leerer List B eine Richtung pro A×B-Paar.
+- **Abstand zwischen fehlende Geometrie**: Paare mit Elementen ohne zwischengespeicherte Geometrie erzeugen Fehlereinträge (`value=null`, `error='no cached geometry'`). Bei leerer List B werden Fehlereinträge in beiden Richtungen ausgegeben.
+- **Abstand zwischen Einschränkung**: Nur Elemente mit tessellierter Body-Geometrie können gemessen werden. Parametrische Elemente wie Alignments (`IfcAlignment`) ohne Body-Repräsentationen erzeugen Fehlereinträge wenn sie mit anderen Elementen gepaart werden.
+- **Abstand zwischen sich schneidenden Elementen**: Wenn sich zwei Meshes schneiden (Volumenüberlappung oder sich kreuzende Oberflächen), ist der Abstand `0.0`. Die Schnittmenge wird via AABB + FCL Dreieck-Dreieck-Kollision vor der Abstandsabfrage erkannt, was genaue Ergebnisse sicherstellt, selbst wenn kein Vertex im anderen Mesh liegt.
+- **Gesamtmodell-Fallback**: Wenn `List A` leer ist, misst der Knoten alle zwischengespeicherten Geometrien und berechnet alle paarweisen Abstände im `distance_between`-Modus (leere List B → beide Richtungen für jedes Paar).
+- **Zukünftige Modi**: Der Modus `distance_to_reference` ist für zukünftige Versionen geplant. Die Auswahl führt in v3 zu einem Fehler.

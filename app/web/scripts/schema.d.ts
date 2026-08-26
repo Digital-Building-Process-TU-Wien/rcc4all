@@ -291,7 +291,7 @@ export interface IfcElementFilter {
 export interface Measurement {
   settings: {
     /**
-     * The type of measurement to compute. In v2, 'volume', 'surface_area', 'projected_area', and 'component_height' are implemented.
+     * The type of measurement to compute. In v3, 'volume', 'surface_area', 'projected_area', 'component_height', and 'distance_between' are implemented.
      */
     measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
@@ -332,9 +332,15 @@ export interface Measurement {
   }
   inputs: {
     /**
-     * List of element references to measure — mix of express IDs (int → `ifc:<id>`), object IDs (str → `gen:<id>`), and full geometry-cache keys (`ifc:`, `gen:`, `inter:`). When empty, the whole model is used. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are measured.
+     * First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`), in the order to test. When empty, the whole model is used. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are used.
      */
-    elements?: ((number | string)[] | {
+    list_a?: ((number | string)[] | {
+      [k: string]: (string | null)
+    })
+    /**
+     * Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`). When empty, pairs are formed within List A. When non-empty, computes cartesian product A×B. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.
+     */
+    list_b?: ((number | string)[] | {
       [k: string]: (string | null)
     })
   }

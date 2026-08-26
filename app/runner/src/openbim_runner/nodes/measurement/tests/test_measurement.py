@@ -41,7 +41,7 @@ def test_measurement_volume_single_element() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="volume"),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -59,7 +59,7 @@ def test_measurement_surface_area_single_element() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="surface_area"),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -78,7 +78,7 @@ def test_measurement_volume_multiple_elements() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="volume"),
-        MeasurementInputs(elements=[1, 2]),
+        MeasurementInputs(list_a=[1, 2]),
         context,
     )
 
@@ -97,7 +97,7 @@ def test_measurement_missing_geometry_returns_null() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="volume"),
-        MeasurementInputs(elements=[1, 999]),
+        MeasurementInputs(list_a=[1, 999]),
         context,
     )
 
@@ -117,7 +117,7 @@ def test_measurement_empty_elements_uses_whole_model() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="volume"),
-        MeasurementInputs(elements=[]),
+        MeasurementInputs(list_a=[]),
         context,
     )
 
@@ -133,7 +133,7 @@ def test_measurement_with_object_id() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="volume"),
-        MeasurementInputs(elements=["mycube"]),
+        MeasurementInputs(list_a=["mycube"]),
         context,
     )
 
@@ -149,7 +149,7 @@ def test_measurement_with_full_cache_key() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="surface_area"),
-        MeasurementInputs(elements=["inter:custom_key"]),
+        MeasurementInputs(list_a=["inter:custom_key"]),
         context,
     )
 
@@ -169,7 +169,7 @@ def test_measurement_non_watertight_volume_returns_error() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="volume"),
-        MeasurementInputs(elements=["broken"]),
+        MeasurementInputs(list_a=["broken"]),
         context,
     )
 
@@ -191,7 +191,7 @@ def test_measurement_non_watertight_surface_area_still_works() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="surface_area"),
-        MeasurementInputs(elements=["broken"]),
+        MeasurementInputs(list_a=["broken"]),
         context,
     )
 
@@ -199,19 +199,6 @@ def test_measurement_non_watertight_surface_area_still_works() -> None:
     assert result.measurements[0].reference == "gen:broken"
     assert result.measurements[0].value is not None
     assert result.measurements[0].error is None
-
-
-def test_measurement_unimplemented_mode_raises() -> None:
-    context = _context()
-    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
-
-    for mode in ["distance_between", "distance_to_reference"]:
-        with pytest.raises(ValueError, match=f"Measurement type '{mode}' is not implemented yet"):
-            _run(
-                MeasurementSettings(measurement_type=mode),  # type: ignore[arg-type]
-                MeasurementInputs(elements=[1]),
-                context,
-            )
 
 
 def test_measurement_mixed_refs_with_missing() -> None:
@@ -222,7 +209,7 @@ def test_measurement_mixed_refs_with_missing() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="volume"),
-        MeasurementInputs(elements=[1, "cube", 999]),
+        MeasurementInputs(list_a=[1, "cube", 999]),
         context,
     )
 
@@ -251,7 +238,7 @@ def test_measurement_with_intersection_meshes_dict() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="volume"),
-        MeasurementInputs(elements=intersection_meshes),
+        MeasurementInputs(list_a=intersection_meshes),
         context,
     )
 
@@ -276,7 +263,7 @@ def test_measurement_with_intersection_meshes_dict_surface_area() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="surface_area"),
-        MeasurementInputs(elements=intersection_meshes),
+        MeasurementInputs(list_a=intersection_meshes),
         context,
     )
 
@@ -292,7 +279,7 @@ def test_measurement_projected_area_default_normal() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -310,7 +297,7 @@ def test_measurement_projected_area_custom_normal_x() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="projected_area", projection_normal=[1.0, 0.0, 0.0]),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -328,7 +315,7 @@ def test_measurement_projected_area_custom_normal_y() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 1.0, 0.0]),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -351,7 +338,7 @@ def test_measurement_projected_area_non_watertight() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
-        MeasurementInputs(elements=["open"]),
+        MeasurementInputs(list_a=["open"]),
         context,
     )
 
@@ -367,7 +354,7 @@ def test_measurement_projected_area_missing_geometry() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
-        MeasurementInputs(elements=[1, 999]),
+        MeasurementInputs(list_a=[1, 999]),
         context,
     )
 
@@ -395,7 +382,7 @@ def test_measurement_projected_area_dict_input() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
-        MeasurementInputs(elements=intersection_meshes),
+        MeasurementInputs(list_a=intersection_meshes),
         context,
     )
 
@@ -414,7 +401,7 @@ def test_measurement_component_height_default_direction() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -432,7 +419,7 @@ def test_measurement_component_height_direction_x() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="component_height", direction=[1.0, 0.0, 0.0]),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -450,7 +437,7 @@ def test_measurement_component_height_direction_y() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="component_height", direction=[0.0, 1.0, 0.0]),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -468,7 +455,7 @@ def test_measurement_component_height_diagonal_direction() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="component_height", direction=[1.0, 1.0, 0.0]),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -491,7 +478,7 @@ def test_measurement_component_height_non_watertight() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
-        MeasurementInputs(elements=["open"]),
+        MeasurementInputs(list_a=["open"]),
         context,
     )
 
@@ -507,7 +494,7 @@ def test_measurement_component_height_missing_geometry() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
-        MeasurementInputs(elements=[1, 999]),
+        MeasurementInputs(list_a=[1, 999]),
         context,
     )
 
@@ -535,7 +522,7 @@ def test_measurement_component_height_dict_input() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
-        MeasurementInputs(elements=intersection_meshes),
+        MeasurementInputs(list_a=intersection_meshes),
         context,
     )
 
@@ -554,7 +541,7 @@ def test_measurement_component_height_zero_direction() -> None:
 
     result = _run(
         MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 0.0]),
-        MeasurementInputs(elements=[1]),
+        MeasurementInputs(list_a=[1]),
         context,
     )
 
@@ -564,3 +551,378 @@ def test_measurement_component_height_zero_direction() -> None:
     assert result.measurements[0].reference == "ifc:1"
     assert result.measurements[0].value is None
     assert result.measurements[0].error == "undefined direction"
+
+
+def test_measurement_distance_between_two_elements() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _box(context, 2, [5, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[1, 2]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    # Output order: grouped by first element (key_a), iterating all other keys
+    assert result.measurements[0].reference == "dist:distance_ifc:1_ifc:2"
+    assert result.measurements[1].reference == "dist:distance_ifc:2_ifc:1"
+    for m in result.measurements:
+        assert m.value == pytest.approx(4.0)
+        assert m.error is None
+
+
+def test_measurement_distance_between_three_elements() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _box(context, 2, [5, 0, 0], extents=[1, 1, 1])
+    _box(context, 3, [10, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[1, 2, 3]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 6
+    # Output order: grouped by first element (key_a), iterating all other keys in order
+    # key_a=1: 1_2, 1_3; key_a=2: 2_1, 2_3; key_a=3: 3_1, 3_2
+    expected_order = [
+        "dist:distance_ifc:1_ifc:2", "dist:distance_ifc:1_ifc:3",
+        "dist:distance_ifc:2_ifc:1", "dist:distance_ifc:2_ifc:3",
+        "dist:distance_ifc:3_ifc:1", "dist:distance_ifc:3_ifc:2",
+    ]
+    actual_order = [m.reference for m in result.measurements]
+    assert actual_order == expected_order
+
+
+def test_measurement_distance_between_empty_elements_uses_whole_model() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _box(context, 2, [5, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1"}
+    for m in result.measurements:
+        assert m.value == pytest.approx(4.0)
+
+
+def test_measurement_distance_between_missing_geometry() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _box(context, 2, [5, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[1, 2, 999]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 6
+    refs = {m.reference for m in result.measurements}
+    assert refs == {
+        "dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1",
+        "dist:distance_999_ifc:1", "dist:distance_ifc:1_999",
+        "dist:distance_999_ifc:2", "dist:distance_ifc:2_999",
+    }
+    missing_entries = [m for m in result.measurements if "999" in m.reference]
+    assert len(missing_entries) == 4
+    for entry in missing_entries:
+        assert entry.value is None
+        assert entry.error == "no cached geometry"
+
+
+def test_measurement_distance_between_intersecting_boxes() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
+    _box(context, 2, [1, 0, 0], extents=[2, 2, 2])
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[1, 2]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1"}
+    for m in result.measurements:
+        assert m.value == pytest.approx(0.0, abs=1e-6)
+        assert m.error is None
+
+
+def test_measurement_distance_between_crossing_plates() -> None:
+    """Test intersecting meshes with no vertex penetration (face-interior intersection).
+    
+    Two thin plates crossing at right angles: the intersection happens in the
+    interior of faces, not at any vertex. This tests that FCL-based intersection
+    detection correctly returns 0.0 even when vertex sampling would fail.
+    """
+    context = _context()
+    
+    plate1 = trimesh.creation.box(extents=[4, 4, 0.1])
+    plate2 = trimesh.creation.box(extents=[0.1, 4, 4])
+    
+    cache_mesh(context, plate1, key="ifc:1")
+    cache_mesh(context, plate2, key="ifc:2")
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[1, 2]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1"}
+    for m in result.measurements:
+        assert m.value == pytest.approx(0.0, abs=1e-6)
+        assert m.error is None
+
+
+def test_measurement_distance_between_dict_input() -> None:
+    context = _context()
+    mesh1 = trimesh.creation.box(extents=[0.5, 0.5, 0.5])
+    mesh2 = trimesh.creation.box(extents=[1, 1, 1])
+    cache_mesh(context, mesh1, key="inter:intersection_ifc:1_ifc:2")
+    cache_mesh(context, mesh2, key="inter:intersection_ifc:3_ifc:4")
+
+    intersection_meshes = {
+        "ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2",
+        "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4",
+        "ifc:5__ifc:6": None,
+    }
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=intersection_meshes),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {
+        "dist:distance_inter:intersection_ifc:1_ifc:2_inter:intersection_ifc:3_ifc:4",
+        "dist:distance_inter:intersection_ifc:3_ifc:4_inter:intersection_ifc:1_ifc:2",
+    }
+    for m in result.measurements:
+        assert m.value is not None
+        assert m.error is None
+
+
+def test_measurement_distance_between_mixed_refs() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    mesh = trimesh.creation.box(extents=[2, 2, 2])
+    cache_mesh(context, mesh, object_id="cube")
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[1, "cube"]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_gen:cube_ifc:1", "dist:distance_ifc:1_gen:cube"}
+    for m in result.measurements:
+        assert m.value is not None
+        assert m.error is None
+
+
+def test_measurement_distance_between_non_watertight() -> None:
+    context = _context()
+    open_mesh1 = trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    open_mesh2 = trimesh.Trimesh(
+        vertices=[[0, 0, 5], [1, 0, 5], [1, 1, 5], [0, 1, 5]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    cache_mesh(context, open_mesh1, object_id="open1")
+    cache_mesh(context, open_mesh2, object_id="open2")
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=["open1", "open2"]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_gen:open1_gen:open2", "dist:distance_gen:open2_gen:open1"}
+    for m in result.measurements:
+        assert m.value is not None
+        assert m.error is None
+
+
+def test_measurement_distance_between_alignment_with_signal() -> None:
+    """Alignment (no Body geometry) + signal (has geometry) -> error entries.
+    
+    Simulates the Simple_Railway-Civil_3D.ifc scenario:
+    - Alignment id=49 has no Body tessellation -> not in cache
+    - Signal id=757 has Body geometry -> in cache
+    Result: two error entries (both directions).
+    """
+    context = _context()
+    _box(context, 757, [0, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[49, 757]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_49_ifc:757", "dist:distance_ifc:757_49"}
+    for m in result.measurements:
+        assert m.value is None
+        assert m.error == "no cached geometry"
+
+
+def test_measurement_distance_between_two_alignments() -> None:
+    """Two alignments (both no Body geometry) -> error entries.
+    
+    Simulates the Simple_Railway-Civil_3D.ifc scenario:
+    - Alignment id=49 and id=570 both have no Body tessellation
+    Result: two error entries (both directions).
+    """
+    context = _context()
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[49, 570]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_49_570", "dist:distance_570_49"}
+    for m in result.measurements:
+        assert m.value is None
+        assert m.error == "no cached geometry"
+
+
+def test_measurement_distance_between_list_a_cross_list_b() -> None:
+    """List_A × List_B cartesian product with one direction per pair."""
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _box(context, 2, [5, 0, 0], extents=[1, 1, 1])
+    _box(context, 3, [10, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[1], list_b=[2, 3]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:1_ifc:3"}
+
+
+def test_measurement_distance_between_self_pair_skipped() -> None:
+    """Self-pairs (key_a == key_b) are skipped."""
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _box(context, 2, [5, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=[1, 2], list_b=[1, 2]),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1"}
+
+
+def test_measurement_distance_between_list_a_cross_list_b_dict() -> None:
+    """List_A × List_B cartesian product where both are dicts (intersection_meshes)."""
+    context = _context()
+    mesh1 = trimesh.creation.box(extents=[0.5, 0.5, 0.5])
+    mesh2 = trimesh.creation.box(extents=[1, 1, 1])
+    mesh3 = trimesh.creation.box(extents=[1.5, 1.5, 1.5])
+    cache_mesh(context, mesh1, key="inter:intersection_ifc:1_ifc:2")
+    cache_mesh(context, mesh2, key="inter:intersection_ifc:3_ifc:4")
+    cache_mesh(context, mesh3, key="inter:intersection_ifc:5_ifc:6")
+
+    intersection_meshes_a: dict[str, str | None] = {
+        "ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2",
+        "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4",
+    }
+    intersection_meshes_b: dict[str, str | None] = {
+        "ifc:5__ifc:6": "inter:intersection_ifc:5_ifc:6",
+    }
+
+    result = _run(
+        MeasurementSettings(measurement_type="distance_between"),
+        MeasurementInputs(list_a=intersection_meshes_a, list_b=intersection_meshes_b),
+        context,
+    )
+
+    assert result.type == "distance_between"
+    assert result.unit == "length_unit"
+    # Cross product: 2 elements in A × 1 element in B = 2 measurements
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {
+        "dist:distance_inter:intersection_ifc:1_ifc:2_inter:intersection_ifc:5_ifc:6",
+        "dist:distance_inter:intersection_ifc:3_ifc:4_inter:intersection_ifc:5_ifc:6",
+    }
+    for m in result.measurements:
+        assert m.value is not None
+        assert m.error is None
+
+
+def test_measurement_unimplemented_mode_raises() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+
+    for mode in ["distance_to_reference"]:
+        with pytest.raises(ValueError, match=f"Measurement type '{mode}' is not implemented yet"):
+            _run(
+                MeasurementSettings(measurement_type=mode),  # type: ignore[arg-type]
+                MeasurementInputs(list_a=[1]),
+                context,
+            )
+

@@ -29,7 +29,7 @@ const measurementTypes = [
   { value: 'surface_area', label: 'Surface Area' },
   { value: 'projected_area', label: 'Projected Area' },
   { value: 'component_height', label: 'Component Height' },
-  { value: 'distance_between', label: 'Distance Between (coming soon)' },
+  { value: 'distance_between', label: 'Minimum Distance Between Elements' },
   { value: 'distance_to_reference', label: 'Distance to Reference (coming soon)' },
 ]
 
@@ -40,6 +40,11 @@ function setPresetNormal(preset: [number, number, number]) {
 function setPresetDirection(preset: [number, number, number]) {
   node.value.data.settings!.direction = [...preset]
 }
+
+const hasListBWarning = computed(() => {
+  return node.value.data.settings?.measurement_type !== 'distance_between'
+    && node.value.data.input_bindings?.list_b
+})
 </script>
 
 <template>
@@ -48,7 +53,7 @@ function setPresetDirection(preset: [number, number, number]) {
       Measurement
     </div>
     <p class="mt-1 mb-3 text-xs text-slate-500">
-      Compute geometric measurements (volume, surface area, projected area, component height) of IFC elements or cached geometries.
+      Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements) of IFC elements or cached geometries.
     </p>
   </div>
 
@@ -68,8 +73,12 @@ function setPresetDirection(preset: [number, number, number]) {
         </option>
       </select>
       <p class="text-xs text-slate-400">
-        In v2, volume, surface area, projected area, and component height are implemented. Other modes will raise an error at runtime.
+        In v3, volume, surface area, projected area, component height, and minimum distance between elements (List A × List B pattern) are implemented. Other modes will raise an error at runtime.
       </p>
+      <div v-if="hasListBWarning" class="mt-2 flex items-start gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+        <Icon name="i-lucide-triangle-alert" class="size-3 flex-shrink-0 mt-0.5" />
+        <span>List B is only used for "Minimum Distance Between Elements" mode and will be ignored.</span>
+      </div>
     </div>
 
     <div v-if="node.data.settings!.measurement_type === 'projected_area'" class="flex flex-col gap-2">

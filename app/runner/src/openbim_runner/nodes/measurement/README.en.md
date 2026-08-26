@@ -4,7 +4,7 @@ description: Compute geometric measurements (volume, surface area, projected are
 categories: Measurement
 ---
 
-The `measurement` node computes geometric measurements of IFC elements or other cached geometries (e.g., intersection meshes from the collision node). Each measurement is reported per element with its reference, value, and any error. In v2, the node supports volume, surface area, projected area, and component height computations.
+The `measurement` node computes geometric measurements of IFC elements or other cached geometries (e.g., intersection meshes from the collision node). Each measurement is reported per element with its reference, value, and any error. In v3, the node supports volume, surface area, projected area, component height, and distance between computations.
 
 ## Use case example
 
@@ -16,7 +16,7 @@ The `measurement` node computes geometric measurements of IFC elements or other 
 
 ### Measurement type
 
-The type of measurement to compute. In v2, `volume`, `surface_area`, `projected_area`, and `component_height` are implemented.
+The type of measurement to compute. In v3, `volume`, `surface_area`, `projected_area`, `component_height`, and `distance_between` are implemented.
 
 | Value | Label | When to use |
 |-------|-------|-------------|
@@ -24,7 +24,7 @@ The type of measurement to compute. In v2, `volume`, `surface_area`, `projected_
 | `surface_area` | **Surface area** | Compute the total surface area of each element. Works on any mesh. |
 | `projected_area` | **Projected area** | Compute the area of an element projected onto a plane perpendicular to the specified normal vector. Default normal [0,0,1] computes the footprint (top-down view). Works on any mesh. |
 | `component_height` | **Component height** | Compute the extent of an element along a direction vector. Default direction [0,0,1] computes vertical height. Works on any mesh. |
-| `distance_between` | **Distance between** | (Coming soon) Compute the minimal distance between pairs of elements. |
+| `distance_between` | **Distance between** | Compute the minimal surface-to-surface distance between element pairs using the List A / List B pattern. **List B empty:** all unordered pairs within List A (n choose 2), each emitted in **both directions**. **List B non-empty:** cartesian product A×B (skip self-pairs), one direction per pair. Reference format: `dist:distance_<keyA>_<keyB>` (directional, **NOT** sorted). Works on any mesh. **Intersecting pairs return `0.0`** (detected via AABB + FCL triangle-triangle collision before distance query). **Note:** Only elements with tessellated Body geometry are measurable. Parametric elements like alignments (IfcAlignment) without Body representations will produce error entries. |
 | `distance_to_reference` | **Distance to reference** | (Coming soon) Compute the distance from elements to a reference point or plane. |
 
 ### Projection normal (v2+)
@@ -53,19 +53,20 @@ Only used when **Measurement type** is `component_height`. Specifies the directi
 
 ## Inputs
 
-- **Elements** (optional): List of element references to measure. Accepts:
+- **List A** (optional): First list of element references. Accepts:
   - Express IDs (int → `ifc:<id>`)
   - Object IDs (str → `gen:<id>`)
-  - Full geometry-cache keys (`ifc:`, `gen:`, `inter:`) — useful for measuring intersection meshes from collision
+  - Full geometry-cache keys (`ifc:`, `gen:`, `inter:`)
   - When empty, the whole model is used (all cached geometries)
-  - **Dict input**: Also accepts a dict (e.g., the `intersection_meshes` output from the collision node). In this case, the dict's non-null values (intersection mesh cache keys like `inter:...`) are measured; null entries (FCL-decided collisions without stored geometry) are skipped.
+  - **Dict input**: Also accepts a dict (e.g., the `intersection_meshes` output from the collision node). The dict's non-null values (intersection mesh cache keys) are used.
+- **List B** (optional): Second list of element references (same format as List A). When empty, pairs are formed within List A (both directions). When non-empty, computes cartesian product A×B (one direction per pair).
 
 ## Outputs
 
-- **Type**: The measurement type used (e.g., `volume`, `surface_area`, `projected_area`, `component_height`)
-- **Unit**: The unit of measurement (`volume_unit` for volume, `area_unit` for surface area and projected area, `length_unit` for component height, in model units)
-- **Measurements**: List of per-element measurements, each containing:
-  - `reference`: The geometry cache key (e.g., `ifc:123`, `gen:abc`)
+- **Type**: The measurement type used (e.g., `volume`, `surface_area`, `projected_area`, `component_height`, `distance_between`)
+- **Unit**: The unit of measurement (`volume_unit` for volume, `area_unit` for surface area and projected area, `length_unit` for component height and distance between, in model units)
+- **Measurements**: List of measurements, each containing:
+  - `reference`: The geometry cache key (e.g., `ifc:123`, `gen:abc`), or for `distance_between`: `dist:distance_<keyA>_<keyB>` (directional, NOT sorted)
   - `value`: The measured value (null if geometry missing or measurement failed)
   - `error`: Error reason if measurement failed (e.g., `no cached geometry`, `non-watertight`)
 
@@ -258,6 +259,56 @@ Note: `surface_area` mode still works on non-watertight meshes.
 }
 ```
 
+### Example 10: Distance between two elements
+
+**Settings:**
+- Measurement type: `distance_between`
+
+**Inputs:**
+- List A: `[101, 102]` (express IDs of two separated walls)
+- List B: `[]` (empty → pairs within List A, both directions)
+
+**Output:**
+```json
+{
+  "type": "distance_between",
+  "unit": "length_unit",
+  "measurements": [
+    { "reference": "dist:distance_ifc:101_ifc:102", "value": 2.5, "error": null },
+    { "reference": "dist:distance_ifc:102_ifc:101", "value": 2.5, "error": null }
+  ]
+}
+```
+
+Note: For empty List B, each unordered pair is emitted in both directions.
+
+### Example 11: Distance between multiple elements (all pairs, both directions)
+
+**Settings:**
+- Measurement type: `distance_between`
+
+**Inputs:**
+- List A: `[101, 102, 103]` (express IDs of three elements)
+- List B: `[]` (empty → pairs within List A, both directions)
+
+**Output:**
+```json
+{
+  "type": "distance_between",
+  "unit": "length_unit",
+  "measurements": [
+    { "reference": "dist:distance_ifc:101_ifc:102", "value": 2.5, "error": null },
+    { "reference": "dist:distance_ifc:102_ifc:101", "value": 2.5, "error": null },
+    { "reference": "dist:distance_ifc:101_ifc:103", "value": 5.1, "error": null },
+    { "reference": "dist:distance_ifc:103_ifc:101", "value": 5.1, "error": null },
+    { "reference": "dist:distance_ifc:102_ifc:103", "value": 3.2, "error": null },
+    { "reference": "dist:distance_ifc:103_ifc:102", "value": 3.2, "error": null }
+  ]
+}
+```
+
+Note: For n elements with empty List B, the node computes all n choose 2 unordered pairs (3 pairs for 3 elements) and emits each in both directions (6 measurements total).
+
 ## Units
 
 Measurements are reported in **model units** (the native units of the IFC model's geometry). If the IFC model uses meters:
@@ -274,5 +325,10 @@ If the model uses millimeters:
 - **Surface area works on any mesh**: Surface area is computed from the mesh triangles and does not require watertight geometry.
 - **Projected area works on any mesh**: Like surface area, projected area computation works on any mesh regardless of watertightness.
 - **Component height works on any mesh**: Extent is computed from vertex projections and does not require watertight geometry.
-- **Whole-model fallback**: When `elements` is empty, the node measures all cached geometries (IFC elements and generated geometries).
-- **Future modes**: The `distance_between` and `distance_to_reference` modes are planned for future releases. Selecting them will raise an error in v2.
+- **Distance between works on any mesh**: Minimal surface-to-surface distance is computed using BVH-based nearest-point queries. Intersecting pairs are detected first via AABB + FCL triangle-triangle collision and return `0.0` immediately. Works on any mesh (convex or non-convex).
+- **Distance between pair format**: References follow the format `dist:distance_<keyA>_<keyB>` (directional, **NOT** sorted). With empty List B, each unordered pair is emitted in **both directions**. With non-empty List B, one direction per A×B pair.
+- **Distance between missing geometry**: Pairs involving elements without cached geometry produce error entries (`value=null`, `error='no cached geometry'`). With empty List B, error entries are emitted in both directions.
+- **Distance between limitation**: Only elements with tessellated Body geometry can be measured. Parametric elements like alignments (`IfcAlignment`) without Body representations will produce error entries when paired with other elements.
+- **Distance between intersecting elements**: When two meshes intersect (overlap in volume or surfaces cross), the distance is `0.0`. Intersection is detected via AABB + FCL triangle-triangle collision before the distance query, ensuring accurate results even when no vertex lies inside the other mesh.
+- **Whole-model fallback**: When `List A` is empty, the node measures all cached geometries, computing all pairwise distances for `distance_between` mode (empty List B → both directions for each pair).
+- **Future modes**: The `distance_to_reference` mode is planned for future releases. Selecting it will raise an error in v3.
