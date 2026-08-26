@@ -13,7 +13,7 @@ const props = defineProps<Props>()
 const node = useScopedNode<MeasurementNode>(props.node.id)
 
 if (!node.value.data.settings) {
-  node.value.data.settings = { measurement_type: 'volume', projection_normal: [0.0, 0.0, 1.0], direction: [0.0, 0.0, 1.0] }
+  node.value.data.settings = { measurement_type: 'volume', projection_normal: [0.0, 0.0, 1.0], direction: [0.0, 0.0, 1.0], reference_type: 'point', reference_point: [0.0, 0.0, 0.0], reference_normal: [0.0, 0.0, 1.0] }
 }
 
 if (!node.value.data.settings.projection_normal) {
@@ -24,13 +24,25 @@ if (!node.value.data.settings.direction) {
   node.value.data.settings.direction = [0.0, 0.0, 1.0]
 }
 
+if (!node.value.data.settings.reference_type) {
+  node.value.data.settings.reference_type = 'point'
+}
+
+if (!node.value.data.settings.reference_point) {
+  node.value.data.settings.reference_point = [0.0, 0.0, 0.0]
+}
+
+if (!node.value.data.settings.reference_normal) {
+  node.value.data.settings.reference_normal = [0.0, 0.0, 1.0]
+}
+
 const measurementTypes = [
   { value: 'volume', label: 'Volume' },
   { value: 'surface_area', label: 'Surface Area' },
   { value: 'projected_area', label: 'Projected Area' },
   { value: 'component_height', label: 'Component Height' },
   { value: 'distance_between', label: 'Minimum Distance Between Elements' },
-  { value: 'distance_to_reference', label: 'Distance to Reference (coming soon)' },
+  { value: 'distance_to_reference', label: 'Distance to Reference' },
 ]
 
 function setPresetNormal(preset: [number, number, number]) {
@@ -39,6 +51,10 @@ function setPresetNormal(preset: [number, number, number]) {
 
 function setPresetDirection(preset: [number, number, number]) {
   node.value.data.settings!.direction = [...preset]
+}
+
+function setPresetReferenceNormal(preset: [number, number, number]) {
+  node.value.data.settings!.reference_normal = [...preset]
 }
 
 const hasListBWarning = computed(() => {
@@ -53,7 +69,7 @@ const hasListBWarning = computed(() => {
       Measurement
     </div>
     <p class="mt-1 mb-3 text-xs text-slate-500">
-      Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements) of IFC elements or cached geometries.
+      Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.
     </p>
   </div>
 
@@ -73,7 +89,7 @@ const hasListBWarning = computed(() => {
         </option>
       </select>
       <p class="text-xs text-slate-400">
-        In v3, volume, surface area, projected area, component height, and minimum distance between elements (List A × List B pattern) are implemented. Other modes will raise an error at runtime.
+        In v4, volume, surface area, projected area, component height, minimum distance between elements (List A × List B pattern), and distance to reference (point/plane) are implemented.
       </p>
       <div v-if="hasListBWarning" class="mt-2 flex items-start gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
         <Icon name="i-lucide-triangle-alert" class="size-3 flex-shrink-0 mt-0.5" />
@@ -199,6 +215,123 @@ const hasListBWarning = computed(() => {
             step="0.1"
             class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
           >
+        </div>
+      </div>
+    </div>
+
+    <div v-if="node.data.settings!.measurement_type === 'distance_to_reference'" class="flex flex-col gap-2">
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Reference Type</label>
+      <p class="text-xs text-slate-400">
+        Choose between distance to a reference point or perpendicular distance to a reference plane.
+      </p>
+
+      <select
+        v-model="node.data.settings!.reference_type"
+        class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+      >
+        <option value="point">
+          Point
+        </option>
+        <option value="plane">
+          Plane
+        </option>
+      </select>
+
+      <div class="flex flex-col gap-2 mt-2">
+        <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Reference Point</label>
+        <p class="text-xs text-slate-400">
+          Coordinates [x, y, z] of the reference point (or plane origin).
+        </p>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div class="flex flex-col gap-1">
+            <label class="text-[9px] text-slate-400 font-medium uppercase">X</label>
+            <input
+              v-model.number="node.data.settings!.reference_point[0]"
+              type="number"
+              step="0.1"
+              class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+            >
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[9px] text-slate-400 font-medium uppercase">Y</label>
+            <input
+              v-model.number="node.data.settings!.reference_point[1]"
+              type="number"
+              step="0.1"
+              class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+            >
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[9px] text-slate-400 font-medium uppercase">Z</label>
+            <input
+              v-model.number="node.data.settings!.reference_point[2]"
+              type="number"
+              step="0.1"
+              class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+            >
+          </div>
+        </div>
+      </div>
+
+      <div v-if="node.data.settings!.reference_type === 'plane'" class="flex flex-col gap-2 mt-2">
+        <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Plane Normal</label>
+        <p class="text-xs text-slate-400">
+          Normal vector of the reference plane. Default [0,0,1] is the XY plane.
+        </p>
+
+        <div class="flex gap-2 mb-2">
+          <button
+            class="flex-1 px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors"
+            :class="node.data.settings!.reference_normal[0] === 0 && node.data.settings!.reference_normal[1] === 0 && node.data.settings!.reference_normal[2] === 1 ? 'bg-blue-100 border-blue-400' : ''"
+            @click="setPresetReferenceNormal([0, 0, 1])"
+          >
+            XY Plane (Z)
+          </button>
+          <button
+            class="flex-1 px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors"
+            :class="node.data.settings!.reference_normal[0] === 1 && node.data.settings!.reference_normal[1] === 0 && node.data.settings!.reference_normal[2] === 0 ? 'bg-blue-100 border-blue-400' : ''"
+            @click="setPresetReferenceNormal([1, 0, 0])"
+          >
+            YZ Plane (X)
+          </button>
+          <button
+            class="flex-1 px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors"
+            :class="node.data.settings!.reference_normal[0] === 0 && node.data.settings!.reference_normal[1] === 1 && node.data.settings!.reference_normal[2] === 0 ? 'bg-blue-100 border-blue-400' : ''"
+            @click="setPresetReferenceNormal([0, 1, 0])"
+          >
+            XZ Plane (Y)
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div class="flex flex-col gap-1">
+            <label class="text-[9px] text-slate-400 font-medium uppercase">X</label>
+            <input
+              v-model.number="node.data.settings!.reference_normal[0]"
+              type="number"
+              step="0.1"
+              class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+            >
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[9px] text-slate-400 font-medium uppercase">Y</label>
+            <input
+              v-model.number="node.data.settings!.reference_normal[1]"
+              type="number"
+              step="0.1"
+              class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+            >
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[9px] text-slate-400 font-medium uppercase">Z</label>
+            <input
+              v-model.number="node.data.settings!.reference_normal[2]"
+              type="number"
+              step="0.1"
+              class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+            >
+          </div>
         </div>
       </div>
     </div>

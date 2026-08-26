@@ -25,7 +25,7 @@ class MeasurementSettings(NodeModel):
     measurement_type: MeasurementType = Field(
         default="volume",
         title="Measurement Type",
-        description="The type of measurement to compute. In v3, 'volume', 'surface_area', 'projected_area', 'component_height', and 'distance_between' are implemented.",
+        description="The type of measurement to compute. In v4, 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', and 'distance_to_reference' are implemented.",
     )
     projection_normal: list[float] = Field(
         default=[0.0, 0.0, 1.0],
@@ -36,6 +36,21 @@ class MeasurementSettings(NodeModel):
         default=[0.0, 0.0, 1.0],
         title="Direction",
         description="Direction vector for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. Normalized internally.",
+    )
+    reference_type: Literal["point", "plane"] = Field(
+        default="point",
+        title="Reference Type",
+        description="Reference type for 'distance_to_reference' mode. 'point' computes distance to a reference point; 'plane' computes perpendicular distance to a reference plane.",
+    )
+    reference_point: list[float] = Field(
+        default=[0.0, 0.0, 0.0],
+        title="Reference Point",
+        description="Reference point coordinates [x, y, z]. Used for both 'point' and 'plane' reference types.",
+    )
+    reference_normal: list[float] = Field(
+        default=[0.0, 0.0, 1.0],
+        title="Reference Normal",
+        description="Plane normal vector [x, y, z]. Only used for 'distance_to_reference' mode with reference_type='plane'. Zero normal results in error entry.",
     )
 
 
@@ -297,7 +312,74 @@ def _pair_distance(a: trimesh.Trimesh, b: trimesh.Trimesh) -> float:
     return float(min(dist_a.min(), dist_b.min()))
 
 
-_IMPLEMENTED_MODES = {"volume", "surface_area", "projected_area", "component_height", "distance_between"}
+def _compute_distance_to_reference(
+    context: ExecutionContext,
+    list_a: list[int | str] | dict[str, str | None],
+    reference_type: Literal["point", "plane"],
+    reference_point: list[float],
+    reference_normal: list[float],
+) -> MeasurementResult:
+    """Compute absolute distance from each element to a reference point or plane.
+    
+    Behavior:
+        - reference_type="point": min surface distance from reference point to element via ProximityQuery
+        - reference_type="plane": min over vertices of |(v − origin)·n̂| (perpendicular distance to plane)
+        - Zero normal for plane mode → error entry "undefined normal"
+        - Works on any mesh (no watertight requirement)
+    
+    Unit: length_unit
+    Output: one MeasurementItem per element, reference = element cache key
+    """
+    resolved = _resolve_keys(context, list_a)
+    measurements: list[MeasurementItem] = []
+    
+    # Validate plane normal early
+    if reference_type == "plane" and np.linalg.norm(reference_normal) == 0:
+        for ref_label, _ in resolved:
+            measurements.append(MeasurementItem(reference=ref_label, value=None, error="undefined normal"))
+        return MeasurementResult(
+            type="distance_to_reference",
+            unit="length_unit",
+            measurements=measurements,
+        )
+    
+    for ref_label, cache_key in resolved:
+        if cache_key is None:
+            measurements.append(MeasurementItem(reference=ref_label, value=None, error="no cached geometry"))
+            continue
+        
+        try:
+            mesh = resolve_mesh(context, cache_key)
+        except ValueError:
+            measurements.append(MeasurementItem(reference=ref_label, value=None, error="no cached geometry"))
+            continue
+        
+        if reference_type == "point":
+            prox = ProximityQuery(mesh)
+            result = prox.on_surface(np.array([reference_point]))
+            dist = float(abs(result[1][0]))
+            measurements.append(MeasurementItem(reference=ref_label, value=dist, error=None))
+        else:  # plane
+            # Compute normalized normal vector
+            n_hat = np.array(reference_normal) / np.linalg.norm(reference_normal)
+            # Compute signed distances: (v - origin) · n̂
+            signed_dists = (mesh.vertices - reference_point) @ n_hat
+            # If plane crosses mesh (min <= 0 <= max), distance = 0
+            if signed_dists.min() <= 0 <= signed_dists.max():
+                min_dist = 0.0
+            else:
+                # Plane doesn't cross mesh; min abs distance
+                min_dist = float(np.abs(signed_dists).min())
+            measurements.append(MeasurementItem(reference=ref_label, value=min_dist, error=None))
+    
+    return MeasurementResult(
+        type="distance_to_reference",
+        unit="length_unit",
+        measurements=measurements,
+    )
+
+
+_IMPLEMENTED_MODES = {"volume", "surface_area", "projected_area", "component_height", "distance_between", "distance_to_reference"}
 
 
 @node()
@@ -311,6 +393,15 @@ async def measurement(
 
     if settings.measurement_type == "distance_between":
         return _compute_distance_between(context, inputs.list_a, inputs.list_b)
+    
+    if settings.measurement_type == "distance_to_reference":
+        return _compute_distance_to_reference(
+            context,
+            inputs.list_a,
+            settings.reference_type,
+            settings.reference_point,
+            settings.reference_normal,
+        )
 
     resolved = _resolve_keys(context, inputs.list_a)
 

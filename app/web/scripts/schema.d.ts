@@ -286,12 +286,12 @@ export interface IfcElementFilter {
   }
 }
 /**
- * Compute geometric measurements (volume, surface area, projected area, component height) of IFC elements or cached geometries.
+ * Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.
  */
 export interface Measurement {
   settings: {
     /**
-     * The type of measurement to compute. In v3, 'volume', 'surface_area', 'projected_area', 'component_height', and 'distance_between' are implemented.
+     * The type of measurement to compute. In v4, 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', and 'distance_to_reference' are implemented.
      */
     measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
@@ -302,6 +302,18 @@ export interface Measurement {
      * Direction vector for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. Normalized internally.
      */
     direction?: number[]
+    /**
+     * Reference type for 'distance_to_reference' mode. 'point' computes distance to a reference point; 'plane' computes perpendicular distance to a reference plane.
+     */
+    reference_type?: ('point' | 'plane')
+    /**
+     * Reference point coordinates [x, y, z]. Used for both 'point' and 'plane' reference types.
+     */
+    reference_point?: number[]
+    /**
+     * Plane normal vector [x, y, z]. Only used for 'distance_to_reference' mode with reference_type='plane'. Zero normal results in error entry.
+     */
+    reference_normal?: number[]
   }
   result: {
     /**

@@ -1,22 +1,23 @@
 ---
 title: Measurement
-description: Compute geometric measurements (volume, surface area, projected area, component height) of IFC elements or cached geometries.
+description: Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.
 categories: Measurement
 ---
 
-The `measurement` node computes geometric measurements of IFC elements or other cached geometries (e.g., intersection meshes from the collision node). Each measurement is reported per element with its reference, value, and any error. In v3, the node supports volume, surface area, projected area, component height, and distance between computations.
+The `measurement` node computes geometric measurements of IFC elements or other cached geometries (e.g., intersection meshes from the collision node). Each measurement is reported per element with its reference, value, and any error. In v4, the node supports volume, surface area, projected area, component height, minimum distance between elements, and distance to reference computations.
 
 ## Use case example
 
 - Compute the volume of all walls in a model
 - Measure surface areas of elements for material estimation
 - Measure the volume of collision intersection meshes to quantify overlap
+- Measure the minimum distance between elements (e.g., to verify clearance between components)
 
 ## Settings
 
 ### Measurement type
 
-The type of measurement to compute. In v3, `volume`, `surface_area`, `projected_area`, `component_height`, and `distance_between` are implemented.
+The type of measurement to compute.
 
 | Value | Label | When to use |
 |-------|-------|-------------|
@@ -24,10 +25,10 @@ The type of measurement to compute. In v3, `volume`, `surface_area`, `projected_
 | `surface_area` | **Surface area** | Compute the total surface area of each element. Works on any mesh. |
 | `projected_area` | **Projected area** | Compute the area of an element projected onto a plane perpendicular to the specified normal vector. Default normal [0,0,1] computes the footprint (top-down view). Works on any mesh. |
 | `component_height` | **Component height** | Compute the extent of an element along a direction vector. Default direction [0,0,1] computes vertical height. Works on any mesh. |
-| `distance_between` | **Distance between** | Compute the minimal surface-to-surface distance between element pairs using the List A / List B pattern. **List B empty:** all unordered pairs within List A (n choose 2), each emitted in **both directions**. **List B non-empty:** cartesian product A×B (skip self-pairs), one direction per pair. Reference format: `dist:distance_<keyA>_<keyB>` (directional, **NOT** sorted). Works on any mesh. **Intersecting pairs return `0.0`** (detected via AABB + FCL triangle-triangle collision before distance query). **Note:** Only elements with tessellated Body geometry are measurable. Parametric elements like alignments (IfcAlignment) without Body representations will produce error entries. |
-| `distance_to_reference` | **Distance to reference** | (Coming soon) Compute the distance from elements to a reference point or plane. |
+| `distance_between` | **Minimum distance between elements** | Compute the minimal surface-to-surface distance between element pairs using the List A / List B pattern. See Notes for details. Works on any mesh. |
+| `distance_to_reference` | **Distance to reference** | Compute the minimal distance from each element to a reference point or plane. See Notes for details. Works on any mesh. |
 
-### Projection normal (v2+)
+### Projection normal
 
 Only used when **Measurement type** is `projected_area`. Specifies the normal vector of the projection plane.
 
@@ -38,18 +39,44 @@ Only used when **Measurement type** is `projected_area`. Specifies the normal ve
   - `[1, 0, 0]` → Project onto YZ plane (side view)
   - `[0, 1, 0]` → Project onto XZ plane (front view)
 
-### Direction (v2+)
+### Direction
 
 Only used when **Measurement type** is `component_height`. Specifies the direction vector for extent computation.
 
 - **Default**: `[0.0, 0.0, 1.0]` (vertical height)
 - **Format**: List of 3 floats `[x, y, z]`
 - **Normalization**: The direction is normalized internally; only the direction matters, not the magnitude
+- **Zero direction**: If the direction is zero-length (e.g., `[0.0, 0.0, 0.0]`), an error entry `undefined direction` is produced per element
 - **Examples**:
   - `[0, 0, 1]` → Vertical height (Z extent)
   - `[1, 0, 0]` → Horizontal extent along X axis
   - `[0, 1, 0]` → Horizontal extent along Y axis
-  - `[1, 1, 0]` → Extent along diagonal direction (normalized internally)
+
+### Reference type
+
+Only used when **Measurement type** is `distance_to_reference`. Specifies whether to compute distance to a point or a plane.
+
+- **Default**: `point`
+- **Format**: String enum: `"point"` | `"plane"`
+
+### Reference point
+
+Only used when **Measurement type** is `distance_to_reference`. Specifies the reference point for distance computation.
+
+- **Default**: `[0.0, 0.0, 0.0]` (world origin)
+- **Format**: List of 3 floats `[x, y, z]`
+- **Usage**:
+  - For `reference_type: point` → Distance computed to this point
+  - For `reference_type: plane` → This point serves as the plane origin
+
+### Reference normal
+
+Only used when **Measurement type** is `distance_to_reference` and **Reference type** is `plane`. Specifies the normal vector of the reference plane.
+
+- **Default**: `[0.0, 0.0, 1.0]` (XY plane, horizontal)
+- **Format**: List of 3 floats `[x, y, z]`
+- **Normalization**: The normal is normalized internally; only the direction matters, not the magnitude
+- **Zero normal**: If the normal is zero-length (e.g., `[0.0, 0.0, 0.0]`), an error entry `undefined normal` is produced per element
 
 ## Inputs
 
@@ -59,14 +86,14 @@ Only used when **Measurement type** is `component_height`. Specifies the directi
   - Full geometry-cache keys (`ifc:`, `gen:`, `inter:`)
   - When empty, the whole model is used (all cached geometries)
   - **Dict input**: Also accepts a dict (e.g., the `intersection_meshes` output from the collision node). The dict's non-null values (intersection mesh cache keys) are used.
-- **List B** (optional): Second list of element references (same format as List A). When empty, pairs are formed within List A (both directions). When non-empty, computes cartesian product A×B (one direction per pair).
+- **List B** (optional): Second list of element references (same format as List A). When empty, pairs are formed within List A (both directions). When non-empty, computes cartesian product A×B (one direction per pair). **Only used in `minimum distance between elements` mode; ignored in all other modes.**
 
 ## Outputs
 
-- **Type**: The measurement type used (e.g., `volume`, `surface_area`, `projected_area`, `component_height`, `distance_between`)
-- **Unit**: The unit of measurement (`volume_unit` for volume, `area_unit` for surface area and projected area, `length_unit` for component height and distance between, in model units)
+- **Type**: The measurement type used (e.g., `volume`, `surface_area`, `projected_area`, `component_height`, `distance_between`, `distance_to_reference`)
+- **Unit**: The unit of measurement (`volume_unit` for volume, `area_unit` for surface area and projected area, `length_unit` for component height, minimum distance between elements, and distance to reference, in model units)
 - **Measurements**: List of measurements, each containing:
-  - `reference`: The geometry cache key (e.g., `ifc:123`, `gen:abc`), or for `distance_between`: `dist:distance_<keyA>_<keyB>` (directional, NOT sorted)
+  - `reference`: The geometry cache key (e.g., `ifc:123`, `gen:abc`), or for `distance_between`: `dist:distance_<keyA>_<keyB>` (directional, **NOT** sorted)
   - `value`: The measured value (null if geometry missing or measurement failed)
   - `error`: Error reason if measurement failed (e.g., `no cached geometry`, `non-watertight`)
 
@@ -114,11 +141,11 @@ Only used when **Measurement type** is `component_height`. Specifies the directi
 }
 ```
 
-### Example 3: Projected area (footprint) of a wall
+### Example 3: Projected area (footprint)
 
 **Settings:**
 - Measurement type: `projected_area`
-- Projection normal: `[0.0, 0.0, 1.0]` (default, top-down view)
+- Projection normal: `[0.0, 0.0, 1.0]` (top-down footprint)
 
 **Inputs:**
 - Elements: `[101]` (express ID of a wall)
@@ -134,96 +161,11 @@ Only used when **Measurement type** is `component_height`. Specifies the directi
 }
 ```
 
-### Example 4: Projected area with custom normal (side view)
-
-**Settings:**
-- Measurement type: `projected_area`
-- Projection normal: `[1.0, 0.0, 0.0]` (project onto YZ plane)
-
-**Inputs:**
-- Elements: `[101]` (express ID of a wall)
-
-**Output:**
-```json
-{
-  "type": "projected_area",
-  "unit": "area_unit",
-  "measurements": [
-    { "reference": "ifc:101", "value": 8.2, "error": null }
-  ]
-}
-```
-
-### Example 5: Volume of collision intersection meshes
-
-**Scenario:** A `collision` node (in `intersection_mesh` mode) produced intersection meshes. You want to measure the volume of each overlap by connecting its `intersection_meshes` output directly to the `elements` input.
-
-**Settings:**
-- Measurement type: `volume`
-
-**Inputs:**
-- Elements: `{"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2", "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4", "ifc:5__ifc:6": null}`
-
-**Output:**
-```json
-{
-  "type": "volume",
-  "unit": "volume_unit",
-  "measurements": [
-    { "reference": "inter:intersection_ifc:1_ifc:2", "value": 0.05, "error": null },
-    { "reference": "inter:intersection_ifc:3_ifc:4", "value": 0.12, "error": null }
-  ]
-}
-```
-
-Note: The null entry (`ifc:5__ifc:6`) is skipped because no intersection mesh was stored for that collision pair.
-
-### Example 6: Missing geometry handled gracefully
-
-**Settings:**
-- Measurement type: `volume`
-
-**Inputs:**
-- Elements: `[101, 999]` (999 has no cached geometry)
-
-**Output:**
-```json
-{
-  "type": "volume",
-  "unit": "volume_unit",
-  "measurements": [
-    { "reference": "ifc:101", "value": 2.5, "error": null },
-    { "reference": "999", "value": null, "error": "no cached geometry" }
-  ]
-}
-```
-
-### Example 7: Non-watertight mesh volume error
-
-**Settings:**
-- Measurement type: `volume`
-
-**Inputs:**
-- Elements: `["gen:broken_mesh"]` (a non-repairable mesh)
-
-**Output:**
-```json
-{
-  "type": "volume",
-  "unit": "volume_unit",
-  "measurements": [
-    { "reference": "gen:broken_mesh", "value": null, "error": "non-watertight: ..." }
-  ]
-}
-```
-
-Note: `surface_area` mode still works on non-watertight meshes.
-
-### Example 8: Component height (vertical) of a wall
+### Example 4: Component height (vertical)
 
 **Settings:**
 - Measurement type: `component_height`
-- Direction: `[0.0, 0.0, 1.0]` (default, vertical height)
+- Direction: `[0.0, 0.0, 1.0]` (vertical height)
 
 **Inputs:**
 - Elements: `[101]` (express ID of a wall)
@@ -239,27 +181,29 @@ Note: `surface_area` mode still works on non-watertight meshes.
 }
 ```
 
-### Example 9: Component height with custom direction
+### Example 5: Volume of collision intersection meshes
+
+**Scenario:** A `collision` node (in `intersection_mesh` mode) produced intersection meshes. You want to measure the volume of each overlap.
 
 **Settings:**
-- Measurement type: `component_height`
-- Direction: `[1.0, 0.0, 0.0]` (extent along X axis)
+- Measurement type: `volume`
 
 **Inputs:**
-- Elements: `[101]` (express ID of a wall)
+- Elements: `{"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2", "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4"}`
 
 **Output:**
 ```json
 {
-  "type": "component_height",
-  "unit": "length_unit",
+  "type": "volume",
+  "unit": "volume_unit",
   "measurements": [
-    { "reference": "ifc:101", "value": 0.3, "error": null }
+    { "reference": "inter:intersection_ifc:1_ifc:2", "value": 0.05, "error": null },
+    { "reference": "inter:intersection_ifc:3_ifc:4", "value": 0.12, "error": null }
   ]
 }
 ```
 
-### Example 10: Distance between two elements
+### Example 6: Distance between two elements (both directions)
 
 **Settings:**
 - Measurement type: `distance_between`
@@ -280,55 +224,64 @@ Note: `surface_area` mode still works on non-watertight meshes.
 }
 ```
 
-Note: For empty List B, each unordered pair is emitted in both directions.
-
-### Example 11: Distance between multiple elements (all pairs, both directions)
+### Example 7: Distance to reference point
 
 **Settings:**
-- Measurement type: `distance_between`
+- Measurement type: `distance_to_reference`
+- Reference type: `point`
+- Reference point: `[0.0, 0.0, 0.0]` (world origin)
 
 **Inputs:**
-- List A: `[101, 102, 103]` (express IDs of three elements)
-- List B: `[]` (empty → pairs within List A, both directions)
+- List A: `[101, 102]`
 
 **Output:**
 ```json
 {
-  "type": "distance_between",
+  "type": "distance_to_reference",
   "unit": "length_unit",
   "measurements": [
-    { "reference": "dist:distance_ifc:101_ifc:102", "value": 2.5, "error": null },
-    { "reference": "dist:distance_ifc:102_ifc:101", "value": 2.5, "error": null },
-    { "reference": "dist:distance_ifc:101_ifc:103", "value": 5.1, "error": null },
-    { "reference": "dist:distance_ifc:103_ifc:101", "value": 5.1, "error": null },
-    { "reference": "dist:distance_ifc:102_ifc:103", "value": 3.2, "error": null },
-    { "reference": "dist:distance_ifc:103_ifc:102", "value": 3.2, "error": null }
+    { "reference": "ifc:101", "value": 5.2, "error": null },
+    { "reference": "ifc:102", "value": 8.7, "error": null }
   ]
 }
 ```
 
-Note: For n elements with empty List B, the node computes all n choose 2 unordered pairs (3 pairs for 3 elements) and emits each in both directions (6 measurements total).
+### Example 8: Error handling
+
+**Settings:**
+- Measurement type: `volume`
+
+**Inputs:**
+- Elements: `[101, 999]` (999 has no cached geometry)
+
+**Output:**
+```json
+{
+  "type": "volume",
+  "unit": "volume_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 2.5, "error": null },
+    { "reference": "ifc:999", "value": null, "error": "no cached geometry" }
+  ]
+}
+```
+
+Other error cases:
+- `non-watertight: ...` — Volume computation failed due to non-repairable mesh
+- `undefined normal` — Distance to reference with plane + zero-length normal
+- `undefined direction` — Component height with zero-length direction
 
 ## Units
 
-Measurements are reported in **model units** (the native units of the IFC model's geometry). If the IFC model uses meters:
-- Volume is in m³
-- Surface area is in m²
+Measurements are reported in **model units** (the native units of the IFC model's geometry).
 
-If the model uses millimeters:
-- Volume is in mm³
-- Surface area is in mm²
+- **Volume**: reported in `volume_unit` (e.g., m³ for a meter-based model, mm³ for a millimeter-based model)
+- **Area** (surface area and projected area): reported in `area_unit` (e.g., m² for a meter-based model, mm² for a millimeter-based model)
+- **Distance** (component height, minimum distance between elements, distance to reference): reported in `length_unit` (e.g., m for a meter-based model, mm for a millimeter-based model)
 
 ## Notes
 
-- **Watertight requirement for volume**: Volume computation requires watertight geometry. The node attempts to repair non-watertight meshes automatically. If repair fails, the measurement is reported with an error.
-- **Surface area works on any mesh**: Surface area is computed from the mesh triangles and does not require watertight geometry.
-- **Projected area works on any mesh**: Like surface area, projected area computation works on any mesh regardless of watertightness.
-- **Component height works on any mesh**: Extent is computed from vertex projections and does not require watertight geometry.
-- **Distance between works on any mesh**: Minimal surface-to-surface distance is computed using BVH-based nearest-point queries. Intersecting pairs are detected first via AABB + FCL triangle-triangle collision and return `0.0` immediately. Works on any mesh (convex or non-convex).
-- **Distance between pair format**: References follow the format `dist:distance_<keyA>_<keyB>` (directional, **NOT** sorted). With empty List B, each unordered pair is emitted in **both directions**. With non-empty List B, one direction per A×B pair.
-- **Distance between missing geometry**: Pairs involving elements without cached geometry produce error entries (`value=null`, `error='no cached geometry'`). With empty List B, error entries are emitted in both directions.
-- **Distance between limitation**: Only elements with tessellated Body geometry can be measured. Parametric elements like alignments (`IfcAlignment`) without Body representations will produce error entries when paired with other elements.
-- **Distance between intersecting elements**: When two meshes intersect (overlap in volume or surfaces cross), the distance is `0.0`. Intersection is detected via AABB + FCL triangle-triangle collision before the distance query, ensuring accurate results even when no vertex lies inside the other mesh.
-- **Whole-model fallback**: When `List A` is empty, the node measures all cached geometries, computing all pairwise distances for `distance_between` mode (empty List B → both directions for each pair).
-- **Future modes**: The `distance_to_reference` mode is planned for future releases. Selecting it will raise an error in v3.
+- **Watertight requirement**: Volume computation requires watertight geometry. The node attempts to repair non-watertight meshes automatically. If repair fails, the measurement is reported with an error. All other modes work on any mesh.
+- **Distance between**: References follow `dist:distance_<keyA>_<keyB>` (directional, **NOT** sorted). With empty List B, each unordered pair is emitted in **both directions**. With non-empty List B, one direction per A×B pair. Intersecting pairs return `0.0` (detected via AABB + FCL collision). Only elements with tessellated Body geometry are measurable.
+- **Distance to reference**: For `plane` mode, if the plane crosses the mesh (min ≤ 0 ≤ max over vertices), distance = 0. Zero normal (e.g. `[0.0, 0.0, 0.0]`) produces error `undefined normal`. Only elements with tessellated Body geometry are measurable.
+- **Whole-model fallback**: When `List A` is empty, the node measures all cached geometries.

@@ -914,15 +914,238 @@ def test_measurement_distance_between_list_a_cross_list_b_dict() -> None:
         assert m.error is None
 
 
-def test_measurement_unimplemented_mode_raises() -> None:
+def test_measurement_distance_to_reference_point() -> None:
+    """Point distance: box centered at origin [-1,-1,-1] to [1,1,1], reference point at [5,0,0] -> distance 4.0."""
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="point",
+            reference_point=[5.0, 0.0, 0.0],
+            reference_normal=[0.0, 0.0, 1.0],
+        ),
+        MeasurementInputs(list_a=[1]),
+        context,
+    )
+    
+    assert result.type == "distance_to_reference"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(4.0)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_distance_to_reference_point_on_surface() -> None:
+    """Point on surface -> distance 0.0."""
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="point",
+            reference_point=[1.0, 0.0, 0.0],  # on surface at x=1
+            reference_normal=[0.0, 0.0, 1.0],
+        ),
+        MeasurementInputs(list_a=[1]),
+        context,
+    )
+    
+    assert result.type == "distance_to_reference"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(0.0, abs=1e-6)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_distance_to_reference_plane() -> None:
+    """Plane z=0, normal [0,0,1], box centered at [0,0,2] spans z=1..3 -> min distance 1.0."""
+    context = _context()
+    _box(context, 1, [0, 0, 2], extents=[2, 2, 2])
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="plane",
+            reference_point=[0.0, 0.0, 0.0],
+            reference_normal=[0.0, 0.0, 1.0],
+        ),
+        MeasurementInputs(list_a=[1]),
+        context,
+    )
+    
+    assert result.type == "distance_to_reference"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(1.0)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_distance_to_reference_plane_tilted() -> None:
+    """Plane with tilted normal: box centered at origin spans x=-1..1, YZ plane (x=0) crosses box -> distance 0.0."""
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="plane",
+            reference_point=[0.0, 0.0, 0.0],
+            reference_normal=[1.0, 0.0, 0.0],  # YZ plane
+        ),
+        MeasurementInputs(list_a=[1]),
+        context,
+    )
+    
+    assert result.type == "distance_to_reference"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(0.0, abs=1e-6)  # box crosses plane at x=0
+
+
+def test_measurement_distance_to_reference_plane_zero_normal() -> None:
+    """Plane with zero normal -> error entry 'undefined normal'."""
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="plane",
+            reference_point=[0.0, 0.0, 0.0],
+            reference_normal=[0.0, 0.0, 0.0],
+        ),
+        MeasurementInputs(list_a=[1]),
+        context,
+    )
+    
+    assert result.type == "distance_to_reference"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value is None
+    assert result.measurements[0].error == "undefined normal"
+
+
+def test_measurement_distance_to_reference_missing_geometry() -> None:
+    """Missing geometry -> error entry 'no cached geometry'."""
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="point",
+            reference_point=[5.0, 0.0, 0.0],
+            reference_normal=[0.0, 0.0, 1.0],
+        ),
+        MeasurementInputs(list_a=[1, 999]),
+        context,
+    )
+    
+    assert result.type == "distance_to_reference"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value is not None
+    assert result.measurements[0].error is None
+    assert result.measurements[1].reference == "999"
+    assert result.measurements[1].value is None
+    assert result.measurements[1].error == "no cached geometry"
 
-    for mode in ["distance_to_reference"]:
-        with pytest.raises(ValueError, match=f"Measurement type '{mode}' is not implemented yet"):
-            _run(
-                MeasurementSettings(measurement_type=mode),  # type: ignore[arg-type]
-                MeasurementInputs(list_a=[1]),
-                context,
-            )
+
+def test_measurement_distance_to_reference_dict_input() -> None:
+    """Dict input (intersection_meshes) support."""
+    context = _context()
+    mesh1 = trimesh.creation.box(extents=[0.5, 0.5, 0.5])
+    mesh2 = trimesh.creation.box(extents=[1, 1, 1])
+    cache_mesh(context, mesh1, key="inter:intersection_ifc:1_ifc:2")
+    cache_mesh(context, mesh2, key="inter:intersection_ifc:3_ifc:4")
+    
+    intersection_meshes = {
+        "ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2",
+        "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4",
+        "ifc:5__ifc:6": None,
+    }
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="point",
+            reference_point=[0.0, 0.0, 5.0],
+            reference_normal=[0.0, 0.0, 1.0],
+        ),
+        MeasurementInputs(list_a=intersection_meshes),
+        context,
+    )
+    
+    assert result.type == "distance_to_reference"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"inter:intersection_ifc:1_ifc:2", "inter:intersection_ifc:3_ifc:4"}
+    for m in result.measurements:
+        assert m.value is not None
+        assert m.error is None
+
+
+def test_measurement_distance_to_reference_empty_list_uses_whole_model() -> None:
+    """Empty list_a -> whole model fallback."""
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+    _box(context, 2, [10, 0, 0], extents=[1, 1, 1])
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="point",
+            reference_point=[0.0, 0.0, 5.0],
+            reference_normal=[0.0, 0.0, 1.0],
+        ),
+        MeasurementInputs(list_a=[]),
+        context,
+    )
+    
+    assert result.type == "distance_to_reference"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 2
+    refs = {m.reference for m in result.measurements}
+    assert refs == {"ifc:1", "ifc:2"}
+    for m in result.measurements:
+        assert m.value is not None
+        assert m.error is None
+
+
+def test_measurement_distance_to_reference_non_watertight() -> None:
+    """Non-watertight mesh still computes (works on any mesh)."""
+    context = _context()
+    open_mesh = trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    cache_mesh(context, open_mesh, object_id="open")
+    
+    result = _run(
+        MeasurementSettings(
+            measurement_type="distance_to_reference",
+            reference_type="point",
+            reference_point=[0.5, 0.5, 2.0],
+            reference_normal=[0.0, 0.0, 1.0],
+        ),
+        MeasurementInputs(list_a=["open"]),
+        context,
+    )
+    
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "gen:open"
+    assert result.measurements[0].value is not None
+    assert result.measurements[0].error is None
+
 
