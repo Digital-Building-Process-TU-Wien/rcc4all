@@ -286,14 +286,22 @@ export interface IfcElementFilter {
   }
 }
 /**
- * Compute geometric measurements (volume, surface area) of IFC elements or cached geometries.
+ * Compute geometric measurements (volume, surface area, projected area, component height) of IFC elements or cached geometries.
  */
 export interface Measurement {
   settings: {
     /**
-     * The type of measurement to compute. In v1, only 'volume' and 'surface_area' are implemented.
+     * The type of measurement to compute. In v2, 'volume', 'surface_area', 'projected_area', and 'component_height' are implemented.
      */
     measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
+    /**
+     * Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view). Only used for 'projected_area' mode.
+     */
+    projection_normal?: number[]
+    /**
+     * Direction vector for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. Normalized internally.
+     */
+    direction?: number[]
   }
   result: {
     /**

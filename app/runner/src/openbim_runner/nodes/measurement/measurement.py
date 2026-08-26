@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+import numpy as np
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
@@ -22,7 +23,17 @@ class MeasurementSettings(NodeModel):
     measurement_type: MeasurementType = Field(
         default="volume",
         title="Measurement Type",
-        description="The type of measurement to compute. In v1, only 'volume' and 'surface_area' are implemented.",
+        description="The type of measurement to compute. In v2, 'volume', 'surface_area', 'projected_area', and 'component_height' are implemented.",
+    )
+    projection_normal: list[float] = Field(
+        default=[0.0, 0.0, 1.0],
+        title="Projection Normal",
+        description="Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view). Only used for 'projected_area' mode.",
+    )
+    direction: list[float] = Field(
+        default=[0.0, 0.0, 1.0],
+        title="Direction",
+        description="Direction vector for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. Normalized internally.",
     )
 
 
@@ -121,7 +132,7 @@ def _resolve_keys(
     return results_list
 
 
-_IMPLEMENTED_MODES = {"volume", "surface_area"}
+_IMPLEMENTED_MODES = {"volume", "surface_area", "projected_area", "component_height"}
 
 
 @node()
@@ -158,7 +169,27 @@ async def measurement(
         elif settings.measurement_type == "surface_area":
             measurements.append(MeasurementItem(reference=cache_key, value=mesh.area, error=None))
 
-    unit = "volume_unit" if settings.measurement_type == "volume" else "area_unit"
+        elif settings.measurement_type == "projected_area":
+            normal = settings.projection_normal
+            projected_path = mesh.projected(normal=normal)
+            measurements.append(MeasurementItem(reference=cache_key, value=projected_path.area, error=None))
+
+        elif settings.measurement_type == "component_height":
+            direction = settings.direction
+            norm = np.linalg.norm(direction)
+            if norm == 0:
+                measurements.append(MeasurementItem(reference=cache_key, value=None, error="undefined direction"))
+                continue
+            d_hat = np.array(direction) / norm
+            extent = np.ptp(mesh.vertices @ d_hat)
+            measurements.append(MeasurementItem(reference=cache_key, value=float(extent), error=None))
+
+    if settings.measurement_type == "volume":
+        unit = "volume_unit"
+    elif settings.measurement_type in {"surface_area", "projected_area"}:
+        unit = "area_unit"
+    else:  # component_height
+        unit = "length_unit"
 
     return MeasurementResult(
         type=settings.measurement_type,

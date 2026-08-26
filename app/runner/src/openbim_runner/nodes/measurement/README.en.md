@@ -1,10 +1,10 @@
 ---
 title: Measurement
-description: Compute geometric measurements (volume, surface area) of IFC elements or cached geometries.
+description: Compute geometric measurements (volume, surface area, projected area, component height) of IFC elements or cached geometries.
 categories: Measurement
 ---
 
-The `measurement` node computes geometric measurements of IFC elements or other cached geometries (e.g., intersection meshes from the collision node). Each measurement is reported per element with its reference, value, and any error.
+The `measurement` node computes geometric measurements of IFC elements or other cached geometries (e.g., intersection meshes from the collision node). Each measurement is reported per element with its reference, value, and any error. In v2, the node supports volume, surface area, projected area, and component height computations.
 
 ## Use case example
 
@@ -16,16 +16,40 @@ The `measurement` node computes geometric measurements of IFC elements or other 
 
 ### Measurement type
 
-The type of measurement to compute. In v1, only `volume` and `surface_area` are implemented.
+The type of measurement to compute. In v2, `volume`, `surface_area`, `projected_area`, and `component_height` are implemented.
 
 | Value | Label | When to use |
 |-------|-------|-------------|
 | `volume` | **Volume** | Compute the 3D volume of each element. Requires watertight geometry; non-watertight meshes are repaired or reported as errors. |
 | `surface_area` | **Surface area** | Compute the total surface area of each element. Works on any mesh. |
-| `projected_area` | **Projected area** | (Coming soon) Compute the area of an element projected onto a plane (e.g., footprint). |
-| `component_height` | **Component height** | (Coming soon) Compute the extent of an element along a direction vector (e.g., Z-height). |
+| `projected_area` | **Projected area** | Compute the area of an element projected onto a plane perpendicular to the specified normal vector. Default normal [0,0,1] computes the footprint (top-down view). Works on any mesh. |
+| `component_height` | **Component height** | Compute the extent of an element along a direction vector. Default direction [0,0,1] computes vertical height. Works on any mesh. |
 | `distance_between` | **Distance between** | (Coming soon) Compute the minimal distance between pairs of elements. |
 | `distance_to_reference` | **Distance to reference** | (Coming soon) Compute the distance from elements to a reference point or plane. |
+
+### Projection normal (v2+)
+
+Only used when **Measurement type** is `projected_area`. Specifies the normal vector of the projection plane.
+
+- **Default**: `[0.0, 0.0, 1.0]` (XY plane, top-down footprint)
+- **Format**: List of 3 floats `[x, y, z]`
+- **Examples**:
+  - `[0, 0, 1]` → Project onto XY plane (footprint)
+  - `[1, 0, 0]` → Project onto YZ plane (side view)
+  - `[0, 1, 0]` → Project onto XZ plane (front view)
+
+### Direction (v2+)
+
+Only used when **Measurement type** is `component_height`. Specifies the direction vector for extent computation.
+
+- **Default**: `[0.0, 0.0, 1.0]` (vertical height)
+- **Format**: List of 3 floats `[x, y, z]`
+- **Normalization**: The direction is normalized internally; only the direction matters, not the magnitude
+- **Examples**:
+  - `[0, 0, 1]` → Vertical height (Z extent)
+  - `[1, 0, 0]` → Horizontal extent along X axis
+  - `[0, 1, 0]` → Horizontal extent along Y axis
+  - `[1, 1, 0]` → Extent along diagonal direction (normalized internally)
 
 ## Inputs
 
@@ -38,8 +62,8 @@ The type of measurement to compute. In v1, only `volume` and `surface_area` are 
 
 ## Outputs
 
-- **Type**: The measurement type used (e.g., `volume`, `surface_area`)
-- **Unit**: The unit of measurement (`volume_unit` for volume, `area_unit` for surface area, in model units)
+- **Type**: The measurement type used (e.g., `volume`, `surface_area`, `projected_area`, `component_height`)
+- **Unit**: The unit of measurement (`volume_unit` for volume, `area_unit` for surface area and projected area, `length_unit` for component height, in model units)
 - **Measurements**: List of per-element measurements, each containing:
   - `reference`: The geometry cache key (e.g., `ifc:123`, `gen:abc`)
   - `value`: The measured value (null if geometry missing or measurement failed)
@@ -89,7 +113,47 @@ The type of measurement to compute. In v1, only `volume` and `surface_area` are 
 }
 ```
 
-### Example 3: Volume of collision intersection meshes
+### Example 3: Projected area (footprint) of a wall
+
+**Settings:**
+- Measurement type: `projected_area`
+- Projection normal: `[0.0, 0.0, 1.0]` (default, top-down view)
+
+**Inputs:**
+- Elements: `[101]` (express ID of a wall)
+
+**Output:**
+```json
+{
+  "type": "projected_area",
+  "unit": "area_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 3.5, "error": null }
+  ]
+}
+```
+
+### Example 4: Projected area with custom normal (side view)
+
+**Settings:**
+- Measurement type: `projected_area`
+- Projection normal: `[1.0, 0.0, 0.0]` (project onto YZ plane)
+
+**Inputs:**
+- Elements: `[101]` (express ID of a wall)
+
+**Output:**
+```json
+{
+  "type": "projected_area",
+  "unit": "area_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 8.2, "error": null }
+  ]
+}
+```
+
+### Example 5: Volume of collision intersection meshes
 
 **Scenario:** A `collision` node (in `intersection_mesh` mode) produced intersection meshes. You want to measure the volume of each overlap by connecting its `intersection_meshes` output directly to the `elements` input.
 
@@ -113,7 +177,7 @@ The type of measurement to compute. In v1, only `volume` and `surface_area` are 
 
 Note: The null entry (`ifc:5__ifc:6`) is skipped because no intersection mesh was stored for that collision pair.
 
-### Example 4: Missing geometry handled gracefully
+### Example 6: Missing geometry handled gracefully
 
 **Settings:**
 - Measurement type: `volume`
@@ -133,7 +197,7 @@ Note: The null entry (`ifc:5__ifc:6`) is skipped because no intersection mesh wa
 }
 ```
 
-### Example 5: Non-watertight mesh volume error
+### Example 7: Non-watertight mesh volume error
 
 **Settings:**
 - Measurement type: `volume`
@@ -154,6 +218,46 @@ Note: The null entry (`ifc:5__ifc:6`) is skipped because no intersection mesh wa
 
 Note: `surface_area` mode still works on non-watertight meshes.
 
+### Example 8: Component height (vertical) of a wall
+
+**Settings:**
+- Measurement type: `component_height`
+- Direction: `[0.0, 0.0, 1.0]` (default, vertical height)
+
+**Inputs:**
+- Elements: `[101]` (express ID of a wall)
+
+**Output:**
+```json
+{
+  "type": "component_height",
+  "unit": "length_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 2.8, "error": null }
+  ]
+}
+```
+
+### Example 9: Component height with custom direction
+
+**Settings:**
+- Measurement type: `component_height`
+- Direction: `[1.0, 0.0, 0.0]` (extent along X axis)
+
+**Inputs:**
+- Elements: `[101]` (express ID of a wall)
+
+**Output:**
+```json
+{
+  "type": "component_height",
+  "unit": "length_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 0.3, "error": null }
+  ]
+}
+```
+
 ## Units
 
 Measurements are reported in **model units** (the native units of the IFC model's geometry). If the IFC model uses meters:
@@ -168,5 +272,7 @@ If the model uses millimeters:
 
 - **Watertight requirement for volume**: Volume computation requires watertight geometry. The node attempts to repair non-watertight meshes automatically. If repair fails, the measurement is reported with an error.
 - **Surface area works on any mesh**: Surface area is computed from the mesh triangles and does not require watertight geometry.
+- **Projected area works on any mesh**: Like surface area, projected area computation works on any mesh regardless of watertightness.
+- **Component height works on any mesh**: Extent is computed from vertex projections and does not require watertight geometry.
 - **Whole-model fallback**: When `elements` is empty, the node measures all cached geometries (IFC elements and generated geometries).
-- **Future modes**: The `projected_area`, `component_height`, `distance_between`, and `distance_to_reference` modes are planned for future releases. Selecting them will raise an error in v1.
+- **Future modes**: The `distance_between` and `distance_to_reference` modes are planned for future releases. Selecting them will raise an error in v2.

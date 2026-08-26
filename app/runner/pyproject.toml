@@ -11,10 +11,13 @@ requires-python = ">=3.11"
 dependencies = [
     "ifcopenshell>=0.8.3",
     "manifold3d",
+    "networkx",
     "numpy",
     "python-fcl",
     "pymeshfix",
     "pydantic>=2.11.0",
+    "rtree",
+    "scipy",
     "trimesh>=4.0.0",
 ]
 

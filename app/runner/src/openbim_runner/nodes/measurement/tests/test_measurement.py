@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, cast
 
+import numpy as np
 import pytest
 import trimesh
 
@@ -204,7 +205,7 @@ def test_measurement_unimplemented_mode_raises() -> None:
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
 
-    for mode in ["projected_area", "component_height", "distance_between", "distance_to_reference"]:
+    for mode in ["distance_between", "distance_to_reference"]:
         with pytest.raises(ValueError, match=f"Measurement type '{mode}' is not implemented yet"):
             _run(
                 MeasurementSettings(measurement_type=mode),  # type: ignore[arg-type]
@@ -283,3 +284,283 @@ def test_measurement_with_intersection_meshes_dict_surface_area() -> None:
     assert result.measurements[0].reference == "inter:intersection_ifc:1_ifc:2"
     assert result.measurements[0].value == pytest.approx(24.0)
     assert result.measurements[0].error is None
+
+
+def test_measurement_projected_area_default_normal() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    result = _run(
+        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
+        MeasurementInputs(elements=[1]),
+        context,
+    )
+
+    assert result.type == "projected_area"
+    assert result.unit == "area_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(6.0, abs=0.1)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_projected_area_custom_normal_x() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    result = _run(
+        MeasurementSettings(measurement_type="projected_area", projection_normal=[1.0, 0.0, 0.0]),
+        MeasurementInputs(elements=[1]),
+        context,
+    )
+
+    assert result.type == "projected_area"
+    assert result.unit == "area_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(12.0, abs=0.1)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_projected_area_custom_normal_y() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    result = _run(
+        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 1.0, 0.0]),
+        MeasurementInputs(elements=[1]),
+        context,
+    )
+
+    assert result.type == "projected_area"
+    assert result.unit == "area_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(8.0, abs=0.1)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_projected_area_non_watertight() -> None:
+    context = _context()
+    open_mesh = trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    cache_mesh(context, open_mesh, object_id="open")
+
+    result = _run(
+        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
+        MeasurementInputs(elements=["open"]),
+        context,
+    )
+
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "gen:open"
+    assert result.measurements[0].value is not None
+    assert result.measurements[0].error is None
+
+
+def test_measurement_projected_area_missing_geometry() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
+        MeasurementInputs(elements=[1, 999]),
+        context,
+    )
+
+    assert len(result.measurements) == 2
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value is not None
+    assert result.measurements[0].error is None
+    assert result.measurements[1].reference == "999"
+    assert result.measurements[1].value is None
+    assert result.measurements[1].error == "no cached geometry"
+
+
+def test_measurement_projected_area_dict_input() -> None:
+    context = _context()
+    mesh1 = trimesh.creation.box(extents=[0.5, 0.5, 0.5])
+    mesh2 = trimesh.creation.box(extents=[1, 1, 1])
+    cache_mesh(context, mesh1, key="inter:intersection_ifc:1_ifc:2")
+    cache_mesh(context, mesh2, key="inter:intersection_ifc:3_ifc:4")
+
+    intersection_meshes = {
+        "ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2",
+        "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4",
+        "ifc:5__ifc:6": None,
+    }
+
+    result = _run(
+        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
+        MeasurementInputs(elements=intersection_meshes),
+        context,
+    )
+
+    assert len(result.measurements) == 2
+    assert result.measurements[0].reference == "inter:intersection_ifc:1_ifc:2"
+    assert result.measurements[0].value == pytest.approx(0.25, abs=0.01)
+    assert result.measurements[0].error is None
+    assert result.measurements[1].reference == "inter:intersection_ifc:3_ifc:4"
+    assert result.measurements[1].value == pytest.approx(1.0, abs=0.01)
+    assert result.measurements[1].error is None
+
+
+def test_measurement_component_height_default_direction() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    result = _run(
+        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
+        MeasurementInputs(elements=[1]),
+        context,
+    )
+
+    assert result.type == "component_height"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(4.0)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_component_height_direction_x() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    result = _run(
+        MeasurementSettings(measurement_type="component_height", direction=[1.0, 0.0, 0.0]),
+        MeasurementInputs(elements=[1]),
+        context,
+    )
+
+    assert result.type == "component_height"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(2.0)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_component_height_direction_y() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    result = _run(
+        MeasurementSettings(measurement_type="component_height", direction=[0.0, 1.0, 0.0]),
+        MeasurementInputs(elements=[1]),
+        context,
+    )
+
+    assert result.type == "component_height"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(3.0)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_component_height_diagonal_direction() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    result = _run(
+        MeasurementSettings(measurement_type="component_height", direction=[1.0, 1.0, 0.0]),
+        MeasurementInputs(elements=[1]),
+        context,
+    )
+
+    assert result.type == "component_height"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value == pytest.approx(5.0 / np.sqrt(2), abs=0.01)
+    assert result.measurements[0].error is None
+
+
+def test_measurement_component_height_non_watertight() -> None:
+    context = _context()
+    open_mesh = trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    cache_mesh(context, open_mesh, object_id="open")
+
+    result = _run(
+        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
+        MeasurementInputs(elements=["open"]),
+        context,
+    )
+
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "gen:open"
+    assert result.measurements[0].value is not None
+    assert result.measurements[0].error is None
+
+
+def test_measurement_component_height_missing_geometry() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
+        MeasurementInputs(elements=[1, 999]),
+        context,
+    )
+
+    assert len(result.measurements) == 2
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value is not None
+    assert result.measurements[0].error is None
+    assert result.measurements[1].reference == "999"
+    assert result.measurements[1].value is None
+    assert result.measurements[1].error == "no cached geometry"
+
+
+def test_measurement_component_height_dict_input() -> None:
+    context = _context()
+    mesh1 = trimesh.creation.box(extents=[0.5, 0.5, 0.5])
+    mesh2 = trimesh.creation.box(extents=[1, 1, 1])
+    cache_mesh(context, mesh1, key="inter:intersection_ifc:1_ifc:2")
+    cache_mesh(context, mesh2, key="inter:intersection_ifc:3_ifc:4")
+
+    intersection_meshes = {
+        "ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2",
+        "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4",
+        "ifc:5__ifc:6": None,
+    }
+
+    result = _run(
+        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
+        MeasurementInputs(elements=intersection_meshes),
+        context,
+    )
+
+    assert len(result.measurements) == 2
+    assert result.measurements[0].reference == "inter:intersection_ifc:1_ifc:2"
+    assert result.measurements[0].value == pytest.approx(0.5, abs=0.01)
+    assert result.measurements[0].error is None
+    assert result.measurements[1].reference == "inter:intersection_ifc:3_ifc:4"
+    assert result.measurements[1].value == pytest.approx(1.0, abs=0.01)
+    assert result.measurements[1].error is None
+
+
+def test_measurement_component_height_zero_direction() -> None:
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    result = _run(
+        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 0.0]),
+        MeasurementInputs(elements=[1]),
+        context,
+    )
+
+    assert result.type == "component_height"
+    assert result.unit == "length_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == "ifc:1"
+    assert result.measurements[0].value is None
+    assert result.measurements[0].error == "undefined direction"

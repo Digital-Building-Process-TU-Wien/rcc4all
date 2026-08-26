@@ -1,10 +1,10 @@
 ---
 title: Measurement (Messung)
-description: Berechnet geometrische Messungen (Volumen, Oberfläche) von IFC-Elementen oder zwischengespeicherten Geometrien.
+description: Berechnet geometrische Messungen (Volumen, Oberfläche, projizierte Fläche, Bauteilhöhe) von IFC-Elementen oder zwischengespeicherten Geometrien.
 categories: Measurement
 ---
 
-Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder anderen zwischengespeicherten Geometrien (z. B. Schnittmengen aus dem collision-Knoten). Jede Messung wird pro Element mit Referenz, Wert und ggf. Fehler ausgegeben.
+Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder anderen zwischengespeicherten Geometrien (z. B. Schnittmengen aus dem collision-Knoten). Jede Messung wird pro Element mit Referenz, Wert und ggf. Fehler ausgegeben. In v2 unterstützt der Knoten Volumen-, Oberflächen-, projizierte Flächen- und Bauteilhöhenberechnungen.
 
 ## Anwendungsbeispiel
 
@@ -16,16 +16,40 @@ Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder
 
 ### Messungstyp (measurement_type)
 
-Der Typ der zu berechnenden Messung. In v1 sind nur `volume` und `surface_area` implementiert.
+Der Typ der zu berechnenden Messung. In v2 sind `volume`, `surface_area`, `projected_area` und `component_height` implementiert.
 
 | Wert | Bezeichnung | Wann verwenden |
 |------|-------------|----------------|
 | `volume` | **Volumen** | Berechnet das 3D-Volumen jedes Elements. Erfordert wasserdichte Geometrie; nicht wasserdichte Meshes werden repariert oder als Fehler gemeldet. |
 | `surface_area` | **Oberfläche** | Berechnet die Gesamtoberfläche jedes Elements. Funktioniert mit jedem Mesh. |
-| `projected_area` | **Projizierte Fläche** | (Geplant) Berechnet die Fläche eines Elements, projiziert auf eine Ebene (z. B. Grundrissfläche). |
-| `component_height` | **Bauteilhöhe** | (Geplant) Berechnet die Ausdehnung eines Elements entlang eines Richtungsvektors (z. B. Z-Höhe). |
+| `projected_area` | **Projizierte Fläche** | Berechnet die Fläche eines Elements, projiziert auf eine Ebene senkrecht zum angegebenen Normalenvektor. Standardnormal [0,0,1] berechnet die Grundrissfläche (Draufsicht). Funktioniert mit jedem Mesh. |
+| `component_height` | **Bauteilhöhe** | Berechnet die Ausdehnung eines Elements entlang eines Richtungsvektors. Standardrichtung [0,0,1] berechnet die vertikale Höhe. Funktioniert mit jedem Mesh. |
 | `distance_between` | **Abstand zwischen** | (Geplant) Berechnet den minimalen Abstand zwischen Elementpaaren. |
 | `distance_to_reference` | **Abstand zur Referenz** | (Geplant) Berechnet den Abstand von Elementen zu einem Referenzpunkt oder einer Ebene. |
+
+### Projektionsnormal (v2+)
+
+Nur verwendet, wenn **Messungstyp** `projected_area` ist. Gibt den Normalenvektor der Projektionsebene an.
+
+- **Standard**: `[0.0, 0.0, 1.0]` (XY-Ebene, Draufsicht)
+- **Format**: Liste von 3 Floats `[x, y, z]`
+- **Beispiele**:
+  - `[0, 0, 1]` → Projektion auf XY-Ebene (Grundriss)
+  - `[1, 0, 0]` → Projektion auf YZ-Ebene (Seitenansicht)
+  - `[0, 1, 0]` → Projektion auf XZ-Ebene (Frontansicht)
+
+### Richtung (v2+)
+
+Nur verwendet, wenn **Messungstyp** `component_height` ist. Gibt den Richtungsvektor für die Ausdehnungsberechnung an.
+
+- **Standard**: `[0.0, 0.0, 1.0]` (vertikale Höhe)
+- **Format**: Liste von 3 Floats `[x, y, z]`
+- **Normalisierung**: Die Richtung wird intern normalisiert; nur die Richtung ist relevant, nicht die Länge
+- **Beispiele**:
+  - `[0, 0, 1]` → Vertikale Höhe (Z-Ausdehnung)
+  - `[1, 0, 0]` → Horizontale Ausdehnung entlang der X-Achse
+  - `[0, 1, 0]` → Horizontale Ausdehnung entlang der Y-Achse
+  - `[1, 1, 0]` → Ausdehnung entlang diagonaler Richtung (intern normalisiert)
 
 ## Eingaben
 
@@ -38,8 +62,8 @@ Der Typ der zu berechnenden Messung. In v1 sind nur `volume` und `surface_area` 
 
 ## Ausgaben
 
-- **Type**: Der verwendete Messungstyp (z. B. `volume`, `surface_area`)
-- **Unit**: Die Maßeinheit (`volume_unit` für Volumen, `area_unit` für Oberfläche, in Modell-Einheiten)
+- **Type**: Der verwendete Messungstyp (z. B. `volume`, `surface_area`, `projected_area`, `component_height`)
+- **Unit**: Die Maßeinheit (`volume_unit` für Volumen, `area_unit` für Oberfläche und projizierte Fläche, `length_unit` für Bauteilhöhe, in Modell-Einheiten)
 - **Measurements**: Liste der Messungen pro Element, jeweils mit:
   - `reference`: Der Geometrie-Cache-Schlüssel (z. B. `ifc:123`, `gen:abc`)
   - `value`: Der gemessene Wert (null wenn Geometrie fehlt oder Messung fehlgeschlagen)
@@ -89,7 +113,47 @@ Der Typ der zu berechnenden Messung. In v1 sind nur `volume` und `surface_area` 
 }
 ```
 
-### Beispiel 3: Volumen von Kollisionsschnittmengen
+### Beispiel 3: Projizierte Fläche (Grundriss) einer Wand
+
+**Einstellungen:**
+- Messungstyp: `projected_area`
+- Projektionsnormal: `[0.0, 0.0, 1.0]` (Standard, Draufsicht)
+
+**Eingaben:**
+- Elements: `[101]` (Express-ID einer Wand)
+
+**Ausgabe:**
+```json
+{
+  "type": "projected_area",
+  "unit": "area_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 3.5, "error": null }
+  ]
+}
+```
+
+### Beispiel 4: Projizierte Fläche mit benutzerdefiniertem Normal (Seitenansicht)
+
+**Einstellungen:**
+- Messungstyp: `projected_area`
+- Projektionsnormal: `[1.0, 0.0, 0.0]` (Projektion auf YZ-Ebene)
+
+**Eingaben:**
+- Elements: `[101]` (Express-ID einer Wand)
+
+**Ausgabe:**
+```json
+{
+  "type": "projected_area",
+  "unit": "area_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 8.2, "error": null }
+  ]
+}
+```
+
+### Beispiel 5: Volumen von Kollisionsschnittmengen
 
 **Szenario:** Ein `collision`-Knoten (im Modus `intersection_mesh`) hat Schnittmengen erzeugt. Sie möchten das Volumen jeder Überlappung messen, indem Sie dessen `intersection_meshes`-Ausgabe direkt mit der `elements`-Eingabe verbinden.
 
@@ -113,7 +177,7 @@ Der Typ der zu berechnenden Messung. In v1 sind nur `volume` und `surface_area` 
 
 Hinweis: Der Null-Eintrag (`ifc:5__ifc:6`) wird übersprungen, da für dieses Kollisionspaar keine Schnittmenge gespeichert wurde.
 
-### Beispiel 4: Fehlende Geometrie wird gracefully behandelt
+### Beispiel 6: Fehlende Geometrie wird gracefully behandelt
 
 **Einstellungen:**
 - Messungstyp: `volume`
@@ -133,7 +197,7 @@ Hinweis: Der Null-Eintrag (`ifc:5__ifc:6`) wird übersprungen, da für dieses Ko
 }
 ```
 
-### Beispiel 5: Nicht wasserdichtes Mesh-Volumenfehler
+### Beispiel 7: Nicht wasserdichtes Mesh-Volumenfehler
 
 **Einstellungen:**
 - Messungstyp: `volume`
@@ -154,6 +218,46 @@ Hinweis: Der Null-Eintrag (`ifc:5__ifc:6`) wird übersprungen, da für dieses Ko
 
 Hinweis: Der Modus `surface_area` funktioniert weiterhin mit nicht wasserdichten Meshes.
 
+### Beispiel 8: Bauteilhöhe (vertikal) einer Wand
+
+**Einstellungen:**
+- Messungstyp: `component_height`
+- Richtung: `[0.0, 0.0, 1.0]` (Standard, vertikale Höhe)
+
+**Eingaben:**
+- Elements: `[101]` (Express-ID einer Wand)
+
+**Ausgabe:**
+```json
+{
+  "type": "component_height",
+  "unit": "length_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 2.8, "error": null }
+  ]
+}
+```
+
+### Beispiel 9: Bauteilhöhe mit benutzerdefinierter Richtung
+
+**Einstellungen:**
+- Messungstyp: `component_height`
+- Richtung: `[1.0, 0.0, 0.0]` (Ausdehnung entlang X-Achse)
+
+**Eingaben:**
+- Elements: `[101]` (Express-ID einer Wand)
+
+**Ausgabe:**
+```json
+{
+  "type": "component_height",
+  "unit": "length_unit",
+  "measurements": [
+    { "reference": "ifc:101", "value": 0.3, "error": null }
+  ]
+}
+```
+
 ## Einheiten
 
 Messungen werden in **Modell-Einheiten** (den nativen Einheiten der IFC-Modellgeometrie) ausgegeben. Wenn das IFC-Modell Meter verwendet:
@@ -168,5 +272,7 @@ Wenn das Modell Millimeter verwendet:
 
 - **Wasserdichtigkeit für Volumen erforderlich**: Die Volumenberechnung erfordert wasserdichte Geometrie. Der Knoten versucht automatisch, nicht wasserdichte Meshes zu reparieren. Wenn die Reparatur fehlschlägt, wird die Messung mit Fehler gemeldet.
 - **Oberfläche funktioniert mit jedem Mesh**: Die Oberfläche wird aus den Mesh-Dreiecken berechnet und erfordert keine wasserdichte Geometrie.
+- **Projizierte Fläche funktioniert mit jedem Mesh**: Wie die Oberfläche funktioniert auch die projizierte Flächenberechnung mit jedem Mesh, unabhängig von der Wasserdichtigkeit.
+- **Bauteilhöhe funktioniert mit jedem Mesh**: Die Ausdehnung wird aus Vertex-Projektionen berechnet und erfordert keine wasserdichte Geometrie.
 - **Gesamtmodell-Fallback**: Wenn `elements` leer ist, misst der Knoten alle zwischengespeicherten Geometrien (IFC-Elemente und generierte Geometrien).
-- **Zukünftige Modi**: Die Modi `projected_area`, `component_height`, `distance_between` und `distance_to_reference` sind für zukünftige Versionen geplant. Die Auswahl führt in v1 zu einem Fehler.
+- **Zukünftige Modi**: Die Modi `distance_between` und `distance_to_reference` sind für zukünftige Versionen geplant. Die Auswahl führt in v2 zu einem Fehler.
