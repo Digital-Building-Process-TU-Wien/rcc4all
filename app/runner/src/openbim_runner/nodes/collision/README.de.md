@@ -4,7 +4,7 @@ description: Clash-Detection zwischen zwei Geometrielisten über AABB-Präfilter
 categories: geometry,collision
 ---
 
-Der `collision`-Knoten erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **Express-IDs** (`int` → `ifc:<id>`) für IFC-Elemente oder **Objekt-IDs** (`str` → `gen:<id>`) für generierte Geometrie. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
+Der `collision`-Node erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **Express-IDs** (`int` → `ifc:<id>`) für IFC-Elemente oder **Objekt-IDs** (`str` → `gen:<id>`) für generierte Geometrie. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
 
 1. **AABB-Präfilter** — Paare ohne überlappende Bounding-Boxes überspringen.
 2. **Boolesche Schnittmenge** — beide Netze zu wasserdichten Netzen reparieren, Schnittmenge berechnen. Eine Kollision liegt vor, wenn die Schnittmenge positives Volumen hat.

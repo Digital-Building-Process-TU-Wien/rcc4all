@@ -8,14 +8,14 @@ categories: Output
 **BCF-3.0**-Issue-Datei — ein **Topic pro fehlgeschlagener Prüfung**, die das
 betroffene Element referenziert, damit es in einem BCF-Viewer geprüft werden
 kann. Die Datei ist **rein Markup-basiert** (keine 3D-Viewpoint-Daten halten
-sie klein und schnell zu öffnen). Der Knoten ermittelt selbst keine
+sie klein und schnell zu öffnen). Der Node ermittelt selbst keine
 Eigenschaften; er liest die strukturierte `elements`-Ausgabe von `loi_check`
 und löst GUID / Name des Elements nur zur Referenzierung auf.
 
 ## Anwendungsbeispiel
 
 Führen Sie `loi_check` aus, verbinden Sie dessen `elements`-Ausgabe mit diesem
-Knoten, wählen Sie eine Titel- und Beschreibungsschablone (siehe unten) und
+Node, wählen Sie eine Titel- und Beschreibungsschablone (siehe unten) und
 führen Sie den Workflow aus — neben der Workflow-Datei wird
 `bcf_output-<Zeitstempel>.bcf` gespeichert.
 
@@ -89,18 +89,18 @@ Description:  Element {guid} ({class_name} {name}) hat {property_name}={actual};
 ## Eingaben
 
 - **Elements** (erforderlich): die Elementliste aus `loi_check`
-  (`LOI-Check.elements`); der Knoten meldet einen Fehler, wenn sie fehlt.
+  (`LOI-Check.elements`); der Node meldet einen Fehler, wenn sie fehlt.
 - **Automatische Verbindung**: Wenn Sie keine Quelle wählen, verwendet der
-  Knoten automatisch den einzelnen direkt vorgelagerten Knoten, der die
-  erwarteten Daten liefert. Das geschieht anhand des Knotentyps (nicht seines
-  Anzeigenamens), sodass eine Umbenennung Ihres LOI-Check-Knotens keine
-  Auswirkung hat. Können mehrere direkt vorgelagerte Knoten sie liefern, stoppt
+  Node automatisch den einzelnen direkt vorgelagerten Node, der die
+  erwarteten Daten liefert. Das geschieht anhand des Node-Typs (nicht seines
+  Anzeigenamens), sodass eine Umbenennung Ihres LOI-Check-Nodes keine
+  Auswirkung hat. Können mehrere direkt vorgelagerte Nodes sie liefern, stoppt
   der Lauf und fordert eine Auswahl — und Sie können die automatische Wahl
   jederzeit im Eingabebindungen-Panel überschreiben.
 
 ## Ausgaben
 
-Der Knoten meldet `output_path` (wo die Datei gespeichert wurde),
+Der Node meldet `output_path` (wo die Datei gespeichert wurde),
 `topic_count` (eines pro fehlgeschlagener Prüfung), `element_count`,
 `failed_check_count` und `topics` — der aufgelöste Titel und die Nachricht pro
 fehlgeschlagener Prüfung zur Kontrolle.
