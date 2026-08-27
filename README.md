@@ -13,11 +13,13 @@ RCC4All closes that gap. It supports a structured path from requirement definiti
 ## Donation
 Our principle: sharing and distributing research is crucial to learning from each other and moving forward together. If you would like to support our open source research, we greatly appreciate donations.
 
-Technische Universität Wien/Spendenkonto
-IBAN: AT19 3200 0200 0061 1228
-BIC/SWFT: RLNWATWW
+Technische Universität Wien/Spendenkonto IBAN:  
+AT19 3200 0200 0061 1228  
+BIC/SWFT:  
+RLNWATWW
 
-Purpose of transfer: GEV011020ZFT S235030-000 - Digital Building Process
+Purpose of transfer:  
+GEV011020ZFT S235030-000 - Digital Building Process
 
 ## How It Works
 
