@@ -74,41 +74,41 @@
   },
   "editor": {
     "title": "BIM-Node-Editor",
-    "nodeCount": "{count} Knoten | {count} Knoten",
-    "emptyCanvas": "Fügen Sie den ersten Knoten hinzu."
+    "nodeCount": "{count} Nodes | {count} Nodes",
+    "emptyCanvas": "Fügen Sie den ersten Node hinzu."
   },
   "library": {
     "backHome": "Zurück zur Startseite",
     "title": "Node-Bibliothek",
-    "addAvailableNodes": "Verfügbare Knoten hinzufügen",
-    "chooseNodeType": "Wählen Sie einen Knotentyp, um ihn auf der Arbeitsfläche zu platzieren.",
+    "addAvailableNodes": "Verfügbare Nodes hinzufügen",
+    "chooseNodeType": "Wählen Sie einen Node-Typ, um ihn auf der Arbeitsfläche zu platzieren.",
     "viewAll": "Alle",
     "viewCategories": "Kategorien",
-    "filterNodes": "Knoten filtern...",
-    "noNodesMatch": "Es wurden keine passenden Knoten gefunden.",
+    "filterNodes": "Nodes filtern...",
+    "noNodesMatch": "Es wurden keine passenden Nodes gefunden.",
     "runWorkflow": "Workflow ausführen",
     "running": "Läuft...",
     "clearCanvas": "Arbeitsfläche leeren"
   },
   "slideover": {
-    "nodeDetails": "Knotendetails",
-    "description": "Knoteneigenschaften konfigurieren und prüfen",
-    "nodeLabel": "Knotenname",
+    "nodeDetails": "Node-Details",
+    "description": "Node-Eigenschaften konfigurieren und prüfen",
+    "nodeLabel": "Node-Name",
     "customLabelPlaceholder": "Eigenen Namen eingeben...",
     "labelHint": "Dieser Name wird im Diagramm und in den Bindungs-Dropdowns angezeigt",
     "documentation": "Dokumentation",
     "noDetailedDocs": "Keine ausführliche Dokumentation verfügbar",
-    "unknownNode": "Unbekannter Knoten",
-    "componentNotFound": "Knotenkomponente nicht gefunden",
-    "selectNode": "Wählen Sie einen Knoten aus, um Details anzuzeigen",
-    "deleteNode": "Knoten löschen"
+    "unknownNode": "Unbekannter Node",
+    "componentNotFound": "Node-Komponente nicht gefunden",
+    "selectNode": "Wählen Sie einen Node aus, um Details anzuzeigen",
+    "deleteNode": "Node löschen"
   },
   "bindings": {
     "title": "Eingangsbindungen",
     "selectSourceNode": "Quellknoten auswählen...",
     "selectOutput": "Ausgabe auswählen...",
     "typeMismatch": "Typkonflikt",
-    "noConfigurableInputs": "Dieser Knoten hat keine konfigurierbaren Eingänge"
+    "noConfigurableInputs": "Dieser Node hat keine konfigurierbaren Eingänge"
   },
   "execution": {
     "backToWorkflow": "Zurück zum Workflow",
@@ -155,8 +155,8 @@
   },
   "node": {
     "fileInput": {
-      "title": "Datei-Eingabe-Knoten",
-      "description": "Wählen Sie eine lokale Entwicklungsdatei aus, um sie an diesen Knoten anzuhängen.",
+      "title": "Datei-Eingabe-Node",
+      "description": "Wählen Sie eine lokale Entwicklungsdatei aus, um sie an diesen Node anzuhängen.",
       "selectedFile": "Ausgewählte Datei",
       "noFileSelected": "Keine Datei ausgewählt",
       "clear": "Leeren",
@@ -166,7 +166,7 @@
       "unableToLoad": "Entwicklungsdateien konnten nicht geladen werden.",
       "loadingFiles": "Dateien werden geladen...",
       "noFilesFound": "Keine Dateien in web/.dev-files gefunden",
-      "addIfcFile": "Bitte legen Sie eine IFC-Datei im Ordner {folder} ab, um diesen Knoten zu verwenden.",
+      "addIfcFile": "Bitte legen Sie eine IFC-Datei im Ordner {folder} ab, um diesen Node zu verwenden.",
       "noFilenameMatch": "Keine Dateinamen entsprechen Ihrer Suche."
     },
     "getName": {
@@ -216,20 +216,20 @@
     },
     "collision": {
       "title": "Kollision",
-      "description": "Kollisionserkennung zwischen gecachten Geometrien. Testet jede Referenz A gegen jede Referenz B (kartesisches Produkt). Binden Sie list_a / list_b von vorgelagerten Knoten; eine nicht gebundene Seite fällt auf das gesamte Modell zurück.",
+      "description": "Kollisionserkennung zwischen gecachten Geometrien. Testet jede Referenz A gegen jede Referenz B (kartesisches Produkt). Binden Sie list_a / list_b von vorgelagerten Nodes; eine nicht gebundene Seite fällt auf das gesamte Modell zurück.",
       "mode": "Modus",
       "modeBoolean": "Boolean (nur Kollisionen melden)",
       "modeIntersectionMesh": "Schnittfläche (Überlappungsgeometrie speichern)",
       "modeHelp": "Boolean meldet, welche Paare kollidieren. Die Schnittfläche speichert zusätzlich jede Überlappung unter einem deterministischen Schlüssel."
     },
     "concatString": {
-      "title": "Knoten Zeichenketten verketten",
+      "title": "Node Zeichenketten verketten",
       "separator": "Trennzeichen",
       "separatorPlaceholder": "z. B. ', '"
     },
     "bcfOutput": {
       "title": "BCF-Ausgabe",
-      "description": "Setzt LOI-Check-Fehler in eine BCF-3.0-Datei um. Verbinden Sie die {elements}-Ausgabe eines LOI-Check-Knotens.",
+      "description": "Setzt LOI-Check-Fehler in eine BCF-3.0-Datei um. Verbinden Sie die {elements}-Ausgabe eines LOI-Check-Nodes.",
       "modeAuto": "Automatisch",
       "modeManual": "Manuell",
       "autoModeInfo": "Die Standardvorlagen werden automatisch für jedes LOI-Check-Szenario angewendet. Wechseln Sie in den manuellen Modus, um eigene Titel- und Beschreibungsvorlagen zu schreiben.",
