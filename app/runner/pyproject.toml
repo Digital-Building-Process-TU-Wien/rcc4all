@@ -17,6 +17,7 @@ dependencies = [
     "pymeshfix",
     "pydantic>=2.11.0",
     "trimesh>=4.0.0",
+    "scipy>=1.17.1",
 ]
 
 [project.scripts]
@@ -37,6 +38,13 @@ testpaths = [
     "src/openbim_runner/nodes",
     "tests",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B", "SIM", "C4", "RET", "RUF"]
 
 [tool.pyright]
 include = ["src"]

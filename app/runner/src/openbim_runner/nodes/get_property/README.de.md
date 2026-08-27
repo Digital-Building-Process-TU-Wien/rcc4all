@@ -4,7 +4,7 @@ description: Liest Eigenschaftswerte aus IFC-Elementen für die Weiterverarbeitu
 categories: IFC
 ---
 
-Der `get_property` Knoten liest Eigenschaftswerte aus IFC-Elementen. Jede Auswahl spezifiziert einen optionalen Entity-Typ, einen optionalen PropertySet und einen erforderlichen Property-Namen. Der Knoten gibt Eigenschaftswerte in einem von drei Modi aus: Per explicit element, Per element class oder Without element class distinction.
+Der `get_property` Node liest Eigenschaftswerte aus IFC-Elementen. Jede Auswahl spezifiziert einen optionalen Entity-Typ, einen optionalen PropertySet und einen erforderlichen Property-Namen. Der Node gibt Eigenschaftswerte in einem von drei Modi aus: Per explicit element, Per element class oder Without element class distinction.
 
 ## Anwendungsbeispiel
 

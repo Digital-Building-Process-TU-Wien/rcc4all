@@ -20,6 +20,7 @@ interface Props {
 const props = defineProps<Props>()
 const store = useFlowStore()
 const node = useScopedNode(props.nodeId)
+const { t } = useI18n()
 const { getBindingOptions } = useFlowGraph()
 
 const nodeInputs = computed(() => getNodeInputs(props.nodeName))
@@ -50,10 +51,13 @@ function getSourceNodeOutputs(inputName: string): { label: string, value: string
   if (!option)
     return []
 
-  return option.outputs.map(output => ({
-    label: output,
-    value: output,
-  }))
+  const inputType = getInputType(props.nodeName, inputName)
+  return option.outputs
+    .filter(output => areTypesCompatible(getOutputType(option.nodeName, output), inputType))
+    .map(output => ({
+      label: output,
+      value: output,
+    }))
 }
 
 function updateBinding(inputName: string, sourceId?: string, outputField?: string) {
@@ -99,7 +103,7 @@ function getTypeWarning(inputName: string): string | null {
   const inputType = getInputType(props.nodeName, inputName)
 
   if (!areTypesCompatible(outputType, inputType)) {
-    return `Type mismatch: ${outputType.type} → ${inputType.type}`
+    return `${t('bindings.typeMismatch')}: ${outputType.type} → ${inputType.type}`
   }
 
   return null
@@ -109,7 +113,7 @@ function getTypeWarning(inputName: string): string | null {
 <template>
   <div v-if="nodeInputs.length > 0" class="border-t border-default pt-4 mt-4">
     <h3 class="text-sm font-semibold text-highlighted mb-3">
-      Input Bindings
+      {{ t('bindings.title') }}
     </h3>
 
     <div v-for="inputName in nodeInputs" :key="inputName" class="mb-4">
@@ -123,7 +127,7 @@ function getTypeWarning(inputName: string): string | null {
           :items="bindingOptions.map(opt => ({ value: opt.id, label: opt.label }))"
           value-key="value"
           label-key="label"
-          placeholder="Select source node..."
+          :placeholder="t('bindings.selectSourceNode')"
           @update:model-value="(sourceId: string) => updateBinding(inputName, sourceId)"
         />
 
@@ -131,7 +135,7 @@ function getTypeWarning(inputName: string): string | null {
           :model-value="getBindingOutput(inputName)"
           :items="getSourceNodeOutputs(inputName)"
           item-key="value"
-          placeholder="Select output..."
+          :placeholder="t('bindings.selectOutput')"
           :disabled="!getBindingSource(inputName)"
           @update:model-value="(output: string) => updateBinding(inputName, undefined, output)"
         />
@@ -150,7 +154,7 @@ function getTypeWarning(inputName: string): string | null {
 
   <div v-else class="border-t border-default pt-4 mt-4">
     <p class="text-sm text-muted italic">
-      This node has no configurable inputs
+      {{ t('bindings.noConfigurableInputs') }}
     </p>
   </div>
 </template>

@@ -4,9 +4,9 @@ description: Löst IFC-Objektnamen für Express-IDs aus dem Workflow-Eingang auf
 categories: IFC
 ---
 
-Der `get_name` Knoten liest IFC-Entitäten nach Express-ID aus dem Eingang und gibt deren `Name`-Werte in der gleichen Reihenfolge zurück.
+Der `get_name` Node liest IFC-Entitäten nach Express-ID aus dem Eingang und gibt deren `Name`-Werte in der gleichen Reihenfolge zurück.
 
-Verwenden Sie diesen Knoten für menschenlesbare Beschriftungen, typischerweise nach einem `ifc_element_filter` oder anderen Knoten, die Express-IDs bereitstellen.
+Verwenden Sie diesen Node für menschenlesbare Beschriftungen, typischerweise nach einem `ifc_element_filter` oder anderen Nodes, die Express-IDs bereitstellen.
 
 ## Anwendungsbeispiel
 

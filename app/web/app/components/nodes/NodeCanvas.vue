@@ -22,6 +22,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useFlowStore()
+const { t } = useI18n()
 
 const vueFlowRef = ref<InstanceType<typeof VueFlow> | null>(null)
 const isConnecting = ref(false)
@@ -80,10 +81,10 @@ function handleDrop(event: DragEvent) {
 <template>
   <UDashboardPanel id="node-demo-panel" class="min-w-0">
     <template #header>
-      <UDashboardNavbar title="BIM Node Editor Demo">
+      <UDashboardNavbar :title="t('editor.title')">
         <template #right>
           <UBadge color="neutral" variant="soft">
-            {{ nodes.length }} {{ nodes.length === 1 ? 'node' : 'nodes' }}
+            {{ t('editor.nodeCount', nodes.length) }}
           </UBadge>
         </template>
       </UDashboardNavbar>

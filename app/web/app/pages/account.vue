@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t } = useI18n()
+
 const form = reactive({
   fullName: '',
   role: '',
@@ -16,17 +18,17 @@ const form = reactive({
       <div class="flex flex-wrap items-start justify-between gap-6">
         <div class="text-left">
           <p class="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Benutzer
+            {{ t('account.user') }}
           </p>
           <h1 class="mt-3 text-3xl font-semibold text-dark">
-            Konto und Sicherheit
+            {{ t('account.title') }}
           </h1>
           <p class="mt-3 max-w-2xl text-sm text-slate-600">
-            Profil- und Zugangsdaten verwalten. Die Eingaben sind Platzhalter und koennen spaeter mit echten Nutzerdaten belegt werden.
+            {{ t('account.intro') }}
           </p>
         </div>
         <UButton color="primary">
-          Speichern
+          {{ t('account.save') }}
         </UButton>
       </div>
     </UCard>
@@ -34,30 +36,30 @@ const form = reactive({
     <section class="grid gap-6 lg:grid-cols-2">
       <UCard>
         <h2 class="text-xl font-semibold text-dark">
-          Profil
+          {{ t('account.profile') }}
         </h2>
         <p class="mt-2 text-sm text-slate-600">
-          Name und Rolle fuer die Kommunikation im Projekt.
+          {{ t('account.profileIntro') }}
         </p>
         <div class="mt-6 space-y-4">
           <div class="space-y-2">
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-full-name">
-              Vollstaendiger Name
+              {{ t('account.fullName') }}
             </label>
             <UInput
               id="account-full-name"
               v-model="form.fullName"
-              placeholder="Alexandra Muster"
+              :placeholder="t('account.fullNamePlaceholder')"
             />
           </div>
           <div class="space-y-2">
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-role">
-              Rolle
+              {{ t('account.role') }}
             </label>
             <UInput
               id="account-role"
               v-model="form.role"
-              placeholder="Projektleitung, Auftraggeber"
+              :placeholder="t('account.rolePlaceholder')"
             />
           </div>
         </div>
@@ -65,15 +67,15 @@ const form = reactive({
 
       <UCard>
         <h2 class="text-xl font-semibold text-dark">
-          E-Mail
+          {{ t('account.email') }}
         </h2>
         <p class="mt-2 text-sm text-slate-600">
-          Adresse fuer Benachrichtigungen und Einladungen.
+          {{ t('account.emailIntro') }}
         </p>
         <div class="mt-6 space-y-4">
           <div class="space-y-2">
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-current-email">
-              Aktuelle E-Mail
+              {{ t('account.currentEmail') }}
             </label>
             <UInput
               id="account-current-email"
@@ -84,7 +86,7 @@ const form = reactive({
           </div>
           <div class="space-y-2">
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-new-email">
-              Neue E-Mail
+              {{ t('account.newEmail') }}
             </label>
             <UInput
               id="account-new-email"
@@ -94,7 +96,7 @@ const form = reactive({
             />
           </div>
           <UButton color="neutral" variant="outline">
-            E-Mail aktualisieren
+            {{ t('account.updateEmail') }}
           </UButton>
         </div>
       </UCard>
@@ -102,15 +104,15 @@ const form = reactive({
 
     <UCard>
       <h2 class="text-xl font-semibold text-dark">
-        Passwort
+        {{ t('account.password') }}
       </h2>
       <p class="mt-2 text-sm text-slate-600">
-        Fuer einen sicheren Zugang sollte das Passwort regelmaessig erneuert werden.
+        {{ t('account.passwordIntro') }}
       </p>
       <div class="mt-6 grid gap-4 lg:grid-cols-3">
         <div class="space-y-2">
           <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-current-password">
-            Aktuelles Passwort
+            {{ t('account.currentPassword') }}
           </label>
           <UInput
             id="account-current-password"
@@ -121,30 +123,30 @@ const form = reactive({
         </div>
         <div class="space-y-2">
           <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-new-password">
-            Neues Passwort
+            {{ t('account.newPassword') }}
           </label>
           <UInput
             id="account-new-password"
             v-model="form.newPassword"
             type="password"
-            placeholder="Mind. 12 Zeichen"
+            :placeholder="t('account.newPasswordPlaceholder')"
           />
         </div>
         <div class="space-y-2">
           <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="account-confirm-password">
-            Wiederholen
+            {{ t('account.confirmPassword') }}
           </label>
           <UInput
             id="account-confirm-password"
             v-model="form.confirmPassword"
             type="password"
-            placeholder="Passwort bestaetigen"
+            :placeholder="t('account.confirmPasswordPlaceholder')"
           />
         </div>
       </div>
       <div class="mt-6">
         <UButton color="primary">
-          Passwort aendern
+          {{ t('account.changePassword') }}
         </UButton>
       </div>
     </UCard>

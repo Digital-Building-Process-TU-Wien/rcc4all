@@ -4,7 +4,7 @@ description: Clash-Detection zwischen zwei Geometrielisten über AABB-Präfilter
 categories: geometry,collision
 ---
 
-Der `collision`-Knoten erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **Express-IDs** (`int` → `ifc:<id>`) für IFC-Elemente oder **Objekt-IDs** (`str` → `gen:<id>`) für generierte Geometrie. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
+Der `collision`-Node erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **Express-IDs** (`int` → `ifc:<id>`) für IFC-Elemente oder **Objekt-IDs** (`str` → `gen:<id>`) für generierte Geometrie. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
 
 1. **AABB-Präfilter** — Paare ohne überlappende Bounding-Boxes überspringen.
 2. **Boolesche Schnittmenge** — beide Netze zu wasserdichten Netzen reparieren, Schnittmenge berechnen. Eine Kollision liegt vor, wenn die Schnittmenge positives Volumen hat.
@@ -52,5 +52,5 @@ Da es sich um eine `inter:`-ID handelt, ist sie von Kollisionseingaben und vom G
 
 ## Hinweise
 
-- Nicht wasserdichte Netze werden bestmöglich repariert (Knotenverschweißung, Lochfüllung, pymeshfix). Wenn Reparatur oder Boolesche Operation fehlschlagen, bietet FCL (Flexible Collision Library) dreiecksbasierte Kollisionserkennung auf rohen Dreiecksnetzen. Paare landen nur dann in `errors`, wenn sowohl Boolesche Operation als auch FCL fehlschlagen (erfordert `python-fcl`).
+- Nicht wasserdichte Netze werden bestmöglich repariert (vertex welding, hole filling, pymeshfix). Wenn Reparatur oder Boolesche Operation fehlschlagen, bietet FCL (Flexible Collision Library) dreiecksbasierte Kollisionserkennung auf rohen Dreiecksnetzen. Paare landen nur dann in `errors`, wenn sowohl Boolesche Operation als auch FCL fehlschlagen.
 - Sich berührende Paare erzeugen Schnittmengen mit null Volumen und gelten als nicht kollidierend.

@@ -92,11 +92,29 @@ function parseTypeSchema(schema: any): TypeInfo {
 }
 
 export function areTypesCompatible(output: TypeInfo, input: TypeInfo): boolean {
+  // 'null' means unknown/no type — accept while the schema lacks a concrete type.
+  if (output.type === 'null')
+    return true
+
+  // For arrays, compare item types rather than only the top-level 'array' type.
+  if (output.type === 'array' && input.type === 'array')
+    return areItemsCompatible(output.items, input.items)
+
   if (output.type === input.type)
     return true
   if (output.type === 'integer' && input.type === 'number')
     return true
+  return false
+}
+
+function areItemsCompatible(output: TypeInfo | undefined, input: TypeInfo | undefined): boolean {
+  if (!output || !input)
+    return true
   if (output.type === 'null')
+    return true
+  if (output.type === input.type)
+    return true
+  if (output.type === 'integer' && input.type === 'number')
     return true
   return false
 }

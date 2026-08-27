@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runner:
+    name: Runner (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/runner
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.11'
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Lint (ruff check)
+        run: uv run ruff check
+
+      - name: Format (ruff format --check)
+        run: uv run ruff format --check
+
+      - name: Typecheck (pyright)
+        run: uv run pyright
+
+      - name: Tests (pytest)
+        run: uv run pytest
+
+  web:
+    name: Web (Nuxt)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/web
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint cache
+        uses: actions/cache@v5
+        with:
+          path: app/web/.eslintcache
+          key: eslint-${{ runner.os }}-${{ hashFiles('app/web/package-lock.json', 'app/web/eslint.config.mjs') }}-${{ github.sha }}
+          restore-keys: |
+            eslint-${{ runner.os }}-${{ hashFiles('app/web/package-lock.json', 'app/web/eslint.config.mjs') }}-
+
+      - name: Lint (eslint)
+        run: npx eslint . --cache --cache-strategy content
+
+      - name: Typecheck (nuxt typecheck)
+        run: npm run typecheck
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.11'
+
+      - name: Sync runner (for schema export)
+        run: uv sync --directory ../runner
+
+      - name: Generated schema is up to date
+        run: |
+          npm run generate:schema
+          git diff --exit-code -- scripts/schema.json scripts/schema.d.ts
