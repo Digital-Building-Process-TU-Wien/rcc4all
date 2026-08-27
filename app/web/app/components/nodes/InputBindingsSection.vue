@@ -51,10 +51,13 @@ function getSourceNodeOutputs(inputName: string): { label: string, value: string
   if (!option)
     return []
 
-  return option.outputs.map(output => ({
-    label: output,
-    value: output,
-  }))
+  const inputType = getInputType(props.nodeName, inputName)
+  return option.outputs
+    .filter(output => areTypesCompatible(getOutputType(option.nodeName, output), inputType))
+    .map(output => ({
+      label: output,
+      value: output,
+    }))
 }
 
 function updateBinding(inputName: string, sourceId?: string, outputField?: string) {

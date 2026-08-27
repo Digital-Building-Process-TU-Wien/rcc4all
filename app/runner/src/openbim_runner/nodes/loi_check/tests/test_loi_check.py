@@ -7,11 +7,11 @@ from typing import Any, cast
 import pytest
 
 from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.property_comparison.property_comparison import (
+from openbim_runner.nodes.loi_check.loi_check import (
     ComparisonRow,
-    PropertyComparisonInputs,
-    PropertyComparisonSettings,
-    property_comparison,
+    LoiCheckInputs,
+    LoiCheckSettings,
+    loi_check,
 )
 
 
@@ -64,9 +64,9 @@ def _run(
     monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
     context = ExecutionContext(ifc_model=cast(Any, model), node_outputs={})
     return asyncio.run(
-        property_comparison(
-            PropertyComparisonSettings(rows=rows),
-            PropertyComparisonInputs(express_ids=express_ids),
+        loi_check(
+            LoiCheckSettings(rows=rows),
+            LoiCheckInputs(express_ids=express_ids),
             context,
         )
     )
@@ -732,9 +732,9 @@ def test_requires_at_least_one_row() -> None:
         ValueError, match="At least one comparison row must be specified"
     ):
         asyncio.run(
-            property_comparison(
-                PropertyComparisonSettings(rows=[]),
-                PropertyComparisonInputs(express_ids=[]),
+            loi_check(
+                LoiCheckSettings(rows=[]),
+                LoiCheckInputs(express_ids=[]),
                 context,
             )
         )
@@ -744,8 +744,8 @@ def test_requires_property_name() -> None:
     context = ExecutionContext(ifc_model=cast(Any, FakeIfcModel({})), node_outputs={})
     with pytest.raises(ValueError, match="Comparison row 1 must have a property name"):
         asyncio.run(
-            property_comparison(
-                PropertyComparisonSettings(
+            loi_check(
+                LoiCheckSettings(
                     rows=[
                         ComparisonRow(
                             property_set="Pset_A",
@@ -755,7 +755,7 @@ def test_requires_property_name() -> None:
                         )
                     ]
                 ),
-                PropertyComparisonInputs(express_ids=[]),
+                LoiCheckInputs(express_ids=[]),
                 context,
             )
         )
@@ -1201,3 +1201,136 @@ def test_optional_input_with_component_filters(monkeypatch: pytest.MonkeyPatch) 
     assert [e.express_id for e in result.elements] == [101]
     assert result.element_count == 1
     assert result.total_checks == 1
+
+
+def test_flat_lists_partition_passed_and_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wall1 = FakeEntity(101, psets={"Pset_A": {"X": "1"}})
+    wall2 = FakeEntity(202, psets={"Pset_A": {"X": "2"}})
+
+    result = _run(
+        monkeypatch,
+        FakeIfcModel({101: wall1, 202: wall2}),
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
+        [101, 202],
+    )
+
+    assert result.passed_express_ids == [101]
+    assert result.failed_express_ids == [202]
+
+
+def test_flat_lists_all_passing_only_passed(monkeypatch: pytest.MonkeyPatch) -> None:
+    wall1 = FakeEntity(101, psets={"Pset_A": {"X": "1"}})
+    wall2 = FakeEntity(202, psets={"Pset_A": {"X": "1"}})
+
+    result = _run(
+        monkeypatch,
+        FakeIfcModel({101: wall1, 202: wall2}),
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
+        [101, 202],
+    )
+
+    assert result.passed_express_ids == [101, 202]
+    assert result.failed_express_ids == []
+
+
+def test_flat_lists_all_failing_only_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    wall1 = FakeEntity(101, psets={"Pset_A": {"X": "1"}})
+    wall2 = FakeEntity(202, psets={"Pset_A": {"X": "2"}})
+
+    result = _run(
+        monkeypatch,
+        FakeIfcModel({101: wall1, 202: wall2}),
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="9",
+            )
+        ],
+        [101, 202],
+    )
+
+    assert result.passed_express_ids == []
+    assert result.failed_express_ids == [101, 202]
+
+
+def test_flat_lists_exclude_unchecked_missing_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wall = FakeEntity(101, psets={"Pset_A": {"X": "1"}})
+
+    result = _run(
+        monkeypatch,
+        FakeIfcModel({101: wall}),
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
+        [101, 999],  # 999 is missing -> emitted with zero checks, class unknown
+    )
+
+    assert result.passed_express_ids == [101]
+    assert result.failed_express_ids == []
+
+
+def test_flat_lists_preserve_input_order(monkeypatch: pytest.MonkeyPatch) -> None:
+    wall1 = FakeEntity(101, psets={"Pset_A": {"X": "1"}})
+    wall2 = FakeEntity(202, psets={"Pset_A": {"X": "2"}})
+    wall3 = FakeEntity(303, psets={"Pset_A": {"X": "1"}})
+
+    result = _run(
+        monkeypatch,
+        FakeIfcModel({101: wall1, 202: wall2, 303: wall3}),
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
+        [303, 101, 202],
+    )
+
+    assert result.passed_express_ids == [303, 101]
+    assert result.failed_express_ids == [202]
+
+
+def test_flat_lists_empty_when_nothing_checked(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = _run(
+        monkeypatch,
+        FakeIfcModel({}),
+        [
+            ComparisonRow(
+                property_set="Pset_A",
+                property_name="X",
+                condition="equals",
+                expected_value="1",
+            )
+        ],
+        [999],  # only a missing id -> not checked -> excluded from both lists
+    )
+
+    assert result.passed_express_ids == []
+    assert result.failed_express_ids == []

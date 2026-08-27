@@ -63,6 +63,7 @@ function toPascalCase(str: string): string {
 }
 
 const nodeNameToComponent: Record<string, string> = {
+  bcf_output: 'BcfOutput',
   collision: 'Collision',
   concat_string: 'ConcatString',
   file_input: 'FileInput',
@@ -71,7 +72,7 @@ const nodeNameToComponent: Record<string, string> = {
   get_property: 'GetProperty',
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
-  property_comparison: 'PropertyComparison',
+  loi_check: 'LoiCheck',
 }
 
 /**

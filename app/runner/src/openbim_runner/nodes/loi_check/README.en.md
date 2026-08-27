@@ -1,10 +1,10 @@
 ---
-title: Property Comparison
+title: LOI-Check
 description: Check IFC property values against expected target values with table-based rules.
 categories: IFC
 ---
 
-The `property_comparison` node runs table-based property checks against IFC
+The `loi_check` node runs table-based property checks against IFC
 entities. Each row defines a property to read and a condition to evaluate
 against a target value, and is checked against every input element.
 
@@ -65,6 +65,9 @@ property value matches any accepted value. Requires at least one accepted value.
 ## Outputs
 
 - `element_count`, `total_checks`, `failed_count`
+- `passed_express_ids`, `failed_express_ids`: flat lists of the express IDs of
+  the checked elements — those whose checks all passed, and those with at least
+  one failed check. Elements with no applied checks are excluded from both lists.
 - `elements`: each with `express_id`, `class_name` (or `unknown`), `failed`, and
   `checks` — each check has `id`/`property_key`, `property_name`, `condition`,
   `expected`, optional `expected_min`/`expected_max` (range barriers), `actual`
