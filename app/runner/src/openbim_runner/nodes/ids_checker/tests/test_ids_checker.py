@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any, cast
 
 import ifcopenshell
-from ifctester import ids as ifc_ids
 import pytest
+from ifctester import ids as ifc_ids
 
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.ids_checker.ids_checker import (
@@ -98,11 +98,15 @@ def test_ids_checker_with_invalid_ids_file() -> None:
 def test_ids_checker_with_valid_ids_and_ifc() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
-        
+
         ifc_file_path = tmpdir_path / "test.ifc"
         ifc_file = ifcopenshell.file()
-        ifc_file.create_entity("IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV")
-        ifc_file.create_entity("IfcSite", Name="Test Site", GlobalId="1y$yN$DPH95gqWMb$mqAOV")
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcSite", Name="Test Site", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
         ifc_file.write(str(ifc_file_path))
 
         my_ids = ifc_ids.Ids(title="Test IDS")
@@ -110,7 +114,7 @@ def test_ids_checker_with_valid_ids_and_ifc() -> None:
         my_spec.applicability.append(ifc_ids.Entity(name="IFCSITE"))
         my_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Test Site"))
         my_ids.specifications.append(my_spec)
-        
+
         ids_file = tmpdir_path / "test.ids"
         my_ids.to_xml(str(ids_file))
 
@@ -137,12 +141,18 @@ def test_ids_checker_with_valid_ids_and_ifc() -> None:
 def test_ids_checker_with_entity_filtering() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
-        
+
         ifc_file_path = tmpdir_path / "test.ifc"
         ifc_file = ifcopenshell.file()
-        ifc_file.create_entity("IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV")
-        wall1 = ifc_file.create_entity("IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV")
-        wall2 = ifc_file.create_entity("IfcWall", Name="Wall 2", GlobalId="2y$yN$DPH95gqWMb$mqAOV")
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall1 = ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall2 = ifc_file.create_entity(
+            "IfcWall", Name="Wall 2", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+        )
         ifc_file.create_entity("IfcWall", Name="", GlobalId="3y$yN$DPH95gqWMb$mqAOV")
         ifc_file.write(str(ifc_file_path))
 
@@ -151,7 +161,7 @@ def test_ids_checker_with_entity_filtering() -> None:
         my_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
         my_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
         my_ids.specifications.append(my_spec)
-        
+
         ids_file = tmpdir_path / "test.ids"
         my_ids.to_xml(str(ids_file))
 
@@ -202,26 +212,32 @@ def test_ids_checker_with_entity_filtering() -> None:
 def test_ids_checker_with_multiple_specifications() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
-        
+
         ifc_file_path = tmpdir_path / "test.ifc"
         ifc_file = ifcopenshell.file()
-        ifc_file.create_entity("IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV")
-        wall = ifc_file.create_entity("IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV")
-        door = ifc_file.create_entity("IfcDoor", Name="Door 1", GlobalId="2y$yN$DPH95gqWMb$mqAOV")
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall = ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        door = ifc_file.create_entity(
+            "IfcDoor", Name="Door 1", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+        )
         ifc_file.write(str(ifc_file_path))
 
         my_ids = ifc_ids.Ids(title="Multi Spec IDS")
-        
+
         wall_spec = ifc_ids.Specification(name="Wall Check")
         wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
         wall_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
         my_ids.specifications.append(wall_spec)
-        
+
         door_spec = ifc_ids.Specification(name="Door Check")
         door_spec.applicability.append(ifc_ids.Entity(name="IFCDOOR"))
         door_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Door 1"))
         my_ids.specifications.append(door_spec)
-        
+
         ids_file = tmpdir_path / "test.ids"
         my_ids.to_xml(str(ids_file))
 
@@ -246,8 +262,12 @@ def test_ids_checker_with_multiple_specifications() -> None:
         assert door.id() in result.passed_express_ids
 
         assert len(result.specifications) == 2
-        wall_spec_result = next(s for s in result.specifications if s.name == "Wall Check")
-        door_spec_result = next(s for s in result.specifications if s.name == "Door Check")
+        wall_spec_result = next(
+            s for s in result.specifications if s.name == "Wall Check"
+        )
+        door_spec_result = next(
+            s for s in result.specifications if s.name == "Door Check"
+        )
         assert len(wall_spec_result.failed_express_ids) == 0
         assert len(wall_spec_result.passed_express_ids) == 1
         assert wall.id() in wall_spec_result.passed_express_ids
@@ -259,12 +279,18 @@ def test_ids_checker_with_multiple_specifications() -> None:
 def test_ids_checker_output_modes() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
-        
+
         ifc_file_path = tmpdir_path / "test.ifc"
         ifc_file = ifcopenshell.file()
-        ifc_file.create_entity("IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV")
-        wall = ifc_file.create_entity("IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV")
-        ifc_file.create_entity("IfcDoor", Name="Door 1", GlobalId="2y$yN$DPH95gqWMb$mqAOV")
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall = ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcDoor", Name="Door 1", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+        )
         ifc_file.write(str(ifc_file_path))
 
         my_ids = ifc_ids.Ids(title="Multi Spec IDS")
@@ -302,7 +328,9 @@ def test_ids_checker_output_modes() -> None:
 
         result_per_spec = asyncio.run(
             ids_checker(
-                IdsCheckerSettings(ids_file="test.ids", output_mode="per_specification"),
+                IdsCheckerSettings(
+                    ids_file="test.ids", output_mode="per_specification"
+                ),
                 IdsCheckerInputs(),
                 context,
             )
@@ -310,7 +338,9 @@ def test_ids_checker_output_modes() -> None:
         assert len(result_per_spec.failed_express_ids) == 0
         assert len(result_per_spec.passed_express_ids) == 0
         assert len(result_per_spec.specifications) == 2
-        wall_spec_result = next(s for s in result_per_spec.specifications if s.name == "Wall Check")
+        wall_spec_result = next(
+            s for s in result_per_spec.specifications if s.name == "Wall Check"
+        )
         assert len(wall_spec_result.passed_express_ids) == 1
         assert wall.id() in wall_spec_result.passed_express_ids
 

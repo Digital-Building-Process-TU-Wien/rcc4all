@@ -6,7 +6,6 @@ from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 
-
 OutputMode = Literal["combined", "per_specification", "both"]
 
 
@@ -67,7 +66,6 @@ class IdsCheckerResult(NodeModel):
     )
 
 
-
 @node()
 async def ids_checker(
     settings: IdsCheckerSettings,
@@ -108,7 +106,9 @@ async def ids_checker(
         failed_entities = specification.failed_entities
 
         if input_id_set is not None:
-            applicable_entities = [e for e in applicable_entities if e.id() in input_id_set]
+            applicable_entities = [
+                e for e in applicable_entities if e.id() in input_id_set
+            ]
             failed_entities = {e for e in failed_entities if e.id() in input_id_set}
 
         spec_applicable_ids = {e.id() for e in applicable_entities}
