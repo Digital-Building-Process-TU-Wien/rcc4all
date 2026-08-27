@@ -47,6 +47,7 @@ export default defineNuxtConfig({
   },
   vite: {
     plugins: [
+      // @ts-expect-error Nuxt’s Vite types are coming from vite/dist/node/index, while @tailwindcss/vite imports from vite
       tailwindcss(),
     ],
   },
