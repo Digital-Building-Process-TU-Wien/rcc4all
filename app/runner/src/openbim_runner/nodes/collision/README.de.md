@@ -52,5 +52,5 @@ Da es sich um eine `inter:`-ID handelt, ist sie von Kollisionseingaben und vom G
 
 ## Hinweise
 
-- Nicht wasserdichte Netze werden bestmöglich repariert (Knotenverschweißung, Lochfüllung, pymeshfix). Wenn Reparatur oder Boolesche Operation fehlschlagen, bietet FCL (Flexible Collision Library) dreiecksbasierte Kollisionserkennung auf rohen Dreiecksnetzen. Paare landen nur dann in `errors`, wenn sowohl Boolesche Operation als auch FCL fehlschlagen (erfordert `python-fcl`).
+- Nicht wasserdichte Netze werden bestmöglich repariert (vertex welding, hole filling, pymeshfix). Wenn Reparatur oder Boolesche Operation fehlschlagen, bietet FCL (Flexible Collision Library) dreiecksbasierte Kollisionserkennung auf rohen Dreiecksnetzen. Paare landen nur dann in `errors`, wenn sowohl Boolesche Operation als auch FCL fehlschlagen.
 - Sich berührende Paare erzeugen Schnittmengen mit null Volumen und gelten als nicht kollidierend.
