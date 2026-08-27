@@ -4,3 +4,7 @@
 # Python
 __pycache__/
 *.py[cod]
+
+# Scratch workspace: keep the empty dir in git, ignore its contents
+.scratch/*
+!.scratch/.gitkeep
