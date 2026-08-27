@@ -95,7 +95,7 @@
     "description": "Node-Eigenschaften konfigurieren und prüfen",
     "nodeLabel": "Node-Name",
     "customLabelPlaceholder": "Eigenen Namen eingeben...",
-    "labelHint": "Dieser Name wird im Diagramm und in den Bindungs-Dropdowns angezeigt",
+    "labelHint": "Dieser Name wird im Diagramm und in den Verbindungs-Dropdowns angezeigt",
     "documentation": "Dokumentation",
     "noDetailedDocs": "Keine ausführliche Dokumentation verfügbar",
     "unknownNode": "Unbekannter Node",
@@ -105,7 +105,7 @@
   },
   "bindings": {
     "title": "Eingangsbindungen",
-    "selectSourceNode": "Quellknoten auswählen...",
+    "selectSourceNode": "Quellnode auswählen...",
     "selectOutput": "Ausgabe auswählen...",
     "typeMismatch": "Typkonflikt",
     "noConfigurableInputs": "Dieser Node hat keine konfigurierbaren Eingänge"
@@ -175,13 +175,13 @@
     },
     "generate3dCube": {
       "title": "3D-Würfel erzeugen",
-      "description": "Erzeugt eine Quader-Geometrie im Cache unter einer eindeutigen object_id, für die Verwendung in einem Kollisionsknoten.",
+      "description": "Erzeugt eine Quader-Geometrie im Cache unter einer eindeutigen object_id, für die Verwendung in einem Kollisionsnode.",
       "position": "Position (X, Y, Z)",
       "rotation": "Rotation (X°, Y°, Z°)",
-      "size": "Größe (B, H, T)",
+      "size": "Abmessungen (B, H, T)",
       "objectId": "Objekt-ID",
       "uniqueObjectId": "eindeutige Objekt-ID",
-      "objectIdHint": "Eindeutige Referenz für den Würfel. Speisen Sie die object_ids-Ausgabe in einen Kollisionsknoten ein.",
+      "objectIdHint": "Eindeutige Referenz für den Würfel. Speisen Sie die object_ids-Ausgabe in einen Kollisionsnode ein.",
       "objectIdsOutput": "Objekt-IDs (Ausgabe)",
       "noOutputYet": "Noch keine Ausgabe. Führen Sie den Workflow aus."
     },
@@ -216,11 +216,11 @@
     },
     "collision": {
       "title": "Kollision",
-      "description": "Kollisionserkennung zwischen gecachten Geometrien. Testet jede Referenz A gegen jede Referenz B (kartesisches Produkt). Binden Sie list_a / list_b von vorgelagerten Nodes; eine nicht gebundene Seite fällt auf das gesamte Modell zurück.",
+      "description": "Kollisionserkennung zwischen Geometrien. Testet jede Referenz A gegen jede Referenz B (kartesisches Produkt). Verbinden Sie list_a / list_b von vorgelagerten Nodes; ein nicht-verbundener Input fällt auf das gesamte Modell zurück.",
       "mode": "Modus",
       "modeBoolean": "Boolean (nur Kollisionen melden)",
-      "modeIntersectionMesh": "Schnittfläche (Überlappungsgeometrie speichern)",
-      "modeHelp": "Boolean meldet, welche Paare kollidieren. Die Schnittfläche speichert zusätzlich jede Überlappung unter einem deterministischen Schlüssel."
+      "modeIntersectionMesh": "Überlappungsgeometrie speichern",
+      "modeHelp": "Boolean meldet, welche Paare kollidieren. Die Überlappungsgeometrie speichert zusätzlich die Schnittgeometrie unter im Cache."
     },
     "concatString": {
       "title": "Node Zeichenketten verketten",
