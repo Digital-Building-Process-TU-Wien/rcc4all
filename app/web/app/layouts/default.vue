@@ -3,7 +3,7 @@ const isScrolled = ref(false)
 const sdk = usePayloadSDK()
 const { t } = useI18n()
 const user = sdk.user
-const greetingName = computed(() => user.value?.email ?? 'User')
+const greetingName = computed(() => user.value?.email ?? t('account.user'))
 function updateHeaderState() {
   isScrolled.value = window.scrollY > 8
 }

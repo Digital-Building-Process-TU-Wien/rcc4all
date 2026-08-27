@@ -16,21 +16,21 @@ definePageMeta({
   layout: 'empty',
 })
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 const availableNodes = computed(() => {
   const nodes = getAvailableNodes(locale.value as SupportedLocale)
   nodes.push({
     nodeName: 'FileInput',
-    label: 'File Input',
+    label: t('node.fileInput.title'),
     categories: ['Other'],
-    description: 'Select an IFC file from local development files',
+    description: t('node.fileInput.description'),
   })
   nodes.push({
     nodeName: 'JsonOutput',
-    label: 'JSON Output',
+    label: t('node.jsonOutput.title'),
     categories: ['Other'],
-    description: 'Visual endcap for workflow output',
+    description: t('node.jsonOutput.description'),
   })
   return nodes
 })

@@ -56,7 +56,17 @@
     "none": "Keine Hauptgruppen vorhanden.",
     "back": "Zurück",
     "activeGroup": "Aktive Gruppe",
-    "noSelection": "Keine Auswahl"
+    "noSelection": "Keine Auswahl",
+    "noSelectionDetails": "Wählen Sie eine Gruppe, um Details und Untergruppen anzuzeigen.",
+    "createdAt": "Erstellt:",
+    "updatedAt": "Zuletzt aktualisiert:",
+    "subgroups": "Untergruppen",
+    "noSubgroups": "Keine Untergruppen vorhanden.",
+    "admins": "Admins",
+    "noAdmins": "Keine Admins zugeordnet.",
+    "users": "Nutzer",
+    "noUsers": "Keine Nutzer zugeordnet.",
+    "userFallback": "Benutzer #{id}"
   },
   "landing": {
     "cmsUnavailable": "CMS ist derzeit nicht verfügbar",
@@ -114,7 +124,9 @@
     "loadingWorkflow": "Workflow wird geladen...",
     "error": "Fehler",
     "goToEditor": "Zum Editor",
-    "noWorkflowData": "Keine Workflow-Daten gefunden. Bitte erstellen Sie zuerst einen Workflow."
+    "noWorkflowData": "Keine Workflow-Daten gefunden. Bitte erstellen Sie zuerst einen Workflow.",
+    "parseError": "Ausgabe konnte nicht als JSON geparst werden: {message}",
+    "exitCode": "Exit-Code: {code}"
   },
   "projects": {
     "projects": "Projekte",
@@ -185,6 +197,8 @@
       "required": "Erforderlich",
       "value": "Wert",
       "any": "Beliebig",
+      "true": "Wahr",
+      "false": "Falsch",
       "addSelection": "Auswahl hinzufügen",
       "addRow": "Zeile hinzufügen",
       "addFilterRow": "Filterzeile hinzufügen",
@@ -199,6 +213,97 @@
       "removeValue": "Wert entfernen",
       "inclMin": "inkl. Min",
       "inclMax": "inkl. Max"
+    },
+    "collision": {
+      "title": "Kollision",
+      "description": "Kollisionserkennung zwischen gecachten Geometrien. Testet jede Referenz A gegen jede Referenz B (kartesisches Produkt). Binden Sie list_a / list_b von vorgelagerten Knoten; eine nicht gebundene Seite fällt auf das gesamte Modell zurück.",
+      "mode": "Modus",
+      "modeBoolean": "Boolean (nur Kollisionen melden)",
+      "modeIntersectionMesh": "Schnittfläche (Überlappungsgeometrie speichern)",
+      "modeHelp": "Boolean meldet, welche Paare kollidieren. Die Schnittfläche speichert zusätzlich jede Überlappung unter einem deterministischen Schlüssel."
+    },
+    "concatString": {
+      "title": "Knoten Zeichenketten verketten",
+      "separator": "Trennzeichen",
+      "separatorPlaceholder": "z. B. ', '"
+    },
+    "bcfOutput": {
+      "title": "BCF-Ausgabe",
+      "description": "Setzt LOI-Check-Fehler in eine BCF-3.0-Datei um. Verbinden Sie die {elements}-Ausgabe eines LOI-Check-Knotens.",
+      "modeAuto": "Automatisch",
+      "modeManual": "Manuell",
+      "autoModeInfo": "Die Standardvorlagen werden automatisch für jedes LOI-Check-Szenario angewendet. Wechseln Sie in den manuellen Modus, um eigene Titel- und Beschreibungsvorlagen zu schreiben.",
+      "titleTemplate": "Titelvorlage",
+      "descriptionTemplate": "Beschreibungsvorlage",
+      "suggestionPlaceholder": "Vorschlag wählen oder eigenen eingeben"
+    },
+    "ifc": {
+      "loadingIndex": "IFC-4.3-Auswahlliste wird geladen...",
+      "loadFailed": "IFC-4.3-Auswahlliste konnte nicht geladen werden."
+    },
+    "csv": {
+      "exported": "CSV exportiert.",
+      "rowsImported": "{count} CSV-Zeilen importiert.",
+      "importFailed": "CSV-Import fehlgeschlagen."
+    },
+    "loiCheck": {
+      "title": "LOI-Check",
+      "description": "IFC-Eigenschaftswerte gegen erwartete Zielwerte prüfen. Fügen Sie pro Zeile in der Tabelle eine Regel hinzu.",
+      "componentHeader": "Komponente",
+      "psetHeader": "Pset",
+      "propertyHeader": "Eigenschaft",
+      "conditionHeader": "Bedingung",
+      "targetValueHeader": "Zielwert",
+      "noRulesAdded": "Keine Vergleichsregeln hinzugefügt",
+      "clickAddRow": "Klicken Sie auf Zeile hinzufügen, um eine Eigenschaftsprüfung zu definieren.",
+      "min": "Min",
+      "max": "Max",
+      "decimalTooltip": "Dezimalwerte verwenden einen Punkt: z. B. 0.25. Ein Komma wird nicht akzeptiert.",
+      "condition": {
+        "equals": "gleich (=)",
+        "not_equals": "ungleich (≠)",
+        "lt": "kleiner als (<)",
+        "le": "kleiner oder gleich (≤)",
+        "gt": "größer als (>)",
+        "ge": "größer oder gleich (≥)",
+        "contains": "enthält",
+        "one_of": "einer von (∈)",
+        "between": "zwischen",
+        "outside": "außerhalb",
+        "is_true": "ist wahr",
+        "is_false": "ist falsch"
+      }
+    },
+    "getProperty": {
+      "title": "Eigenschaft abrufen",
+      "description": "Eigenschaftswerte aus IFC-Entitäten lesen. Definieren Sie in der Tabelle unten, welche Eigenschaften gelesen werden sollen.",
+      "entityHeader": "Entität",
+      "psetHeader": "Pset",
+      "propertyHeader": "Eigenschaft",
+      "outputModeHint": "Ausgabegranularität: 'Pro explizitem Element' (Ausgabe strukturiert auf Ebene der expliziten Einzelelemente), 'Pro Elementklasse' (Ausgabe strukturiert auf Ebene der Elementklassen) oder 'Ohne Elementklassen-Unterscheidung' (Ausgabe ohne Unterscheidung der Elementklassen).",
+      "outputModePerElement": "Pro explizitem Element",
+      "outputModeByClass": "Pro Elementklasse",
+      "outputModeModel": "Ohne Elementklassen-Unterscheidung"
+    },
+    "ifcElementFilter": {
+      "title": "IfcElementFilter",
+      "description": "IFC-Entitäten nach Klasse, PredefinedType, Attributen und PropertySets filtern.",
+      "modeHeader": "Modus",
+      "entityHeader": "Entität",
+      "predefinedHeader": "Def.-Typ",
+      "psetHeader": "Pset",
+      "propertyHeader": "Eigenschaft",
+      "opHeader": "Op",
+      "valueHeader": "Wert",
+      "noRowsAdded": "Keine Filterzeilen hinzugefügt",
+      "clickAddRow": "Klicken Sie auf Filterzeile hinzufügen, um mit dem Filtern zu beginnen.",
+      "include": "Einschließen",
+      "exclude": "Ausschließen",
+      "disabled": "Deaktiviert",
+      "optional": "Optional",
+      "operatorContains": "enthält",
+      "operatorStartsWith": "beginnt mit",
+      "operatorEndsWith": "endet mit"
     }
   }
 }

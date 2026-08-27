@@ -57,9 +57,9 @@ const globalProperties = computed(() => {
 const allPropertyNames = computed(() => Array.from(globalProperties.value.keys()).sort())
 
 const outputModes = [
-  { value: 'elements', label: 'Per explicit element' },
-  { value: 'by_class', label: 'Per element class' },
-  { value: 'model', label: 'Without element class distinction' },
+  { value: 'elements', labelKey: 'node.getProperty.outputModePerElement' },
+  { value: 'by_class', labelKey: 'node.getProperty.outputModeByClass' },
+  { value: 'model', labelKey: 'node.getProperty.outputModeModel' },
 ]
 
 if (!node.value.data.settings) {
@@ -142,7 +142,7 @@ function removeSelection(index: number) {
 
 function exportCsv() {
   exportRequirementsToCsv(selections.value, 'get-property.csv')
-  csvMessage.value = 'CSV exported.'
+  csvMessage.value = t('node.csv.exported')
 }
 
 function openCsvImport() {
@@ -159,10 +159,10 @@ async function importCsv(event: Event) {
   try {
     const importedSelections = await importRequirementsFromCsv(file)
     node.value.data.settings = { ...node.value.data.settings, selections: importedSelections }
-    csvMessage.value = `${importedSelections.length} CSV rows imported.`
+    csvMessage.value = t('node.csv.rowsImported', { count: importedSelections.length })
   }
   catch {
-    csvMessage.value = 'CSV import failed.'
+    csvMessage.value = t('node.csv.importFailed')
   }
   finally {
     input.value = ''
@@ -174,29 +174,29 @@ async function importCsv(event: Event) {
   <div class="flex flex-col gap-3">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-        Get Property
+        {{ t('node.getProperty.title') }}
       </div>
       <p class="mt-1 text-xs text-slate-500">
-        Read property values from IFC entities. Define which properties to read in the table below.
+        {{ t('node.getProperty.description') }}
       </p>
       <p v-if="filterIndexPending" class="mt-1 text-xs text-slate-400">
-        Loading IFC 4.3 selection list...
+        {{ t('node.ifc.loadingIndex') }}
       </p>
       <p v-else-if="filterIndexError" class="mt-1 text-xs text-red-500">
-        IFC 4.3 selection list could not be loaded.
+        {{ t('node.ifc.loadFailed') }}
       </p>
     </div>
 
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div class="grid grid-cols-[1.8fr_1.8fr_2fr_2.5rem_2.5rem] gap-px bg-slate-200 text-xs font-semibold uppercase tracking-tight text-slate-600">
         <div class="bg-slate-100 px-2 py-2">
-          Entity
+          {{ t('node.getProperty.entityHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Pset
+          {{ t('node.getProperty.psetHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Property
+          {{ t('node.getProperty.propertyHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2" />
         <div class="bg-slate-100 px-2 py-2" />
@@ -336,7 +336,7 @@ async function importCsv(event: Event) {
 
     <div class="px-2">
       <label class="text-xs font-semibold uppercase tracking-tight text-slate-600">{{ t('node.property.outputMode') }}</label>
-      <UTooltip text="Output granularity: 'Per explicit element' (Output structured on the level of explicit individual elements), 'Per element class' (Output structured on the level of element classes), or 'Without element class distinction' (Output without distinction of element classes).">
+      <UTooltip :text="t('node.getProperty.outputModeHint')">
         <select
           v-model="node.data.settings!.output_mode"
           class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800"
@@ -346,7 +346,7 @@ async function importCsv(event: Event) {
             :key="mode.value"
             :value="mode.value"
           >
-            {{ mode.label }}
+            {{ t(mode.labelKey) }}
           </option>
         </select>
       </UTooltip>

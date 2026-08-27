@@ -106,11 +106,11 @@ function getPropertyOptions(row: ComparisonRow): string[] {
 }
 
 const booleanOptions = [
-  { value: 'true', label: 'True' },
-  { value: 'false', label: 'False' },
+  { value: 'true', label: 'True', labelKey: 'node.property.true' },
+  { value: 'false', label: 'False', labelKey: 'node.property.false' },
 ]
 
-const decimalTooltip = 'Decimal values use a point: e.g. 0.25. A comma is not accepted.'
+const decimalTooltip = computed(() => t('node.loiCheck.decimalTooltip'))
 
 function resolvedType(row: ComparisonRow) {
   return resolvePropertyType(filterIndex.value, row)
@@ -148,7 +148,7 @@ function addRow() {
 
 function ensureValueEditSlot(row: ComparisonRow) {
   const values = row.allowed_values ??= ['']
-  if (values.length === 0 || values[values.length - 1] !== '')
+  if (values.length === 0 || values.at(-1) !== '')
     values.push('')
 }
 
@@ -186,7 +186,7 @@ function removeRow(index: number) {
 
 function exportCsv() {
   exportRowsToCsv(rows.value, 'loi-check.csv')
-  csvMessage.value = 'CSV exported.'
+  csvMessage.value = t('node.csv.exported')
 }
 
 function openCsvImport() {
@@ -203,10 +203,10 @@ async function importCsv(event: Event) {
   try {
     const importedRows = await importRowsFromCsv(file)
     node.value.data.settings = { ...node.value.data.settings, rows: importedRows }
-    csvMessage.value = `${importedRows.length} CSV rows imported.`
+    csvMessage.value = t('node.csv.rowsImported', { count: importedRows.length })
   }
   catch (error) {
-    csvMessage.value = error instanceof Error ? error.message : 'CSV import failed.'
+    csvMessage.value = error instanceof Error ? error.message : t('node.csv.importFailed')
   }
   finally {
     input.value = ''
@@ -218,35 +218,35 @@ async function importCsv(event: Event) {
   <div class="flex flex-col gap-3">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-        LOI-Check
+        {{ t('node.loiCheck.title') }}
       </div>
       <p class="mt-1 text-xs text-slate-500">
-        Check IFC property values against expected target values. Add one rule per row in the table below.
+        {{ t('node.loiCheck.description') }}
       </p>
       <p v-if="filterIndexPending" class="mt-1 text-xs text-slate-400">
-        Loading IFC 4.3 selection list...
+        {{ t('node.ifc.loadingIndex') }}
       </p>
       <p v-else-if="filterIndexError" class="mt-1 text-xs text-red-500">
-        IFC 4.3 selection list could not be loaded.
+        {{ t('node.ifc.loadFailed') }}
       </p>
     </div>
 
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div class="grid grid-cols-[1.5fr_1.5fr_1.8fr_1.5fr_1.4fr_2.5rem_2.5rem] gap-px bg-slate-200 text-xs font-semibold uppercase tracking-tight text-slate-600">
         <div class="bg-slate-100 px-2 py-2">
-          Component
+          {{ t('node.loiCheck.componentHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Pset
+          {{ t('node.loiCheck.psetHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Property
+          {{ t('node.loiCheck.propertyHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Condition
+          {{ t('node.loiCheck.conditionHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Target value
+          {{ t('node.loiCheck.targetValueHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2" />
         <div class="bg-slate-100 px-2 py-2" />
@@ -254,10 +254,10 @@ async function importCsv(event: Event) {
 
       <div v-if="!rows.length" class="p-6 text-center">
         <p class="text-sm text-slate-500">
-          No comparison rules added
+          {{ t('node.loiCheck.noRulesAdded') }}
         </p>
         <p class="mt-1 text-xs text-slate-400">
-          Click Add Row to start defining a property check.
+          {{ t('node.loiCheck.clickAddRow') }}
         </p>
       </div>
 
@@ -271,12 +271,12 @@ async function importCsv(event: Event) {
             <input
               v-model="row.entity_type"
               :list="`property-comparison-entities-${index}`"
-              placeholder="Any Element"
+              :placeholder="t('node.property.anyElement')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
             >
             <datalist :id="`property-comparison-entities-${index}`">
               <option value="">
-                Any Element
+                {{ t('node.property.anyElement') }}
               </option>
               <option
                 v-for="entity in entities"
@@ -291,7 +291,7 @@ async function importCsv(event: Event) {
             <input
               v-model="row.property_set"
               :list="`property-comparison-psets-${index}`"
-              placeholder="Any PSET"
+              :placeholder="t('node.property.anyPset')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
             >
             <datalist :id="`property-comparison-psets-${index}`">
@@ -307,7 +307,7 @@ async function importCsv(event: Event) {
             <input
               v-model="row.property_name"
               :list="`property-comparison-properties-${index}`"
-              placeholder="Required"
+              :placeholder="t('node.property.required')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
             >
             <datalist :id="`property-comparison-properties-${index}`">
@@ -329,7 +329,7 @@ async function importCsv(event: Event) {
                 :key="condition.value"
                 :value="condition.value"
               >
-                {{ condition.label }}
+                {{ t(`node.loiCheck.condition.${condition.value}`) }}
               </option>
             </select>
           </div>
@@ -342,7 +342,7 @@ async function importCsv(event: Event) {
                     v-model="row.range_min"
                     type="text"
                     inputmode="decimal"
-                    placeholder="Min"
+                    :placeholder="t('node.loiCheck.min')"
                     class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
                   >
                 </UTooltip>
@@ -351,7 +351,7 @@ async function importCsv(event: Event) {
                     v-model="row.range_max"
                     type="text"
                     inputmode="decimal"
-                    placeholder="Max"
+                    :placeholder="t('node.loiCheck.max')"
                     class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
                   >
                 </UTooltip>
@@ -420,7 +420,7 @@ async function importCsv(event: Event) {
                     :key="option.value"
                     :value="option.value"
                   >
-                    {{ option.label }}
+                    {{ t(option.labelKey) }}
                   </option>
                 </template>
                 <template v-else-if="hasEnumValues(resolvedType(row))">

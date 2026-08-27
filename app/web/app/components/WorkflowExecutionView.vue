@@ -136,10 +136,10 @@ watch(() => props.workflow, (newWorkflow) => {
             {{ error.message }}
           </p>
           <p v-if="safeParseError" class="mt-2 text-sm text-error">
-            Failed to parse output as JSON: {{ safeParseError }}
+            {{ t('execution.parseError', { message: safeParseError }) }}
           </p>
           <p v-if="safeExitCode !== null && safeExitCode !== 0" class="mt-2 text-sm text-error">
-            Exit code: {{ safeExitCode }}
+            {{ t('execution.exitCode', { code: safeExitCode }) }}
           </p>
         </div>
 

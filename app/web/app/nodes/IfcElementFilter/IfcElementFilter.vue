@@ -184,7 +184,7 @@ function updatePredefinedType(row: FilterRow) {
 
 function exportCsv() {
   exportFilterRowsToCsv(filterRows.value, 'ifc-element-filter.csv')
-  csvMessage.value = 'CSV exportiert.'
+  csvMessage.value = t('node.csv.exported')
 }
 
 function openCsvImport() {
@@ -201,13 +201,22 @@ async function importCsv(event: Event) {
   try {
     const importedRows = await importFilterRowsFromCsv(file)
     node.value.data.settings = { ...node.value.data.settings, filter_rows: importedRows }
-    csvMessage.value = `${importedRows.length} CSV-Zeilen importiert.`
+    csvMessage.value = t('node.csv.rowsImported', { count: importedRows.length })
   }
   catch {
-    csvMessage.value = 'CSV konnte nicht importiert werden.'
+    csvMessage.value = t('node.csv.importFailed')
   }
   finally {
     input.value = ''
+  }
+}
+
+function operatorLabel(operator: FilterRowOperator): string {
+  switch (operator) {
+    case 'contains': return t('node.ifcElementFilter.operatorContains')
+    case 'starts_with': return t('node.ifcElementFilter.operatorStartsWith')
+    case 'ends_with': return t('node.ifcElementFilter.operatorEndsWith')
+    default: return operator
   }
 }
 </script>
@@ -216,51 +225,51 @@ async function importCsv(event: Event) {
   <div class="flex flex-col gap-3">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-        IfcElementFilter
+        {{ t('node.ifcElementFilter.title') }}
       </div>
       <p class="mt-1 text-xs text-slate-500">
-        Filter IFC entities by class, PredefinedType, attributes, and PropertySets.
+        {{ t('node.ifcElementFilter.description') }}
       </p>
       <p v-if="filterIndexPending" class="mt-1 text-xs text-slate-400">
-        Loading IFC 4.3 selection list...
+        {{ t('node.ifc.loadingIndex') }}
       </p>
       <p v-else-if="filterIndexError" class="mt-1 text-xs text-red-500">
-        IFC 4.3 selection list could not be loaded.
+        {{ t('node.ifc.loadFailed') }}
       </p>
     </div>
 
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div class="grid grid-cols-8 gap-px bg-slate-200 text-xs font-semibold uppercase tracking-tight text-slate-600">
         <div class="bg-slate-100 px-2 py-2">
-          Mode
+          {{ t('node.ifcElementFilter.modeHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Entity
+          {{ t('node.ifcElementFilter.entityHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Predef.
+          {{ t('node.ifcElementFilter.predefinedHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Pset
+          {{ t('node.ifcElementFilter.psetHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Property
+          {{ t('node.ifcElementFilter.propertyHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Op
+          {{ t('node.ifcElementFilter.opHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Value
+          {{ t('node.ifcElementFilter.valueHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2" />
       </div>
 
       <div v-if="!filterRows.length" class="p-6 text-center">
         <p class="text-sm text-slate-500">
-          No filter rows added
+          {{ t('node.ifcElementFilter.noRowsAdded') }}
         </p>
         <p class="mt-1 text-xs text-slate-400">
-          Click Add Filter Row to start filtering.
+          {{ t('node.ifcElementFilter.clickAddRow') }}
         </p>
       </div>
 
@@ -273,13 +282,13 @@ async function importCsv(event: Event) {
           <div class="bg-white p-1">
             <select v-model="row.mode" class="w-full rounded border border-slate-200 bg-white px-1 py-1 text-xs text-slate-800">
               <option value="include">
-                Include
+                {{ t('node.ifcElementFilter.include') }}
               </option>
               <option value="exclude">
-                Exclude
+                {{ t('node.ifcElementFilter.exclude') }}
               </option>
               <option value="disabled">
-                Disabled
+                {{ t('node.ifcElementFilter.disabled') }}
               </option>
             </select>
           </div>
@@ -288,7 +297,7 @@ async function importCsv(event: Event) {
             <input
               v-model="row.entity_type"
               list="ifc-element-filter-entities"
-              placeholder="Any"
+              :placeholder="t('node.property.any')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
               @change="updateEntityType(row)"
               @blur="updateEntityType(row)"
@@ -299,7 +308,7 @@ async function importCsv(event: Event) {
             <input
               v-model="row.predefined_type"
               :list="`ifc-element-filter-predefined-${index}`"
-              placeholder="Any"
+              :placeholder="t('node.property.any')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
               @change="updatePredefinedType(row)"
               @blur="updatePredefinedType(row)"
@@ -318,7 +327,7 @@ async function importCsv(event: Event) {
             <input
               v-model="row.property_set"
               :list="`ifc-element-filter-psets-${index}`"
-              placeholder="Optional"
+              :placeholder="t('node.ifcElementFilter.optional')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
               @change="updatePropertySet(row)"
               @blur="updatePropertySet(row)"
@@ -336,7 +345,7 @@ async function importCsv(event: Event) {
             <input
               v-model="row.property_name"
               :list="`ifc-element-filter-properties-${index}`"
-              placeholder="Optional"
+              :placeholder="t('node.ifcElementFilter.optional')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
               @change="updatePropertyName(row)"
               @blur="updatePropertyName(row)"
@@ -354,7 +363,7 @@ async function importCsv(event: Event) {
           <div class="bg-white p-1">
             <select v-model="row.operator" class="w-full rounded border border-slate-200 bg-white px-1 py-1 text-xs text-slate-800">
               <option v-for="operator in operators" :key="operator" :value="operator">
-                {{ operator }}
+                {{ operatorLabel(operator) }}
               </option>
             </select>
           </div>

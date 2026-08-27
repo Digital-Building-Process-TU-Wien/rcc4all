@@ -56,7 +56,17 @@
     "none": "No main groups available.",
     "back": "Back",
     "activeGroup": "Active group",
-    "noSelection": "No selection"
+    "noSelection": "No selection",
+    "noSelectionDetails": "Select a group to view its details and subgroups.",
+    "createdAt": "Created:",
+    "updatedAt": "Last updated:",
+    "subgroups": "Subgroups",
+    "noSubgroups": "No subgroups available.",
+    "admins": "Admins",
+    "noAdmins": "No admins assigned.",
+    "users": "Users",
+    "noUsers": "No users assigned.",
+    "userFallback": "User #{id}"
   },
   "landing": {
     "cmsUnavailable": "CMS is currently unavailable",
@@ -114,7 +124,9 @@
     "loadingWorkflow": "Loading workflow...",
     "error": "Error",
     "goToEditor": "Go to Editor",
-    "noWorkflowData": "No workflow data found. Please create a workflow first."
+    "noWorkflowData": "No workflow data found. Please create a workflow first.",
+    "parseError": "Failed to parse output as JSON: {message}",
+    "exitCode": "Exit code: {code}"
   },
   "projects": {
     "projects": "Projects",
@@ -185,6 +197,8 @@
       "required": "Required",
       "value": "Value",
       "any": "Any",
+      "true": "True",
+      "false": "False",
       "addSelection": "Add Selection",
       "addRow": "Add Row",
       "addFilterRow": "Add Filter Row",
@@ -199,6 +213,97 @@
       "removeValue": "Remove value",
       "inclMin": "incl. Min",
       "inclMax": "incl. Max"
+    },
+    "collision": {
+      "title": "Collision",
+      "description": "Clash detection between cached geometries. Tests every A reference against every B reference (cartesian product). Bind list_a / list_b from upstream nodes; an unbound side falls back to the whole model.",
+      "mode": "Mode",
+      "modeBoolean": "Boolean (report collisions only)",
+      "modeIntersectionMesh": "Intersection mesh (store overlap geometry)",
+      "modeHelp": "Boolean reports which pairs collide. Intersection mesh additionally caches each overlap under a deterministic key."
+    },
+    "concatString": {
+      "title": "Concat String Node",
+      "separator": "Separator",
+      "separatorPlaceholder": "e.g. ', '"
+    },
+    "bcfOutput": {
+      "title": "BCF Output",
+      "description": "Turn LOI-Check failures into a BCF 3.0 file. Connect the {elements} output of an LOI-Check node.",
+      "modeAuto": "Auto",
+      "modeManual": "Manual",
+      "autoModeInfo": "the standard templates are applied automatically for every LOI-Check scenario. Switch to manual mode to write your own title and description templates.",
+      "titleTemplate": "Title template",
+      "descriptionTemplate": "Description template",
+      "suggestionPlaceholder": "Choose a suggestion or type your own"
+    },
+    "ifc": {
+      "loadingIndex": "Loading IFC 4.3 selection list...",
+      "loadFailed": "IFC 4.3 selection list could not be loaded."
+    },
+    "csv": {
+      "exported": "CSV exported.",
+      "rowsImported": "{count} CSV rows imported.",
+      "importFailed": "CSV import failed."
+    },
+    "loiCheck": {
+      "title": "LOI-Check",
+      "description": "Check IFC property values against expected target values. Add one rule per row in the table below.",
+      "componentHeader": "Component",
+      "psetHeader": "Pset",
+      "propertyHeader": "Property",
+      "conditionHeader": "Condition",
+      "targetValueHeader": "Target value",
+      "noRulesAdded": "No comparison rules added",
+      "clickAddRow": "Click Add Row to start defining a property check.",
+      "min": "Min",
+      "max": "Max",
+      "decimalTooltip": "Decimal values use a point: e.g. 0.25. A comma is not accepted.",
+      "condition": {
+        "equals": "equals (=)",
+        "not_equals": "not equals (≠)",
+        "lt": "less than (<)",
+        "le": "less or equal (≤)",
+        "gt": "greater than (>)",
+        "ge": "greater or equal (≥)",
+        "contains": "contains",
+        "one_of": "one of (∈)",
+        "between": "between",
+        "outside": "outside",
+        "is_true": "is true",
+        "is_false": "is false"
+      }
+    },
+    "getProperty": {
+      "title": "Get Property",
+      "description": "Read property values from IFC entities. Define which properties to read in the table below.",
+      "entityHeader": "Entity",
+      "psetHeader": "Pset",
+      "propertyHeader": "Property",
+      "outputModeHint": "Output granularity: 'Per explicit element' (Output structured on the level of explicit individual elements), 'Per element class' (Output structured on the level of element classes), or 'Without element class distinction' (Output without distinction of element classes).",
+      "outputModePerElement": "Per explicit element",
+      "outputModeByClass": "Per element class",
+      "outputModeModel": "Without element class distinction"
+    },
+    "ifcElementFilter": {
+      "title": "IfcElementFilter",
+      "description": "Filter IFC entities by class, PredefinedType, attributes, and PropertySets.",
+      "modeHeader": "Mode",
+      "entityHeader": "Entity",
+      "predefinedHeader": "Predef.",
+      "psetHeader": "Pset",
+      "propertyHeader": "Property",
+      "opHeader": "Op",
+      "valueHeader": "Value",
+      "noRowsAdded": "No filter rows added",
+      "clickAddRow": "Click Add Filter Row to start filtering.",
+      "include": "Include",
+      "exclude": "Exclude",
+      "disabled": "Disabled",
+      "optional": "Optional",
+      "operatorContains": "contains",
+      "operatorStartsWith": "starts with",
+      "operatorEndsWith": "ends with"
     }
   }
 }
