@@ -93,7 +93,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - **Type**: Der verwendete Messungstyp (z. B. `volume`, `surface_area`, `projected_area`, `component_height`, `distance_between`, `distance_to_reference`)
 - **Unit**: Die Maßeinheit (`volume_unit` für Volumen, `area_unit` für Oberfläche und projizierte Fläche, `length_unit` für Bauteilhöhe, minimaler Abstand zwischen Elementen und Abstand zur Referenz, in Modell-Einheiten)
 - **Measurements**: Liste der Messungen, jeweils mit:
-  - `reference`: Der Geometrie-Cache-Schlüssel (z. B. `ifc:123`, `gen:abc`) oder für `distance_between`: `dist:distance_<SchlüsselA>_<SchlüsselB>` (directional, **NICHT** sortiert)
+  - `reference`: Der Geometrie-Cache-Schlüssel (z. B. `ifc:123`, `gen:abc`) oder für `distance_between`: `<keyA>_<keyB>` (directional, **NICHT** sortiert)
   - `value`: Der gemessene Wert (null wenn Geometrie fehlt oder Messung fehlgeschlagen)
   - `error`: Fehlergrund falls Messung fehlgeschlagen (z. B. `no cached geometry`, `non-watertight`)
 
@@ -105,7 +105,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Messungstyp: `volume`
 
 **Eingaben:**
-- Elements: `[101, 102, 103]` (Express-IDs von drei Wänden)
+- List A: `[101, 102, 103]` (Express-IDs von drei Wänden)
 
 **Ausgabe:**
 ```json
@@ -126,7 +126,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Messungstyp: `surface_area`
 
 **Eingaben:**
-- Elements: `[]` (leer = gesamtes Modell)
+- List A: `[]` (leer = gesamtes Modell)
 
 **Ausgabe:**
 ```json
@@ -148,7 +148,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Projektionsnormal: `[0.0, 0.0, 1.0]` (Draufsicht)
 
 **Eingaben:**
-- Elements: `[101]` (Express-ID einer Wand)
+- List A: `[101]` (Express-ID einer Wand)
 
 **Ausgabe:**
 ```json
@@ -168,7 +168,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Richtung: `[0.0, 0.0, 1.0]` (vertikale Höhe)
 
 **Eingaben:**
-- Elements: `[101]` (Express-ID einer Wand)
+- List A: `[101]` (Express-ID einer Wand)
 
 **Ausgabe:**
 ```json
@@ -189,7 +189,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Messungstyp: `volume`
 
 **Eingaben:**
-- Elements: `{"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2", "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4"}`
+- List A: `{"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2", "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4"}`
 
 **Ausgabe:**
 ```json
@@ -218,8 +218,8 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "distance_between",
   "unit": "length_unit",
   "measurements": [
-    { "reference": "dist:distance_ifc:101_ifc:102", "value": 2.5, "error": null },
-    { "reference": "dist:distance_ifc:102_ifc:101", "value": 2.5, "error": null }
+    { "reference": "ifc:101_ifc:102", "value": 2.5, "error": null },
+    { "reference": "ifc:102_ifc:101", "value": 2.5, "error": null }
   ]
 }
 ```
@@ -252,7 +252,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Messungstyp: `volume`
 
 **Eingaben:**
-- Elements: `[101, 999]` (999 hat keine zwischengespeicherte Geometrie)
+- List A: `[101, 999]` (999 hat keine zwischengespeicherte Geometrie)
 
 **Ausgabe:**
 ```json
@@ -282,6 +282,6 @@ Messungen werden in **Modell-Einheiten** (den nativen Einheiten der IFC-Modellge
 ## Hinweise
 
 - **Wasserdichtigkeit für Volumen erforderlich**: Die Volumenberechnung erfordert wasserdichte Geometrie. Der Knoten versucht automatisch, nicht wasserdichte Meshes zu reparieren. Wenn die Reparatur fehlschlägt, wird die Messung mit Fehler gemeldet. Alle anderen Modi funktionieren mit jedem Mesh.
-- **Abstand zwischen**: Referenzen folgen dem Format `dist:distance_<SchlüsselA>_<SchlüsselB>` (directional, **NICHT** sortiert). Bei leerer List B wird jedes ungeordnete Paar in **beiden Richtungen** ausgegeben. Bei nicht-leerer List B eine Richtung pro A×B-Paar. Sich schneidende Paare geben `0.0` zurück (erkannt via AABB + FCL Kollision). Nur Elemente mit tessellierter Body-Geometrie sind messbar.
+- **Abstand zwischen**: Referenzen folgen dem Format `<keyA>_<keyB>` (directional, **NICHT** sortiert). Bei leerer List B wird jedes ungeordnete Paar in **beiden Richtungen** ausgegeben. Bei nicht-leerer List B eine Richtung pro A×B-Paar. Sich schneidende Paare geben `0.0` zurück (erkannt via AABB + FCL Kollision). Nur Elemente mit tessellierter Body-Geometrie sind messbar.
 - **Abstand zur Referenz**: Im `plane`-Modus, wenn die Ebene das Mesh schneidet (min ≤ 0 ≤ max über Vertices), ist Abstand = 0. Null-Normale (z. B. `[0.0, 0.0, 0.0]`) erzeugt Fehler `undefined normal`. Nur Elemente mit tessellierter Body-Geometrie sind messbar.
 - **Gesamtmodell-Fallback**: Wenn `List A` leer ist, misst der Knoten alle zwischengespeicherten Geometrien.

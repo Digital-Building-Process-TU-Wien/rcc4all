@@ -568,8 +568,8 @@ def test_measurement_distance_between_two_elements() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     # Output order: grouped by first element (key_a), iterating all other keys
-    assert result.measurements[0].reference == "dist:distance_ifc:1_ifc:2"
-    assert result.measurements[1].reference == "dist:distance_ifc:2_ifc:1"
+    assert result.measurements[0].reference == "ifc:1_ifc:2"
+    assert result.measurements[1].reference == "ifc:2_ifc:1"
     for m in result.measurements:
         assert m.value == pytest.approx(4.0)
         assert m.error is None
@@ -593,9 +593,9 @@ def test_measurement_distance_between_three_elements() -> None:
     # Output order: grouped by first element (key_a), iterating all other keys in order
     # key_a=1: 1_2, 1_3; key_a=2: 2_1, 2_3; key_a=3: 3_1, 3_2
     expected_order = [
-        "dist:distance_ifc:1_ifc:2", "dist:distance_ifc:1_ifc:3",
-        "dist:distance_ifc:2_ifc:1", "dist:distance_ifc:2_ifc:3",
-        "dist:distance_ifc:3_ifc:1", "dist:distance_ifc:3_ifc:2",
+        "ifc:1_ifc:2", "ifc:1_ifc:3",
+        "ifc:2_ifc:1", "ifc:2_ifc:3",
+        "ifc:3_ifc:1", "ifc:3_ifc:2",
     ]
     actual_order = [m.reference for m in result.measurements]
     assert actual_order == expected_order
@@ -616,7 +616,7 @@ def test_measurement_distance_between_empty_elements_uses_whole_model() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1"}
+    assert refs == {"ifc:1_ifc:2", "ifc:2_ifc:1"}
     for m in result.measurements:
         assert m.value == pytest.approx(4.0)
 
@@ -637,9 +637,9 @@ def test_measurement_distance_between_missing_geometry() -> None:
     assert len(result.measurements) == 6
     refs = {m.reference for m in result.measurements}
     assert refs == {
-        "dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1",
-        "dist:distance_999_ifc:1", "dist:distance_ifc:1_999",
-        "dist:distance_999_ifc:2", "dist:distance_ifc:2_999",
+        "ifc:1_ifc:2", "ifc:2_ifc:1",
+        "999_ifc:1", "ifc:1_999",
+        "999_ifc:2", "ifc:2_999",
     }
     missing_entries = [m for m in result.measurements if "999" in m.reference]
     assert len(missing_entries) == 4
@@ -663,7 +663,7 @@ def test_measurement_distance_between_intersecting_boxes() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1"}
+    assert refs == {"ifc:1_ifc:2", "ifc:2_ifc:1"}
     for m in result.measurements:
         assert m.value == pytest.approx(0.0, abs=1e-6)
         assert m.error is None
@@ -694,7 +694,7 @@ def test_measurement_distance_between_crossing_plates() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1"}
+    assert refs == {"ifc:1_ifc:2", "ifc:2_ifc:1"}
     for m in result.measurements:
         assert m.value == pytest.approx(0.0, abs=1e-6)
         assert m.error is None
@@ -724,8 +724,8 @@ def test_measurement_distance_between_dict_input() -> None:
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
     assert refs == {
-        "dist:distance_inter:intersection_ifc:1_ifc:2_inter:intersection_ifc:3_ifc:4",
-        "dist:distance_inter:intersection_ifc:3_ifc:4_inter:intersection_ifc:1_ifc:2",
+        "inter:intersection_ifc:1_ifc:2_inter:intersection_ifc:3_ifc:4",
+        "inter:intersection_ifc:3_ifc:4_inter:intersection_ifc:1_ifc:2",
     }
     for m in result.measurements:
         assert m.value is not None
@@ -748,7 +748,7 @@ def test_measurement_distance_between_mixed_refs() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_gen:cube_ifc:1", "dist:distance_ifc:1_gen:cube"}
+    assert refs == {"gen:cube_ifc:1", "ifc:1_gen:cube"}
     for m in result.measurements:
         assert m.value is not None
         assert m.error is None
@@ -779,7 +779,7 @@ def test_measurement_distance_between_non_watertight() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_gen:open1_gen:open2", "dist:distance_gen:open2_gen:open1"}
+    assert refs == {"gen:open1_gen:open2", "gen:open2_gen:open1"}
     for m in result.measurements:
         assert m.value is not None
         assert m.error is None
@@ -806,7 +806,7 @@ def test_measurement_distance_between_alignment_with_signal() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_49_ifc:757", "dist:distance_ifc:757_49"}
+    assert refs == {"49_ifc:757", "ifc:757_49"}
     for m in result.measurements:
         assert m.value is None
         assert m.error == "no cached geometry"
@@ -831,7 +831,7 @@ def test_measurement_distance_between_two_alignments() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_49_570", "dist:distance_570_49"}
+    assert refs == {"49_570", "570_49"}
     for m in result.measurements:
         assert m.value is None
         assert m.error == "no cached geometry"
@@ -854,7 +854,7 @@ def test_measurement_distance_between_list_a_cross_list_b() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:1_ifc:3"}
+    assert refs == {"ifc:1_ifc:2", "ifc:1_ifc:3"}
 
 
 def test_measurement_distance_between_self_pair_skipped() -> None:
@@ -873,7 +873,7 @@ def test_measurement_distance_between_self_pair_skipped() -> None:
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
-    assert refs == {"dist:distance_ifc:1_ifc:2", "dist:distance_ifc:2_ifc:1"}
+    assert refs == {"ifc:1_ifc:2", "ifc:2_ifc:1"}
 
 
 def test_measurement_distance_between_list_a_cross_list_b_dict() -> None:
@@ -906,8 +906,8 @@ def test_measurement_distance_between_list_a_cross_list_b_dict() -> None:
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
     assert refs == {
-        "dist:distance_inter:intersection_ifc:1_ifc:2_inter:intersection_ifc:5_ifc:6",
-        "dist:distance_inter:intersection_ifc:3_ifc:4_inter:intersection_ifc:5_ifc:6",
+        "inter:intersection_ifc:1_ifc:2_inter:intersection_ifc:5_ifc:6",
+        "inter:intersection_ifc:3_ifc:4_inter:intersection_ifc:5_ifc:6",
     }
     for m in result.measurements:
         assert m.value is not None

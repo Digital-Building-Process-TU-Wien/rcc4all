@@ -120,87 +120,69 @@ def _compute_distance_between(
     Behavior:
         - list_b empty: all unordered pairs within list_a (n choose 2), emit both directions
         - list_b non-empty: cartesian product A×B (skip self-pairs), emit one direction per pair
-        - Reference format: dist:distance_{key_a}_{key_b} (directional, NOT sorted)
+        - Reference format: {key_a}_{key_b} (directional, NOT sorted)
         - Pairs with missing geometry emit error item (value=null, error='no cached geometry')
     
     Unit: length_unit
     """
     resolved_a = _resolve_keys(context, list_a)
+    resolved_b = _resolve_keys(context, list_b) if list_b else resolved_a
+    
+    lookup_a = dict(resolved_a)
+    lookup_b = dict(resolved_b)
+    keys_a = [ref for ref, _ in resolved_a]
+    keys_b = [ref for ref, _ in resolved_b]
+    
     measurements: list[MeasurementItem] = []
     
-    if not list_b:
-        keys_a = [ref for ref, _ in resolved_a]
-        for key_a in keys_a:
-            for key_b in keys_a:
-                if key_a == key_b:
-                    continue
-                
-                mesh_a: trimesh.Trimesh | None = None
-                mesh_b: trimesh.Trimesh | None = None
-                
-                key_a_cache = next((ck for ref, ck in resolved_a if ref == key_a and ck is not None), None)
-                key_b_cache = next((ck for ref, ck in resolved_a if ref == key_b and ck is not None), None)
-                
-                if key_a_cache is not None:
-                    try:
-                        mesh_a = resolve_mesh(context, key_a_cache)
-                    except ValueError:
-                        pass
-                
-                if key_b_cache is not None:
-                    try:
-                        mesh_b = resolve_mesh(context, key_b_cache)
-                    except ValueError:
-                        pass
-                
-                pair_ref_ab = f"dist:distance_{key_a}_{key_b}"
-                
-                if mesh_a is None or mesh_b is None:
-                    measurements.append(MeasurementItem(reference=pair_ref_ab, value=None, error="no cached geometry"))
-                else:
-                    dist = _pair_distance(mesh_a, mesh_b)
-                    measurements.append(MeasurementItem(reference=pair_ref_ab, value=dist, error=None))
-    else:
-        resolved_b = _resolve_keys(context, list_b)
-        keys_a = [ref for ref, _ in resolved_a]
-        keys_b = [ref for ref, _ in resolved_b]
-        
-        for key_a in keys_a:
+    for key_a in keys_a:
+        mesh_a, error_a = _resolve_reference(context, lookup_a.get(key_a))
+        if error_a:
             for key_b in keys_b:
                 if key_a == key_b:
                     continue
-                
-                mesh_a: trimesh.Trimesh | None = None
-                mesh_b: trimesh.Trimesh | None = None
-                
-                key_a_cache = next((ck for ref, ck in resolved_a if ref == key_a and ck is not None), None)
-                key_b_cache = next((ck for ref, ck in resolved_b if ref == key_b and ck is not None), None)
-                
-                if key_a_cache is not None:
-                    try:
-                        mesh_a = resolve_mesh(context, key_a_cache)
-                    except ValueError:
-                        pass
-                
-                if key_b_cache is not None:
-                    try:
-                        mesh_b = resolve_mesh(context, key_b_cache)
-                    except ValueError:
-                        pass
-                
-                pair_ref_ab = f"dist:distance_{key_a}_{key_b}"
-                
-                if mesh_a is None or mesh_b is None:
-                    measurements.append(MeasurementItem(reference=pair_ref_ab, value=None, error="no cached geometry"))
-                else:
-                    dist = _pair_distance(mesh_a, mesh_b)
-                    measurements.append(MeasurementItem(reference=pair_ref_ab, value=dist, error=None))
+                pair_ref_ab = f"{key_a}_{key_b}"
+                measurements.append(MeasurementItem(reference=pair_ref_ab, value=None, error="no cached geometry"))
+            continue
+        
+        assert mesh_a is not None
+        
+        for key_b in keys_b:
+            if key_a == key_b:
+                continue
+            
+            mesh_b, error_b = _resolve_reference(context, lookup_b.get(key_b))
+            pair_ref_ab = f"{key_a}_{key_b}"
+            
+            if error_b:
+                measurements.append(MeasurementItem(reference=pair_ref_ab, value=None, error="no cached geometry"))
+            else:
+                assert mesh_b is not None
+                dist = _pair_distance(mesh_a, mesh_b)
+                measurements.append(MeasurementItem(reference=pair_ref_ab, value=dist, error=None))
     
     return MeasurementResult(
         type="distance_between",
         unit="length_unit",
         measurements=measurements,
     )
+
+
+def _resolve_reference(
+    context: ExecutionContext,
+    cache_key: str | None,
+) -> tuple[trimesh.Trimesh | None, str | None]:
+    """Resolve a cache key into a mesh or an error.
+
+    Returns (mesh, None) on success, or (None, error_message) on failure.
+    All failures return "no cached geometry" for consistency.
+    """
+    if cache_key is None:
+        return None, "no cached geometry"
+    try:
+        return resolve_mesh(context, cache_key), None
+    except ValueError:
+        return None, "no cached geometry"
 
 
 def _resolve_keys(
@@ -333,7 +315,6 @@ def _compute_distance_to_reference(
     resolved = _resolve_keys(context, list_a)
     measurements: list[MeasurementItem] = []
     
-    # Validate plane normal early
     if reference_type == "plane" and np.linalg.norm(reference_normal) == 0:
         for ref_label, _ in resolved:
             measurements.append(MeasurementItem(reference=ref_label, value=None, error="undefined normal"))
@@ -344,15 +325,13 @@ def _compute_distance_to_reference(
         )
     
     for ref_label, cache_key in resolved:
-        if cache_key is None:
-            measurements.append(MeasurementItem(reference=ref_label, value=None, error="no cached geometry"))
+        mesh, error = _resolve_reference(context, cache_key)
+        if error:
+            measurements.append(MeasurementItem(reference=ref_label, value=None, error=error))
             continue
         
-        try:
-            mesh = resolve_mesh(context, cache_key)
-        except ValueError:
-            measurements.append(MeasurementItem(reference=ref_label, value=None, error="no cached geometry"))
-            continue
+        # mesh is guaranteed non-None here
+        assert mesh is not None
         
         if reference_type == "point":
             prox = ProximityQuery(mesh)
@@ -360,15 +339,11 @@ def _compute_distance_to_reference(
             dist = float(abs(result[1][0]))
             measurements.append(MeasurementItem(reference=ref_label, value=dist, error=None))
         else:  # plane
-            # Compute normalized normal vector
             n_hat = np.array(reference_normal) / np.linalg.norm(reference_normal)
-            # Compute signed distances: (v - origin) · n̂
             signed_dists = (mesh.vertices - reference_point) @ n_hat
-            # If plane crosses mesh (min <= 0 <= max), distance = 0
             if signed_dists.min() <= 0 <= signed_dists.max():
                 min_dist = 0.0
             else:
-                # Plane doesn't cross mesh; min abs distance
                 min_dist = float(np.abs(signed_dists).min())
             measurements.append(MeasurementItem(reference=ref_label, value=min_dist, error=None))
     
@@ -408,16 +383,15 @@ async def measurement(
     measurements: list[MeasurementItem] = []
 
     for ref_label, cache_key in resolved:
-        if cache_key is None:
-            measurements.append(MeasurementItem(reference=ref_label, value=None, error="no cached geometry"))
+        mesh, error = _resolve_reference(context, cache_key)
+        if error:
+            measurements.append(MeasurementItem(reference=ref_label, value=None, error=error))
             continue
-
-        try:
-            mesh = resolve_mesh(context, cache_key)
-        except ValueError as exc:
-            measurements.append(MeasurementItem(reference=ref_label, value=None, error=str(exc)))
-            continue
-
+        
+        # mesh is guaranteed non-None here (error would be set otherwise)
+        assert mesh is not None
+        assert cache_key is not None
+        
         if settings.measurement_type == "volume":
             repaired, error = ensure_watertight(mesh)
             if repaired is None:

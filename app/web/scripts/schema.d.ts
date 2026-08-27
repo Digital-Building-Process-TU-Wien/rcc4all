@@ -32,7 +32,7 @@ export interface CollisionDetection {
     /**
      * 'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).
      */
-    mode?: ('boolean' | 'intersection_mesh')
+    mode?: ("boolean" | "intersection_mesh")
   }
   result: {
     /**
@@ -159,7 +159,7 @@ export interface GetProperty {
     /**
      * Output granularity: 'elements' (per entity), 'by_class' (grouped by element class), or 'model' (distinct values across all entities).
      */
-    output_mode?: ('elements' | 'by_class' | 'model')
+    output_mode?: ("elements" | "by_class" | "model")
     /**
      * List of properties to read from each entity.
      */
@@ -182,7 +182,7 @@ export interface GetProperty {
     /**
      * The output mode used to generate this result.
      */
-    mode: ('elements' | 'by_class' | 'model')
+    mode: ("elements" | "by_class" | "model")
     /**
      * List of elements with their property values (output_mode = elements).
      */
@@ -247,7 +247,7 @@ export interface IfcElementFilter {
       /**
        * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
        */
-      mode?: ('include' | 'exclude' | 'disabled')
+      mode?: ("include" | "exclude" | "disabled")
       /**
        * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
        */
@@ -267,7 +267,7 @@ export interface IfcElementFilter {
       /**
        * Comparison operator used for property or attribute values.
        */
-      operator?: ('==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'starts_with' | 'ends_with')
+      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
       /**
        * Value to compare against when property_name is set.
        */
@@ -293,7 +293,7 @@ export interface Measurement {
     /**
      * The type of measurement to compute. In v4, 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', and 'distance_to_reference' are implemented.
      */
-    measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
+    measurement_type?: ("volume" | "surface_area" | "projected_area" | "component_height" | "distance_between" | "distance_to_reference")
     /**
      * Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view). Only used for 'projected_area' mode.
      */
@@ -305,7 +305,7 @@ export interface Measurement {
     /**
      * Reference type for 'distance_to_reference' mode. 'point' computes distance to a reference point; 'plane' computes perpendicular distance to a reference plane.
      */
-    reference_type?: ('point' | 'plane')
+    reference_type?: ("point" | "plane")
     /**
      * Reference point coordinates [x, y, z]. Used for both 'point' and 'plane' reference types.
      */
@@ -319,7 +319,7 @@ export interface Measurement {
     /**
      * The measurement type used to generate this result.
      */
-    type: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
+    type: ("volume" | "surface_area" | "projected_area" | "component_height" | "distance_between" | "distance_to_reference")
     /**
      * The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).
      */

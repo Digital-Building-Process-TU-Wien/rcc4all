@@ -93,7 +93,7 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
 - **Type**: The measurement type used (e.g., `volume`, `surface_area`, `projected_area`, `component_height`, `distance_between`, `distance_to_reference`)
 - **Unit**: The unit of measurement (`volume_unit` for volume, `area_unit` for surface area and projected area, `length_unit` for component height, minimum distance between elements, and distance to reference, in model units)
 - **Measurements**: List of measurements, each containing:
-  - `reference`: The geometry cache key (e.g., `ifc:123`, `gen:abc`), or for `distance_between`: `dist:distance_<keyA>_<keyB>` (directional, **NOT** sorted)
+  - `reference`: The geometry cache key (e.g., `ifc:123`, `gen:abc`), or for `distance_between`: `<keyA>_<keyB>` (directional, **NOT** sorted)
   - `value`: The measured value (null if geometry missing or measurement failed)
   - `error`: Error reason if measurement failed (e.g., `no cached geometry`, `non-watertight`)
 
@@ -105,7 +105,7 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
 - Measurement type: `volume`
 
 **Inputs:**
-- Elements: `[101, 102, 103]` (express IDs of three walls)
+- List A: `[101, 102, 103]` (express IDs of three walls)
 
 **Output:**
 ```json
@@ -126,7 +126,7 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
 - Measurement type: `surface_area`
 
 **Inputs:**
-- Elements: `[]` (empty = whole model)
+- List A: `[]` (empty = whole model)
 
 **Output:**
 ```json
@@ -148,7 +148,7 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
 - Projection normal: `[0.0, 0.0, 1.0]` (top-down footprint)
 
 **Inputs:**
-- Elements: `[101]` (express ID of a wall)
+- List A: `[101]` (express ID of a wall)
 
 **Output:**
 ```json
@@ -168,7 +168,7 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
 - Direction: `[0.0, 0.0, 1.0]` (vertical height)
 
 **Inputs:**
-- Elements: `[101]` (express ID of a wall)
+- List A: `[101]` (express ID of a wall)
 
 **Output:**
 ```json
@@ -189,7 +189,7 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
 - Measurement type: `volume`
 
 **Inputs:**
-- Elements: `{"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2", "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4"}`
+- List A: `{"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2", "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4"}`
 
 **Output:**
 ```json
@@ -218,8 +218,8 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
   "type": "distance_between",
   "unit": "length_unit",
   "measurements": [
-    { "reference": "dist:distance_ifc:101_ifc:102", "value": 2.5, "error": null },
-    { "reference": "dist:distance_ifc:102_ifc:101", "value": 2.5, "error": null }
+    { "reference": "ifc:101_ifc:102", "value": 2.5, "error": null },
+    { "reference": "ifc:102_ifc:101", "value": 2.5, "error": null }
   ]
 }
 ```
@@ -252,7 +252,7 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
 - Measurement type: `volume`
 
 **Inputs:**
-- Elements: `[101, 999]` (999 has no cached geometry)
+- List A: `[101, 999]` (999 has no cached geometry)
 
 **Output:**
 ```json
@@ -282,6 +282,6 @@ Measurements are reported in **model units** (the native units of the IFC model'
 ## Notes
 
 - **Watertight requirement**: Volume computation requires watertight geometry. The node attempts to repair non-watertight meshes automatically. If repair fails, the measurement is reported with an error. All other modes work on any mesh.
-- **Distance between**: References follow `dist:distance_<keyA>_<keyB>` (directional, **NOT** sorted). With empty List B, each unordered pair is emitted in **both directions**. With non-empty List B, one direction per A×B pair. Intersecting pairs return `0.0` (detected via AABB + FCL collision). Only elements with tessellated Body geometry are measurable.
+- **Distance between**: References follow `<keyA>_<keyB>` (directional, **NOT** sorted). With empty List B, each unordered pair is emitted in **both directions**. With non-empty List B, one direction per A×B pair. Intersecting pairs return `0.0` (detected via AABB + FCL collision). Only elements with tessellated Body geometry are measurable.
 - **Distance to reference**: For `plane` mode, if the plane crosses the mesh (min ≤ 0 ≤ max over vertices), distance = 0. Zero normal (e.g. `[0.0, 0.0, 0.0]`) produces error `undefined normal`. Only elements with tessellated Body geometry are measurable.
 - **Whole-model fallback**: When `List A` is empty, the node measures all cached geometries.
