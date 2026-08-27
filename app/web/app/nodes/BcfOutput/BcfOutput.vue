@@ -11,6 +11,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const node = useScopedNode<BcfOutputNode>(props.node.id)
+const { t } = useI18n()
 
 const AUTO_TITLE = '{class_name} {name} failed {property_name}'
 const AUTO_DESCRIPTION = 'Element #{id} failed because {failure_reason}'
@@ -24,8 +25,8 @@ if (!node.value.data.settings) {
 }
 
 const modes = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'manual', label: 'Manual' },
+  { value: 'auto', labelKey: 'node.bcfOutput.modeAuto' },
+  { value: 'manual', labelKey: 'node.bcfOutput.modeManual' },
 ] as const
 
 function setMode(mode: 'auto' | 'manual') {
@@ -61,11 +62,10 @@ const manualDescSuggestions = [
   <div class="flex flex-col gap-3">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-        BCF Output
+        {{ t('node.bcfOutput.title') }}
       </div>
       <p class="mt-1 text-xs text-slate-500">
-        Turn LOI-Check failures into a BCF 3.0 file. Connect the
-        <span class="font-semibold">elements</span> output of an LOI-Check node.
+        {{ t('node.bcfOutput.description', { elements: 'elements' }) }}
       </p>
     </div>
 
@@ -80,27 +80,25 @@ const manualDescSuggestions = [
           : 'text-slate-500 hover:text-slate-700'"
         @click="setMode(m.value)"
       >
-        {{ m.label }}
+        {{ t(m.labelKey) }}
       </button>
     </div>
 
     <div v-if="node.data.settings!.mode === 'auto'" class="px-2">
       <p class="text-xs text-slate-500">
-        <span class="font-semibold text-slate-700">Auto:</span> the standard
-        templates are applied automatically for every LOI-Check scenario.
-        Switch to manual mode to write your own title and description
-        templates.
+        <span class="font-semibold text-slate-700">{{ t('node.bcfOutput.modeAuto') }}:</span>
+        {{ t('node.bcfOutput.autoModeInfo') }}
       </p>
     </div>
 
     <div v-if="node.data.settings!.mode === 'manual'" class="flex flex-col gap-2">
       <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
-        Title template
+        {{ t('node.bcfOutput.titleTemplate') }}
       </label>
       <input
         v-model="node.data.settings!.title_template"
         :list="`bcf-output-titles-${node.id}`"
-        placeholder="Choose a suggestion or type your own"
+        :placeholder="t('node.bcfOutput.suggestionPlaceholder')"
         class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
       >
       <datalist :id="`bcf-output-titles-${node.id}`">
@@ -114,12 +112,12 @@ const manualDescSuggestions = [
 
     <div v-if="node.data.settings!.mode === 'manual'" class="flex flex-col gap-2">
       <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
-        Description template
+        {{ t('node.bcfOutput.descriptionTemplate') }}
       </label>
       <input
         v-model="node.data.settings!.description_template"
         :list="`bcf-output-descs-${node.id}`"
-        placeholder="Choose a suggestion or type your own"
+        :placeholder="t('node.bcfOutput.suggestionPlaceholder')"
         class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
       >
       <datalist :id="`bcf-output-descs-${node.id}`">

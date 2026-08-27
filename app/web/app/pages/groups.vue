@@ -3,6 +3,7 @@ import type { Group } from 'rcc4all-payload-types'
 
 const sdk = usePayloadSDK()
 const user = sdk.user
+const { t } = useI18n()
 
 const groups = ref<Group[]>([])
 const activeGroupId = ref<number | null>(null)
@@ -122,7 +123,7 @@ async function loadGroupsFromApi() {
   }
   catch (error) {
     console.error('Failed to load groups:', error)
-    loadError.value = 'Gruppen konnten nicht geladen werden.'
+    loadError.value = t('groups.loadFailed')
     groups.value = []
   }
   finally {
@@ -156,13 +157,13 @@ function isRootActive(group: Group): boolean {
       <div class="flex flex-wrap items-start justify-between gap-6">
         <div>
           <p class="text-xs uppercase tracking-widest text-slate-400">
-            Gruppen
+            {{ t('groups.groups') }}
           </p>
           <h1 class="mt-3 text-3xl font-semibold text-dark">
-            Teams und Berechtigungen
+            {{ t('groups.title') }}
           </h1>
           <p class="mt-3 max-w-2xl text-sm text-slate-600">
-            Gruppenstruktur wird direkt aus der API geladen und reagiert auf die aktive Auswahl.
+            {{ t('groups.intro') }}
           </p>
         </div>
       </div>
@@ -171,16 +172,16 @@ function isRootActive(group: Group): boolean {
     <section class="grid gap-6 lg:grid-cols-[18rem_1fr]">
       <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p class="text-xs uppercase tracking-widest text-slate-400">
-          Hauptgruppen
+          {{ t('groups.mainGroups') }}
         </p>
         <div v-if="isLoading" class="mt-4 text-sm text-slate-500">
-          Lade Gruppen...
+          {{ t('groups.loading') }}
         </div>
         <div v-else-if="loadError" class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {{ loadError }}
         </div>
         <div v-else-if="!rootGroups.length" class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Keine Hauptgruppen vorhanden.
+          {{ t('groups.none') }}
         </div>
         <div v-else class="mt-4 space-y-2">
           <button
@@ -205,11 +206,11 @@ function isRootActive(group: Group): boolean {
               class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-slate-600 transition hover:border-slate-400"
               @click="goToParentGroup"
             >
-              Zurueck
+              {{ t('groups.back') }}
             </button>
-            <span class="text-xs uppercase tracking-widest text-slate-400">Aktive Gruppe</span>
+            <span class="text-xs uppercase tracking-widest text-slate-400">{{ t('groups.activeGroup') }}</span>
             <span class="text-slate-400">/</span>
-            <span>{{ activeGroup?.title ?? 'Keine Auswahl' }}</span>
+            <span>{{ activeGroup?.title ?? t('groups.noSelection') }}</span>
           </div>
         </div>
 

@@ -17,6 +17,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const node = useScopedNode<GetPropertyNode>(props.node.id)
+const { t } = useI18n()
 const csvInput = ref<HTMLInputElement | null>(null)
 const csvMessage = ref('')
 
@@ -56,9 +57,9 @@ const globalProperties = computed(() => {
 const allPropertyNames = computed(() => Array.from(globalProperties.value.keys()).sort())
 
 const outputModes = [
-  { value: 'elements', label: 'Per explicit element' },
-  { value: 'by_class', label: 'Per element class' },
-  { value: 'model', label: 'Without element class distinction' },
+  { value: 'elements', labelKey: 'node.getProperty.outputModePerElement' },
+  { value: 'by_class', labelKey: 'node.getProperty.outputModeByClass' },
+  { value: 'model', labelKey: 'node.getProperty.outputModeModel' },
 ]
 
 if (!node.value.data.settings) {
@@ -141,7 +142,7 @@ function removeSelection(index: number) {
 
 function exportCsv() {
   exportRequirementsToCsv(selections.value, 'get-property.csv')
-  csvMessage.value = 'CSV exported.'
+  csvMessage.value = t('node.csv.exported')
 }
 
 function openCsvImport() {
@@ -158,10 +159,10 @@ async function importCsv(event: Event) {
   try {
     const importedSelections = await importRequirementsFromCsv(file)
     node.value.data.settings = { ...node.value.data.settings, selections: importedSelections }
-    csvMessage.value = `${importedSelections.length} CSV rows imported.`
+    csvMessage.value = t('node.csv.rowsImported', { count: importedSelections.length })
   }
   catch {
-    csvMessage.value = 'CSV import failed.'
+    csvMessage.value = t('node.csv.importFailed')
   }
   finally {
     input.value = ''
@@ -173,29 +174,29 @@ async function importCsv(event: Event) {
   <div class="flex flex-col gap-3">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-        Get Property
+        {{ t('node.getProperty.title') }}
       </div>
       <p class="mt-1 text-xs text-slate-500">
-        Read property values from IFC entities. Define which properties to read in the table below.
+        {{ t('node.getProperty.description') }}
       </p>
       <p v-if="filterIndexPending" class="mt-1 text-xs text-slate-400">
-        Loading IFC 4.3 selection list...
+        {{ t('node.ifc.loadingIndex') }}
       </p>
       <p v-else-if="filterIndexError" class="mt-1 text-xs text-red-500">
-        IFC 4.3 selection list could not be loaded.
+        {{ t('node.ifc.loadFailed') }}
       </p>
     </div>
 
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div class="grid grid-cols-[1.8fr_1.8fr_2fr_2.5rem_2.5rem] gap-px bg-slate-200 text-xs font-semibold uppercase tracking-tight text-slate-600">
         <div class="bg-slate-100 px-2 py-2">
-          Entity
+          {{ t('node.getProperty.entityHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Pset
+          {{ t('node.getProperty.psetHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2">
-          Property
+          {{ t('node.getProperty.propertyHeader') }}
         </div>
         <div class="bg-slate-100 px-2 py-2" />
         <div class="bg-slate-100 px-2 py-2" />
@@ -203,10 +204,10 @@ async function importCsv(event: Event) {
 
       <div v-if="!selections.length" class="p-6 text-center">
         <p class="text-sm text-slate-500">
-          No selections added
+          {{ t('node.property.noSelectionsAdded') }}
         </p>
         <p class="mt-1 text-xs text-slate-400">
-          Click Add Selection to start defining a property, or read it from the model via the input.
+          {{ t('node.property.clickAddSelection') }}
         </p>
       </div>
 
@@ -220,12 +221,12 @@ async function importCsv(event: Event) {
             <input
               v-model="sel.entity_type"
               :list="`get-property-entities-${index}`"
-              placeholder="Any Element"
+              :placeholder="t('node.property.anyElement')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
             >
             <datalist :id="`get-property-entities-${index}`">
               <option value="">
-                Any Element
+                {{ t('node.property.anyElement') }}
               </option>
               <option
                 v-for="entity in entities"
@@ -240,7 +241,7 @@ async function importCsv(event: Event) {
             <input
               v-model="sel.property_set"
               :list="`get-property-psets-${index}`"
-              placeholder="Any PSET"
+              :placeholder="t('node.property.anyPset')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
             >
             <datalist :id="`get-property-psets-${index}`">
@@ -256,7 +257,7 @@ async function importCsv(event: Event) {
             <input
               v-model="sel.property_name"
               :list="`get-property-properties-${index}`"
-              placeholder="Required"
+              :placeholder="t('node.property.required')"
               class="w-full rounded border border-slate-200 px-1 py-1 text-xs text-slate-800"
             >
             <datalist :id="`get-property-properties-${index}`">
@@ -269,12 +270,12 @@ async function importCsv(event: Event) {
           </div>
 
           <div class="flex items-center justify-center bg-white p-1">
-            <UTooltip text="Duplicate this row (copies all fields)">
+            <UTooltip :text="t('node.property.duplicateRowTitle')">
               <button
                 type="button"
                 class="rounded p-1 text-xs text-blue-600 hover:bg-blue-50"
-                aria-label="Duplicate row"
-                title="Duplicate this row (copies all fields)"
+                :aria-label="t('node.property.duplicateRow')"
+                :title="t('node.property.duplicateRowTitle')"
                 @click="duplicateSelection(index)"
               >
                 <Icon name="i-lucide-copy-plus" class="size-4" />
@@ -283,12 +284,12 @@ async function importCsv(event: Event) {
           </div>
 
           <div class="flex items-center justify-center bg-white p-1">
-            <UTooltip text="Remove this row">
+            <UTooltip :text="t('node.property.removeRow')">
               <button
                 type="button"
                 class="rounded p-1 text-xs text-red-600 hover:bg-red-50"
-                aria-label="Remove selection"
-                title="Remove this row"
+                :aria-label="t('node.property.removeRow')"
+                :title="t('node.property.removeRow')"
                 @click="removeSelection(index)"
               >
                 <Icon name="i-lucide-trash-2" class="size-4" />
@@ -305,21 +306,21 @@ async function importCsv(event: Event) {
         class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
         @click="addSelection"
       >
-        Add Selection
+        {{ t('node.property.addSelection') }}
       </button>
       <button
         type="button"
         class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         @click="openCsvImport"
       >
-        Import CSV
+        {{ t('node.property.importCsv') }}
       </button>
       <button
         type="button"
         class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         @click="exportCsv"
       >
-        Export CSV
+        {{ t('node.property.exportCsv') }}
       </button>
       <span v-if="csvMessage" class="text-xs text-slate-500">
         {{ csvMessage }}
@@ -334,8 +335,8 @@ async function importCsv(event: Event) {
     </div>
 
     <div class="px-2">
-      <label class="text-xs font-semibold uppercase tracking-tight text-slate-600">Output mode</label>
-      <UTooltip text="Output granularity: 'Per explicit element' (Output structured on the level of explicit individual elements), 'Per element class' (Output structured on the level of element classes), or 'Without element class distinction' (Output without distinction of element classes).">
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-600">{{ t('node.property.outputMode') }}</label>
+      <UTooltip :text="t('node.getProperty.outputModeHint')">
         <select
           v-model="node.data.settings!.output_mode"
           class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800"
@@ -345,7 +346,7 @@ async function importCsv(event: Event) {
             :key="mode.value"
             :value="mode.value"
           >
-            {{ mode.label }}
+            {{ t(mode.labelKey) }}
           </option>
         </select>
       </UTooltip>

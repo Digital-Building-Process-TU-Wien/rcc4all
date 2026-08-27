@@ -2,7 +2,7 @@
 import type { CardBlock, Page, PageSectionBlock } from 'rcc4all-payload-types'
 
 const sdk = usePayloadSDK()
-const { currentLocale } = usei18n()
+const { locale, t } = useI18n()
 
 const { data: homePage } = await useAsyncData(
   'home-page',
@@ -16,7 +16,7 @@ const { data: homePage } = await useAsyncData(
           },
         },
         limit: 1,
-        locale: currentLocale.value,
+        locale: locale.value,
         fallbackLocale: false,
       })
 
@@ -28,7 +28,7 @@ const { data: homePage } = await useAsyncData(
     }
   },
   {
-    watch: [currentLocale],
+    watch: [locale],
   },
 )
 
@@ -81,10 +81,10 @@ function resolveCardIcon(card: CardBlock): string {
   <div v-if="!homePage" class="flex h-screen items-center justify-center">
     <div class="text-center">
       <p class="mb-4 text-lg text-muted">
-        CMS is currently unavailable
+        {{ t('landing.cmsUnavailable') }}
       </p>
       <UButton to="/node-demo" color="primary">
-        To Node Editor
+        {{ t('landing.toNodeEditor') }}
       </UButton>
     </div>
   </div>

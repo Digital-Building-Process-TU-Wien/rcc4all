@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const sdk = usePayloadSDK()
 const router = useRouter()
+const { t } = useI18n()
 const email = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
@@ -25,7 +26,7 @@ async function handleLogin() {
   }
   catch (e: any) {
     console.error('Login error:', e)
-    errorMessage.value = 'Login fehlgeschlagen. Bitte pruefen Sie Ihre Daten.'
+    errorMessage.value = t('auth.loginFailed')
   }
   finally {
     isSubmitting.value = false
@@ -39,45 +40,45 @@ async function handleLogin() {
     <div class="relative grid gap-10 p-8 lg:grid-cols-2 lg:p-12">
       <div class="space-y-6">
         <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-1 text-xs uppercase tracking-widest text-slate-500">
-          Mitgliederbereich
+          {{ t('auth.memberArea') }}
         </div>
         <h1 class="text-3xl font-semibold leading-relaxed text-dark sm:text-4xl">
-          Willkommen zu <br> RCC4ALL.
+          {{ t('auth.welcome', { app: 'RCC4ALL' }) }}
         </h1>
       </div>
 
       <UCard class="bg-white">
         <div class="flex items-center justify-between">
           <p class="text-sm font-semibold uppercase tracking-widest text-slate-500">
-            Login
+            {{ t('auth.login') }}
           </p>
         </div>
 
         <form class="mt-6 flex flex-col gap-4" @submit.prevent="handleLogin">
           <div class="space-y-2">
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="email">
-              E-Mail-Adresse
+              {{ t('auth.emailAddress') }}
             </label>
             <UInput
               id="email"
               v-model="email"
               type="email"
               autocomplete="email"
-              placeholder="name@organisation.at"
+              :placeholder="t('auth.emailPlaceholder')"
               class="font-normal"
             />
           </div>
 
           <div class="space-y-2">
             <label class="text-xs font-semibold uppercase tracking-widest text-slate-500" for="password">
-              Passwort
+              {{ t('auth.password') }}
             </label>
             <UInput
               id="password"
               v-model="password"
               type="password"
               autocomplete="current-password"
-              placeholder="Passwort eingeben"
+              :placeholder="t('auth.passwordPlaceholder')"
             />
           </div>
 
@@ -91,7 +92,7 @@ async function handleLogin() {
             class="w-full uppercase"
             :disabled="isSubmitting || !email || !password"
           >
-            Login
+            {{ t('auth.login') }}
           </UButton>
         </form>
       </UCard>

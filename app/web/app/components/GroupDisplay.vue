@@ -18,6 +18,8 @@ const emit = defineEmits<{
   switchGroup: [group: Group]
 }>()
 
+const { t, locale } = useI18n()
+
 const adminLabels = computed(() => {
   return getRelationLabels(props.activeGroup?.admins)
 })
@@ -38,7 +40,7 @@ function getRelationLabels(relations: (number | User)[] | null | undefined): str
 
 function resolveUserLabel(entry: number | User): string {
   if (typeof entry === 'number') {
-    return `User #${entry}`
+    return t('groups.userFallback', { id: entry })
   }
 
   const name = readString(entry, ['name', 'fullName', 'displayName'])
@@ -51,7 +53,7 @@ function resolveUserLabel(entry: number | User): string {
     return email
   }
 
-  return `User #${entry.id}`
+  return t('groups.userFallback', { id: entry.id })
 }
 
 function readString(value: unknown, keys: string[]): string | null {
@@ -80,13 +82,13 @@ function formatDate(value: string): string {
     return value
   }
 
-  return new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 </script>
 
 <template>
   <div v-if="!activeGroup" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-    Waehle eine Gruppe, um Details und Untergruppen anzuzeigen.
+    {{ t('groups.noSelectionDetails') }}
   </div>
 
   <div v-else class="space-y-6">
@@ -97,23 +99,23 @@ function formatDate(value: string): string {
             {{ activeGroup.title }}
           </h2>
           <p class="mt-2 text-xs uppercase tracking-widest text-slate-400">
-            Aktive Gruppe
+            {{ t('groups.activeGroup') }}
           </p>
         </div>
       </div>
 
       <div class="mt-4 grid gap-3 text-xs text-slate-500 md:grid-cols-2">
         <p>
-          Erstellt: <span class="font-semibold text-slate-700">{{ formatDate(activeGroup.createdAt) }}</span>
+          {{ t('groups.createdAt') }} <span class="font-semibold text-slate-700">{{ formatDate(activeGroup.createdAt) }}</span>
         </p>
         <p>
-          Zuletzt aktualisiert: <span class="font-semibold text-slate-700">{{ formatDate(activeGroup.updatedAt) }}</span>
+          {{ t('groups.updatedAt') }} <span class="font-semibold text-slate-700">{{ formatDate(activeGroup.updatedAt) }}</span>
         </p>
       </div>
 
       <div class="mt-5">
         <p class="text-xs uppercase tracking-widest text-slate-400">
-          Untergruppen
+          {{ t('groups.subgroups') }}
         </p>
         <div v-if="subgroups.length" class="mt-3 flex flex-wrap gap-2">
           <button
@@ -126,7 +128,7 @@ function formatDate(value: string): string {
           </button>
         </div>
         <p v-else class="mt-3 text-sm text-slate-500">
-          Keine Untergruppen vorhanden.
+          {{ t('groups.noSubgroups') }}
         </p>
       </div>
     </div>
@@ -134,7 +136,7 @@ function formatDate(value: string): string {
     <div class="grid gap-4 md:grid-cols-2">
       <div class="rounded-2xl border border-slate-200 bg-white p-4">
         <p class="text-xs uppercase tracking-widest text-slate-400">
-          Admins
+          {{ t('groups.admins') }}
         </p>
         <div v-if="adminLabels.length" class="mt-3 space-y-2">
           <div
@@ -146,13 +148,13 @@ function formatDate(value: string): string {
           </div>
         </div>
         <p v-else class="mt-3 text-sm text-slate-500">
-          Keine Admins zugeordnet.
+          {{ t('groups.noAdmins') }}
         </p>
       </div>
 
       <div class="rounded-2xl border border-slate-200 bg-white p-4">
         <p class="text-xs uppercase tracking-widest text-slate-400">
-          Nutzer
+          {{ t('groups.users') }}
         </p>
         <div v-if="userLabels.length" class="mt-3 space-y-2">
           <div
@@ -164,7 +166,7 @@ function formatDate(value: string): string {
           </div>
         </div>
         <p v-else class="mt-3 text-sm text-slate-500">
-          Keine Nutzer zugeordnet.
+          {{ t('groups.noUsers') }}
         </p>
       </div>
     </div>

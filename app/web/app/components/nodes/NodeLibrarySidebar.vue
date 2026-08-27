@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { AvailableNode } from '~/utils/nodes'
-import { usei18n } from '~/composables/usei18n'
+import type { AvailableNode, SupportedLocale } from '~/utils/nodes'
 import { getAvailableNodes } from '~/utils/nodes'
 
 interface Props {
@@ -19,21 +18,21 @@ const emit = defineEmits<{
   clearCanvas: []
 }>()
 
-const { currentLocale } = usei18n()
+const { locale, t } = useI18n()
 
 const availableNodes = computed(() => {
-  const nodes = getAvailableNodes(currentLocale.value)
+  const nodes = getAvailableNodes(locale.value as SupportedLocale)
   nodes.push({
     nodeName: 'FileInput',
-    label: 'File Input',
+    label: t('node.fileInput.title'),
     categories: ['Other'],
-    description: 'Select an IFC file from local development files',
+    description: t('node.fileInput.description'),
   })
   nodes.push({
     nodeName: 'JsonOutput',
-    label: 'JSON Output',
+    label: t('node.jsonOutput.title'),
     categories: ['Other'],
-    description: 'Outputs the workflow result as JSON',
+    description: t('node.jsonOutput.description'),
   })
   return nodes
 })
@@ -154,10 +153,13 @@ function handleAddNode(node: AvailableNode) {
           color="neutral"
           variant="ghost"
           icon="i-lucide-arrow-left"
-          label="Back Home"
-          title="Back Home"
+          :label="t('library.backHome')"
+          :title="t('library.backHome')"
           class="justify-start"
         />
+        <div class="ml-auto">
+          <LocaleSwitcher />
+        </div>
       </div>
     </template>
 
@@ -167,16 +169,16 @@ function handleAddNode(node: AvailableNode) {
           <Icon name="i-lucide-box" class="size-5" />
         </div>
         <p class="truncate text-sm font-semibold text-highlighted">
-          Node Library
+          {{ t('library.title') }}
         </p>
       </div>
       <div class="flex flex-col gap-2 px-3 pb-4">
         <div class="rounded-xl border border-default bg-default/80 p-3">
           <p class="text-sm font-medium text-highlighted">
-            Add available nodes
+            {{ t('library.addAvailableNodes') }}
           </p>
           <p class="mt-1 text-xs text-muted">
-            Choose a node type to place it on the canvas.
+            {{ t('library.chooseNodeType') }}
           </p>
         </div>
 
@@ -185,7 +187,7 @@ function handleAddNode(node: AvailableNode) {
             :variant="viewMode === 'all' ? 'soft' : 'ghost'"
             color="neutral"
             size="sm"
-            label="All"
+            :label="t('library.viewAll')"
             icon="i-lucide-list"
             class="flex-1"
             @click="setViewMode('all')"
@@ -194,7 +196,7 @@ function handleAddNode(node: AvailableNode) {
             :variant="viewMode === 'categories' ? 'soft' : 'ghost'"
             color="neutral"
             size="sm"
-            label="Categories"
+            :label="t('library.viewCategories')"
             icon="i-lucide-folder-tree"
             class="flex-1"
             @click="setViewMode('categories')"
@@ -204,7 +206,7 @@ function handleAddNode(node: AvailableNode) {
         <UInput
           v-model="searchQuery"
           icon="i-lucide-search"
-          placeholder="Filter nodes..."
+          :placeholder="t('library.filterNodes')"
           size="sm"
           clearable
         />
@@ -220,7 +222,7 @@ function handleAddNode(node: AvailableNode) {
             @add="handleAddNode"
           />
           <div v-if="!displayedNodes.length" class="py-4 text-center text-sm text-muted">
-            No nodes match your search.
+            {{ t('library.noNodesMatch') }}
           </div>
         </template>
 
@@ -238,7 +240,7 @@ function handleAddNode(node: AvailableNode) {
             @drag-end="handleDragEnd"
           />
           <div v-if="!displayedCategories.length" class="py-4 text-center text-sm text-muted">
-            No nodes match your search.
+            {{ t('library.noNodesMatch') }}
           </div>
         </template>
       </div>
@@ -250,7 +252,7 @@ function handleAddNode(node: AvailableNode) {
           color="primary"
           variant="solid"
           icon="i-lucide-play"
-          :label="isRunning ? 'Running...' : 'Run Workflow'"
+          :label="isRunning ? t('library.running') : t('library.runWorkflow')"
           :disabled="!hasNodes || isRunning"
           block
           @click="emit('runWorkflow')"
@@ -260,9 +262,9 @@ function handleAddNode(node: AvailableNode) {
           variant="outline"
           block
           icon="i-lucide-eraser"
-          label="Clear canvas"
+          :label="t('library.clearCanvas')"
           :disabled="!hasNodes"
-          title="Clear canvas"
+          :title="t('library.clearCanvas')"
           class="justify-start"
           @click="emit('clearCanvas')"
         />

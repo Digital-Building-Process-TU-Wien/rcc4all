@@ -12,6 +12,8 @@ const props = defineProps<Props>()
 
 const node = useScopedNode<Generate3DCubeNode>(props.node.id)
 
+const { t } = useI18n()
+
 if (!node.value.data.settings) {
   node.value.data.settings = {
     position: [0.0, 0.0, 0.0],
@@ -38,16 +40,16 @@ function updateArrayValue(
 <template>
   <div class="px-2">
     <div class="text-sm font-bold text-slate-800 mb-2 uppercase tracking-wide">
-      Generate 3D Cube
+      {{ t('node.generate3dCube.title') }}
     </div>
     <p class="mt-1 mb-3 text-xs text-slate-500">
-      Creates a cuboid geometry in the cache under a unique object_id, for use in a collision node.
+      {{ t('node.generate3dCube.description') }}
     </p>
   </div>
 
   <div class="flex flex-col gap-3 px-2 pb-2">
     <div class="flex flex-col gap-1">
-      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Position (X, Y, Z)</label>
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">{{ t('node.generate3dCube.position') }}</label>
       <div class="grid grid-cols-3 gap-1">
         <input
           type="number"
@@ -77,7 +79,7 @@ function updateArrayValue(
     </div>
 
     <div class="flex flex-col gap-1">
-      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Rotation (X°, Y°, Z°)</label>
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">{{ t('node.generate3dCube.rotation') }}</label>
       <div class="grid grid-cols-3 gap-1">
         <input
           type="number"
@@ -107,7 +109,7 @@ function updateArrayValue(
     </div>
 
     <div class="flex flex-col gap-1">
-      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Size (W, H, D)</label>
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">{{ t('node.generate3dCube.size') }}</label>
       <div class="grid grid-cols-3 gap-1">
         <input
           type="number"
@@ -140,23 +142,23 @@ function updateArrayValue(
     </div>
 
     <div class="flex flex-col gap-1">
-      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Object ID</label>
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">{{ t('node.generate3dCube.objectId') }}</label>
       <input
         type="text"
         :value="node.data.settings?.object_id"
-        placeholder="unique object id"
+        :placeholder="t('node.generate3dCube.uniqueObjectId')"
         class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
         @input="node.data.settings!.object_id = (($event.target) as HTMLInputElement).value"
       >
       <p class="text-xs text-slate-400">
-        Unique reference for the cube. Feed its object_ids output into a collision node.
+        {{ t('node.generate3dCube.objectIdHint') }}
       </p>
     </div>
 
     <div class="border-t border-slate-200 pt-3 flex flex-col gap-1">
-      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Object IDs (output)</label>
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">{{ t('node.generate3dCube.objectIdsOutput') }}</label>
       <div v-if="!node.data.result?.object_ids?.length" class="text-xs text-slate-400">
-        No output yet. Run the workflow.
+        {{ t('node.generate3dCube.noOutputYet') }}
       </div>
       <div
         v-for="objectId in node.data.result?.object_ids"

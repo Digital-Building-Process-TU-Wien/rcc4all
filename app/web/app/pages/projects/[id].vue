@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t } = useI18n()
+
 const project = {
   title: 'ZDB Wohnbau 2025',
   subtitle: 'Projektlinie fuer TU Wien, Paket 03',
@@ -96,7 +98,7 @@ const results = [
       <div class="flex flex-wrap items-start justify-between gap-6">
         <div>
           <p class="text-xs uppercase tracking-widest text-slate-400">
-            Projekt
+            {{ t('projects.project') }}
           </p>
           <h1 class="mt-3 text-3xl font-semibold text-dark">
             {{ project.title }}
@@ -110,7 +112,7 @@ const results = [
             {{ project.status }}
           </BaseBadge>
           <BaseButton class="text-light bg-primary">
-            Neue Version
+            {{ t('projects.newVersion') }}
           </BaseButton>
         </div>
       </div>
@@ -120,14 +122,14 @@ const results = [
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p class="text-xs uppercase tracking-widest text-slate-400">
-            Versionen
+            {{ t('projects.versions') }}
           </p>
           <h2 class="mt-2 text-2xl font-semibold text-dark">
-            Versionierung mit Master-Linie
+            {{ t('projects.versioningMaster') }}
           </h2>
         </div>
         <button class="rounded-full border border-slate-300 bg-white px-5 py-2 text-xs font-semibold uppercase tracking-widest text-slate-600 transition hover:border-slate-400">
-          Master wechseln
+          {{ t('projects.switchMaster') }}
         </button>
       </div>
       <div class="grid gap-4 lg:grid-cols-3">
@@ -144,7 +146,7 @@ const results = [
               v-if="version.published"
               class="text-teal-300"
             >
-              Veroeffentlicht
+              {{ t('projects.published') }}
             </BaseBadge>
           </div>
           <p class="mt-3 text-sm text-slate-600">
@@ -155,7 +157,7 @@ const results = [
               {{ version.date }}
             </span>
             <BaseButton class="bg-gray-100 border text-slate-600">
-              Als Master setzen
+              {{ t('projects.setAsMaster') }}
             </BaseButton>
           </div>
         </article>
@@ -165,10 +167,10 @@ const results = [
     <section class="space-y-4">
       <div>
         <p class="text-xs uppercase tracking-widest text-slate-400">
-          Pruef-Ergebnisse
+          {{ t('projects.checkResults') }}
         </p>
         <h2 class="mt-2 text-2xl font-semibold text-dark">
-          Status pro Regelpaket
+          {{ t('projects.statusPerRule') }}
         </h2>
       </div>
       <div class="grid gap-4 lg:grid-cols-3">
@@ -191,7 +193,7 @@ const results = [
             {{ result.detail }}
           </p>
           <p class="mt-4 text-xs text-slate-500">
-            Hinweise: {{ result.count }}
+            {{ t('projects.hints') }}: {{ result.count }}
           </p>
         </article>
       </div>
@@ -200,20 +202,20 @@ const results = [
     <section class="space-y-4">
       <div>
         <p class="text-xs uppercase tracking-widest text-slate-400">
-          Dateien
+          {{ t('projects.files') }}
         </p>
         <h2 class="mt-2 text-2xl font-semibold text-dark">
-          Dokumente und IFC-Modelle
+          {{ t('projects.documentsAndIfc') }}
         </h2>
       </div>
       <div class="space-y-6">
         <div>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-dark">
-              Dokumente
+              {{ t('projects.documents') }}
             </h3>
             <button class="text-xs font-semibold uppercase tracking-widest text-primary-600">
-              Upload
+              {{ t('projects.upload') }}
             </button>
           </div>
           <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -236,10 +238,10 @@ const results = [
         <div>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-dark">
-              IFC-Modelle
+              {{ t('projects.ifcModels') }}
             </h3>
             <button class="text-xs font-semibold uppercase tracking-widest text-primary-600">
-              Upload
+              {{ t('projects.upload') }}
             </button>
           </div>
           <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

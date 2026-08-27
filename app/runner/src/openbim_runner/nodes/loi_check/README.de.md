@@ -4,7 +4,7 @@ description: Prüft IFC-Eigenschaftswerte gegen erwartete Zielwerte mit tabellen
 categories: IFC
 ---
 
-Der `loi_check`-Knoten führt tabellenbasierte Eigenschaftsprüfungen an
+Der `loi_check`-Node führt tabellenbasierte Eigenschaftsprüfungen an
 IFC-Elementen durch. Jede Zeile definiert eine zu lesende Eigenschaft und eine
 Bedingung, die gegen einen Zielwert ausgewertet wird, und wird gegen jedes
 Eingabeelement geprüft.

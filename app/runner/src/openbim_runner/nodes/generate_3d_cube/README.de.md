@@ -4,7 +4,7 @@ description: Erstellt eine 3D-Würfelgeometrie mit anpassbarer Größe, Position
 categories: 3D operation
 ---
 
-Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation und speichert sie unter einer vom Benutzer vergebenen `object_id` im Geometrie-Cache. Die Objekt-ID ist die Adresse, über die der Würfel später referenziert wird, z. B. in einem `collision`-Knoten.
+Der `generate_3d_cube` Node erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation und speichert sie unter einer vom Benutzer vergebenen `object_id` im Geometrie-Cache. Die Objekt-ID ist die Adresse, über die der Würfel später referenziert wird, z. B. in einem `collision`-Node.
 
 ## Einstellungen
 
@@ -19,7 +19,7 @@ Der `generate_3d_cube` Knoten erstellt eine 3D-Box-Geometrie mit konfigurierbare
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
-| `object_ids` | `list[string]` | 1-elementige Liste mit der `object_id` des Würfels. Geben Sie dies in den Objekt-ID-Eingang eines `collision`-Knotens. |
+| `object_ids` | `list[string]` | 1-elementige Liste mit der `object_id` des Würfels. Geben Sie dies in den Objekt-ID-Eingang eines `collision`-Nodes. |
 
 ## Beispiel
 

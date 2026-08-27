@@ -2,8 +2,9 @@
  * Base interface for all node data
  */
 import type { NodeRegistrySchema } from '@@/scripts/schema'
-import type { SupportedLocale } from '~/composables/usei18n'
 import schemaJson from '@@/scripts/schema.json'
+
+export type SupportedLocale = 'en' | 'de'
 
 export interface NodeData {
   label: string

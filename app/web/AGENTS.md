@@ -136,3 +136,23 @@ props.node.data!.settings = newValue
 const { updateNodeData } = useVueFlow()
 updateNodeData(props.id, { ... })
 ```
+
+## Internationalization (i18n)
+
+The node web UI must be fully bilingual (en/de). Never hardcode user-facing strings.
+
+- Translate all UI text through `t()` from the auto-imported `useI18n()`.
+- Add every key to **both** `i18n/locales/en.json` and `de.json` in the same change.
+- Group node keys under `node.<NodeName>.<...>` and reuse existing keys when the wording matches.
+- Align new wording with existing locale text — including the German convention **"Node"/"Nodes"** (never "Knoten").
+
+**✅ Do:**
+```typescript
+const { t } = useI18n()
+label: t('node.<NodeName>.title')
+```
+
+**❌ Don't:**
+```typescript
+label: 'Title'
+```

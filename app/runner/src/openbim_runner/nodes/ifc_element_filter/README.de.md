@@ -4,9 +4,9 @@ description: Filtert IFC-Entitaeten mit tabellenbasierten Include- und Exclude-R
 categories: IFC, Filter, Advanced
 ---
 
-Der `ifc_element_filter` Knoten filtert IFC-Modellelemente ueber eine Komponententabelle. Jede Zeile beschreibt eine Bedingung mit Entity-Typ, optionalem `PredefinedType` und optionalem Attribut- oder PropertySet-Vergleich. Include-Zeilen werden per OR-Logik zusammengefuehrt, danach werden Exclude-Zeilen vom Ergebnis abgezogen.
+Der `ifc_element_filter` Node filtert IFC-Modellelemente ueber eine Komponententabelle. Jede Zeile beschreibt eine Bedingung mit Entity-Typ, optionalem `PredefinedType` und optionalem Attribut- oder PropertySet-Vergleich. Include-Zeilen werden per OR-Logik zusammengefuehrt, danach werden Exclude-Zeilen vom Ergebnis abgezogen.
 
-Verwenden Sie diesen Knoten, wenn Sie:
+Verwenden Sie diesen Node, wenn Sie:
 
 - Elemente nach IFC-Klasse wie `IFCWALL`, `IFCDOOR` oder `IFCSPACE` filtern moechten
 - Elemente pro Zeile einschliessen oder ausschliessen moechten
