@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import trimesh
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 from openbim_runner.util.geometry import cache_mesh
+
 
 class Generate3DCubeSettings(NodeModel):
     position: list[float] = Field(
@@ -38,17 +40,19 @@ class Generate3DCubeResult(NodeModel):
     )
 
 
-def _euler_degrees_to_matrix(rotation: list[float]) -> trimesh.Transformations:
+def _euler_degrees_to_matrix(rotation: list[float]) -> np.ndarray:
     x_rad = math.radians(rotation[0])
     y_rad = math.radians(rotation[1])
     z_rad = math.radians(rotation[2])
 
     rotation_matrix = trimesh.transformations.euler_matrix(x_rad, y_rad, z_rad)
-    return rotation_matrix
+    return rotation_matrix  # noqa: RET504 - typed local keeps pyright strict happy (bare ndarray generic)
 
 
 @node()
-async def generate_3d_cube(settings: Generate3DCubeSettings, context: ExecutionContext) -> Generate3DCubeResult:
+async def generate_3d_cube(
+    settings: Generate3DCubeSettings, context: ExecutionContext
+) -> Generate3DCubeResult:
     if any(dim <= 0 for dim in settings.size):
         raise ValueError("Size dimensions must be positive")
 

@@ -1,21 +1,7 @@
-/**
- * A distinct property value.
- */
-export type Value = string
-/**
- * Number of occurrences of this value.
- */
-export type Count = number
-/**
- * A distinct property value.
- */
-export type Value1 = string
-/**
- * Number of occurrences of this value.
- */
-export type Count1 = number
+/* GENERATED FILE - DO NOT EDIT. Regenerate with `npm run generate:schema`. */
 
 export interface NodeRegistrySchema {
+  bcf_output?: BCFOutput
   collision?: CollisionDetection
   concat_string?: ConcatenateStrings
   generate_3d_cube?: Generate3DCube
@@ -23,6 +9,125 @@ export interface NodeRegistrySchema {
   get_property?: GetProperty
   ifc_element_filter?: IfcElementFilter
   measurement?: Measurement
+  loi_check?: LOICheck
+}
+/**
+ * Turn LOI-Check failures into a BCF 3.0 issue file.
+ */
+export interface BCFOutput {
+  settings: {
+    /**
+     * 'auto' uses condition-aware placeholders ({expectation}, {failure_reason}) so one description template stays correct for every LOI-Check scenario. 'manual' uses the raw placeholders ({actual}, {expected}, {condition_symbol}) exactly as written.
+     */
+    mode?: ('auto' | 'manual')
+    /**
+     * BCF topic title, resolved per failing check with Python string formatting. Available placeholders: {id}, {guid}, {name}, {class_name} and check values keyed by property, e.g. {Pset_WallCommon.ThermalTransmittance.actual}, {Pset_WallCommon.ThermalTransmittance.expected}, {Pset_WallCommon.ThermalTransmittance.condition}.
+     */
+    title_template?: string
+    /**
+     * BCF topic description (sentence) resolved per failing check, same placeholders as the title template. The comparison row's expected value supplies the limit.
+     */
+    description_template?: string
+  }
+  result: {
+    /**
+     * Filesystem path the BCF 3.0 file was written to.
+     */
+    output_path: string
+    /**
+     * Number of BCF topics written (one per failing check).
+     */
+    topic_count: number
+    /**
+     * Number of input elements consumed from LOI-Check.
+     */
+    element_count: number
+    /**
+     * Total number of failed property checks across all elements.
+     */
+    failed_check_count: number
+    /**
+     * Resolved topics (element GUID, property key, title, description).
+     */
+    topics?: {
+      /**
+       * IFC GlobalId of the failing element (resolved from the model by express ID).
+       */
+      guid: string
+      /**
+       * Property key of the failed check (e.g. 'Pset_WallCommon.ThermalTransmittance' or 'ThermalTransmittance').
+       */
+      property_key: string
+      /**
+       * Resolved topic title from the title template.
+       */
+      title: string
+      /**
+       * Resolved topic description (sentence) from the description template.
+       */
+      description: string
+    }[]
+  }
+  inputs: {
+    /**
+     * Elements and their property check results from LOI-Check (LOI-Check.elements).
+     */
+    elements?: {
+      /**
+       * The express ID of the IFC entity.
+       */
+      express_id: number
+      /**
+       * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
+       */
+      class_name: string
+      /**
+       * True if at least one check on this element failed.
+       */
+      failed: boolean
+      /**
+       * List of property check results for this element.
+       */
+      checks?: {
+        /**
+         * Stable identifier for this check (the property key, e.g., 'Pset.X' or 'X').
+         */
+        id: string
+        /**
+         * Property key in 'Pset.Property' or 'Property' format.
+         */
+        property_key: string
+        /**
+         * Name of the property being compared.
+         */
+        property_name: string
+        /**
+         * The comparison operator that was applied.
+         */
+        condition: ('equals' | 'not_equals' | 'lt' | 'le' | 'gt' | 'ge' | 'contains' | 'one_of' | 'is_true' | 'is_false' | 'between' | 'outside')
+        /**
+         * Expected value as a string (empty for is_true / is_false and range checks).
+         */
+        expected?: string
+        /**
+         * Lower barrier used for numeric range checks, or None for single-value checks.
+         */
+        expected_min?: (string | null)
+        /**
+         * Upper barrier used for numeric range checks, or None for single-value checks.
+         */
+        expected_max?: (string | null)
+        /**
+         * Actual property value as a string, or None if the property is missing.
+         */
+        actual?: (string | null)
+        /**
+         * Whether the property value satisfies the condition.
+         */
+        passed: boolean
+      }[]
+    }[]
+  }
 }
 /**
  * Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.
@@ -32,7 +137,7 @@ export interface CollisionDetection {
     /**
      * 'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).
      */
-    mode?: ("boolean" | "intersection_mesh")
+    mode?: ('boolean' | 'intersection_mesh')
   }
   result: {
     /**
@@ -159,7 +264,7 @@ export interface GetProperty {
     /**
      * Output granularity: 'elements' (per entity), 'by_class' (grouped by element class), or 'model' (distinct values across all entities).
      */
-    output_mode?: ("elements" | "by_class" | "model")
+    output_mode?: ('elements' | 'by_class' | 'model')
     /**
      * List of properties to read from each entity.
      */
@@ -182,7 +287,7 @@ export interface GetProperty {
     /**
      * The output mode used to generate this result.
      */
-    mode: ("elements" | "by_class" | "model")
+    mode: ('elements' | 'by_class' | 'model')
     /**
      * List of elements with their property values (output_mode = elements).
      */
@@ -210,14 +315,32 @@ export interface GetProperty {
        * Distinct values with counts per property for this class.
        */
       properties?: {
-        [k: string]: ValueWithCount[]
+        [k: string]: {
+          /**
+           * A distinct property value.
+           */
+          value: string
+          /**
+           * Number of occurrences of this value.
+           */
+          count: number
+        }[]
       }
     }[] | null)
     /**
      * Distinct values with counts per property (output_mode = model).
      */
     properties?: ({
-      [k: string]: ValueWithCount1[]
+      [k: string]: {
+        /**
+         * A distinct property value.
+         */
+        value: string
+        /**
+         * Number of occurrences of this value.
+         */
+        count: number
+      }[]
     } | null)
   }
   inputs: {
@@ -226,14 +349,6 @@ export interface GetProperty {
      */
     express_ids?: number[]
   }
-}
-export interface ValueWithCount {
-  value: Value
-  count: Count
-}
-export interface ValueWithCount1 {
-  value: Value1
-  count: Count1
 }
 /**
  * Filter IFC entities using table-based include and exclude rules.
@@ -247,7 +362,7 @@ export interface IfcElementFilter {
       /**
        * Row mode: include adds matches, exclude removes matches, disabled ignores the row.
        */
-      mode?: ("include" | "exclude" | "disabled")
+      mode?: ('include' | 'exclude' | 'disabled')
       /**
        * IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.
        */
@@ -267,7 +382,7 @@ export interface IfcElementFilter {
       /**
        * Comparison operator used for property or attribute values.
        */
-      operator?: ("==" | "!=" | "<" | ">" | "<=" | ">=" | "contains" | "starts_with" | "ends_with")
+      operator?: ('==' | '!=' | '<' | '>' | '<=' | '>=' | 'contains' | 'starts_with' | 'ends_with')
       /**
        * Value to compare against when property_name is set.
        */
@@ -283,6 +398,150 @@ export interface IfcElementFilter {
      * GlobalId values for all matching IFC entities in the same order as express_ids.
      */
     guids?: string[]
+  }
+  inputs: {
+    /**
+     * Optional list of IFC express IDs to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result.
+     */
+    express_ids?: (number[] | null)
+  }
+}
+/**
+ * Check IFC property values against expected target values with table-based rules.
+ */
+export interface LOICheck {
+  settings: {
+    /**
+     * List of property comparison rules. Each row is checked against every input element.
+     */
+    rows?: {
+      /**
+       * Optional IFC entity type (e.g., IFCWALL, IFCDOOR). Empty means any entity type. Used for UI preselection only.
+       */
+      entity_type?: string
+      /**
+       * IFC PropertySet name (e.g., Pset_WallCommon) or custom property set name.
+       */
+      property_set?: string
+      /**
+       * Name of the property to compare within the PropertySet.
+       */
+      property_name?: string
+      /**
+       * Comparison operator applied to the property value. 'between' / 'outside' use the numeric range barriers.
+       */
+      condition: ('equals' | 'not_equals' | 'lt' | 'le' | 'gt' | 'ge' | 'contains' | 'one_of' | 'is_true' | 'is_false' | 'between' | 'outside')
+      /**
+       * Target value the property is compared against. Ignored for is_true / is_false and range checks.
+       */
+      expected_value?: string
+      /**
+       * List of accepted values for the 'one_of' condition. Empty entries are ignored.
+       */
+      allowed_values?: string[]
+      /**
+       * Lower barrier for numeric range checks (condition = between / outside).
+       */
+      range_min?: string
+      /**
+       * Upper barrier for numeric range checks (condition = between / outside).
+       */
+      range_max?: string
+      /**
+       * If True the range includes values equal to the lower barrier (>=); otherwise it is strictly greater (>).
+       */
+      inclusive_min?: boolean
+      /**
+       * If True the range includes values equal to the upper barrier (<=); otherwise it is strictly less (<).
+       */
+      inclusive_max?: boolean
+    }[]
+  }
+  result: {
+    /**
+     * Number of elements processed.
+     */
+    element_count: number
+    /**
+     * Total number of property checks across all elements.
+     */
+    total_checks: number
+    /**
+     * Total number of failed checks across all elements.
+     */
+    failed_count: number
+    /**
+     * Express IDs of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.
+     */
+    passed_express_ids?: number[]
+    /**
+     * Express IDs of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.
+     */
+    failed_express_ids?: number[]
+    /**
+     * Ordered list of elements with their property check results.
+     */
+    elements?: {
+      /**
+       * The express ID of the IFC entity.
+       */
+      express_id: number
+      /**
+       * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
+       */
+      class_name: string
+      /**
+       * True if at least one check on this element failed.
+       */
+      failed: boolean
+      /**
+       * List of property check results for this element.
+       */
+      checks?: {
+        /**
+         * Stable identifier for this check (the property key, e.g., 'Pset.X' or 'X').
+         */
+        id: string
+        /**
+         * Property key in 'Pset.Property' or 'Property' format.
+         */
+        property_key: string
+        /**
+         * Name of the property being compared.
+         */
+        property_name: string
+        /**
+         * The comparison operator that was applied.
+         */
+        condition: ('equals' | 'not_equals' | 'lt' | 'le' | 'gt' | 'ge' | 'contains' | 'one_of' | 'is_true' | 'is_false' | 'between' | 'outside')
+        /**
+         * Expected value as a string (empty for is_true / is_false and range checks).
+         */
+        expected?: string
+        /**
+         * Lower barrier used for numeric range checks, or None for single-value checks.
+         */
+        expected_min?: (string | null)
+        /**
+         * Upper barrier used for numeric range checks, or None for single-value checks.
+         */
+        expected_max?: (string | null)
+        /**
+         * Actual property value as a string, or None if the property is missing.
+         */
+        actual?: (string | null)
+        /**
+         * Whether the property value satisfies the condition.
+         */
+        passed: boolean
+      }[]
+    }[]
+  }
+  inputs: {
+    /**
+     * Optional list of IFC express IDs to run property comparisons against. When empty (not connected), all IFC elements in the model are checked.
+     */
+    express_ids?: number[]
   }
 }
 /**

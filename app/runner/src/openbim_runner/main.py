@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from openbim_runner.nodes import get_registry_schema
 from openbim_runner.workflow import dump_results, execute_workflow
@@ -73,7 +73,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def normalize_argv(argv: Sequence[str] | None) -> list[str]:
     arguments = list(sys.argv[1:] if argv is None else argv)
-    if not arguments or arguments[0] in {"run", "export-schema", "inspect-models", "-h", "--help"}:
+    if not arguments or arguments[0] in {
+        "run",
+        "export-schema",
+        "inspect-models",
+        "-h",
+        "--help",
+    }:
         return arguments
 
     return ["run", *arguments]

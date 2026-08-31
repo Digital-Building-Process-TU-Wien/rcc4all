@@ -2,8 +2,9 @@
  * Base interface for all node data
  */
 import type { NodeRegistrySchema } from '@@/scripts/schema'
-import type { SupportedLocale } from '~/composables/usei18n'
 import schemaJson from '@@/scripts/schema.json'
+
+export type SupportedLocale = 'en' | 'de'
 
 export interface NodeData {
   label: string
@@ -62,6 +63,7 @@ function toPascalCase(str: string): string {
 }
 
 const nodeNameToComponent: Record<string, string> = {
+  bcf_output: 'BcfOutput',
   collision: 'Collision',
   concat_string: 'ConcatString',
   file_input: 'FileInput',
@@ -71,6 +73,7 @@ const nodeNameToComponent: Record<string, string> = {
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
   measurement: 'Measurement',
+  loi_check: 'LoiCheck',
 }
 
 /**

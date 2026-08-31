@@ -21,7 +21,9 @@ def _context() -> ExecutionContext:
     return ExecutionContext(ifc_model=cast(Any, FakeIfcModel()), node_outputs={})
 
 
-def _run(settings: Generate3DCubeSettings, context: ExecutionContext) -> Generate3DCubeResult:
+def _run(
+    settings: Generate3DCubeSettings, context: ExecutionContext
+) -> Generate3DCubeResult:
     return asyncio.run(generate_3d_cube(settings, context))
 
 
@@ -94,7 +96,12 @@ def test_generate_3d_cube_with_combined_transformations() -> None:
     context = _context()
 
     result = _run(
-        Generate3DCubeSettings(position=[10.0, 20.0, 30.0], rotation=[45.0, 90.0, 180.0], size=[2.0, 2.0, 2.0], object_id="cube_comb"),
+        Generate3DCubeSettings(
+            position=[10.0, 20.0, 30.0],
+            rotation=[45.0, 90.0, 180.0],
+            size=[2.0, 2.0, 2.0],
+            object_id="cube_comb",
+        ),
         context,
     )
 

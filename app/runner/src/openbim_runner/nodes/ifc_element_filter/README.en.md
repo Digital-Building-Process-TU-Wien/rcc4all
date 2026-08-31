@@ -43,6 +43,14 @@ Use this node when you need to:
 - `starts_with` starts with prefix
 - `ends_with` ends with suffix
 
+## Inputs
+
+| Name | Type | Description |
+|------|------|-------------|
+| `express_ids` | `list[int]` | Optional list of IFC express IDs to restrict the filter to. Output keeps the input order and duplicate IDs are removed. When the input is not connected, the whole model is scanned; when connected, an empty list yields an empty result. |
+
+When `express_ids` is connected, only the listed entities are considered, and each one still has to match the filter rows (entity type, `PredefinedType`, and property comparisons all apply). An empty connected list stays empty, so chained filters do not silently re-scan the model.
+
 ## Outputs
 
 | Name | Type | Description |

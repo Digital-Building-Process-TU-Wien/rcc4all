@@ -22,6 +22,8 @@ const props = defineProps<{
 
 const node = useScopedNode<FileInputNode>(props.node.id)
 
+const { t } = useI18n()
+
 const search = ref('')
 
 const { data, error, pending, refresh } = useFetch('/api/dev-files', {
@@ -54,47 +56,47 @@ function selectFilename(filename: string) {
   <div class="flex flex-col gap-4">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-        File Input Node
+        {{ t('node.fileInput.title') }}
       </div>
       <p class="mt-1 text-sm text-slate-500">
-        Select a local development file to attach to this node.
+        {{ t('node.fileInput.description') }}
       </p>
     </div>
 
     <div class="flex flex-col gap-2">
-      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Selected file</label>
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">{{ t('node.fileInput.selectedFile') }}</label>
       <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
         <Icon name="i-lucide-file" class="size-4 text-slate-400" />
         <span class="flex-1 truncate">
-          {{ node.data?.filename || 'No file selected' }}
+          {{ node.data?.filename || t('node.fileInput.noFileSelected') }}
         </span>
         <UButton
           v-if="node.data?.filename"
           color="neutral"
           variant="ghost"
           size="xs"
-          label="Clear"
+          :label="t('node.fileInput.clear')"
           @click="clearSelection"
         />
       </div>
     </div>
 
     <div class="flex flex-col gap-2">
-      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Search files</label>
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">{{ t('node.fileInput.searchFiles') }}</label>
       <UInput
         v-model="search"
         icon="i-lucide-search"
-        placeholder="Filter filenames"
+        :placeholder="t('node.fileInput.filterFilenames')"
       />
     </div>
 
     <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-      <p>{{ error.statusMessage || 'Unable to load development files.' }}</p>
+      <p>{{ error.statusMessage || t('node.fileInput.unableToLoad') }}</p>
       <UButton
         color="error"
         variant="ghost"
         size="sm"
-        label="Retry"
+        :label="t('node.fileInput.retry')"
         class="mt-2"
         @click="refresh()"
       />
@@ -103,16 +105,16 @@ function selectFilename(filename: string) {
     <div v-else class="flex flex-col gap-2">
       <div class="max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
         <div v-if="pending" class="px-2 py-3 text-sm text-slate-500">
-          Loading files...
+          {{ t('node.fileInput.loadingFiles') }}
         </div>
 
         <div v-else-if="!files.length" class="px-2 py-3 text-sm text-slate-500">
-          No files were found in web/.dev-files <br>
-          Please add an ifc file in the folder <span class="font-mono text-slate-700">web/.dev-files</span> to use this node.
+          {{ t('node.fileInput.noFilesFound') }} <br>
+          {{ t('node.fileInput.addIfcFile', { folder: 'web/.dev-files' }) }}
         </div>
 
         <div v-else-if="!filteredFiles.length" class="px-2 py-3 text-sm text-slate-500">
-          No filenames match your search.
+          {{ t('node.fileInput.noFilenameMatch') }}
         </div>
 
         <div v-else class="flex flex-col gap-2">

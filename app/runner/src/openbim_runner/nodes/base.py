@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from inspect import getfile, isawaitable, signature
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, cast, get_type_hints
+from typing import TYPE_CHECKING, Any, cast, get_type_hints
 
 from pydantic import BaseModel, ConfigDict
+
 if TYPE_CHECKING:
     import ifcopenshell
     import trimesh
@@ -15,16 +17,33 @@ class NodeModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+@dataclass(frozen=True)
+class AutoBind:
+    """Opt-in marker for a node input field.
+
+    When an input is marked with this and is left unbound in a workflow, the
+    runner auto-resolves it at execution time to the single, directly-upstream
+    node (via workflow edges) whose result exposes a field of a compatible
+    type. Explicit ``input_bindings`` always take precedence. The marker is
+    intended as ``pydantic`` field metadata and never appears in the exported
+    JSON schema.
+    """
+
+
 class ExecutionContext:
     def __init__(
         self,
         ifc_model: ifcopenshell.file,
         node_outputs: dict[str, NodeModel],
-        geometry_cache: dict[str, "trimesh.Trimesh"] | None = None,
+        geometry_cache: dict[str, trimesh.Trimesh] | None = None,
+        output_dir: Path | None = None,
     ) -> None:
         self.ifc_model = ifc_model
         self.node_outputs = node_outputs
-        self.geometry_cache: dict[str, trimesh.Trimesh] | None = {} if geometry_cache is None else geometry_cache
+        self.geometry_cache: dict[str, trimesh.Trimesh] | None = (
+            {} if geometry_cache is None else geometry_cache
+        )
+        self.output_dir = output_dir
 
 
 @dataclass(frozen=True)
@@ -66,7 +85,9 @@ def parse_node_documentation(readme_path: Path) -> NodeDocumentation:
     try:
         frontmatter_block, body = content[4:].split("\n---\n", maxsplit=1)
     except ValueError as error:
-        raise ValueError(f"{readme_path} must contain a closing frontmatter delimiter.") from error
+        raise ValueError(
+            f"{readme_path} must contain a closing frontmatter delimiter."
+        ) from error
 
     metadata: dict[str, str] = {}
     for raw_line in frontmatter_block.splitlines():
@@ -81,45 +102,60 @@ def parse_node_documentation(readme_path: Path) -> NodeDocumentation:
 
     title = metadata.get("title", "").strip()
     description = metadata.get("description", "").strip()
-    categories = [cat.strip() for cat in metadata.get("categories", "").split(",") if cat.strip()]
+    categories = [
+        cat.strip() for cat in metadata.get("categories", "").split(",") if cat.strip()
+    ]
     markdown_body = body.strip()
 
     if not title:
-        raise ValueError(f"{readme_path} must define a non-empty 'title' frontmatter field.")
+        raise ValueError(
+            f"{readme_path} must define a non-empty 'title' frontmatter field."
+        )
     if not description:
-        raise ValueError(f"{readme_path} must define a non-empty 'description' frontmatter field.")
+        raise ValueError(
+            f"{readme_path} must define a non-empty 'description' frontmatter field."
+        )
     if not markdown_body:
-        raise ValueError(f"{readme_path} must include markdown body content after the frontmatter.")
+        raise ValueError(
+            f"{readme_path} must include markdown body content after the frontmatter."
+        )
 
-    return NodeDocumentation(title=title, description=description, categories=categories, body=markdown_body)
+    return NodeDocumentation(
+        title=title, description=description, categories=categories, body=markdown_body
+    )
 
 
-def load_node_documentation_all_locales(definition: NodeDefinition) -> dict[str, NodeDocumentation]:
+def load_node_documentation_all_locales(
+    definition: NodeDefinition,
+) -> dict[str, NodeDocumentation]:
     """Load documentation for all available locales.
-    
+
     Scans for README.{locale}.md files in the node's directory.
     Prints a warning if English or German translations are missing.
     """
     handler_path = Path(getfile(definition.handler)).resolve()
     node_dir = handler_path.parent
-    
+
     import re
+
     readme_pattern = re.compile(r"^README\.([a-z]{2})\.md$")
-    
+
     all_locales: dict[str, NodeDocumentation] = {}
-    
+
     for readme_file in node_dir.iterdir():
         match = readme_pattern.match(readme_file.name)
         if match:
             locale = match.group(1)
             all_locales[locale] = parse_node_documentation(readme_file)
-    
-    required_locales = {'en', 'de'}
+
+    required_locales = {"en", "de"}
     missing_locales = required_locales - set(all_locales.keys())
-    
+
     if missing_locales:
-        print(f"⚠️  WARNING: Node '{definition.name}' missing translations: {missing_locales}")
-    
+        print(
+            f"⚠️  WARNING: Node '{definition.name}' missing translations: {missing_locales}"
+        )
+
     return all_locales
 
 
@@ -139,14 +175,18 @@ def node(
         result_model = hints.get("return")
 
         if takes_settings and (
-            not isinstance(settings_model, type) or not issubclass(settings_model, BaseModel)
+            not isinstance(settings_model, type)
+            or not issubclass(settings_model, BaseModel)
         ):
             raise TypeError(f"{func.__name__}.settings must be a BaseModel subclass")
         if takes_inputs and (
-            not isinstance(inputs_model, type) or not issubclass(inputs_model, BaseModel)
+            not isinstance(inputs_model, type)
+            or not issubclass(inputs_model, BaseModel)
         ):
             raise TypeError(f"{func.__name__}.inputs must be a BaseModel subclass")
-        if not isinstance(result_model, type) or not issubclass(result_model, BaseModel):
+        if not isinstance(result_model, type) or not issubclass(
+            result_model, BaseModel
+        ):
             raise TypeError(f"{func.__name__}.return must be a BaseModel subclass")
 
         key = name or func.__name__
@@ -160,7 +200,7 @@ def node(
             takes_context=takes_context,
             takes_settings=takes_settings,
         )
-        setattr(func, "meta", definition)
+        setattr(func, "meta", definition)  # noqa: B010 - dot-assign blocked by pyright strict (FunctionType has no "meta")
         REGISTRY[key] = definition
         return func
 
@@ -198,7 +238,11 @@ async def dispatch(
     elif inputs_payload:
         raise ValueError(f"Node '{name}' does not accept workflow inputs.")
 
-    if definition.takes_settings and definition.takes_inputs and definition.takes_context:
+    if (
+        definition.takes_settings
+        and definition.takes_inputs
+        and definition.takes_context
+    ):
         if context is None:
             raise ValueError(f"Node '{name}' requires an execution context.")
         result = definition.handler(settings, inputs, context)
@@ -230,6 +274,7 @@ async def dispatch(
 def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """Recursively remove title fields from a JSON schema to prevent named type generation."""
     import copy
+
     result = copy.deepcopy(schema)
     defs = cast(dict[str, object], result.get("$defs", {}))
 
@@ -242,7 +287,11 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
                 if def_name in defs:
                     return inline_local_refs(copy.deepcopy(defs[def_name]))
 
-            return {key: inline_local_refs(item) for key, item in schema_node.items() if key != "$defs"}
+            return {
+                key: inline_local_refs(item)
+                for key, item in schema_node.items()
+                if key != "$defs"
+            }
 
         if isinstance(value, list):
             return [inline_local_refs(item) for item in cast(list[object], value)]
@@ -255,16 +304,29 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
     if "properties" in result:
         properties = cast(dict[str, object], result["properties"])
         result["properties"] = {
-            key: _remove_titles_from_schema(cast(dict[str, Any], value)) if isinstance(value, dict) else value
+            key: _remove_titles_from_schema(cast(dict[str, Any], value))
+            if isinstance(value, dict)
+            else value
             for key, value in properties.items()
         }
 
     if "items" in result and isinstance(result["items"], dict):
-        result["items"] = _remove_titles_from_schema(cast(dict[str, object], result["items"]))
+        result["items"] = _remove_titles_from_schema(
+            cast(dict[str, object], result["items"])
+        )
+
+    if "additionalProperties" in result and isinstance(
+        result["additionalProperties"], dict
+    ):
+        result["additionalProperties"] = _remove_titles_from_schema(
+            cast(dict[str, object], result["additionalProperties"])
+        )
 
     if "anyOf" in result:
         result["anyOf"] = [
-            _remove_titles_from_schema(cast(dict[str, Any], item)) if isinstance(item, dict) else item
+            _remove_titles_from_schema(cast(dict[str, Any], item))
+            if isinstance(item, dict)
+            else item
             for item in cast(list[object], result["anyOf"])
         ]
 
@@ -273,33 +335,45 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
 
 def get_registry_schema() -> dict[str, Any]:
     nodes_schemas: dict[str, Any] = {}
-    for name, definition in REGISTRY.items():
+    # Sorted so the exported schema (and the generated types derived from it)
+    # are deterministic regardless of node import/registration order.
+    for name, definition in sorted(REGISTRY.items()):
         all_locales = load_node_documentation_all_locales(definition)
         required_fields = ["result"]
-        
+
         node_properties: dict[str, Any] = {}
-        
+
         if definition.takes_settings:
             if definition.settings_model is None:
-                raise ValueError(f"Node '{name}' has takes_settings=True but no settings_model")
-            settings_schema = _remove_titles_from_schema(definition.settings_model.model_json_schema())
+                raise ValueError(
+                    f"Node '{name}' has takes_settings=True but no settings_model"
+                )
+            settings_schema = _remove_titles_from_schema(
+                definition.settings_model.model_json_schema()
+            )
             node_properties["settings"] = settings_schema
             required_fields.append("settings")
-        
-        result_schema = _remove_titles_from_schema(definition.result_model.model_json_schema())
+
+        result_schema = _remove_titles_from_schema(
+            definition.result_model.model_json_schema()
+        )
         node_properties["result"] = result_schema
 
         if definition.takes_inputs and definition.inputs_model:
-            inputs_schema = _remove_titles_from_schema(definition.inputs_model.model_json_schema())
+            inputs_schema = _remove_titles_from_schema(
+                definition.inputs_model.model_json_schema()
+            )
             node_properties["inputs"] = inputs_schema
             required_fields.append("inputs")
 
-        en_docs = all_locales.get('en')
+        en_docs = all_locales.get("en")
         title = en_docs.title if en_docs else ""
         description = en_docs.description if en_docs else ""
         categories = en_docs.categories if en_docs else []
         markdown_description = en_docs.body if en_docs else ""
 
+        # Sorted by locale so the exported schema is deterministic regardless of
+        # the (filesystem-dependent) order in which locale readmes are discovered.
         locales_data = {
             locale: {
                 "title": docs.title,
@@ -307,7 +381,7 @@ def get_registry_schema() -> dict[str, Any]:
                 "categories": docs.categories,
                 "markdownDescription": docs.body,
             }
-            for locale, docs in all_locales.items()
+            for locale, docs in sorted(all_locales.items())
         }
 
         nodes_schemas[name] = {

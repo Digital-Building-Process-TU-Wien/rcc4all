@@ -11,7 +11,7 @@ import trimesh
 
 from openbim_runner.nodes.base import ExecutionContext
 
-GEOMETRY_LIBRARY = "hybrid-cgal-simple-opencascade"
+GEOMETRY_LIBRARY: ifcopenshell.geom.GEOMETRY_LIBRARY = "hybrid-cgal-simple-opencascade"
 
 
 def build_geometry_cache(
@@ -19,7 +19,7 @@ def build_geometry_cache(
     *,
     settings_factory: Callable[..., Any] | None = None,
     shape_iterator: Callable[..., Any] | None = None,
-    geometry_library: str = GEOMETRY_LIBRARY,
+    geometry_library: ifcopenshell.geom.GEOMETRY_LIBRARY = GEOMETRY_LIBRARY,
 ) -> dict[str, trimesh.Trimesh]:
     """Tessellate the whole IFC model into a geometry cache.
 
@@ -46,10 +46,14 @@ def build_geometry_cache(
     while True:
         shape = iterator.get()
         if shape is not None:
-            geometry = shape.geometry
+            # ifcopenshell stubs model iterator.get() as a union that lacks the
+            # runtime shape_tuple attributes; both members expose them at runtime.
+            geometry = shape.geometry  # pyright: ignore[reportAttributeAccessIssue]
             if len(geometry.verts) > 0 and len(geometry.faces) > 0:
-                express_id = shape.id
-                cache[f"ifc:{express_id}"] = reshape_flat(geometry.verts, geometry.faces)
+                express_id = shape.id  # pyright: ignore[reportAttributeAccessIssue]
+                cache[f"ifc:{express_id}"] = reshape_flat(
+                    geometry.verts, geometry.faces
+                )
         if not iterator.next():
             break
 
@@ -92,7 +96,9 @@ def cache_mesh(
     elif intermediate:
         key = f"inter:{uuid.uuid4()}"
     else:
-        raise ValueError("cache_mesh requires express_id, object_id, intermediate=True, or a key.")
+        raise ValueError(
+            "cache_mesh requires express_id, object_id, intermediate=True, or a key."
+        )
 
     cache = _ensure_cache(context)
     if key in cache:
@@ -104,7 +110,9 @@ def cache_mesh(
 def resolve_mesh(context: ExecutionContext, key: str) -> trimesh.Trimesh:
     cache = _ensure_cache(context)
     if key not in cache:
-        raise ValueError(f"Geometry cache key '{key}' is not present in the workflow cache.")
+        raise ValueError(
+            f"Geometry cache key '{key}' is not present in the workflow cache."
+        )
     return cache[key]
 
 
@@ -113,7 +121,9 @@ def is_model_key(key: str) -> bool:
     return key.startswith("ifc:") or key.startswith("gen:")
 
 
-def resolve_side(context: ExecutionContext, *, refs: list[int | str] | None = None) -> list[str]:
+def resolve_side(
+    context: ExecutionContext, *, refs: list[int | str] | None = None
+) -> list[str]:
     """Resolve a list of mixed references into ordered geometry-cache keys.
 
     An ``int`` reference is an express ID mapping to ``ifc:<id>``; a ``str`` reference
@@ -132,7 +142,9 @@ def resolve_side(context: ExecutionContext, *, refs: list[int | str] | None = No
         if isinstance(ref, int):
             key = f"ifc:{ref}"
             if key not in cache:
-                raise ValueError(f"Express ID {ref} has no tessellated geometry in the cache.")
+                raise ValueError(
+                    f"Express ID {ref} has no tessellated geometry in the cache."
+                )
         else:
             key = f"gen:{ref}"
             if key not in cache:
@@ -145,7 +157,9 @@ def _is_watertight(mesh: trimesh.Trimesh) -> bool:
     return bool(mesh.is_watertight and mesh.is_winding_consistent and mesh.volume > 0)
 
 
-def ensure_watertight(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh | None, str | None]:
+def ensure_watertight(
+    mesh: trimesh.Trimesh,
+) -> tuple[trimesh.Trimesh | None, str | None]:
     if _is_watertight(mesh):
         return mesh, None
 
@@ -164,7 +178,7 @@ def ensure_watertight(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh | None, st
 
     try:
         vfx = pymeshfix.MeshFix(repaired.vertices, repaired.faces)
-        vfx.repair(verbose=False)
+        vfx.repair()
         pymesh = trimesh.Trimesh(vertices=vfx.mesh[0], faces=vfx.mesh[1], process=False)
         if _is_watertight(pymesh):
             return pymesh, None

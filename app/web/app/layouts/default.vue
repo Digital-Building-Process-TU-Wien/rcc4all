@@ -1,9 +1,9 @@
 <script setup lang="ts">
 const isScrolled = ref(false)
 const sdk = usePayloadSDK()
-const { changeLocale, currentLocale, localeOptions } = usei18n()
+const { t } = useI18n()
 const user = sdk.user
-const greetingName = computed(() => user.value?.email ?? 'User')
+const greetingName = computed(() => user.value?.email ?? t('account.user'))
 function updateHeaderState() {
   isScrolled.value = window.scrollY > 8
 }
@@ -29,59 +29,50 @@ onBeforeUnmount(() => {
     >
       <div class="relative mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
         <h1 class="text-lg font-semibold tracking-wide text-primary-500">
-          OpenBIM Engine
+          {{ t('app.title') }}
         </h1>
         <nav class="flex flex-1 flex-wrap items-center gap-4 text-xs font-semibold uppercase tracking-widest text-slate-600">
           <NuxtLink
             to="/"
             class="transition hover:text-slate-950"
           >
-            Start
+            {{ t('nav.start') }}
           </NuxtLink>
           <NuxtLink
             to="/projects"
             class="transition hover:text-slate-950"
           >
-            Projekte
+            {{ t('nav.projects') }}
           </NuxtLink>
           <NuxtLink
             to="/groups"
             class="transition hover:text-slate-950"
           >
-            Gruppen
+            {{ t('nav.groups') }}
           </NuxtLink>
           <NuxtLink
             v-if="user"
             to="/account"
             class="transition hover:text-slate-950"
           >
-            Konto
+            {{ t('nav.account') }}
           </NuxtLink>
           <NuxtLink
             v-if="!user"
             to="/login"
             class="text-xs font-semibold uppercase tracking-widest text-slate-600 transition hover:text-slate-950"
           >
-            Login
+            {{ t('nav.login') }}
           </NuxtLink>
           <div class="ml-auto flex items-center gap-2">
-            <UButton
-              v-for="option in localeOptions"
-              :key="option.value"
-              color="neutral"
-              :variant="option.value === currentLocale ? 'soft' : 'ghost'"
-              size="xs"
-              @click="changeLocale(option.value)"
-            >
-              {{ option.label }}
-            </UButton>
+            <LocaleSwitcher />
           </div>
           <UBadge
             v-if="user"
             color="primary"
             variant="solid"
           >
-            Hello, {{ greetingName }}
+            {{ t('nav.hello') }}, {{ greetingName }}
           </UBadge>
           <UButton
             v-if="user"
@@ -89,7 +80,7 @@ onBeforeUnmount(() => {
             variant="outline"
             @click="sdk.logout()"
           >
-            Logout
+            {{ t('nav.logout') }}
           </UButton>
         </nav>
       </div>

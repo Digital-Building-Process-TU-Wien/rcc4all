@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
-
+from openbim_runner.util.ifc_properties import (
+    build_property_key,
+    entity_matches_type,
+    get_property_value,
+    stringify_value,
+)
 
 OutputMode = Literal["elements", "by_class", "model"]
 
@@ -124,7 +129,9 @@ async def get_property(
             raise ValueError(f"Selection {i + 1} must have a property name.")
 
     # Resolve per-entity properties (common for all output modes)
-    resolved: list[tuple[int, str, dict[str, str | None]]] = []  # (express_id, class, properties)
+    resolved: list[
+        tuple[int, str, dict[str, str | None]]
+    ] = []  # (express_id, class, properties)
 
     for express_id in inputs.express_ids:
         try:
@@ -140,24 +147,31 @@ async def get_property(
 
         for sel in settings.selections:
             # Skip this selection if entity type doesn't match (entity_type acts as a filter)
-            if sel.entity_type and not _entity_matches_type(entity, sel.entity_type):
+            if sel.entity_type and not entity_matches_type(entity, sel.entity_type):
                 continue
 
             # Build the property key
-            key = _build_key(sel.property_set, sel.property_name, settings.output_mode)
+            key = build_property_key(
+                sel.property_set, sel.property_name, settings.output_mode
+            )
 
             # Read the property value from the model
-            value = _get_property_value(entity, psets, sel.property_set, sel.property_name)
-            elem_props[key] = _stringify_value(value)
+            value = get_property_value(
+                entity, psets, sel.property_set, sel.property_name
+            )
+            elem_props[key] = stringify_value(value)
 
         resolved.append((express_id, entity_class, elem_props))
 
     # Build output based on mode
     if settings.output_mode == "elements":
-        elements = [ElementProperties(express_id=eid, properties=props) for eid, _, props in resolved]
+        elements = [
+            ElementProperties(express_id=eid, properties=props)
+            for eid, _, props in resolved
+        ]
         return GetPropertyResult(mode="elements", elements=elements)
 
-    elif settings.output_mode == "by_class":
+    if settings.output_mode == "by_class":
         # Aggregate per class, per property, per value with counts
         class_props: dict[str, dict[str, dict[str, int]]] = {}
         for _, cls, props in resolved:
@@ -173,91 +187,29 @@ async def get_property(
             property_lists: dict[str, list[ValueWithCount]] = {}
             for key, vc in class_props[cls].items():
                 sorted_values = sorted(vc.items(), key=lambda x: (-x[1], x[0]))
-                property_lists[key] = [ValueWithCount(value=v, count=c) for v, c in sorted_values]
+                property_lists[key] = [
+                    ValueWithCount(value=v, count=c) for v, c in sorted_values
+                ]
             classes.append(ClassGroup(id=cls, properties=property_lists))
         return GetPropertyResult(mode="by_class", classes=classes)
 
-    else:  # model
-        # Aggregate distinct values with counts per property key
-        prop_value_counts: dict[str, dict[str, int]] = {}  # key -> {value: count}
-        for _, _, props in resolved:
-            for key, value in props.items():
-                if value is None:  # skip missing values
-                    continue
-                if key not in prop_value_counts:
-                    prop_value_counts[key] = {}
-                if value not in prop_value_counts[key]:
-                    prop_value_counts[key][value] = 0
-                prop_value_counts[key][value] += 1
+    # model
+    # Aggregate distinct values with counts per property key
+    prop_value_counts: dict[str, dict[str, int]] = {}  # key -> {value: count}
+    for _, _, props in resolved:
+        for key, value in props.items():
+            if value is None:  # skip missing values
+                continue
+            if key not in prop_value_counts:
+                prop_value_counts[key] = {}
+            if value not in prop_value_counts[key]:
+                prop_value_counts[key][value] = 0
+            prop_value_counts[key][value] += 1
 
-        # Convert to ValueWithCount lists, sorted by count desc then value asc
-        properties: dict[str, list[ValueWithCount]] = {}
-        for key, value_counts in prop_value_counts.items():
-            sorted_values = sorted(value_counts.items(), key=lambda x: (-x[1], x[0]))
-            properties[key] = [ValueWithCount(value=v, count=c) for v, c in sorted_values]
+    # Convert to ValueWithCount lists, sorted by count desc then value asc
+    properties: dict[str, list[ValueWithCount]] = {}
+    for key, value_counts in prop_value_counts.items():
+        sorted_values = sorted(value_counts.items(), key=lambda x: (-x[1], x[0]))
+        properties[key] = [ValueWithCount(value=v, count=c) for v, c in sorted_values]
 
-        return GetPropertyResult(mode="model", properties=properties)
-
-
-def _get_property_value(
-    entity: Any,
-    psets: dict[str, dict[str, Any]],
-    property_set: str,
-    property_name: str,
-) -> Any | None:
-    """Get a property value from an entity, similar to ifc_element_filter."""
-    # If property_set is specified, look there first
-    if property_set:
-        pset = psets.get(property_set)
-        if pset:
-            return pset.get(property_name)
-        return None
-
-    # If no property_set, search across all psets
-    property_name_lower = property_name.lower()
-    for pset in psets.values():
-        for candidate_name, candidate_value in pset.items():
-            if candidate_name.lower() == property_name_lower:
-                return candidate_value
-
-    return None
-
-
-def _build_key(property_set: str, property_name: str, output_mode: str) -> str:
-    """Build the property key for output.
-    
-    In model mode, uses a wildcard Pset_* prefix to aggregate across psets.
-    In elements/by_class modes, uses the specific pset name for clarity.
-    """
-    if output_mode == "model" and property_set:
-        return f"Pset_*.{property_name}"
-    if property_set:
-        return f"{property_set}.{property_name}"
-    return property_name
-
-
-def _stringify_value(value: Any) -> str | None:
-    """Convert a property value to string, None if missing."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return str(value).lower()
-    return str(value)
-
-
-def _entity_matches_type(entity: Any, entity_type: str) -> bool:
-    """Check whether an entity matches a given IFC entity type.
-    
-    Uses IfcOpenShell's is_a() for hierarchy-aware matching (includes subtypes).
-    Case-insensitive. Empty entity_type matches all entities.
-    """
-    entity_type = entity_type.strip().upper()
-    if not entity_type:
-        return True
-    is_a = getattr(entity, "is_a", None)
-    if is_a is None:
-        return False
-    try:
-        return bool(is_a(entity_type))
-    except TypeError:
-        return is_a().upper() == entity_type
+    return GetPropertyResult(mode="model", properties=properties)

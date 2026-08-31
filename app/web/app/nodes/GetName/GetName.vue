@@ -10,6 +10,8 @@ const props = defineProps<{
 
 const node = useScopedNode<GetNameNode>(props.node.id)
 
+const { t } = useI18n()
+
 if (!node.value.data.settings) {
   node.value.data.settings = { fail_on_missing: false }
 }
@@ -18,7 +20,7 @@ if (!node.value.data.settings) {
 <template>
   <div class="px-2">
     <div class="text-sm font-bold text-slate-800 mb-2 uppercase tracking-wide">
-      Get Name Node
+      {{ t('node.getName.title') }}
     </div>
   </div>
 
@@ -30,7 +32,7 @@ if (!node.value.data.settings) {
         type="checkbox"
         class="rounded bg-white border-slate-200 accent-blue-600 w-3 h-3"
       >
-      <label for="fail-on-missing" class="text-[10px] text-slate-500 cursor-pointer font-medium">Fail on Missing</label>
+      <label for="fail-on-missing" class="text-[10px] text-slate-500 cursor-pointer font-medium">{{ t('node.getName.failOnMissing') }}</label>
     </div>
   </div>
 </template>

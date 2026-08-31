@@ -4,9 +4,9 @@ description: Filtert IFC-Entitaeten mit tabellenbasierten Include- und Exclude-R
 categories: IFC, Filter, Advanced
 ---
 
-Der `ifc_element_filter` Knoten filtert IFC-Modellelemente ueber eine Komponententabelle. Jede Zeile beschreibt eine Bedingung mit Entity-Typ, optionalem `PredefinedType` und optionalem Attribut- oder PropertySet-Vergleich. Include-Zeilen werden per OR-Logik zusammengefuehrt, danach werden Exclude-Zeilen vom Ergebnis abgezogen.
+Der `ifc_element_filter` Node filtert IFC-Modellelemente ueber eine Komponententabelle. Jede Zeile beschreibt eine Bedingung mit Entity-Typ, optionalem `PredefinedType` und optionalem Attribut- oder PropertySet-Vergleich. Include-Zeilen werden per OR-Logik zusammengefuehrt, danach werden Exclude-Zeilen vom Ergebnis abgezogen.
 
-Verwenden Sie diesen Knoten, wenn Sie:
+Verwenden Sie diesen Node, wenn Sie:
 
 - Elemente nach IFC-Klasse wie `IFCWALL`, `IFCDOOR` oder `IFCSPACE` filtern moechten
 - Elemente pro Zeile einschliessen oder ausschliessen moechten
@@ -42,6 +42,14 @@ Verwenden Sie diesen Knoten, wenn Sie:
 - `contains` enthaelt Text
 - `starts_with` beginnt mit Text
 - `ends_with` endet mit Text
+
+## Eingaben
+
+| Name | Typ | Beschreibung |
+|------|-----|--------------|
+| `express_ids` | `list[int]` | Optionale Liste von IFC-Express-IDs, auf die der Filter eingeschraenkt wird. Die Ausgabe behaelt die Eingabereihenfolge bei, doppelte IDs werden entfernt. Wenn der Eingang nicht verbunden ist, wird das ganze Modell durchsucht; bei verbundenem Eingang liefert eine leere Liste ein leeres Ergebnis. |
+
+Wenn `express_ids` verbunden ist, werden nur die gelisteten Entitaeten betrachtet, und jede muss weiterhin den Filterzeilen entsprechen (Entity-Typ, `PredefinedType` und Eigenschaftsvergleiche). Eine verbundene leere Liste bleibt leer, damit verkettete Filter nicht stillschweigend das ganze Modell erneut durchsuchen.
 
 ## Ausgaben
 

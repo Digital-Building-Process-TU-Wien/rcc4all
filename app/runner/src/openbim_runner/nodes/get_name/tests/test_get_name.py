@@ -6,7 +6,12 @@ from typing import Any, cast
 import pytest
 
 from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.get_name.get_name import GetNameInputs, GetNameResult, GetNameSettings, get_name
+from openbim_runner.nodes.get_name.get_name import (
+    GetNameInputs,
+    GetNameResult,
+    GetNameSettings,
+    get_name,
+)
 
 
 class FakeEntity:
@@ -16,7 +21,12 @@ class FakeEntity:
 
 
 class FakeIfcModel:
-    def __init__(self, entities_by_id: dict[int, FakeEntity], *, failing_ids: set[int] | None = None) -> None:
+    def __init__(
+        self,
+        entities_by_id: dict[int, FakeEntity],
+        *,
+        failing_ids: set[int] | None = None,
+    ) -> None:
         self.entities_by_id = entities_by_id
         self.failing_ids: set[int] = set() if failing_ids is None else failing_ids
 
@@ -29,7 +39,9 @@ class FakeIfcModel:
 
 def test_get_name_returns_names_in_input_order() -> None:
     context = ExecutionContext(
-        ifc_model=cast(Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity("Wall B")})),
+        ifc_model=cast(
+            Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity("Wall B")})
+        ),
         node_outputs={},
     )
 
@@ -46,7 +58,9 @@ def test_get_name_returns_names_in_input_order() -> None:
 
 def test_get_name_returns_none_for_entity_without_name() -> None:
     context = ExecutionContext(
-        ifc_model=cast(Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity(None)})),
+        ifc_model=cast(
+            Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity(None)})
+        ),
         node_outputs={},
     )
 
@@ -96,7 +110,9 @@ def test_get_name_fails_on_nonexistent_express_id() -> None:
 
 def test_get_name_does_not_fail_on_missing_name() -> None:
     context = ExecutionContext(
-        ifc_model=cast(Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity(None)})),
+        ifc_model=cast(
+            Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity(None)})
+        ),
         node_outputs={},
     )
 

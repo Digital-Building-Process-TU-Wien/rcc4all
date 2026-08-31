@@ -11,6 +11,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const { t } = useI18n()
 
 const workflowRef = ref<WorkflowData>(props.workflow)
 const currentTab = ref<'output' | 'results'>('output')
@@ -32,6 +33,10 @@ const safeExitCode = computed(() => exitCode.value ?? null)
 
 function goBack() {
   router.push('/node-demo')
+}
+
+function selectTab(tab: 'output' | 'results') {
+  currentTab.value = tab
 }
 
 function handleComplete(result: CompleteResult) {
@@ -61,7 +66,7 @@ watch(() => props.workflow, (newWorkflow) => {
   <div class="flex h-full flex-col">
     <div class="flex items-center justify-between border-b border-default px-6 py-4">
       <UButton
-        label="Back to Workflow"
+        :label="t('execution.backToWorkflow')"
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="outline"
@@ -70,30 +75,30 @@ watch(() => props.workflow, (newWorkflow) => {
       />
       <div class="flex items-center gap-3">
         <UBadge v-if="status === 'running'" color="primary" variant="soft">
-          Running...
+          {{ t('execution.running') }}
         </UBadge>
         <UBadge v-else-if="status === 'error'" color="error" variant="soft">
-          Failed
+          {{ t('execution.failed') }}
         </UBadge>
         <UBadge v-else-if="status === 'complete'" color="success" variant="soft">
-          Completed
+          {{ t('execution.completed') }}
         </UBadge>
       </div>
       <div class="flex gap-2">
         <UButton
-          label="Runner Output"
+          :label="t('execution.runnerOutput')"
           :color="currentTab === 'output' ? 'primary' : 'neutral'"
           :variant="currentTab === 'output' ? 'solid' : 'outline'"
           size="sm"
-          @click="currentTab = 'output'"
+          @click="selectTab('output')"
         />
         <UButton
-          label="JSON Results"
+          :label="t('execution.jsonResults')"
           :color="currentTab === 'results' ? 'primary' : 'neutral'"
           :variant="currentTab === 'results' ? 'solid' : 'outline'"
           size="sm"
           :disabled="isRunning"
-          @click="currentTab = 'results'"
+          @click="selectTab('results')"
         />
       </div>
     </div>
@@ -115,7 +120,7 @@ watch(() => props.workflow, (newWorkflow) => {
           <div v-if="!outputLogs.length" class="flex h-full items-center justify-center">
             <div class="text-center text-muted">
               <UIcon name="i-lucide-loader" class="mx-auto mb-2 size-6 animate-spin" />
-              <p>Waiting for output...</p>
+              <p>{{ t('execution.waitingForOutput') }}</p>
             </div>
           </div>
         </div>
@@ -125,22 +130,22 @@ watch(() => props.workflow, (newWorkflow) => {
         <div v-if="error && !results" class="border-b border-error bg-error/10 p-4">
           <div class="flex items-center gap-2 text-error">
             <UIcon name="i-lucide-alert-triangle" class="size-5" />
-            <span class="font-semibold">Execution Error</span>
+            <span class="font-semibold">{{ t('execution.executionError') }}</span>
           </div>
           <p v-if="error.message" class="mt-2 text-sm text-error">
             {{ error.message }}
           </p>
           <p v-if="safeParseError" class="mt-2 text-sm text-error">
-            Failed to parse output as JSON: {{ safeParseError }}
+            {{ t('execution.parseError', { message: safeParseError }) }}
           </p>
           <p v-if="safeExitCode !== null && safeExitCode !== 0" class="mt-2 text-sm text-error">
-            Exit code: {{ safeExitCode }}
+            {{ t('execution.exitCode', { code: safeExitCode }) }}
           </p>
         </div>
 
         <div class="flex-1 overflow-hidden">
           <div class="bg-default/50 px-3 py-2 text-xs font-medium text-muted">
-            {{ results ? 'JSON Result' : 'Raw Output' }}
+            {{ results ? t('execution.jsonResult') : t('execution.rawOutput') }}
           </div>
           <div class="h-[calc(100%-40px)] overflow-auto bg-default p-3">
             <pre class="font-mono text-xs">{{ JSON.stringify(results || error, null, 2) }}</pre>

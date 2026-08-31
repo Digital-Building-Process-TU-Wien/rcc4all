@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { CompleteResult } from '~/components/WorkflowExecutionView.vue'
+import type { CompleteResult } from '~/composables/useWorkflowExecution'
 import { useFlowStore } from '~/stores/flow'
 
 const router = useRouter()
 const store = useFlowStore()
+const { t } = useI18n()
 
 const filename = ref<string | null>(null)
 
@@ -29,7 +30,7 @@ function handleExecutionComplete(result: CompleteResult) {
 }
 
 if (!workflowData.value) {
-  error.value = 'No workflow data found. Please create a workflow first.'
+  error.value = t('execution.noWorkflowData')
   loading.value = false
 }
 else {
@@ -42,14 +43,14 @@ else {
     <div v-if="loading" class="flex h-full items-center justify-center">
       <div class="flex items-center text-muted">
         <UIcon name="i-lucide-loader" class="mr-3 size-8 animate-spin" />
-        <span>Loading workflow...</span>
+        <span>{{ t('execution.loadingWorkflow') }}</span>
       </div>
     </div>
 
     <div v-else-if="error" class="flex h-full items-center justify-center">
       <div class="max-w-md rounded-xl border border-error bg-error/10 p-6 text-center">
         <h2 class="mb-2 text-lg font-semibold text-error">
-          Error
+          {{ t('execution.error') }}
         </h2>
         <p class="text-sm text-muted">
           {{ error }}
@@ -57,7 +58,7 @@ else {
         <UButton
           color="primary"
           variant="solid"
-          label="Go to Editor"
+          :label="t('execution.goToEditor')"
           class="mt-4"
           @click="goBack"
         />
@@ -66,6 +67,7 @@ else {
 
     <div v-else class="h-full">
       <WorkflowExecutionView
+        v-if="workflowData"
         :workflow="workflowData"
         @complete="handleExecutionComplete"
       />

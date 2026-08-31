@@ -10,6 +10,17 @@ Many approval-relevant requirements in construction are still written as natural
 
 RCC4All closes that gap. It supports a structured path from requirement definition to executable checks and documented results, with a strong focus on open standards and long-term maintainability.
 
+## Donation
+Our principle: sharing and distributing research is crucial to learning from each other and moving forward together. If you would like to support our open source research, we greatly appreciate donations.
+
+Technische Universität Wien/Spendenkonto IBAN:  
+AT19 3200 0200 0061 1228  
+BIC/SWFT:  
+RLNWATWW
+
+Purpose of transfer:  
+GEV011020ZFT S235030-000 - Digital Building Process
+
 ## How It Works
 
 1. Each checking authority (for example, a state building authority or a rail/infrastructure authority) works in its own team space with separate projects, permissions, and model versions.
@@ -18,14 +29,6 @@ RCC4All closes that gap. It supports a structured path from requirement definiti
 4. Results are returned as reports and generated helper geometry, which support interpretation and traceability.
 
 ## Core Components
-
-### CMS
-
-Location: [./app/cms](./app/cms)
-
-The CMS is the collaboration and governance layer of the platform. It manages groups, projects, user permissions, and versioned project data, including IFC files, workflow plans, and partial checking results. It enables multiple teams to work in parallel while keeping clear access boundaries and an auditable project structure. The CMS is built with [Payload](https://payloadcms.com/). See [CMS README.md](./app/cms/README.md) for implementation details.
-
-Within this project phase, the CMS is our prototype approach to make collaboration workable across project partners. Its purpose is to let different checking authorities run their own checking tasks independently, without forcing everyone to navigate or manage each other's project spaces.
 
 ### Web Frontend
 
@@ -40,6 +43,14 @@ Location: [./app/runner](./app/runner)
 The runner is a Python-based CLI engine for execution checking rules. It executes a library of decorator-registered Python functions whose input and output contracts are defined with Pydantic models. It receives an execution plan as a JSON file that defines nodes, their connections, inputs, outputs, and result names, and it includes the implementation version of the runner as an integral part of the plan (git hash, release tag, python wheel hash). The runner then executes that version-pinned plan against input files (for example IFC, IDS, Excel, and CSV). In addition to textual outputs, it can produce helper geometry in IFC format to document how checks were performed, such as temporary collision meshes, measured distances, and other derived geometric artifacts.
 
 In this prototype the web app spawns the python runner directly, this can be replaced by a job queue or seperate API in a production setup.
+
+### CMS
+
+Location: [./app/cms](./app/cms)
+
+The CMS is the collaboration and governance layer of the platform. It manages groups, projects, user permissions, and versioned project data, including IFC files, workflow plans, and partial checking results. It enables multiple teams to work in parallel while keeping clear access boundaries and an auditable project structure. The CMS is built with [Payload](https://payloadcms.com/). See [CMS README.md](./app/cms/README.md) for implementation details.
+
+Within this project phase, the CMS is our prototype approach to make collaboration workable across project partners. Its purpose is to let different checking authorities run their own checking tasks independently, without forcing everyone to navigate or manage each other's project spaces.
 
 ## Summary of project goals
 

@@ -2,14 +2,19 @@
   "name": "nuxt-frontend",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11.7"
+  },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
-    "lint": "eslint . --cache --fix",
+    "lint": "eslint . --cache --cache-strategy content --fix",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
+    "check": "npm run lint && npm run typecheck",
     "generate:schema": "uv run --directory ../runner openbim-runner export-schema ../web/scripts/schema.json && tsx scripts/generate-types.ts"
   },
   "dependencies": {
@@ -17,6 +22,7 @@
     "@nuxt/eslint": "^1.15.1",
     "@nuxt/fonts": "^0.13.0",
     "@nuxt/ui": "^4.7.1",
+    "@nuxtjs/i18n": "^10.6.0",
     "@payloadcms/sdk": "^3.76.1",
     "@pinia/nuxt": "^0.11.3",
     "@tailwindcss/vite": "^4.1.18",
@@ -37,6 +43,8 @@
     "@types/node": "^24.11.1",
     "json-schema-to-typescript-lite": "^15.0.0",
     "rcc4all-payload-types": "file:../../shared/cms-types",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.3",
+    "vue-tsc": "^3.3.10"
   }
 }
