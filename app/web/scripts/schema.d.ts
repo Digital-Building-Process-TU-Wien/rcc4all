@@ -351,7 +351,7 @@ export interface GetProperty {
   }
 }
 /**
- * Validates the IFC model against an IDS (Information Delivery Specification) file.
+ * Validates the IFC model against one or more IDS specifications.
  */
 export interface IDSChecker {
   settings: {
@@ -360,9 +360,13 @@ export interface IDSChecker {
      */
     ids_file?: string
     /**
-     * Controls how results are structured: 'combined' produces flat lists across all specifications, 'per_specification' produces a per-specification breakdown, 'both' produces both.
+     * Wenn aktiviert, werden die Ergebnisse zusätzlich nach Specification gruppiert ausgegeben (für Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.
      */
-    output_mode?: ('combined' | 'per_specification' | 'both')
+    generate_detailed_report?: boolean
+    /**
+     * Format for the generated report file. Only effective when generate_detailed_report is enabled.
+     */
+    report_format?: 'json' | 'html' | null
   }
   result: {
     /**
@@ -374,9 +378,9 @@ export interface IDSChecker {
      */
     passed_express_ids?: number[]
     /**
-     * Per-specification breakdown of passed and failed express IDs.
+     * Per-specification breakdown. Only included when generate_detailed_report is enabled.
      */
-    specifications?: {
+    specifications?: ({
       /**
        * Name of the IDS specification.
        */
@@ -389,7 +393,7 @@ export interface IDSChecker {
        * List of express IDs of entities that passed this specification's requirements.
        */
       passed_express_ids?: number[]
-    }[]
+    }[] | null)
   }
   inputs: {
     /**

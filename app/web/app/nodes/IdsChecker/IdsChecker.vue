@@ -11,11 +11,7 @@ const props = defineProps<{
 const node = useScopedNode<IdsCheckerNode>(props.node.id)
 
 if (!node.value.data.settings) {
-  node.value.data.settings = { ids_file: '', output_mode: 'combined' }
-}
-
-if (!node.value.data.settings.output_mode) {
-  node.value.data.settings.output_mode = 'combined'
+  node.value.data.settings = { ids_file: '', generate_detailed_report: false, report_format: null }
 }
 
 const search = ref('')
@@ -44,6 +40,13 @@ function clearSelection() {
 function selectFile(filename: string) {
   node.value.data.settings!.ids_file = filename
 }
+
+const reportFormat = computed({
+  get: () => node.value.data.settings!.report_format || undefined,
+  set: (val: string | undefined) => {
+    node.value.data.settings!.report_format = (val as 'json' | 'html') || null
+  },
+})
 </script>
 
 <template>
@@ -76,21 +79,29 @@ function selectFile(filename: string) {
     </div>
 
     <div class="flex flex-col gap-2">
-      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Output Mode</label>
-      <select
-        v-model="node.data.settings!.output_mode"
-        class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-      >
-        <option value="combined">
-          Combined
-        </option>
-        <option value="per_specification">
-          Per Specification
-        </option>
-        <option value="both">
-          Both
-        </option>
-      </select>
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Detaillierten Report generieren</label>
+      <UCheckbox
+        v-model="node.data.settings!.generate_detailed_report"
+        label="Ergebnisse nach Specification gruppieren (für Report-Generierung)"
+        help="Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt."
+      />
+    </div>
+
+    <div v-if="node.data.settings?.generate_detailed_report" class="flex flex-col gap-2">
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Report Format</label>
+      <USelect
+        v-model="reportFormat"
+        :items="[
+          { value: 'json', label: 'JSON' },
+          { value: 'html', label: 'HTML' },
+        ]"
+        value-key="value"
+        label-key="label"
+        placeholder="Format wählen"
+      />
+      <p class="text-xs text-slate-500">
+        Report wird als <code class="font-mono">ids_report-{timestamp}.{{ node.data.settings?.report_format }}</code> in <code class="font-mono">web/.dev-files</code> gespeichert.
+      </p>
     </div>
 
     <div class="flex flex-col gap-2">
