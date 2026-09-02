@@ -21,7 +21,12 @@ def _context() -> ExecutionContext:
     return ExecutionContext(ifc_model=cast(Any, object()), node_outputs={})
 
 
-def _box(context: ExecutionContext, express_id: int, translation: list[float], extents: list[float] | None = None) -> None:
+def _box(
+    context: ExecutionContext,
+    express_id: int,
+    translation: list[float],
+    extents: list[float] | None = None,
+) -> None:
     mesh = trimesh.creation.box(extents=extents or [2, 2, 2])
     mesh.apply_translation(translation)
     cache_mesh(context, mesh, express_id=express_id)
@@ -278,7 +283,9 @@ def test_measurement_projected_area_default_normal() -> None:
     _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
 
     result = _run(
-        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
+        MeasurementSettings(
+            measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]
+        ),
         MeasurementInputs(list_a=[1]),
         context,
     )
@@ -296,7 +303,9 @@ def test_measurement_projected_area_custom_normal_x() -> None:
     _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
 
     result = _run(
-        MeasurementSettings(measurement_type="projected_area", projection_normal=[1.0, 0.0, 0.0]),
+        MeasurementSettings(
+            measurement_type="projected_area", projection_normal=[1.0, 0.0, 0.0]
+        ),
         MeasurementInputs(list_a=[1]),
         context,
     )
@@ -314,7 +323,9 @@ def test_measurement_projected_area_custom_normal_y() -> None:
     _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
 
     result = _run(
-        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 1.0, 0.0]),
+        MeasurementSettings(
+            measurement_type="projected_area", projection_normal=[0.0, 1.0, 0.0]
+        ),
         MeasurementInputs(list_a=[1]),
         context,
     )
@@ -337,7 +348,9 @@ def test_measurement_projected_area_non_watertight() -> None:
     cache_mesh(context, open_mesh, object_id="open")
 
     result = _run(
-        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
+        MeasurementSettings(
+            measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]
+        ),
         MeasurementInputs(list_a=["open"]),
         context,
     )
@@ -353,7 +366,9 @@ def test_measurement_projected_area_missing_geometry() -> None:
     _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
 
     result = _run(
-        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
+        MeasurementSettings(
+            measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]
+        ),
         MeasurementInputs(list_a=[1, 999]),
         context,
     )
@@ -381,7 +396,9 @@ def test_measurement_projected_area_dict_input() -> None:
     }
 
     result = _run(
-        MeasurementSettings(measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]),
+        MeasurementSettings(
+            measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]
+        ),
         MeasurementInputs(list_a=intersection_meshes),
         context,
     )
@@ -400,7 +417,9 @@ def test_measurement_component_height_default_direction() -> None:
     _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
 
     result = _run(
-        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
+        MeasurementSettings(
+            measurement_type="component_height", direction=[0.0, 0.0, 1.0]
+        ),
         MeasurementInputs(list_a=[1]),
         context,
     )
@@ -418,7 +437,9 @@ def test_measurement_component_height_direction_x() -> None:
     _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
 
     result = _run(
-        MeasurementSettings(measurement_type="component_height", direction=[1.0, 0.0, 0.0]),
+        MeasurementSettings(
+            measurement_type="component_height", direction=[1.0, 0.0, 0.0]
+        ),
         MeasurementInputs(list_a=[1]),
         context,
     )
@@ -436,7 +457,9 @@ def test_measurement_component_height_direction_y() -> None:
     _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
 
     result = _run(
-        MeasurementSettings(measurement_type="component_height", direction=[0.0, 1.0, 0.0]),
+        MeasurementSettings(
+            measurement_type="component_height", direction=[0.0, 1.0, 0.0]
+        ),
         MeasurementInputs(list_a=[1]),
         context,
     )
@@ -454,7 +477,9 @@ def test_measurement_component_height_diagonal_direction() -> None:
     _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
 
     result = _run(
-        MeasurementSettings(measurement_type="component_height", direction=[1.0, 1.0, 0.0]),
+        MeasurementSettings(
+            measurement_type="component_height", direction=[1.0, 1.0, 0.0]
+        ),
         MeasurementInputs(list_a=[1]),
         context,
     )
@@ -477,7 +502,9 @@ def test_measurement_component_height_non_watertight() -> None:
     cache_mesh(context, open_mesh, object_id="open")
 
     result = _run(
-        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
+        MeasurementSettings(
+            measurement_type="component_height", direction=[0.0, 0.0, 1.0]
+        ),
         MeasurementInputs(list_a=["open"]),
         context,
     )
@@ -493,7 +520,9 @@ def test_measurement_component_height_missing_geometry() -> None:
     _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
 
     result = _run(
-        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
+        MeasurementSettings(
+            measurement_type="component_height", direction=[0.0, 0.0, 1.0]
+        ),
         MeasurementInputs(list_a=[1, 999]),
         context,
     )
@@ -521,7 +550,9 @@ def test_measurement_component_height_dict_input() -> None:
     }
 
     result = _run(
-        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 1.0]),
+        MeasurementSettings(
+            measurement_type="component_height", direction=[0.0, 0.0, 1.0]
+        ),
         MeasurementInputs(list_a=intersection_meshes),
         context,
     )
@@ -540,7 +571,9 @@ def test_measurement_component_height_zero_direction() -> None:
     _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
 
     result = _run(
-        MeasurementSettings(measurement_type="component_height", direction=[0.0, 0.0, 0.0]),
+        MeasurementSettings(
+            measurement_type="component_height", direction=[0.0, 0.0, 0.0]
+        ),
         MeasurementInputs(list_a=[1]),
         context,
     )
@@ -593,9 +626,12 @@ def test_measurement_distance_between_three_elements() -> None:
     # Output order: grouped by first element (key_a), iterating all other keys in order
     # key_a=1: 1_2, 1_3; key_a=2: 2_1, 2_3; key_a=3: 3_1, 3_2
     expected_order = [
-        "ifc:1_ifc:2", "ifc:1_ifc:3",
-        "ifc:2_ifc:1", "ifc:2_ifc:3",
-        "ifc:3_ifc:1", "ifc:3_ifc:2",
+        "ifc:1_ifc:2",
+        "ifc:1_ifc:3",
+        "ifc:2_ifc:1",
+        "ifc:2_ifc:3",
+        "ifc:3_ifc:1",
+        "ifc:3_ifc:2",
     ]
     actual_order = [m.reference for m in result.measurements]
     assert actual_order == expected_order
@@ -637,9 +673,12 @@ def test_measurement_distance_between_missing_geometry() -> None:
     assert len(result.measurements) == 6
     refs = {m.reference for m in result.measurements}
     assert refs == {
-        "ifc:1_ifc:2", "ifc:2_ifc:1",
-        "999_ifc:1", "ifc:1_999",
-        "999_ifc:2", "ifc:2_999",
+        "ifc:1_ifc:2",
+        "ifc:2_ifc:1",
+        "999_ifc:1",
+        "ifc:1_999",
+        "999_ifc:2",
+        "ifc:2_999",
     }
     missing_entries = [m for m in result.measurements if "999" in m.reference]
     assert len(missing_entries) == 4
@@ -671,16 +710,16 @@ def test_measurement_distance_between_intersecting_boxes() -> None:
 
 def test_measurement_distance_between_crossing_plates() -> None:
     """Test intersecting meshes with no vertex penetration (face-interior intersection).
-    
+
     Two thin plates crossing at right angles: the intersection happens in the
     interior of faces, not at any vertex. This tests that FCL-based intersection
     detection correctly returns 0.0 even when vertex sampling would fail.
     """
     context = _context()
-    
+
     plate1 = trimesh.creation.box(extents=[4, 4, 0.1])
     plate2 = trimesh.creation.box(extents=[0.1, 4, 4])
-    
+
     cache_mesh(context, plate1, key="ifc:1")
     cache_mesh(context, plate2, key="ifc:2")
 
@@ -787,7 +826,7 @@ def test_measurement_distance_between_non_watertight() -> None:
 
 def test_measurement_distance_between_alignment_with_signal() -> None:
     """Alignment (no Body geometry) + signal (has geometry) -> error entries.
-    
+
     Simulates the Simple_Railway-Civil_3D.ifc scenario:
     - Alignment id=49 has no Body tessellation -> not in cache
     - Signal id=757 has Body geometry -> in cache
@@ -814,7 +853,7 @@ def test_measurement_distance_between_alignment_with_signal() -> None:
 
 def test_measurement_distance_between_two_alignments() -> None:
     """Two alignments (both no Body geometry) -> error entries.
-    
+
     Simulates the Simple_Railway-Civil_3D.ifc scenario:
     - Alignment id=49 and id=570 both have no Body tessellation
     Result: two error entries (both directions).
@@ -838,7 +877,7 @@ def test_measurement_distance_between_two_alignments() -> None:
 
 
 def test_measurement_distance_between_list_a_cross_list_b() -> None:
-    """List_A × List_B cartesian product with one direction per pair."""
+    """List_A x List_B cartesian product with one direction per pair."""
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
     _box(context, 2, [5, 0, 0], extents=[1, 1, 1])
@@ -877,7 +916,7 @@ def test_measurement_distance_between_self_pair_skipped() -> None:
 
 
 def test_measurement_distance_between_list_a_cross_list_b_dict() -> None:
-    """List_A × List_B cartesian product where both are dicts (intersection_meshes)."""
+    """List_A x List_B cartesian product where both are dicts (intersection_meshes)."""
     context = _context()
     mesh1 = trimesh.creation.box(extents=[0.5, 0.5, 0.5])
     mesh2 = trimesh.creation.box(extents=[1, 1, 1])
@@ -902,7 +941,7 @@ def test_measurement_distance_between_list_a_cross_list_b_dict() -> None:
 
     assert result.type == "distance_between"
     assert result.unit == "length_unit"
-    # Cross product: 2 elements in A × 1 element in B = 2 measurements
+    # Cross product: 2 elements in A x 1 element in B = 2 measurements
     assert len(result.measurements) == 2
     refs = {m.reference for m in result.measurements}
     assert refs == {
@@ -918,7 +957,7 @@ def test_measurement_distance_to_reference_point() -> None:
     """Point distance: box centered at origin [-1,-1,-1] to [1,1,1], reference point at [5,0,0] -> distance 4.0."""
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -929,7 +968,7 @@ def test_measurement_distance_to_reference_point() -> None:
         MeasurementInputs(list_a=[1]),
         context,
     )
-    
+
     assert result.type == "distance_to_reference"
     assert result.unit == "length_unit"
     assert len(result.measurements) == 1
@@ -942,7 +981,7 @@ def test_measurement_distance_to_reference_point_on_surface() -> None:
     """Point on surface -> distance 0.0."""
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -953,7 +992,7 @@ def test_measurement_distance_to_reference_point_on_surface() -> None:
         MeasurementInputs(list_a=[1]),
         context,
     )
-    
+
     assert result.type == "distance_to_reference"
     assert result.unit == "length_unit"
     assert len(result.measurements) == 1
@@ -966,7 +1005,7 @@ def test_measurement_distance_to_reference_plane() -> None:
     """Plane z=0, normal [0,0,1], box centered at [0,0,2] spans z=1..3 -> min distance 1.0."""
     context = _context()
     _box(context, 1, [0, 0, 2], extents=[2, 2, 2])
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -977,7 +1016,7 @@ def test_measurement_distance_to_reference_plane() -> None:
         MeasurementInputs(list_a=[1]),
         context,
     )
-    
+
     assert result.type == "distance_to_reference"
     assert result.unit == "length_unit"
     assert len(result.measurements) == 1
@@ -990,7 +1029,7 @@ def test_measurement_distance_to_reference_plane_tilted() -> None:
     """Plane with tilted normal: box centered at origin spans x=-1..1, YZ plane (x=0) crosses box -> distance 0.0."""
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -1001,19 +1040,21 @@ def test_measurement_distance_to_reference_plane_tilted() -> None:
         MeasurementInputs(list_a=[1]),
         context,
     )
-    
+
     assert result.type == "distance_to_reference"
     assert result.unit == "length_unit"
     assert len(result.measurements) == 1
     assert result.measurements[0].reference == "ifc:1"
-    assert result.measurements[0].value == pytest.approx(0.0, abs=1e-6)  # box crosses plane at x=0
+    assert result.measurements[0].value == pytest.approx(
+        0.0, abs=1e-6
+    )  # box crosses plane at x=0
 
 
 def test_measurement_distance_to_reference_plane_zero_normal() -> None:
     """Plane with zero normal -> error entry 'undefined normal'."""
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[2, 2, 2])
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -1024,7 +1065,7 @@ def test_measurement_distance_to_reference_plane_zero_normal() -> None:
         MeasurementInputs(list_a=[1]),
         context,
     )
-    
+
     assert result.type == "distance_to_reference"
     assert result.unit == "length_unit"
     assert len(result.measurements) == 1
@@ -1037,7 +1078,7 @@ def test_measurement_distance_to_reference_missing_geometry() -> None:
     """Missing geometry -> error entry 'no cached geometry'."""
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -1048,7 +1089,7 @@ def test_measurement_distance_to_reference_missing_geometry() -> None:
         MeasurementInputs(list_a=[1, 999]),
         context,
     )
-    
+
     assert result.type == "distance_to_reference"
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
@@ -1067,13 +1108,13 @@ def test_measurement_distance_to_reference_dict_input() -> None:
     mesh2 = trimesh.creation.box(extents=[1, 1, 1])
     cache_mesh(context, mesh1, key="inter:intersection_ifc:1_ifc:2")
     cache_mesh(context, mesh2, key="inter:intersection_ifc:3_ifc:4")
-    
+
     intersection_meshes = {
         "ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2",
         "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4",
         "ifc:5__ifc:6": None,
     }
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -1084,7 +1125,7 @@ def test_measurement_distance_to_reference_dict_input() -> None:
         MeasurementInputs(list_a=intersection_meshes),
         context,
     )
-    
+
     assert result.type == "distance_to_reference"
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
@@ -1100,7 +1141,7 @@ def test_measurement_distance_to_reference_empty_list_uses_whole_model() -> None
     context = _context()
     _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
     _box(context, 2, [10, 0, 0], extents=[1, 1, 1])
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -1111,7 +1152,7 @@ def test_measurement_distance_to_reference_empty_list_uses_whole_model() -> None
         MeasurementInputs(list_a=[]),
         context,
     )
-    
+
     assert result.type == "distance_to_reference"
     assert result.unit == "length_unit"
     assert len(result.measurements) == 2
@@ -1131,7 +1172,7 @@ def test_measurement_distance_to_reference_non_watertight() -> None:
         process=False,
     )
     cache_mesh(context, open_mesh, object_id="open")
-    
+
     result = _run(
         MeasurementSettings(
             measurement_type="distance_to_reference",
@@ -1142,10 +1183,8 @@ def test_measurement_distance_to_reference_non_watertight() -> None:
         MeasurementInputs(list_a=["open"]),
         context,
     )
-    
+
     assert len(result.measurements) == 1
     assert result.measurements[0].reference == "gen:open"
     assert result.measurements[0].value is not None
     assert result.measurements[0].error is None
-
-

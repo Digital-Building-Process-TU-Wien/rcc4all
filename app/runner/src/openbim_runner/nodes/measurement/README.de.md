@@ -1,5 +1,5 @@
 ---
-title: Measurement (Messung)
+title: Messung
 description: Berechnet geometrische Messungen (Volumen, Oberfläche, projizierte Fläche, Bauteilhöhe, minimaler Abstand zwischen Elementen, Abstand zur Referenz) von IFC-Elementen oder zwischengespeicherten Geometrien.
 categories: Measurement
 ---

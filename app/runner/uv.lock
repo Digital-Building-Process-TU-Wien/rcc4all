@@ -517,6 +517,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pymeshfix" },
     { name = "python-fcl" },
+    { name = "rtree" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "trimesh" },
@@ -538,6 +539,8 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "pymeshfix" },
     { name = "python-fcl" },
+    { name = "rtree" },
+    { name = "scipy" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "trimesh", specifier = ">=4.0.0" },
 ]

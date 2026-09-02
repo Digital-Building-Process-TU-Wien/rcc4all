@@ -54,8 +54,9 @@ export function getInputDescription(nodeName: string, inputName: string): string
 }
 
 export interface TypeInfo {
-  type: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'null'
+  type: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object' | 'null'
   items?: TypeInfo
+  anyOf?: TypeInfo[]
 }
 
 export function getOutputType(nodeName: string, outputField: string): TypeInfo {
@@ -82,10 +83,13 @@ function parseTypeSchema(schema: any): TypeInfo {
   }
 
   if (schema.anyOf) {
-    const nonNullType = schema.anyOf.find((t: any) => t.type !== 'null')
-    if (nonNullType)
-      return parseTypeSchema(nonNullType)
-    return { type: 'null' }
+    const candidates = schema.anyOf
+      .filter((t: any) => t.type !== 'null')
+      .map((t: any) => parseTypeSchema(t))
+    if (candidates.length === 0)
+      return { type: 'null' }
+    const [primary, ...rest] = candidates
+    return rest.length ? { ...primary, anyOf: candidates } : primary
   }
 
   return { type: schema.type || 'null' }
@@ -95,6 +99,10 @@ export function areTypesCompatible(output: TypeInfo, input: TypeInfo): boolean {
   // 'null' means unknown/no type — accept while the schema lacks a concrete type.
   if (output.type === 'null')
     return true
+
+  // If the input accepts multiple forms (anyOf), accept if output matches any candidate.
+  if (input.anyOf?.length)
+    return input.anyOf.some(candidate => areTypesCompatible(output, candidate))
 
   // For arrays, compare item types rather than only the top-level 'array' type.
   if (output.type === 'array' && input.type === 'array')

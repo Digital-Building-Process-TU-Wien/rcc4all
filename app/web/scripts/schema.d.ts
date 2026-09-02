@@ -8,8 +8,8 @@ export interface NodeRegistrySchema {
   get_name?: ResolveObjectNames
   get_property?: GetProperty
   ifc_element_filter?: IfcElementFilter
-  measurement?: Measurement
   loi_check?: LOICheck
+  measurement?: Measurement
 }
 /**
  * Turn LOI-Check failures into a BCF 3.0 issue file.
@@ -552,7 +552,7 @@ export interface Measurement {
     /**
      * The type of measurement to compute. In v4, 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', and 'distance_to_reference' are implemented.
      */
-    measurement_type?: ("volume" | "surface_area" | "projected_area" | "component_height" | "distance_between" | "distance_to_reference")
+    measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
      * Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view). Only used for 'projected_area' mode.
      */
@@ -564,7 +564,7 @@ export interface Measurement {
     /**
      * Reference type for 'distance_to_reference' mode. 'point' computes distance to a reference point; 'plane' computes perpendicular distance to a reference plane.
      */
-    reference_type?: ("point" | "plane")
+    reference_type?: ('point' | 'plane')
     /**
      * Reference point coordinates [x, y, z]. Used for both 'point' and 'plane' reference types.
      */
@@ -578,7 +578,7 @@ export interface Measurement {
     /**
      * The measurement type used to generate this result.
      */
-    type: ("volume" | "surface_area" | "projected_area" | "component_height" | "distance_between" | "distance_to_reference")
+    type: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
      * The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).
      */
@@ -609,7 +609,7 @@ export interface Measurement {
       [k: string]: (string | null)
     })
     /**
-     * Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`). When empty, pairs are formed within List A. When non-empty, computes cartesian product A×B. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.
+     * Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`). When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.
      */
     list_b?: ((number | string)[] | {
       [k: string]: (string | null)

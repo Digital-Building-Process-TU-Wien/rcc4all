@@ -304,6 +304,37 @@
       "operatorContains": "enthält",
       "operatorStartsWith": "beginnt mit",
       "operatorEndsWith": "endet mit"
+    },
+    "measurement": {
+      "title": "Messung",
+      "description": "Berechne geometrische Messungen (Volumen, Oberfläche, projizierte Fläche, Bauteilhöhe, minimaler Abstand zwischen Elementen, Abstand zu Referenz) von IFC-Elementen oder zwischengespeicherten Geometrien.",
+      "measurementType": "Messungstyp",
+      "measurementTypeHelp": "In v4 sind Volumen, Oberfläche, projizierte Fläche, Bauteilhöhe, minimaler Abstand zwischen Elementen (Liste A × Liste B Muster) und Abstand zu Referenz (Punkt/Ebene) implementiert.",
+      "listBWarning": "Liste B wird nur für den Modus \"Minimaler Abstand zwischen Elementen\" verwendet und wird ignoriert.",
+      "projectionNormal": "Projektionsnormale",
+      "projectionNormalHelp": "Normalenvektor für die Projektionsebene. Standard [0,0,1] berechnet Fußabdruck (Draufsicht).",
+      "direction": "Richtung",
+      "directionHelp": "Richtungsvektor für die Extent-Berechnung. Standard [0,0,1] berechnet vertikale Höhe.",
+      "referenceType": "Referenztyp",
+      "referenceTypeHelp": "Wählen Sie zwischen Abstand zu einem Referenzpunkt oder senkrechtem Abstand zu einer Referenzebene.",
+      "referenceTypePoint": "Punkt",
+      "referenceTypePlane": "Ebene",
+      "referencePoint": "Referenzpunkt",
+      "referencePointHelp": "Koordinaten [x, y, z] des Referenzpunkts (oder Ebenenursprungs).",
+      "planeNormal": "Ebenennormale",
+      "planeNormalHelp": "Normalenvektor der Referenzebene. Standard [0,0,1] ist die XY-Ebene.",
+      "typeVolume": "Volumen",
+      "typeSurfaceArea": "Oberfläche",
+      "typeProjectedArea": "Projizierte Fläche",
+      "typeComponentHeight": "Bauteilhöhe",
+      "typeDistanceBetween": "Minimaler Abstand zwischen Elementen",
+      "typeDistanceToReference": "Abstand zu Referenz",
+      "presetXyPlane": "XY-Ebene (Z)",
+      "presetYzPlane": "YZ-Ebene (X)",
+      "presetXzPlane": "XZ-Ebene (Y)",
+      "presetZAxis": "Z-Achse (Höhe)",
+      "presetXAxis": "X-Achse",
+      "presetYAxis": "Y-Achse"
     }
   }
 }
