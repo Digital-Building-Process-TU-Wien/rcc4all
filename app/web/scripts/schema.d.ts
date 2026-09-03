@@ -8,6 +8,7 @@ export interface NodeRegistrySchema {
   get_property?: GetProperty
   ifc_element_filter?: IfcElementFilter
   property_comparison?: PropertyComparison
+  tilt_of_components?: TiltOfComponents
 }
 /**
  * Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.
@@ -412,6 +413,111 @@ export interface PropertyComparison {
   inputs: {
     /**
      * Optional list of IFC express IDs to run property comparisons against. When empty (not connected), all IFC elements in the model are checked.
+     */
+    express_ids?: number[]
+  }
+}
+/**
+ * Measures the tilt of building components (walls/slabs as 2D surfaces, columns/beams as 1D axes) and flags components whose tilt violates the configured comparison threshold.
+ */
+export interface TiltOfComponents {
+  settings: {
+    /**
+     * '2d' measures the two largest flat surfaces (walls & slabs); '1d' measures the longitudinal axis of the element (columns & beams).
+     */
+    element_category?: ('2d' | '1d')
+    /**
+     * How the measured tilt is checked against the limits. 'greater_than_lower' / 'less_than_upper' use the single lower / upper limit; 'inside_interval' / 'outside_interval' use the interval barriers.
+     */
+    comparison_method?: ('greater_than_lower' | 'less_than_upper' | 'inside_interval' | 'outside_interval')
+    /**
+     * Tilt is flagged when it exceeds this value (comparison_method = greater_than_lower).
+     */
+    lower_limit?: number
+    /**
+     * Tilt is flagged when it is below this value (comparison_method = less_than_upper).
+     */
+    upper_limit?: number
+    /**
+     * Lower barrier used for inside_interval / outside_interval.
+     */
+    interval_lower?: number
+    /**
+     * Upper barrier used for inside_interval / outside_interval.
+     */
+    interval_upper?: number
+    /**
+     * Maximum horizontal angle deviation between two triangles to still count as the same surface. Used to merge the facets of curved / round objects.
+     */
+    horizontal_separation_angle?: number
+    /**
+     * Shared tolerance added/subtracted to the limits when flagging.
+     */
+    tolerance?: number
+  }
+  result: {
+    /**
+     * Number of elements processed.
+     */
+    element_count: number
+    /**
+     * Number of elements with at least one surface/axis check.
+     */
+    check_count: number
+    /**
+     * Number of elements with at least one flagged surface/axis.
+     */
+    failed_count: number
+    /**
+     * Name of the checked IFC model.
+     */
+    model_name?: string
+    /**
+     * Ordered list of elements with their tilt checks.
+     */
+    elements?: {
+      /**
+       * The express ID of the IFC entity.
+       */
+      express_id: number
+      /**
+       * IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.
+       */
+      class_name: string
+      /**
+       * The element category ('2d' or '1d') used to measure this element.
+       */
+      element_category: ('2d' | '1d')
+      /**
+       * True if at least one surface/axis check in this element was flagged.
+       */
+      failed: boolean
+      /**
+       * Surface ('2d') or axis ('1d') tilt checks for this element.
+       */
+      checks?: {
+        /**
+         * Human-readable expectation combined from the comparison method and limits.
+         */
+        expected: string
+        /**
+         * Measured tilt of the surface or axis in degrees.
+         */
+        tilt_angle: number
+        /**
+         * False when this surface/axis is flagged by the comparison method.
+         */
+        passed: boolean
+        /**
+         * Geometry-cache key of the helper geometry for flagged surfaces/axes.
+         */
+        geometry_key?: (string | null)
+      }[]
+    }[]
+  }
+  inputs: {
+    /**
+     * Optional list of IFC express IDs to measure. When empty, all IFC elements in the model are checked.
      */
     express_ids?: number[]
   }

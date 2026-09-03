@@ -71,6 +71,7 @@ const nodeNameToComponent: Record<string, string> = {
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
   property_comparison: 'PropertyComparison',
+  tilt_of_components: 'TiltOfComponents',
 }
 
 /**

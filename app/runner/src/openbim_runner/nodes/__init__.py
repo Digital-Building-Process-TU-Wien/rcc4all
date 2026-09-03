@@ -14,6 +14,7 @@ from .get_name.get_name import get_name
 from .get_property.get_property import get_property
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
 from .property_comparison.property_comparison import property_comparison
+from .tilt_of_components.tilt_of_components import tilt_of_components
 
 __all__ = [
     "ExecutionContext",
@@ -30,4 +31,5 @@ __all__ = [
     "ifc_element_filter",
     "node",
     "property_comparison",
+    "tilt_of_components",
 ]
