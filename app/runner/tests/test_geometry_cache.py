@@ -459,7 +459,13 @@ def test_build_geometry_cache_synthesizes_composite_wall_model() -> None:
     """End-to-end test: composite wall parent gets synthesized geometry from parts."""
     import pathlib
 
-    ifc_path = pathlib.Path(__file__).parent / "testdata" / "models" / "multilayered" / "Multilayered_Wall.ifc"
+    ifc_path = (
+        pathlib.Path(__file__).parent
+        / "testdata"
+        / "models"
+        / "multilayered"
+        / "Multilayered_Wall.ifc"
+    )
     if not ifc_path.exists():
         pytest.skip("Multilayered_Wall.ifc fixture not found")
 
@@ -483,7 +489,13 @@ def test_print_wall_volumes_on_test_volumen() -> None:
     """Print volumes for all wall instances in Test-Volumen.ifc for manual verification."""
     import pathlib
 
-    ifc_path = pathlib.Path(__file__).parent / "testdata" / "models" / "multilayered" / "Test-Volumen.ifc"
+    ifc_path = (
+        pathlib.Path(__file__).parent
+        / "testdata"
+        / "models"
+        / "multilayered"
+        / "Test-Volumen.ifc"
+    )
     if not ifc_path.exists():
         pytest.skip("Test-Volumen.ifc fixture not found")
 
