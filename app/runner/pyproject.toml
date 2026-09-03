@@ -12,12 +12,14 @@ dependencies = [
     "ifcopenshell>=0.8.3",
     "ifctester>=0.8.0",
     "manifold3d",
+    "networkx",
     "numpy",
     "python-fcl",
     "pymeshfix",
     "pydantic>=2.11.0",
-    "trimesh>=4.0.0",
+    "rtree",
     "scipy>=1.17.1",
+    "trimesh>=4.0.0",
 ]
 
 [project.scripts]
