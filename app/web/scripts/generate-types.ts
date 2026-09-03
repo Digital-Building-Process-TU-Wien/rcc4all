@@ -18,13 +18,15 @@ const GENERATED_HEADER = '/* GENERATED FILE - DO NOT EDIT. Regenerate with `npm 
  */
 const SINGLE_QUOTE = String.fromCharCode(39)
 
+const DOUBLE_QUOTED_RE = /"((?:[^"\\]|\\.)*)"/g
+
 function requoteDoubleQuoted(_: string, content: string): string {
   const escaped = content.replaceAll(SINGLE_QUOTE, `\\${SINGLE_QUOTE}`)
   return `${SINGLE_QUOTE}${escaped}${SINGLE_QUOTE}`
 }
 
 function toSingleQuoted(input: string): string {
-  return input.replace(/"((?:[^"\\]|\\.)*)"/g, requoteDoubleQuoted)
+  return input.replace(DOUBLE_QUOTED_RE, requoteDoubleQuoted)
 }
 
 async function generate() {

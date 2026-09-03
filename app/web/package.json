@@ -2,6 +2,10 @@
   "name": "nuxt-frontend",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11.7"
+  },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -18,13 +22,14 @@
     "@nuxt/eslint": "^1.15.1",
     "@nuxt/fonts": "^0.13.0",
     "@nuxt/ui": "^4.7.1",
+    "@nuxtjs/i18n": "^10.6.0",
     "@payloadcms/sdk": "^3.76.1",
     "@pinia/nuxt": "^0.11.3",
     "@tailwindcss/vite": "^4.1.18",
     "@vue-flow/core": "^1.48.2",
     "@vueuse/core": "^14.2.1",
     "comark": "^0.3.2",
-    "nanoid": "^5.1.11",
+    "nanoid": "^6.0.1",
     "nuxt": "^4.3.1",
     "pinia": "^3.0.4",
     "tailwindcss": "^4.2.4",

@@ -1,4 +1,5 @@
 import type { Edge, Node } from '@vue-flow/core'
+import type { Ref } from 'vue'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -16,7 +17,10 @@ interface WorkflowData {
 
 export const useFlowStore = defineStore('flow', () => {
   const nodesById = ref<Record<string, Node>>({})
-  const edges = ref<Edge[]>([])
+  // Real deep `ref`. The `as unknown as Ref<Edge[]>` only lets TS treat `.value` as
+  // `Edge[]` directly instead of expanding `UnwrapRef<Edge[]>` (whose self-referential
+  // `GraphEdge` callbacks blow TS's instantiation depth limit). Runtime semantics unchanged.
+  const edges = ref<Edge[]>([]) as unknown as Ref<Edge[]>
   const viewport = ref<Viewport>({
     x: 0,
     y: 0,
@@ -44,16 +48,20 @@ export const useFlowStore = defineStore('flow', () => {
     nodesById.value = newById
   }
 
-  function removeNode(nodeId: string) {
+  function removeNode(nodeId: string): void {
     delete nodesById.value[nodeId]
-    edges.value = edges.value.filter(
-      edge => edge.source !== nodeId && edge.target !== nodeId,
-    )
+    const remaining: Edge[] = []
+    for (const edge of edges.value) {
+      if (edge.source !== nodeId && edge.target !== nodeId) {
+        remaining.push(edge)
+      }
+    }
+    edges.value = remaining
   }
 
   function addEdges(newEdges: Edge | Edge[]) {
     const edgesArray = Array.isArray(newEdges) ? newEdges : [newEdges]
-    edges.value.push(...edgesArray)
+    edges.value = [...edges.value, ...edgesArray]
   }
 
   function setEdges(newEdges: Edge[]) {

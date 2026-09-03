@@ -1,10 +1,10 @@
 ---
-title: Property Comparison
+title: LOI-Check
 description: Prüft IFC-Eigenschaftswerte gegen erwartete Zielwerte mit tabellenbasierten Regeln.
 categories: IFC
 ---
 
-Der `property_comparison`-Knoten führt tabellenbasierte Eigenschaftsprüfungen an
+Der `loi_check`-Node führt tabellenbasierte Eigenschaftsprüfungen an
 IFC-Elementen durch. Jede Zeile definiert eine zu lesende Eigenschaft und eine
 Bedingung, die gegen einen Zielwert ausgewertet wird, und wird gegen jedes
 Eingabeelement geprüft.
@@ -68,6 +68,10 @@ Schaltern); `outside` besteht, wenn er außerhalb liegt.
 ## Ausgaben
 
 - `element_count`, `total_checks`, `failed_count`
+- `passed_express_ids`, `failed_express_ids`: flache Listen der Express-IDs der
+  geprüften Elemente – jene, deren Prüfungen alle bestanden haben, und jene mit
+  mindestens einer fehlgeschlagenen Prüfung. Elemente ohne angewandte Prüfungen
+  sind von beiden Listen ausgeschlossen.
 - `elements`: jeweils mit `express_id`, `class_name` (oder `unknown`), `failed`
   und `checks` – jede Prüfung hat `id`/`property_key`, `property_name`,
   `condition`, `expected`, optional `expected_min`/`expected_max`

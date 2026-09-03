@@ -1,14 +1,134 @@
 /* GENERATED FILE - DO NOT EDIT. Regenerate with `npm run generate:schema`. */
 
 export interface NodeRegistrySchema {
+  bcf_output?: BCFOutput
   collision?: CollisionDetection
   concat_string?: ConcatenateStrings
   generate_3d_cube?: Generate3DCube
   get_name?: ResolveObjectNames
   get_property?: GetProperty
+  ids_checker?: IDSChecker
   ifc_element_filter?: IfcElementFilter
-  property_comparison?: PropertyComparison
+  loi_check?: LOICheck
   tilt_of_components?: TiltOfComponents
+}
+/**
+ * Turn LOI-Check failures into a BCF 3.0 issue file.
+ */
+export interface BCFOutput {
+  settings: {
+    /**
+     * 'auto' uses condition-aware placeholders ({expectation}, {failure_reason}) so one description template stays correct for every LOI-Check scenario. 'manual' uses the raw placeholders ({actual}, {expected}, {condition_symbol}) exactly as written.
+     */
+    mode?: ('auto' | 'manual')
+    /**
+     * BCF topic title, resolved per failing check with Python string formatting. Available placeholders: {id}, {guid}, {name}, {class_name} and check values keyed by property, e.g. {Pset_WallCommon.ThermalTransmittance.actual}, {Pset_WallCommon.ThermalTransmittance.expected}, {Pset_WallCommon.ThermalTransmittance.condition}.
+     */
+    title_template?: string
+    /**
+     * BCF topic description (sentence) resolved per failing check, same placeholders as the title template. The comparison row's expected value supplies the limit.
+     */
+    description_template?: string
+  }
+  result: {
+    /**
+     * Filesystem path the BCF 3.0 file was written to.
+     */
+    output_path: string
+    /**
+     * Number of BCF topics written (one per failing check).
+     */
+    topic_count: number
+    /**
+     * Number of input elements consumed from LOI-Check.
+     */
+    element_count: number
+    /**
+     * Total number of failed property checks across all elements.
+     */
+    failed_check_count: number
+    /**
+     * Resolved topics (element GUID, property key, title, description).
+     */
+    topics?: {
+      /**
+       * IFC GlobalId of the failing element (resolved from the model by express ID).
+       */
+      guid: string
+      /**
+       * Property key of the failed check (e.g. 'Pset_WallCommon.ThermalTransmittance' or 'ThermalTransmittance').
+       */
+      property_key: string
+      /**
+       * Resolved topic title from the title template.
+       */
+      title: string
+      /**
+       * Resolved topic description (sentence) from the description template.
+       */
+      description: string
+    }[]
+  }
+  inputs: {
+    /**
+     * Elements and their property check results from LOI-Check (LOI-Check.elements).
+     */
+    elements?: {
+      /**
+       * The express ID of the IFC entity.
+       */
+      express_id: number
+      /**
+       * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
+       */
+      class_name: string
+      /**
+       * True if at least one check on this element failed.
+       */
+      failed: boolean
+      /**
+       * List of property check results for this element.
+       */
+      checks?: {
+        /**
+         * Stable identifier for this check (the property key, e.g., 'Pset.X' or 'X').
+         */
+        id: string
+        /**
+         * Property key in 'Pset.Property' or 'Property' format.
+         */
+        property_key: string
+        /**
+         * Name of the property being compared.
+         */
+        property_name: string
+        /**
+         * The comparison operator that was applied.
+         */
+        condition: ('equals' | 'not_equals' | 'lt' | 'le' | 'gt' | 'ge' | 'contains' | 'one_of' | 'is_true' | 'is_false' | 'between' | 'outside')
+        /**
+         * Expected value as a string (empty for is_true / is_false and range checks).
+         */
+        expected?: string
+        /**
+         * Lower barrier used for numeric range checks, or None for single-value checks.
+         */
+        expected_min?: (string | null)
+        /**
+         * Upper barrier used for numeric range checks, or None for single-value checks.
+         */
+        expected_max?: (string | null)
+        /**
+         * Actual property value as a string, or None if the property is missing.
+         */
+        actual?: (string | null)
+        /**
+         * Whether the property value satisfies the condition.
+         */
+        passed: boolean
+      }[]
+    }[]
+  }
 }
 /**
  * Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.
@@ -232,6 +352,62 @@ export interface GetProperty {
   }
 }
 /**
+ * Validates the IFC model against one or more IDS specifications.
+ */
+export interface IDSChecker {
+  settings: {
+    /**
+     * Path to the IDS specification file to validate against.
+     */
+    ids_file?: string
+    /**
+     * Wenn aktiviert, werden die Ergebnisse zusätzlich nach Specification gruppiert ausgegeben (für Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.
+     */
+    generate_detailed_report?: boolean
+    /**
+     * Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.
+     */
+    report_format?: (('json' | 'html') | null)
+  }
+  result: {
+    /**
+     * List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).
+     */
+    failed_express_ids?: number[]
+    /**
+     * List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).
+     */
+    passed_express_ids?: number[]
+    /**
+     * Per-specification breakdown. Only included when generate_detailed_report is enabled.
+     */
+    specifications?: ({
+      /**
+       * Name of the IDS specification.
+       */
+      name?: string
+      /**
+       * List of express IDs of entities that failed this specification's requirements.
+       */
+      failed_express_ids?: number[]
+      /**
+       * List of express IDs of entities that passed this specification's requirements.
+       */
+      passed_express_ids?: number[]
+    }[] | null)
+    /**
+     * Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.
+     */
+    report_path?: (string | null)
+  }
+  inputs: {
+    /**
+     * Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.
+     */
+    express_ids?: number[]
+  }
+}
+/**
  * Filter IFC entities using table-based include and exclude rules.
  */
 export interface IfcElementFilter {
@@ -290,7 +466,7 @@ export interface IfcElementFilter {
 /**
  * Check IFC property values against expected target values with table-based rules.
  */
-export interface PropertyComparison {
+export interface LOICheck {
   settings: {
     /**
      * List of property comparison rules. Each row is checked against every input element.
@@ -351,6 +527,14 @@ export interface PropertyComparison {
      * Total number of failed checks across all elements.
      */
     failed_count: number
+    /**
+     * Express IDs of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.
+     */
+    passed_express_ids?: number[]
+    /**
+     * Express IDs of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.
+     */
+    failed_express_ids?: number[]
     /**
      * Ordered list of elements with their property check results.
      */

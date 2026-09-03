@@ -10,6 +10,8 @@ const props = defineProps<{
 
 const node = useScopedNode<ConcatStringNode>(props.node.id)
 
+const { t } = useI18n()
+
 if (!node.value.data.settings) {
   node.value.data.settings = { separator: ' ' }
 }
@@ -18,16 +20,16 @@ if (!node.value.data.settings) {
 <template>
   <div class="px-2">
     <div class="text-sm font-bold text-slate-800 mb-2 uppercase tracking-wide">
-      Concat String Node
+      {{ t('node.concatString.title') }}
     </div>
   </div>
 
   <div class="flex flex-col gap-2">
-    <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Separator</label>
+    <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">{{ t('node.concatString.separator') }}</label>
     <input
       v-model="node.data.settings!.separator"
       type="text"
-      placeholder="e.g. ', '"
+      :placeholder="t('node.concatString.separatorPlaceholder')"
       class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
     >
   </div>

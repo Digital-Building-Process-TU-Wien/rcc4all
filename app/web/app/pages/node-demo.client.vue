@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { Connection, Edge, Node } from '@vue-flow/core'
-import type { AvailableNode, NodeData } from '~/utils/nodes'
+import type { AvailableNode, NodeData, SupportedLocale } from '~/utils/nodes'
 import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
 import SlideOver from '~/components/nodes/Slideover.vue'
 import WorkflowNode from '~/components/nodes/WorkflowNode.vue'
-import { usei18n } from '~/composables/usei18n'
 import { useFlowStore } from '~/stores/flow'
 import { getAvailableNodes } from '~/utils/nodes'
 import { getNodeInputs, getNodeOutputs } from '~/utils/schema-helpers'
@@ -17,21 +16,21 @@ definePageMeta({
   layout: 'empty',
 })
 
-const { currentLocale } = usei18n()
+const { locale, t } = useI18n()
 
 const availableNodes = computed(() => {
-  const nodes = getAvailableNodes(currentLocale.value)
+  const nodes = getAvailableNodes(locale.value as SupportedLocale)
   nodes.push({
     nodeName: 'FileInput',
-    label: 'File Input',
+    label: t('node.fileInput.title'),
     categories: ['Other'],
-    description: 'Select an IFC file from local development files',
+    description: t('node.fileInput.description'),
   })
   nodes.push({
     nodeName: 'JsonOutput',
-    label: 'JSON Output',
+    label: t('node.jsonOutput.title'),
     categories: ['Other'],
-    description: 'Visual endcap for workflow output',
+    description: t('node.jsonOutput.description'),
   })
   return nodes
 })

@@ -2,6 +2,11 @@ import type { NodeRegistrySchema } from '@@/scripts/schema'
 import type { Node } from '@vue-flow/core'
 import schemaJson from '@@/scripts/schema.json'
 
+const CAMEL_BOUNDARY_RE = /([a-z0-9])([A-Z])/g
+const ACRONYM_BOUNDARY_RE = /([A-Z])([A-Z][a-z])/g
+const UPPERCASE_DIGIT_RE = /([A-Z])(\d)/gi
+const DIGIT_UPPERCASE_RE = /(\d)([A-Z])/gi
+
 /**
  * Convert a schema type to a Vue Flow Node type.
  * Schema types (e.g., ConcatenateStrings) have { settings, result, inputs } at the root,
@@ -92,20 +97,38 @@ function parseTypeSchema(schema: any): TypeInfo {
 }
 
 export function areTypesCompatible(output: TypeInfo, input: TypeInfo): boolean {
+  // 'null' means unknown/no type — accept while the schema lacks a concrete type.
+  if (output.type === 'null')
+    return true
+
+  // For arrays, compare item types rather than only the top-level 'array' type.
+  if (output.type === 'array' && input.type === 'array')
+    return areItemsCompatible(output.items, input.items)
+
   if (output.type === input.type)
     return true
   if (output.type === 'integer' && input.type === 'number')
     return true
+  return false
+}
+
+function areItemsCompatible(output: TypeInfo | undefined, input: TypeInfo | undefined): boolean {
+  if (!output || !input)
+    return true
   if (output.type === 'null')
+    return true
+  if (output.type === input.type)
+    return true
+  if (output.type === 'integer' && input.type === 'number')
     return true
   return false
 }
 
 export function formatLabel(str: string): string {
   return str
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
-    .replace(/([A-Z])(\d)/gi, '$1 $2')
-    .replace(/(\d)([A-Z])/gi, '$1 $2')
+    .replace(CAMEL_BOUNDARY_RE, '$1 $2')
+    .replace(ACRONYM_BOUNDARY_RE, '$1 $2')
+    .replace(UPPERCASE_DIGIT_RE, '$1 $2')
+    .replace(DIGIT_UPPERCASE_RE, '$1 $2')
     .trim()
 }

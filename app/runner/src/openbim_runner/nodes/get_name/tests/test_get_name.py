@@ -43,6 +43,7 @@ def test_get_name_returns_names_in_input_order() -> None:
             Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity("Wall B")})
         ),
         node_outputs={},
+        workflow_dir=None,
     )
 
     result = asyncio.run(
@@ -62,6 +63,7 @@ def test_get_name_returns_none_for_entity_without_name() -> None:
             Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity(None)})
         ),
         node_outputs={},
+        workflow_dir=None,
     )
 
     result = asyncio.run(
@@ -79,6 +81,7 @@ def test_get_name_allows_missing_entities_when_configured() -> None:
     context = ExecutionContext(
         ifc_model=cast(Any, FakeIfcModel({1: FakeEntity("Wall A")}, failing_ids={99})),
         node_outputs={},
+        workflow_dir=None,
     )
 
     result = asyncio.run(
@@ -96,6 +99,7 @@ def test_get_name_fails_on_nonexistent_express_id() -> None:
     context = ExecutionContext(
         ifc_model=cast(Any, FakeIfcModel({1: FakeEntity("Wall A")}, failing_ids={99})),
         node_outputs={},
+        workflow_dir=None,
     )
 
     with pytest.raises(ValueError, match="Could not resolve a name for express ID 99"):
@@ -114,6 +118,7 @@ def test_get_name_does_not_fail_on_missing_name() -> None:
             Any, FakeIfcModel({1: FakeEntity("Wall A"), 2: FakeEntity(None)})
         ),
         node_outputs={},
+        workflow_dir=None,
     )
 
     result = asyncio.run(

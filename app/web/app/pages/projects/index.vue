@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t } = useI18n()
+
 const projects = [
   {
     id: 'zdb-wohnbau-2025',
@@ -45,21 +47,21 @@ const projects = [
       <div class="flex flex-wrap items-start justify-between gap-6">
         <div>
           <p class="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Projekte
+            {{ t('projects.projects') }}
           </p>
           <h1 class="mt-3 text-3xl font-semibold text-dark">
-            IFC-Projekte im Ueberblick
+            {{ t('projects.title') }}
           </h1>
           <p class="mt-3 max-w-2xl text-sm text-slate-600">
-            Eine klare Projektliste mit Versionen, Dateien und Ergebnissen. Platzhalterdaten koennen spaeter direkt aus der API geladen werden.
+            {{ t('projects.intro') }}
           </p>
         </div>
         <div class="flex flex-wrap gap-3">
           <UButton color="neutral" variant="outline">
-            Filter
+            {{ t('projects.filter') }}
           </UButton>
           <UButton color="primary">
-            Neues Projekt
+            {{ t('projects.newProject') }}
           </UButton>
         </div>
       </div>
@@ -77,7 +79,7 @@ const projects = [
             <div class="relative h-40 overflow-hidden bg-linear-to-br from-primary-50 via-white to-accent-50">
               <div class="absolute inset-4 rounded-2xl border border-dashed border-slate-300/70 bg-white/70" />
               <div class="absolute bottom-4 left-4 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Platzhalterbild
+                {{ t('projects.placeholderImage') }}
               </div>
             </div>
             <div class="flex flex-1 flex-col gap-3 p-6">
@@ -91,10 +93,10 @@ const projects = [
               </div>
               <div class="mt-auto flex items-center justify-between text-xs text-slate-500">
                 <span>
-                  Zuletzt aktualisiert: {{ project.updatedAt }}
+                  {{ t('projects.lastUpdated') }}: {{ project.updatedAt }}
                 </span>
                 <span class="font-semibold text-primary-600">
-                  Details
+                  {{ t('projects.details') }}
                 </span>
               </div>
             </div>

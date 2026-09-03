@@ -4,9 +4,9 @@ description: Verkettet eine Liste von aufgelösten String-Werten zu einem Ausgab
 categories: Demo
 ---
 
-Der `concat_string` Knoten kombiniert die eingehende `values` Liste zu einem einzigen String.
+Der `concat_string` Node kombiniert die eingehende `values` Liste zu einem einzigen String.
 
-Verwenden Sie diesen Knoten, wenn ein Workflow mehrere Upstream-Werte in eine lesbare Beschriftung, Zusammenfassung oder Nachricht umwandeln muss.
+Verwenden Sie diesen Node, wenn ein Workflow mehrere Upstream-Werte in eine lesbare Beschriftung, Zusammenfassung oder Nachricht umwandeln muss.
 
 ## Anwendungsbeispiel
 

@@ -1,8 +1,8 @@
 import type { SchemaNodeType } from '~/utils/schema-helpers'
 
-export type PropertyComparisonNode = SchemaNodeType<'property_comparison'>
-export type PropertyComparisonSettings = NonNullable<PropertyComparisonNode['data']['settings']>
-export type Rows = NonNullable<PropertyComparisonSettings['rows']>
+export type LoiCheckNode = SchemaNodeType<'loi_check'>
+export type LoiCheckSettings = NonNullable<LoiCheckNode['data']['settings']>
+export type Rows = NonNullable<LoiCheckSettings['rows']>
 export type ComparisonRow = Rows[number]
 export type ComparisonCondition = ComparisonRow['condition']
 
