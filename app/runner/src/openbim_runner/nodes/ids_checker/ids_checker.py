@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import ConfigDict, Field
+from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 
@@ -54,8 +54,6 @@ class IdsCheckerSpecificationResult(NodeModel):
 
 
 class IdsCheckerResult(NodeModel):
-    model_config = ConfigDict(exclude_none=True)
-    
     failed_express_ids: list[int] = Field(
         default=[],
         title="Failed Express IDs",
@@ -143,13 +141,15 @@ async def ids_checker(
     failed_express_ids = sorted(all_failed_ids)
     passed_express_ids = sorted(all_applicable_ids - all_failed_ids)
 
-    specifications = specification_results if settings.generate_detailed_report else None
+    specifications = (
+        specification_results if settings.generate_detailed_report else None
+    )
 
     # Report-Datei generieren wenn beide Settings aktiv
     report_path: str | None = None
     if settings.generate_detailed_report and settings.report_format:
         from ifctester import reporter
-        
+
         # Output-Verzeichnis ermitteln
         if context.output_dir is None:
             # Fallback: Festes Verzeichnis verwenden
@@ -159,12 +159,12 @@ async def ids_checker(
             output_dir = web_dir
         else:
             output_dir = context.output_dir
-        
+
         reporter_class = getattr(reporter, settings.report_format.capitalize())
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         filename = f"ids_report-{timestamp}.{settings.report_format}"
         output_path = output_dir / filename
-        
+
         reporter_instance = reporter_class(ids_file)
         reporter_instance.report()
         reporter_instance.to_file(str(output_path))

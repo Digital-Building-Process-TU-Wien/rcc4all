@@ -364,9 +364,9 @@ export interface IDSChecker {
      */
     generate_detailed_report?: boolean
     /**
-     * Format for the generated report file. Only effective when generate_detailed_report is enabled.
+     * Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.
      */
-    report_format?: 'json' | 'html' | null
+    report_format?: (('json' | 'html') | null)
   }
   result: {
     /**
@@ -394,6 +394,10 @@ export interface IDSChecker {
        */
       passed_express_ids?: number[]
     }[] | null)
+    /**
+     * Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.
+     */
+    report_path?: (string | null)
   }
   inputs: {
     /**
