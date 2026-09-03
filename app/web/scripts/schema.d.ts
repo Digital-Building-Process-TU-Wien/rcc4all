@@ -7,6 +7,7 @@ export interface NodeRegistrySchema {
   generate_3d_cube?: Generate3DCube
   get_name?: ResolveObjectNames
   get_property?: GetProperty
+  ids_checker?: IDSChecker
   ifc_element_filter?: IfcElementFilter
   loi_check?: LOICheck
 }
@@ -345,6 +346,62 @@ export interface GetProperty {
   inputs: {
     /**
      * List of IFC express IDs to read property values from.
+     */
+    express_ids?: number[]
+  }
+}
+/**
+ * Validates the IFC model against one or more IDS specifications.
+ */
+export interface IDSChecker {
+  settings: {
+    /**
+     * Path to the IDS specification file to validate against.
+     */
+    ids_file?: string
+    /**
+     * Wenn aktiviert, werden die Ergebnisse zusätzlich nach Specification gruppiert ausgegeben (für Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.
+     */
+    generate_detailed_report?: boolean
+    /**
+     * Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.
+     */
+    report_format?: (('json' | 'html') | null)
+  }
+  result: {
+    /**
+     * List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).
+     */
+    failed_express_ids?: number[]
+    /**
+     * List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).
+     */
+    passed_express_ids?: number[]
+    /**
+     * Per-specification breakdown. Only included when generate_detailed_report is enabled.
+     */
+    specifications?: ({
+      /**
+       * Name of the IDS specification.
+       */
+      name?: string
+      /**
+       * List of express IDs of entities that failed this specification's requirements.
+       */
+      failed_express_ids?: number[]
+      /**
+       * List of express IDs of entities that passed this specification's requirements.
+       */
+      passed_express_ids?: number[]
+    }[] | null)
+    /**
+     * Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.
+     */
+    report_path?: (string | null)
+  }
+  inputs: {
+    /**
+     * Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.
      */
     express_ids?: number[]
   }

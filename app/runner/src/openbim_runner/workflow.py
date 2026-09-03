@@ -315,6 +315,7 @@ async def execute_workflow_async(
         context = ExecutionContext(
             ifc_model=ifc_model,
             node_outputs=node_outputs,
+            workflow_dir=workflow_path.parent,
             geometry_cache=geometry_cache,
             output_dir=workflow_path.parent,
         )
