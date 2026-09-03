@@ -10,6 +10,17 @@ Many approval-relevant requirements in construction are still written as natural
 
 RCC4All closes that gap. It supports a structured path from requirement definition to executable checks and documented results, with a strong focus on open standards and long-term maintainability.
 
+## Donation
+Our principle: sharing and distributing research is crucial to learning from each other and moving forward together. If you would like to support our open source research, we greatly appreciate donations.
+
+Technische Universität Wien/Spendenkonto IBAN:  
+AT19 3200 0200 0061 1228  
+BIC/SWFT:  
+RLNWATWW
+
+Purpose of transfer:  
+GEV011020ZFT S235030-000 - Digital Building Process
+
 ## How It Works
 
 1. Each checking authority (for example, a state building authority or a rail/infrastructure authority) works in its own team space with separate projects, permissions, and model versions.
