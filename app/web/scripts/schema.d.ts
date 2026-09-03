@@ -7,9 +7,11 @@ export interface NodeRegistrySchema {
   generate_3d_cube?: Generate3DCube
   get_name?: ResolveObjectNames
   get_property?: GetProperty
+  ids_checker?: IDSChecker
   ifc_element_filter?: IfcElementFilter
   loi_check?: LOICheck
   measurement?: Measurement
+  tilt_of_components?: TiltOfComponents
 }
 /**
  * Turn LOI-Check failures into a BCF 3.0 issue file.
@@ -351,6 +353,62 @@ export interface GetProperty {
   }
 }
 /**
+ * Validates the IFC model against one or more IDS specifications.
+ */
+export interface IDSChecker {
+  settings: {
+    /**
+     * Path to the IDS specification file to validate against.
+     */
+    ids_file?: string
+    /**
+     * Wenn aktiviert, werden die Ergebnisse zusätzlich nach Specification gruppiert ausgegeben (für Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.
+     */
+    generate_detailed_report?: boolean
+    /**
+     * Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.
+     */
+    report_format?: (('json' | 'html') | null)
+  }
+  result: {
+    /**
+     * List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).
+     */
+    failed_express_ids?: number[]
+    /**
+     * List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).
+     */
+    passed_express_ids?: number[]
+    /**
+     * Per-specification breakdown. Only included when generate_detailed_report is enabled.
+     */
+    specifications?: ({
+      /**
+       * Name of the IDS specification.
+       */
+      name?: string
+      /**
+       * List of express IDs of entities that failed this specification's requirements.
+       */
+      failed_express_ids?: number[]
+      /**
+       * List of express IDs of entities that passed this specification's requirements.
+       */
+      passed_express_ids?: number[]
+    }[] | null)
+    /**
+     * Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.
+     */
+    report_path?: (string | null)
+  }
+  inputs: {
+    /**
+     * Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.
+     */
+    express_ids?: number[]
+  }
+}
+/**
  * Filter IFC entities using table-based include and exclude rules.
  */
 export interface IfcElementFilter {
@@ -614,5 +672,110 @@ export interface Measurement {
     list_b?: ((number | string)[] | {
       [k: string]: (string | null)
     })
+  }
+}
+/**
+ * Measures the tilt of building components (walls/slabs as 2D surfaces, columns/beams as 1D axes) and flags components whose tilt violates the configured comparison threshold.
+ */
+export interface TiltOfComponents {
+  settings: {
+    /**
+     * '2d' measures the two largest flat surfaces (walls & slabs); '1d' measures the longitudinal axis of the element (columns & beams).
+     */
+    element_category?: ('2d' | '1d')
+    /**
+     * How the measured tilt is checked against the limits. 'greater_than_lower' / 'less_than_upper' use the single lower / upper limit; 'inside_interval' / 'outside_interval' use the interval barriers.
+     */
+    comparison_method?: ('greater_than_lower' | 'less_than_upper' | 'inside_interval' | 'outside_interval')
+    /**
+     * Tilt is flagged when it exceeds this value (comparison_method = greater_than_lower).
+     */
+    lower_limit?: number
+    /**
+     * Tilt is flagged when it is below this value (comparison_method = less_than_upper).
+     */
+    upper_limit?: number
+    /**
+     * Lower barrier used for inside_interval / outside_interval.
+     */
+    interval_lower?: number
+    /**
+     * Upper barrier used for inside_interval / outside_interval.
+     */
+    interval_upper?: number
+    /**
+     * Maximum horizontal angle deviation between two triangles to still count as the same surface. Used to merge the facets of curved / round objects.
+     */
+    horizontal_separation_angle?: number
+    /**
+     * Shared tolerance added/subtracted to the limits when flagging.
+     */
+    tolerance?: number
+  }
+  result: {
+    /**
+     * Number of elements processed.
+     */
+    element_count: number
+    /**
+     * Number of elements with at least one surface/axis check.
+     */
+    check_count: number
+    /**
+     * Number of elements with at least one flagged surface/axis.
+     */
+    failed_count: number
+    /**
+     * Name of the checked IFC model.
+     */
+    model_name?: string
+    /**
+     * Ordered list of elements with their tilt checks.
+     */
+    elements?: {
+      /**
+       * The express ID of the IFC entity.
+       */
+      express_id: number
+      /**
+       * IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.
+       */
+      class_name: string
+      /**
+       * The element category ('2d' or '1d') used to measure this element.
+       */
+      element_category: ('2d' | '1d')
+      /**
+       * True if at least one surface/axis check in this element was flagged.
+       */
+      failed: boolean
+      /**
+       * Surface ('2d') or axis ('1d') tilt checks for this element.
+       */
+      checks?: {
+        /**
+         * Human-readable expectation combined from the comparison method and limits.
+         */
+        expected: string
+        /**
+         * Measured tilt of the surface or axis in degrees.
+         */
+        tilt_angle: number
+        /**
+         * False when this surface/axis is flagged by the comparison method.
+         */
+        passed: boolean
+        /**
+         * Geometry-cache key of the helper geometry for flagged surfaces/axes.
+         */
+        geometry_key?: (string | null)
+      }[]
+    }[]
+  }
+  inputs: {
+    /**
+     * Optional list of IFC express IDs to measure. When empty, all IFC elements in the model are checked.
+     */
+    express_ids?: number[]
   }
 }

@@ -890,6 +890,160 @@
       ],
       "additionalProperties": false
     },
+    "ids_checker": {
+      "type": "object",
+      "title": "IDS Checker",
+      "description": "Validates the IFC model against one or more IDS specifications.",
+      "categories": [
+        "validation"
+      ],
+      "markdownDescription": "The `ids_checker` node validates the loaded IFC model against an IDS (Information Delivery Specification) file. Each specification defines entity types, properties, and classifications to check. The node supports multiple specifications within a single IDS file and aggregates results across all of them.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[int]` | Optional list of IFC entity express IDs to validate. When provided, only these entities are checked. When empty, the whole model is validated. |\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `ids_file` | `str` | Path to the IDS specification file (required). |\n| `generate_detailed_report` | `bool` (default: `false`) | When enabled, results are additionally grouped by specification (for report generation). Combined lists are always created. |\n| `report_format` | `\"json\" \\| \"html\" \\| null` (default: `null`) | Format for the generated report file. Only effective when `generate_detailed_report` is enabled. Report is saved as `ids_report-{timestamp}.{format}` in the output directory. |\n\n## Output Behavior\n\nThe combined lists (`failed_express_ids`, `passed_express_ids`) are always created. When `generate_detailed_report` is enabled, results are additionally grouped by specification for detailed reporting.\n\n## Result\n\n`IdsCheckerResult` contains three fields:\n\n- `failed_express_ids: list[int]` \u2014 Express IDs that failed at least one IDS requirement. Always populated.\n- `passed_express_ids: list[int]` \u2014 Express IDs that passed all applicable IDS requirements. Always populated.\n- `specifications: list[SpecificationResult] | null` \u2014 Per-specification breakdown. Only included when `generate_detailed_report` is enabled. Omitted from output when disabled.\n\nAn entity not applicable to any specification is silently excluded from both lists.\n\n## Notes\n\n- An empty `ids_file` raises a `ValueError`.\n- The IDS file must be valid XML.\n- Multiple specifications within one IDS are all checked; an entity fails if it violates **any** specification.",
+      "locales": {
+        "de": {
+          "title": "IDS Checker",
+          "description": "Validiert das IFC-Modell gegen eine oder mehrere IDS-Spezifikationen.",
+          "categories": [
+            "validation"
+          ],
+          "markdownDescription": "Der `ids_checker` Node validiert das geladene IFC-Modell gegen eine IDS-Datei (Information Delivery Specification). Jede Spezifikation definiert IFC-Entit\u00e4tstypen, Eigenschaften und Klassifikationen zur Pr\u00fcfung. Der Node unterst\u00fctzt mehrere Spezifikationen in einer einzigen IDS-Datei und aggregiert die Ergebnisse \u00fcber alle Spezifikationen hinweg.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[int]` | Optionale Liste von IFC-Express-IDs zur Validierung. Bei Angabe werden nur diese Entit\u00e4ten gepr\u00fcft. Bei leerer Liste wird das gesamte Modell validiert. |\n\n## Settings\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `ids_file` | `str` | Pfad zur IDS-Spezifikationsdatei (erforderlich). |\n| `generate_detailed_report` | `bool` (Standard: `false`) | Wenn aktiviert, werden die Ergebnisse zus\u00e4tzlich nach Specification gruppiert (f\u00fcr Report-Generierung). Die kombinierten Listen werden immer erstellt. |\n| `report_format` | `\"json\" \\| \"html\" \\| null` (Standard: `null`) | Format f\u00fcr den generierten Report. Nur wirksam wenn `generate_detailed_report` aktiviert ist. Report wird als `ids_report-{timestamp}.{format}` im Output-Verzeichnis gespeichert. |\n\n## Ausgabe-Verhalten\n\nDie kombinierten Listen (`failed_express_ids`, `passed_express_ids`) werden immer erstellt. Bei aktivierter Checkbox gibt es zus\u00e4tzlich eine Gruppierung nach Specification f\u00fcr detaillierte Reports.\n\n## Result\n\n`IdsCheckerResult` enth\u00e4lt drei Felder:\n\n- `failed_express_ids: list[int]` \u2014 Express-IDs, die mindestens eine IDS-Anforderung nicht erf\u00fcllt haben. Wird immer erstellt.\n- `passed_express_ids: list[int]` \u2014 Express-IDs, die alle anwendbaren IDS-Anforderungen erf\u00fcllt haben. Wird immer erstellt.\n- `specifications: list[SpecificationResult] | null` \u2014 Pro-Spezifikation-Aufschl\u00fcsselung. Nur enthalten, wenn `generate_detailed_report` aktiviert ist. Wird bei Deaktivierung nicht im Output ausgegeben.\n\nEine Entit\u00e4t, die auf keine Spezifikation passt, wird stillschweigend aus beiden Listen ausgeschlossen.\n\n## Notes\n\n- Ein leerer `ids_file`-Wert l\u00f6st einen `ValueError` aus.\n- Die IDS-Datei muss g\u00fcltiges XML sein.\n- Mehrere Spezifikationen in einer IDS-Datei werden alle gepr\u00fcft; eine Entit\u00e4t gilt als fehlgeschlagen, wenn sie **irgendeine** Spezifikation verletzt."
+        },
+        "en": {
+          "title": "IDS Checker",
+          "description": "Validates the IFC model against one or more IDS specifications.",
+          "categories": [
+            "validation"
+          ],
+          "markdownDescription": "The `ids_checker` node validates the loaded IFC model against an IDS (Information Delivery Specification) file. Each specification defines entity types, properties, and classifications to check. The node supports multiple specifications within a single IDS file and aggregates results across all of them.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[int]` | Optional list of IFC entity express IDs to validate. When provided, only these entities are checked. When empty, the whole model is validated. |\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `ids_file` | `str` | Path to the IDS specification file (required). |\n| `generate_detailed_report` | `bool` (default: `false`) | When enabled, results are additionally grouped by specification (for report generation). Combined lists are always created. |\n| `report_format` | `\"json\" \\| \"html\" \\| null` (default: `null`) | Format for the generated report file. Only effective when `generate_detailed_report` is enabled. Report is saved as `ids_report-{timestamp}.{format}` in the output directory. |\n\n## Output Behavior\n\nThe combined lists (`failed_express_ids`, `passed_express_ids`) are always created. When `generate_detailed_report` is enabled, results are additionally grouped by specification for detailed reporting.\n\n## Result\n\n`IdsCheckerResult` contains three fields:\n\n- `failed_express_ids: list[int]` \u2014 Express IDs that failed at least one IDS requirement. Always populated.\n- `passed_express_ids: list[int]` \u2014 Express IDs that passed all applicable IDS requirements. Always populated.\n- `specifications: list[SpecificationResult] | null` \u2014 Per-specification breakdown. Only included when `generate_detailed_report` is enabled. Omitted from output when disabled.\n\nAn entity not applicable to any specification is silently excluded from both lists.\n\n## Notes\n\n- An empty `ids_file` raises a `ValueError`.\n- The IDS file must be valid XML.\n- Multiple specifications within one IDS are all checked; an entity fails if it violates **any** specification."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "ids_file": {
+              "default": "",
+              "description": "Path to the IDS specification file to validate against.",
+              "type": "string"
+            },
+            "generate_detailed_report": {
+              "default": false,
+              "description": "Wenn aktiviert, werden die Ergebnisse zus\u00e4tzlich nach Specification gruppiert ausgegeben (f\u00fcr Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.",
+              "type": "boolean"
+            },
+            "report_format": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "json",
+                    "html"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Format f\u00fcr den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist."
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "failed_express_ids": {
+              "default": [],
+              "description": "List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "passed_express_ids": {
+              "default": [],
+              "description": "List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "specifications": {
+              "anyOf": [
+                {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the IDS specification.",
+                        "type": "string"
+                      },
+                      "failed_express_ids": {
+                        "default": [],
+                        "description": "List of express IDs of entities that failed this specification's requirements.",
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "passed_express_ids": {
+                        "default": [],
+                        "description": "List of express IDs of entities that passed this specification's requirements.",
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Per-specification breakdown. Only included when generate_detailed_report is enabled."
+            },
+            "report_path": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Path to the generated report file. Only included when generate_detailed_report and report_format are enabled."
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
     "ifc_element_filter": {
       "type": "object",
       "title": "Ifc Element Filter",
@@ -1574,6 +1728,216 @@
               ],
               "default": [],
               "description": "Second (optional) list of references \u2014 mix of express IDs (int \u2192 `ifc:<id>`) and object IDs (str \u2192 `gen:<id>`). When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys."
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
+    "tilt_of_components": {
+      "type": "object",
+      "title": "Tilt of Components",
+      "description": "Measures the tilt of building components (walls/slabs as 2D surfaces, columns/beams as 1D axes) and flags components whose tilt violates the configured comparison threshold.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "The `tilt_of_components` node measures the tilt of IFC building components relative\nto the horizontal plane and flags components that fall outside a configured limit.\nThe tilt value always represents the **smaller angle between the component's\ndominant surface/axis and the horizontal plane**: a vertical wall or column\nmeasures `90\u00b0`, a horizontal slab or beam measures `0\u00b0`.\n\nAn **element category** selector decides which algorithm is used for every input\nelement:\n\n- **2D (walls & slabs):** the mesh triangles are grouped into surfaces by their\n  normal vectors. The two largest surfaces (front/back) are measured. Each\n  surface's tilt is the average angle of its triangle normals against the\n  horizontal plane (complemented to stay under `90\u00b0`).\n- **1D (columns & beams):** the mesh triangles are grouped into surfaces. The\n  area-weighted centroid of each surface is computed, the two centroids furthest\n  apart define the element's longitudinal axis, and the axis's deviation from the\n  horizontal plane is measured.\n\n## Use case example\n\n- Check whether all walls in a model are vertical (2D category, \"greater than\n  lower limit\" with lower limit `89\u00b0`).\n- Check whether all columns are plumb (1D category).\n- Verify that beams are horizontal rather than sagging.\n\n## Settings\n\n| Setting | Type | Default | Description |\n|---------|------|---------|-------------|\n| Element category | `2d` / `1d` | `2d` | `2d` measures walls & slabs (two largest surfaces); `1d` measures columns & beams (longitudinal axis). |\n| Comparison method | enum | `greater_than_lower` | How the measured tilt is checked against the limits (see below). |\n| Lower limit (\u00b0) | `number` | `0` | Tilt is flagged when it is greater than this value (method `greater_than_lower`). |\n| Upper limit (\u00b0) | `number` | `90` | Tilt is flagged when it is below this value (method `less_than_upper`). |\n| Interval lower (\u00b0) | `number` | `0` | Lower barrier for the interval methods. |\n| Interval upper (\u00b0) | `number` | `90` | Upper barrier for the interval methods. |\n| Horizontal separation angle (\u00b0) | `number` | `5` | Maximum horizontal angle deviation between two triangles to still count as the same surface (merges facets of curved/round objects). |\n| Tolerance (\u00b0) | `number` | `0.1` | Shared tolerance added to/subtracted from the limits when flagging. |\n\n### Comparison methods\n\n| Value | Flags when |\n|-------|-----------|\n| `greater_than_lower` | `tilt > lower_limit + tolerance` |\n| `less_than_upper` | `tilt < upper_limit - tolerance` |\n| `inside_interval` | `interval_lower - tolerance < tilt < interval_upper + tolerance` |\n| `outside_interval` | `tilt < interval_lower - tolerance` or `tilt > interval_upper + tolerance` |\n\nA single interval pair is reused by both interval methods because only one\ncomparison method is active at a time.\n\n## Inputs\n\n- **Express IDs** (optional): List of IFC express IDs to measure. Typically\n  connected to the output of an `ifc_element_filter`. When unconnected, all IFC\n  elements in the model are checked.\n\n## Outputs\n\nThe result is a slim, structured check per element:\n\n- `element_count`: number of elements processed\n- `check_count`: number of elements with at least one surface/axis check (elements\n  without tessellated geometry are skipped and not counted)\n- `failed_count`: number of elements with at least one flagged surface/axis\n- `model_name`: name of the checked IFC model (taken from the IFC header file name)\n- `elements`: ordered list of\n  - `express_id`, `class_name` (IFC class or `unknown`), `element_category`\n  - `failed`: true when at least one check was flagged\n  - `checks`: list of `TiltSurfaceCheck`:\n    - `expected`: human-readable pass condition combined from the comparison\n      method and limits (e.g. \"less than or equal to X\")\n    - `tilt_angle` (\u00b0), `passed`\n    - `geometry_key`: geometry-cache key of the helper geometry for flagged checks\n\nA 2D element yields up to two checks (front/back surfaces); a 1D element yields\none check (its axis). The `check_count` and `failed_count` totals count elements,\nnot individual checks.\n\n## Helper geometry\n\nFlagged checks store a helper geometry in the geometry cache for visualization:\n\n- 2D: the flagged surface triangles under `inter:tilt_surface_{express_id}_{surface_index}`\n- 1D: a thin axis cylinder under `inter:tilt_axis_{express_id}`\n\nThese are `inter:` keys, so they are excluded from collision inputs and the\nwhole-model fallback.\n\n## Notes on openings\n\nFor walls containing window/door openings, the opening void is already subtracted\nfrom the wall mesh, so the two-largest-surfaces approach still identifies the\ncorrect front/back faces. Dedicated openings (`IfcRelVoidsElement`) handling is\nnot implemented in this version.\n\n## Composite / decomposed elements\n\nSome models express a composite element (e.g. a multi-layer wall) as an element\ndecomposed via `IfcRelAggregates` into `IfcBuildingElementPart` sub-elements, each\nwith its own Body geometry. When such an element has no own tessellated `Body`\nmesh, its tilt is measured as a whole by combining the geometry of all its parts\n(recursively through the aggregation). The parts themselves remain listed and\nmeasured independently, so a whole wall and its layers both appear in the result.",
+      "locales": {
+        "de": {
+          "title": "Neigung von Bauteilen",
+          "description": "Misst die Neigung von Bauteilen (W\u00e4nde/Decken als 2D-Fl\u00e4chen, St\u00fctzen/Tr\u00e4ger als 1D-Achsen) und kennzeichnet Bauteile, deren Neigung den konfigurierten Vergleichsgrenzwert verletzt.",
+          "categories": [
+            "geometry"
+          ],
+          "markdownDescription": "Der `tilt_of_components`-Knoten misst die Neigung von IFC-Bauteilen relativ zur\nhorizontalen Ebene und kennzeichnet Bauteile, die au\u00dferhalb eines konfigurierten\nGrenzwerts liegen. Der Neigungswert entspricht stets dem **kleineren Winkel zwischen\nder dominanten Fl\u00e4che/Achse des Bauteils und der horizontalen Ebene**: eine vertikale\nWand oder St\u00fctze misst `90\u00b0`, eine horizontale Decke oder ein Tr\u00e4ger `0\u00b0`.\n\nEin **Element-Kategorie**-Auswahlfeld entscheidet, welcher Algorithmus f\u00fcr jedes\nEingabe-Element verwendet wird:\n\n- **2D (W\u00e4nde & Decken):** Die Dreiecke des Netzes werden anhand ihrer\n  Normalenvektoren zu Fl\u00e4chen gruppiert. Die beiden gr\u00f6\u00dften Fl\u00e4chen (Vorder- und\n  R\u00fcckseite) werden gemessen. Die Neigung jeder Fl\u00e4che ist der Durchschnittswinkel\n  ihrer Dreiecks-Normalen zur horizontalen Ebene (komplementiert, um unter `90\u00b0`\n  zu bleiben).\n- **1D (St\u00fctzen & Tr\u00e4ger):** Die Dreiecke des Netzes werden zu Fl\u00e4chen gruppiert.\n  Der fl\u00e4chengewichtete Schwerpunkt jeder Fl\u00e4che wird berechnet; die beiden am\n  weitesten voneinander entfernten Schwerpunkte definieren die L\u00e4ngsachse des\n  Bauteils, und die Abweichung der Achse von der horizontalen Ebene wird gemessen.\n\n## Anwendungsbeispiel\n\n- Pr\u00fcfen, ob alle W\u00e4nde im Modell vertikal sind (2D-Kategorie, \"gr\u00f6\u00dfer als\n  Untergrenze\" mit Untergrenze `89\u00b0`).\n- Pr\u00fcfen, ob alle St\u00fctzen lotrecht sind (1D-Kategorie).\n- Pr\u00fcfen, ob Tr\u00e4ger horizontal und nicht durchh\u00e4ngend sind.\n\n## Einstellungen\n\n| Einstellung | Typ | Standard | Beschreibung |\n|-------------|-----|----------|--------------|\n| Element-Kategorie | `2d` / `1d` | `2d` | `2d` misst W\u00e4nde & Decken (zwei gr\u00f6\u00dfte Fl\u00e4chen); `1d` misst St\u00fctzen & Tr\u00e4ger (L\u00e4ngsachse). |\n| Vergleichsmethode | Auswahl | `greater_than_lower` | Wie die gemessene Neigung mit den Grenzwerten verglichen wird (siehe unten). |\n| Untergrenze (\u00b0) | Zahl | `0` | Bauteil wird gekennzeichnet, wenn die Neigung gr\u00f6\u00dfer als dieser Wert ist (Methode `greater_than_lower`). |\n| Obergrenze (\u00b0) | Zahl | `90` | Bauteil wird gekennzeichnet, wenn die Neigung unter diesem Wert liegt (Methode `less_than_upper`). |\n| Intervall-Untergrenze (\u00b0) | Zahl | `0` | Untere Grenze f\u00fcr die Intervallmethoden. |\n| Intervall-Obergrenze (\u00b0) | Zahl | `90` | Obere Grenze f\u00fcr die Intervallmethoden. |\n| Horizontaler Trennungswinkel (\u00b0) | Zahl | `5` | Maximale horizontale Winkelabweichung zwischen zwei Dreiecken, um noch als dieselbe Fl\u00e4che zu gelten (fasst Facetten gekr\u00fcmmter/runder Objekte zusammen). |\n| Toleranz (\u00b0) | Zahl | `0.1` | Gemeinsame Toleranz, die beim Kennzeichnen zu den Grenzwerten addiert bzw. subtrahiert wird. |\n\n### Vergleichsmethoden\n\n| Wert | Kennzeichnet, wenn |\n|------|--------------------|\n| `greater_than_lower` | `Neigung > Untergrenze + Toleranz` |\n| `less_than_upper` | `Neigung < Obergrenze - Toleranz` |\n| `inside_interval` | `Intervall-Untergrenze - Toleranz < Neigung < Intervall-Obergrenze + Toleranz` |\n| `outside_interval` | `Neigung < Intervall-Untergrenze - Toleranz` oder `Neigung > Intervall-Obergrenze + Toleranz` |\n\nEin Intervallpaar wird von beiden Intervallmethoden wiederverwendet, da jeweils\nnur eine Vergleichsmethode aktiv ist.\n\n## Eingaben\n\n- **Express-IDs** (optional): Liste der IFC-Express-IDs, die gemessen werden\n  sollen. \u00dcblicherweise mit dem Ausgang eines `ifc_element_filter` verbunden. Wenn\n  nicht verbunden, werden alle IFC-Elemente im Modell gepr\u00fcft.\n\n## Ausgaben\n\nDas Ergebnis ist eine schlanke, strukturierte Pr\u00fcfung pro Element:\n\n- `element_count`: Anzahl der verarbeiteten Elemente\n- `check_count`: Anzahl der Elemente mit mindestens einer Fl\u00e4chen-/Achsenpr\u00fcfung\n  (Elemente ohne Geometrie werden \u00fcbersprungen und nicht gez\u00e4hlt)\n- `failed_count`: Anzahl der Elemente mit mindestens einer gekennzeichneten\n  Fl\u00e4che/Achse\n- `model_name`: Name des gepr\u00fcften IFC-Modells (aus dem Dateinamen im IFC-Header)\n- `elements`: geordnete Liste aus\n  - `express_id`, `class_name` (IFC-Klasse oder `unknown`), `element_category`\n  - `failed`: true, wenn mindestens eine Pr\u00fcfung gekennzeichnet wurde\n  - `checks`: Liste von `TiltSurfaceCheck`:\n    - `expected`: lesbare Soll-Bedingung, aus Vergleichsmethode und Grenzwerten\n      kombiniert (z. B. \u201ekleiner oder gleich X\")\n    - `tilt_angle` (\u00b0), `passed`\n    - `geometry_key`: Geometrie-Cache-Schl\u00fcssel der Hilfsgeometrie f\u00fcr gekennzeichnete Pr\u00fcfungen\n\nEin 2D-Element liefert bis zu zwei Pr\u00fcfungen (Vorder-/R\u00fcckseite); ein\n1D-Element eine Pr\u00fcfung (seine Achse). `check_count` und `failed_count` z\u00e4hlen\nElemente, nicht einzelne Pr\u00fcfungen.\n\n## Hilfsgeometrie\n\nGekennzeichnete Pr\u00fcfungen speichern eine Hilfsgeometrie im Geometrie-Cache zur\nVisualisierung:\n\n- 2D: die gekennzeichneten Fl\u00e4chen-Dreiecke unter `inter:tilt_surface_{express_id}_{surface_index}`\n- 1D: einen d\u00fcnnen Achszylinder unter `inter:tilt_axis_{express_id}`\n\nDies sind `inter:`-Schl\u00fcssel, die von den Eingaben des Kollisionsknotens und vom\nModell-Fallback ausgeschlossen sind.\n\n## Hinweise zu \u00d6ffnungen\n\nBei W\u00e4nden mit Fenster-/T\u00fcr\u00f6ffnungen ist die \u00d6ffnungsaussparung bereits vom\nWandnetz subtrahiert, sodass der Ansatz der zwei gr\u00f6\u00dften Fl\u00e4chen weiterhin die\nkorrekten Vorder-/R\u00fcckseiten findet. Eine dedizierte Verarbeitung von \u00d6ffnungen\n(`IfcRelVoidsElement`) ist in dieser Version nicht umgesetzt.\n\n## Verbund- / zerlegte Elemente\n\nManche Modelle bilden ein Verbundelement (z. B. eine mehrschichtige Wand) als ein\n\u00fcber `IfcRelAggregates` in `IfcBuildingElementPart`-Teilelemente zerlegtes Element\nab, wobei jeder Teil eine eigene Body-Geometrie besitzt. Hat ein solches Element\nkein eigenes tesseliertes `Body`-Netz, wird seine Neigung als Ganzes gemessen,\nindem die Geometrie aller seiner Teile (rekursiv durch die Aggregation) kombiniert\nwird. Die Teile selbst bleiben dabei gelistet und werden unabh\u00e4ngig gemessen, sodass\nsowohl die gesamte Wand als auch ihre Schichten im Ergebnis erscheinen."
+        },
+        "en": {
+          "title": "Tilt of Components",
+          "description": "Measures the tilt of building components (walls/slabs as 2D surfaces, columns/beams as 1D axes) and flags components whose tilt violates the configured comparison threshold.",
+          "categories": [
+            "geometry"
+          ],
+          "markdownDescription": "The `tilt_of_components` node measures the tilt of IFC building components relative\nto the horizontal plane and flags components that fall outside a configured limit.\nThe tilt value always represents the **smaller angle between the component's\ndominant surface/axis and the horizontal plane**: a vertical wall or column\nmeasures `90\u00b0`, a horizontal slab or beam measures `0\u00b0`.\n\nAn **element category** selector decides which algorithm is used for every input\nelement:\n\n- **2D (walls & slabs):** the mesh triangles are grouped into surfaces by their\n  normal vectors. The two largest surfaces (front/back) are measured. Each\n  surface's tilt is the average angle of its triangle normals against the\n  horizontal plane (complemented to stay under `90\u00b0`).\n- **1D (columns & beams):** the mesh triangles are grouped into surfaces. The\n  area-weighted centroid of each surface is computed, the two centroids furthest\n  apart define the element's longitudinal axis, and the axis's deviation from the\n  horizontal plane is measured.\n\n## Use case example\n\n- Check whether all walls in a model are vertical (2D category, \"greater than\n  lower limit\" with lower limit `89\u00b0`).\n- Check whether all columns are plumb (1D category).\n- Verify that beams are horizontal rather than sagging.\n\n## Settings\n\n| Setting | Type | Default | Description |\n|---------|------|---------|-------------|\n| Element category | `2d` / `1d` | `2d` | `2d` measures walls & slabs (two largest surfaces); `1d` measures columns & beams (longitudinal axis). |\n| Comparison method | enum | `greater_than_lower` | How the measured tilt is checked against the limits (see below). |\n| Lower limit (\u00b0) | `number` | `0` | Tilt is flagged when it is greater than this value (method `greater_than_lower`). |\n| Upper limit (\u00b0) | `number` | `90` | Tilt is flagged when it is below this value (method `less_than_upper`). |\n| Interval lower (\u00b0) | `number` | `0` | Lower barrier for the interval methods. |\n| Interval upper (\u00b0) | `number` | `90` | Upper barrier for the interval methods. |\n| Horizontal separation angle (\u00b0) | `number` | `5` | Maximum horizontal angle deviation between two triangles to still count as the same surface (merges facets of curved/round objects). |\n| Tolerance (\u00b0) | `number` | `0.1` | Shared tolerance added to/subtracted from the limits when flagging. |\n\n### Comparison methods\n\n| Value | Flags when |\n|-------|-----------|\n| `greater_than_lower` | `tilt > lower_limit + tolerance` |\n| `less_than_upper` | `tilt < upper_limit - tolerance` |\n| `inside_interval` | `interval_lower - tolerance < tilt < interval_upper + tolerance` |\n| `outside_interval` | `tilt < interval_lower - tolerance` or `tilt > interval_upper + tolerance` |\n\nA single interval pair is reused by both interval methods because only one\ncomparison method is active at a time.\n\n## Inputs\n\n- **Express IDs** (optional): List of IFC express IDs to measure. Typically\n  connected to the output of an `ifc_element_filter`. When unconnected, all IFC\n  elements in the model are checked.\n\n## Outputs\n\nThe result is a slim, structured check per element:\n\n- `element_count`: number of elements processed\n- `check_count`: number of elements with at least one surface/axis check (elements\n  without tessellated geometry are skipped and not counted)\n- `failed_count`: number of elements with at least one flagged surface/axis\n- `model_name`: name of the checked IFC model (taken from the IFC header file name)\n- `elements`: ordered list of\n  - `express_id`, `class_name` (IFC class or `unknown`), `element_category`\n  - `failed`: true when at least one check was flagged\n  - `checks`: list of `TiltSurfaceCheck`:\n    - `expected`: human-readable pass condition combined from the comparison\n      method and limits (e.g. \"less than or equal to X\")\n    - `tilt_angle` (\u00b0), `passed`\n    - `geometry_key`: geometry-cache key of the helper geometry for flagged checks\n\nA 2D element yields up to two checks (front/back surfaces); a 1D element yields\none check (its axis). The `check_count` and `failed_count` totals count elements,\nnot individual checks.\n\n## Helper geometry\n\nFlagged checks store a helper geometry in the geometry cache for visualization:\n\n- 2D: the flagged surface triangles under `inter:tilt_surface_{express_id}_{surface_index}`\n- 1D: a thin axis cylinder under `inter:tilt_axis_{express_id}`\n\nThese are `inter:` keys, so they are excluded from collision inputs and the\nwhole-model fallback.\n\n## Notes on openings\n\nFor walls containing window/door openings, the opening void is already subtracted\nfrom the wall mesh, so the two-largest-surfaces approach still identifies the\ncorrect front/back faces. Dedicated openings (`IfcRelVoidsElement`) handling is\nnot implemented in this version.\n\n## Composite / decomposed elements\n\nSome models express a composite element (e.g. a multi-layer wall) as an element\ndecomposed via `IfcRelAggregates` into `IfcBuildingElementPart` sub-elements, each\nwith its own Body geometry. When such an element has no own tessellated `Body`\nmesh, its tilt is measured as a whole by combining the geometry of all its parts\n(recursively through the aggregation). The parts themselves remain listed and\nmeasured independently, so a whole wall and its layers both appear in the result."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "element_category": {
+              "default": "2d",
+              "description": "'2d' measures the two largest flat surfaces (walls & slabs); '1d' measures the longitudinal axis of the element (columns & beams).",
+              "enum": [
+                "2d",
+                "1d"
+              ],
+              "type": "string"
+            },
+            "comparison_method": {
+              "default": "greater_than_lower",
+              "description": "How the measured tilt is checked against the limits. 'greater_than_lower' / 'less_than_upper' use the single lower / upper limit; 'inside_interval' / 'outside_interval' use the interval barriers.",
+              "enum": [
+                "greater_than_lower",
+                "less_than_upper",
+                "inside_interval",
+                "outside_interval"
+              ],
+              "type": "string"
+            },
+            "lower_limit": {
+              "default": 0.0,
+              "description": "Tilt is flagged when it exceeds this value (comparison_method = greater_than_lower).",
+              "type": "number"
+            },
+            "upper_limit": {
+              "default": 90.0,
+              "description": "Tilt is flagged when it is below this value (comparison_method = less_than_upper).",
+              "type": "number"
+            },
+            "interval_lower": {
+              "default": 0.0,
+              "description": "Lower barrier used for inside_interval / outside_interval.",
+              "type": "number"
+            },
+            "interval_upper": {
+              "default": 90.0,
+              "description": "Upper barrier used for inside_interval / outside_interval.",
+              "type": "number"
+            },
+            "horizontal_separation_angle": {
+              "default": 5.0,
+              "description": "Maximum horizontal angle deviation between two triangles to still count as the same surface. Used to merge the facets of curved / round objects.",
+              "type": "number"
+            },
+            "tolerance": {
+              "default": 0.1,
+              "description": "Shared tolerance added/subtracted to the limits when flagging.",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "element_count": {
+              "description": "Number of elements processed.",
+              "type": "integer"
+            },
+            "check_count": {
+              "description": "Number of elements with at least one surface/axis check.",
+              "type": "integer"
+            },
+            "failed_count": {
+              "description": "Number of elements with at least one flagged surface/axis.",
+              "type": "integer"
+            },
+            "model_name": {
+              "default": "",
+              "description": "Name of the checked IFC model.",
+              "type": "string"
+            },
+            "elements": {
+              "default": [],
+              "description": "Ordered list of elements with their tilt checks.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "express_id": {
+                    "description": "The express ID of the IFC entity.",
+                    "type": "integer"
+                  },
+                  "class_name": {
+                    "description": "IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.",
+                    "type": "string"
+                  },
+                  "element_category": {
+                    "description": "The element category ('2d' or '1d') used to measure this element.",
+                    "enum": [
+                      "2d",
+                      "1d"
+                    ],
+                    "type": "string"
+                  },
+                  "failed": {
+                    "description": "True if at least one surface/axis check in this element was flagged.",
+                    "type": "boolean"
+                  },
+                  "checks": {
+                    "default": [],
+                    "description": "Surface ('2d') or axis ('1d') tilt checks for this element.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expected": {
+                          "description": "Human-readable expectation combined from the comparison method and limits.",
+                          "type": "string"
+                        },
+                        "tilt_angle": {
+                          "description": "Measured tilt of the surface or axis in degrees.",
+                          "type": "number"
+                        },
+                        "passed": {
+                          "description": "False when this surface/axis is flagged by the comparison method.",
+                          "type": "boolean"
+                        },
+                        "geometry_key": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Geometry-cache key of the helper geometry for flagged surfaces/axes."
+                        }
+                      },
+                      "required": [
+                        "expected",
+                        "tilt_angle",
+                        "passed"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "express_id",
+                  "class_name",
+                  "element_category",
+                  "failed"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "element_count",
+            "check_count",
+            "failed_count"
+          ],
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "Optional list of IFC express IDs to measure. When empty, all IFC elements in the model are checked.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
             }
           },
           "type": "object"

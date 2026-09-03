@@ -23,6 +23,12 @@ export interface AvailableNode {
   markdownDescription?: string
 }
 
+const CAMEL_BOUNDARY_RE = /([a-z0-9])([A-Z])/g
+const ACRONYM_BOUNDARY_RE = /([A-Z])([A-Z][a-z])/g
+const UPPERCASE_DIGIT_RE = /([A-Z])(\d)/gi
+const DIGIT_UPPERCASE_RE = /(\d)([A-Z])/gi
+const DIGIT_LOWERCASE_RE = /(\d)([a-z])/g
+
 /**
  * Node component loader - loads Vue components from the nodes directory
  */
@@ -38,10 +44,10 @@ const components = Object.fromEntries(
 
 function formatNodeLabel(nodeName: string): string {
   return nodeName
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
-    .replace(/([A-Z])(\d)/gi, '$1 $2')
-    .replace(/(\d)([A-Z])/gi, '$1 $2')
+    .replace(CAMEL_BOUNDARY_RE, '$1 $2')
+    .replace(ACRONYM_BOUNDARY_RE, '$1 $2')
+    .replace(UPPERCASE_DIGIT_RE, '$1 $2')
+    .replace(DIGIT_UPPERCASE_RE, '$1 $2')
     .trim()
 }
 
@@ -53,7 +59,7 @@ function toPascalCase(str: string): string {
     const firstChar = part.charAt(0).toUpperCase()
     const rest = part.slice(1)
     // Handle letter after digit (e.g., "3d" -> "3D")
-    const processed = rest.replace(/(\d)([a-z])/g, (match, digit, letter) => {
+    const processed = rest.replace(DIGIT_LOWERCASE_RE, (match, digit, letter) => {
       return digit + letter.toUpperCase()
     })
     return firstChar + processed
@@ -70,10 +76,12 @@ const nodeNameToComponent: Record<string, string> = {
   generate_3d_cube: 'Generate3DCube',
   get_name: 'GetName',
   get_property: 'GetProperty',
+  ids_checker: 'IdsChecker',
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
   measurement: 'Measurement',
   loi_check: 'LoiCheck',
+  tilt_of_components: 'TiltOfComponents',
 }
 
 /**
@@ -100,7 +108,7 @@ export function getNodeLabel(nodeName: string): string {
 
 function toSnakeCase(str: string): string {
   return str
-    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(CAMEL_BOUNDARY_RE, '$1_$2')
     .toLowerCase()
 }
 

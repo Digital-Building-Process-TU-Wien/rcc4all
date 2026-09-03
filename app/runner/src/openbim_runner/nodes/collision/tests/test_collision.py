@@ -326,3 +326,99 @@ def test_collision_missing_object_id_raises() -> None:
             CollisionInputs(list_a=["ghost"], list_b=[1]),
             context,
         )
+
+
+class _FakePart:
+    def __init__(self, pid: int) -> None:
+        self._pid = pid
+
+    def id(self) -> int:
+        return self._pid
+
+
+class _FakeAggregateRel:
+    RelatingObject: Any = None
+    RelatedObjects: list[Any] = None  # type: ignore[assignment]
+
+    def __init__(self, parent: int, children: list[int]) -> None:
+        self.RelatingObject = _FakePart(parent)
+        self.RelatedObjects = [_FakePart(c) for c in children]
+
+
+class _FakeAggregateModel:
+    def __init__(self, rels: list[_FakeAggregateRel]) -> None:
+        self._rels = rels
+
+    def by_type(self, name: str) -> list[_FakeAggregateRel]:
+        if name in ("IfcRelAggregates", "IfcRelNests"):
+            return self._rels
+        return []
+
+
+def _run_with_model(
+    rels: list[_FakeAggregateRel],
+    inputs: CollisionInputs,
+    boxes: dict[int, tuple[list[float], list[float]]],
+) -> CollisionResult:
+    context = ExecutionContext(
+        ifc_model=cast(Any, _FakeAggregateModel(rels)), node_outputs={}
+    )
+    for express_id, (translation, extents) in boxes.items():
+        _express_box(context, express_id, translation, extents)
+    return _run(CollisionSettings(), inputs, context)
+
+
+def test_collision_skips_parent_child_decomposition() -> None:
+    # Wall parent 10 overlaps its own aggregated part 20 -> self-comparison, skipped.
+    result = _run_with_model(
+        [_FakeAggregateRel(10, [20])],
+        CollisionInputs(list_a=[10], list_b=[20]),
+        {10: ([0, 0, 0], [2, 2, 2]), 20: ([1, 0, 0], [2, 2, 2])},
+    )
+    assert result.collisions == {}
+    assert result.errors == []
+
+
+def test_collision_keeps_cross_tree_decomposition_collisions() -> None:
+    # tree1: 10 -> 20 ; tree2: 30 -> 40.
+    # 20 (tree1) overlaps 40 (tree2): distinct elements, must still be reported.
+    result = _run_with_model(
+        [_FakeAggregateRel(10, [20]), _FakeAggregateRel(30, [40])],
+        CollisionInputs(list_a=[20], list_b=[40]),
+        {
+            10: ([0, 0, 0], [2, 2, 2]),
+            20: ([0, 0, 0], [2, 2, 2]),
+            30: ([10, 0, 0], [2, 2, 2]),
+            40: ([0.5, 0, 0], [2, 2, 2]),
+        },
+    )
+    assert result.collisions == {"ifc:20": ["ifc:40"]}
+    assert result.errors == []
+
+
+def test_collision_skips_parent_child_in_whole_model_fallback() -> None:
+    # list_b empty -> whole model fallback. Parent 10 vs its own part 20 must be
+    # skipped even though the whole model includes both. (Regression for the
+    # reported Attika self-collision on decomposed walls.)
+    result = _run_with_model(
+        [_FakeAggregateRel(10, [20])],
+        CollisionInputs(list_a=[10], list_b=[]),
+        {10: ([0, 0, 0], [2, 2, 2]), 20: ([1, 0, 0], [2, 2, 2])},
+    )
+    assert result.collisions == {}
+    assert result.errors == []
+
+
+def test_collision_transitive_ancestor_descendant_is_skipped() -> None:
+    # Grandparent 10 -> 20 -> 30. 10 vs 30 (grandchild) is a self-comparison too.
+    result = _run_with_model(
+        [_FakeAggregateRel(10, [20]), _FakeAggregateRel(20, [30])],
+        CollisionInputs(list_a=[10], list_b=[30]),
+        {
+            10: ([0, 0, 0], [2, 2, 2]),
+            20: ([0, 0, 0], [2, 2, 2]),
+            30: ([1, 0, 0], [2, 2, 2]),
+        },
+    )
+    assert result.collisions == {}
+    assert result.errors == []

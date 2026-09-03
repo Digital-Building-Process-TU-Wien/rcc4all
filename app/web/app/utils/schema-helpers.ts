@@ -2,6 +2,11 @@ import type { NodeRegistrySchema } from '@@/scripts/schema'
 import type { Node } from '@vue-flow/core'
 import schemaJson from '@@/scripts/schema.json'
 
+const CAMEL_BOUNDARY_RE = /([a-z0-9])([A-Z])/g
+const ACRONYM_BOUNDARY_RE = /([A-Z])([A-Z][a-z])/g
+const UPPERCASE_DIGIT_RE = /([A-Z])(\d)/gi
+const DIGIT_UPPERCASE_RE = /(\d)([A-Z])/gi
+
 /**
  * Convert a schema type to a Vue Flow Node type.
  * Schema types (e.g., ConcatenateStrings) have { settings, result, inputs } at the root,
@@ -129,9 +134,9 @@ function areItemsCompatible(output: TypeInfo | undefined, input: TypeInfo | unde
 
 export function formatLabel(str: string): string {
   return str
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
-    .replace(/([A-Z])(\d)/gi, '$1 $2')
-    .replace(/(\d)([A-Z])/gi, '$1 $2')
+    .replace(CAMEL_BOUNDARY_RE, '$1 $2')
+    .replace(ACRONYM_BOUNDARY_RE, '$1 $2')
+    .replace(UPPERCASE_DIGIT_RE, '$1 $2')
+    .replace(DIGIT_UPPERCASE_RE, '$1 $2')
     .trim()
 }
