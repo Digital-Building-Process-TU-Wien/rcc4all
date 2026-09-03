@@ -309,7 +309,7 @@
       "title": "Measurement",
       "description": "Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.",
       "measurementType": "Measurement Type",
-      "measurementTypeHelp": "In v4, volume, surface area, projected area, component height, minimum distance between elements (List A × List B pattern), and distance to reference (point/plane) are implemented.",
+      "measurementTypeHelp": "Computes volume, surface area, projected area, component height, minimum distance between elements (List A × List B pattern), and distance to reference (point/plane).",
       "listBWarning": "List B is only used for \"Minimum Distance Between Elements\" mode and will be ignored.",
       "projectionNormal": "Projection Normal",
       "projectionNormalHelp": "Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view).",

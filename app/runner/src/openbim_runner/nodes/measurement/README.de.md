@@ -4,7 +4,7 @@ description: Berechnet geometrische Messungen (Volumen, Oberfläche, projizierte
 categories: Measurement
 ---
 
-Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder anderen zwischengespeicherten Geometrien (z. B. Schnittmengen aus dem collision-Knoten). Jede Messung wird pro Element mit Referenz, Wert und ggf. Fehler ausgegeben. In v4 unterstützt der Knoten Volumen-, Oberflächen-, projizierte Flächen-, Bauteilhöhen-, minimaler Abstand zwischen Elementen- und Abstand-zur-Referenz-Berechnungen.
+Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder anderen zwischengespeicherten Geometrien (z. B. Schnittmengen aus dem collision-Knoten). Jede Messung wird pro Element mit Referenz, Wert und ggf. Fehler ausgegeben. Der Knoten unterstützt Volumen-, Oberflächen-, projizierte Flächen-, Bauteilhöhen-, minimaler Abstand zwischen Elementen- und Abstand-zur-Referenz-Berechnungen.
 
 ## Anwendungsbeispiel
 

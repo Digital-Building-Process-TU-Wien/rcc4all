@@ -4,7 +4,7 @@ description: Compute geometric measurements (volume, surface area, projected are
 categories: Measurement
 ---
 
-The `measurement` node computes geometric measurements of IFC elements or other cached geometries (e.g., intersection meshes from the collision node). Each measurement is reported per element with its reference, value, and any error. In v4, the node supports volume, surface area, projected area, component height, minimum distance between elements, and distance to reference computations.
+The `measurement` node computes geometric measurements of IFC elements or other cached geometries (e.g., intersection meshes from the collision node). Each measurement is reported per element with its reference, value, and any error. The node supports volume, surface area, projected area, component height, minimum distance between elements, and distance to reference computations.
 
 ## Use case example
 

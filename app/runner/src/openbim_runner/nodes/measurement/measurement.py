@@ -24,7 +24,7 @@ class MeasurementSettings(NodeModel):
     measurement_type: MeasurementType = Field(
         default="volume",
         title="Measurement Type",
-        description="The type of measurement to compute. In v4, 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', and 'distance_to_reference' are implemented.",
+        description="The type of measurement to compute: 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', 'distance_to_reference'.",
     )
     projection_normal: list[float] = Field(
         default=[0.0, 0.0, 1.0],
@@ -375,27 +375,12 @@ def _compute_distance_to_reference(
     )
 
 
-_IMPLEMENTED_MODES = {
-    "volume",
-    "surface_area",
-    "projected_area",
-    "component_height",
-    "distance_between",
-    "distance_to_reference",
-}
-
-
 @node()
 async def measurement(
     settings: MeasurementSettings,
     inputs: MeasurementInputs,
     context: ExecutionContext,
 ) -> MeasurementResult:
-    if settings.measurement_type not in _IMPLEMENTED_MODES:
-        raise ValueError(
-            f"Measurement type '{settings.measurement_type}' is not implemented yet."
-        )
-
     if settings.measurement_type == "distance_between":
         return _compute_distance_between(context, inputs.list_a, inputs.list_b)
 

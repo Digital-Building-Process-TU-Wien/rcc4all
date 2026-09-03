@@ -309,7 +309,7 @@
       "title": "Messung",
       "description": "Berechne geometrische Messungen (Volumen, Oberfläche, projizierte Fläche, Bauteilhöhe, minimaler Abstand zwischen Elementen, Abstand zu Referenz) von IFC-Elementen oder zwischengespeicherten Geometrien.",
       "measurementType": "Messungstyp",
-      "measurementTypeHelp": "In v4 sind Volumen, Oberfläche, projizierte Fläche, Bauteilhöhe, minimaler Abstand zwischen Elementen (Liste A × Liste B Muster) und Abstand zu Referenz (Punkt/Ebene) implementiert.",
+      "measurementTypeHelp": "Berechnet Volumen, Oberfläche, projizierte Fläche, Bauteilhöhe, minimaler Abstand zwischen Elementen (Liste A × Liste B Muster) und Abstand zu Referenz (Punkt/Ebene).",
       "listBWarning": "Liste B wird nur für den Modus \"Minimaler Abstand zwischen Elementen\" verwendet und wird ignoriert.",
       "projectionNormal": "Projektionsnormale",
       "projectionNormalHelp": "Normalenvektor für die Projektionsebene. Standard [0,0,1] berechnet Fußabdruck (Draufsicht).",

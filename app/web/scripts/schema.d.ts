@@ -608,7 +608,7 @@ export interface LOICheck {
 export interface Measurement {
   settings: {
     /**
-     * The type of measurement to compute. In v4, 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', and 'distance_to_reference' are implemented.
+     * The type of measurement to compute: 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', 'distance_to_reference'.
      */
     measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
