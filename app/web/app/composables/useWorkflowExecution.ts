@@ -1,5 +1,8 @@
 import type { Ref } from 'vue'
 
+const LINE_BREAK_RE = /\r?\n/
+const EVENT_SEPARATOR_RE = /\r?\n\r?\n/
+
 export interface StreamOutput {
   chunk: string
   timestamp: number
@@ -67,7 +70,7 @@ export function useWorkflowExecution(workflow: Ref<WorkflowData | null>) {
   }
 
   function parseEvent(eventText: string): { eventType: string, data: string } | null {
-    const lines = eventText.split(/\r?\n/)
+    const lines = eventText.split(LINE_BREAK_RE)
     let eventType = 'message'
     const dataLines: string[] = []
 
@@ -133,7 +136,7 @@ export function useWorkflowExecution(workflow: Ref<WorkflowData | null>) {
             break
 
           buffer += decoder.decode(value, { stream: true })
-          const events = buffer.split(/\r?\n\r?\n/)
+          const events = buffer.split(EVENT_SEPARATOR_RE)
           buffer = events.pop() || ''
 
           for (const eventText of events) {
