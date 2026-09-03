@@ -19,10 +19,14 @@ export const CSV_COLUMNS: Array<CsvColumn> = [
   { key: 'inclusive_max', label: 'inclusive_max' },
 ]
 
+const CSV_SPECIAL_CHARS_RE = /[";,\r\n]/
+const BOM_RE = /^\uFEFF/
+const LINE_BREAK_RE = /\r?\n/
+
 export function escapeCsvValue(value: string | undefined): string {
   const text = value ?? ''
 
-  if (!/[";,\r\n]/.test(text))
+  if (!CSV_SPECIAL_CHARS_RE.test(text))
     return text
 
   return `"${text.replaceAll('"', '""')}"`
@@ -121,14 +125,14 @@ function rowFromCsvRecord(record: Record<string, string>): ComparisonRow {
 function parseAllowedValues(raw: string | undefined): string[] {
   const rawValues = (raw ?? '').split('|').map(value => value.trim())
   const values = rawValues.filter(value => value !== '')
-  if (values.length === 0 || values[values.length - 1] !== '')
+  if (values.length === 0 || values.at(-1) !== '')
     values.push('')
   return values
 }
 
 export function rowsFromCsv(text: string): Rows {
-  const csvText = text.trimStart().replace(/^\uFEFF/, '')
-  const firstLine = csvText.split(/\r?\n/, 1)[0]?.trim().toLowerCase() ?? ''
+  const csvText = text.trimStart().replace(BOM_RE, '')
+  const firstLine = csvText.split(LINE_BREAK_RE, 1)[0]?.trim().toLowerCase() ?? ''
   const delimiter = firstLine === 'sep=;' || firstLine.includes(';') ? ';' : ','
   const parsedRows = parseCsv(csvText, delimiter)
   if (parsedRows[0]?.[0]?.trim().toLowerCase() === 'sep=;')
