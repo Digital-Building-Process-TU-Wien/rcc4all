@@ -80,6 +80,7 @@ const nodeNameToComponent: Record<string, string> = {
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
   loi_check: 'LoiCheck',
+  tilt_of_components: 'TiltOfComponents',
 }
 
 /**
