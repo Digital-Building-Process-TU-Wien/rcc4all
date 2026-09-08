@@ -364,11 +364,31 @@ def _make_cube_shape() -> tuple[tuple[float, ...], tuple[int, ...]]:
     return UNIT_CUBE_VERTS, UNIT_CUBE_FACES
 
 
+def _offset_cube_vertices(
+    verts: tuple[float, ...], dx: float, dy: float, dz: float
+) -> tuple[float, ...]:
+    """Translate cube vertices by (dx, dy, dz)."""
+    result: list[float] = []
+    for i, v in enumerate(verts):
+        if i % 3 == 0:
+            result.append(v + dx)
+        elif i % 3 == 1:
+            result.append(v + dy)
+        else:
+            result.append(v + dz)
+    return tuple(result)
+
+
 def test_composite_parent_with_all_parts_cached_is_synthesized() -> None:
+    """Two offset cubes merged via union → single watertight solid with correct volume."""
     fake = FakeGeom(
         [
             FakeShape(165, *_make_cube_shape()),
-            FakeShape(180, *_make_cube_shape()),
+            FakeShape(
+                180,
+                _offset_cube_vertices(UNIT_CUBE_VERTS, 2.0, 0.0, 0.0),
+                UNIT_CUBE_FACES,
+            ),
         ]
     )
     cache = build_geometry_cache(
@@ -387,8 +407,9 @@ def test_composite_parent_with_all_parts_cached_is_synthesized() -> None:
     cache = _merge_decomposed_parents(fake_model, cache)
 
     assert "ifc:359" in cache
-    assert cache["ifc:359"].vertices.shape == (16, 3)
-    assert abs(abs(cache["ifc:359"].volume) - 2.0) < 1e-6
+    mesh = cache["ifc:359"]
+    assert mesh.is_watertight
+    assert abs(abs(mesh.volume) - 2.0) < 1e-6
 
 
 def test_composite_parent_with_missing_part_is_not_synthesized() -> None:
@@ -511,3 +532,225 @@ def test_print_wall_volumes_on_test_volumen() -> None:
         vol = abs(mesh.volume)
         assert vol > 0, f"Wall {wall_id} should have positive volume"
         print(f"{key}: {vol:.4f} m3")
+
+
+def test_nested_layer_without_geometry_adversarial_order() -> None:
+    """Prove recursive synthesis works even with adversarial relation order.
+
+    Structure:
+    - Wall (170) -> Layer-1 (186), Layer-2 (204), Layer-3 (212)
+    - Layer-3 (212) -> Sub-layer-3a (228), Sub-layer-3b (246)
+    - Layer-3 has NO own geometry; only sub-layers do.
+
+    Relations given in adversarial order (Wall before Layer-3) would fail
+    with the old single-pass implementation.
+
+    Parts are offset to test boolean union (not concatenate) — volumes must be
+    correct after merging, and internal touching surfaces removed.
+    """
+    fake = FakeGeom(
+        [
+            FakeShape(
+                186,
+                _offset_cube_vertices(UNIT_CUBE_VERTS, 0.0, 0.0, 0.0),
+                UNIT_CUBE_FACES,
+            ),
+            FakeShape(
+                204,
+                _offset_cube_vertices(UNIT_CUBE_VERTS, 2.0, 0.0, 0.0),
+                UNIT_CUBE_FACES,
+            ),
+            FakeShape(
+                228,
+                _offset_cube_vertices(UNIT_CUBE_VERTS, 4.0, 0.0, 0.0),
+                UNIT_CUBE_FACES,
+            ),
+            FakeShape(
+                246,
+                _offset_cube_vertices(UNIT_CUBE_VERTS, 6.0, 0.0, 0.0),
+                UNIT_CUBE_FACES,
+            ),
+        ]
+    )
+    cache = build_geometry_cache(
+        object(),
+        settings_factory=fake.settings,
+        shape_iterator=fake.iterator,
+    )
+
+    rel_l3 = FakeRel()
+    rel_l3.RelatingObject = FakePart(212)
+    rel_l3.RelatedObjects = [FakePart(228), FakePart(246)]
+
+    rel_wall = FakeRel()
+    rel_wall.RelatingObject = FakePart(170)
+    rel_wall.RelatedObjects = [FakePart(186), FakePart(204), FakePart(212)]
+
+    from openbim_runner.util.geometry import _merge_decomposed_parents
+
+    cache = _merge_decomposed_parents(FakeAggregateModel([rel_wall, rel_l3]), cache)
+
+    assert "ifc:212" in cache, "Nested Layer-3 should be synthesized from sub-layers"
+    assert "ifc:170" in cache, "Wall should be synthesized even with adversarial order"
+
+    layer3_mesh = cache["ifc:212"]
+    wall_mesh = cache["ifc:170"]
+
+    assert abs(abs(layer3_mesh.volume) - 2.0) < 1e-6
+    assert abs(abs(wall_mesh.volume) - 4.0) < 1e-6
+    assert layer3_mesh.is_watertight
+    assert wall_mesh.is_watertight
+
+
+def test_multilayered_testmodel_wall4_nested_layers() -> None:
+    """End-to-end: Wall-4 (170) with nested Layer-3 (212) in real IFC model.
+
+    Multilayered_Testmodel.ifc contains:
+    - Wall-4 (id=170) decomposed into Layer-1 (186), Layer-2 (204), Layer-3 (212)
+    - Layer-3 (212) has no body representation, but has sub-layers 228 and 246
+    - All walls and nested layers should have synthesized geometry.
+    """
+    import pathlib
+
+    ifc_path = (
+        pathlib.Path(__file__).parent
+        / "testdata"
+        / "models"
+        / "multilayered"
+        / "Multilayered_Testmodel.ifc"
+    )
+    if not ifc_path.exists():
+        pytest.skip("Multilayered_Testmodel.ifc fixture not found")
+
+    model = ifcopenshell.open(str(ifc_path))
+    cache = build_geometry_cache(model)
+
+    wall4_id = 170
+    layer3_id = 212
+    sublayer_ids = [228, 246]
+
+    for sub_id in sublayer_ids:
+        key = f"ifc:{sub_id}"
+        assert key in cache, f"Sub-layer {sub_id} should be cached"
+        mesh = cache[key]
+        assert mesh.is_watertight, f"Sub-layer {sub_id} should be watertight"
+        assert abs(mesh.volume) > 0, f"Sub-layer {sub_id} should have positive volume"
+
+    assert f"ifc:{layer3_id}" in cache, f"Layer-3 ({layer3_id}) should be synthesized"
+    layer3_mesh = cache[f"ifc:{layer3_id}"]
+    assert layer3_mesh.is_watertight, "Layer-3 should be watertight"
+    assert abs(layer3_mesh.volume) > 0, "Layer-3 should have positive volume"
+
+    assert f"ifc:{wall4_id}" in cache, f"Wall-4 ({wall4_id}) should be synthesized"
+    wall4_mesh = cache[f"ifc:{wall4_id}"]
+    assert wall4_mesh.is_watertight, "Wall-4 should be watertight"
+    assert abs(wall4_mesh.volume) > 0, "Wall-4 should have positive volume"
+
+
+def test_ifc_member_without_geometry_nested_sublayers() -> None:
+    """An IfcMember without a body, decomposed into body-bearing sub-parts,
+    should be synthesized — and its aggregating wall too.
+
+    Structure:
+    - Wall (261) -> Member (347, NO body), Plate (277, body)
+    - Member (347) -> Batten-a (900, body), Batten-b (901, body)
+
+    This mirrors real-world cases where an IfcMember (e.g., battens, studs)
+    has no own body representation but is decomposed into sub-parts that do.
+
+    Parts are offset to test boolean union (not concatenate) — volumes must be
+    correct after merging, and internal touching surfaces removed.
+    """
+    fake = FakeGeom(
+        [
+            FakeShape(
+                277,
+                _offset_cube_vertices(UNIT_CUBE_VERTS, 0.0, 0.0, 0.0),
+                UNIT_CUBE_FACES,
+            ),
+            FakeShape(
+                900,
+                _offset_cube_vertices(UNIT_CUBE_VERTS, 2.0, 0.0, 0.0),
+                UNIT_CUBE_FACES,
+            ),
+            FakeShape(
+                901,
+                _offset_cube_vertices(UNIT_CUBE_VERTS, 4.0, 0.0, 0.0),
+                UNIT_CUBE_FACES,
+            ),
+        ]
+    )
+    cache = build_geometry_cache(
+        object(),
+        settings_factory=fake.settings,
+        shape_iterator=fake.iterator,
+    )
+
+    rel_member = FakeRel()
+    rel_member.RelatingObject = FakePart(347)
+    rel_member.RelatedObjects = [FakePart(900), FakePart(901)]
+
+    rel_wall = FakeRel()
+    rel_wall.RelatingObject = FakePart(261)
+    rel_wall.RelatedObjects = [FakePart(277), FakePart(347)]
+
+    from openbim_runner.util.geometry import _merge_decomposed_parents
+
+    cache = _merge_decomposed_parents(FakeAggregateModel([rel_member, rel_wall]), cache)
+
+    assert "ifc:347" in cache, (
+        "IfcMember without body should be synthesized from sub-parts"
+    )
+    assert "ifc:900" in cache, "Batten-a should be cached"
+    assert "ifc:901" in cache, "Batten-b should be cached"
+    assert "ifc:261" in cache, "Wall should be synthesized from Plate + Member"
+
+    member_mesh = cache["ifc:347"]
+    wall_mesh = cache["ifc:261"]
+
+    assert abs(abs(member_mesh.volume) - 2.0) < 1e-6, "Member volume = 2 unit cubes"
+    assert abs(abs(wall_mesh.volume) - 3.0) < 1e-6, "Wall volume = Plate + Member"
+    assert member_mesh.is_watertight
+    assert wall_mesh.is_watertight
+
+
+def test_merged_multilayer_surface_area_correct() -> None:
+    """Verify boolean union removes internal touching surfaces.
+
+    Two touching cubes merged should have surface area equal to the external
+    boundary only, not the sum of individual surface areas (which would
+    include internal faces).
+    """
+    from openbim_runner.util.geometry import _merge_part_meshes
+
+    cube1 = trimesh.creation.box()
+    cube2 = trimesh.creation.box().apply_translation([1.0, 0.0, 0.0])
+
+    individual_area = cube1.area + cube2.area
+    merged = _merge_part_meshes([cube1, cube2])
+
+    assert merged.is_watertight
+    assert abs(abs(merged.volume) - 2.0) < 1e-6
+    assert merged.area < individual_area, (
+        f"Merged area {merged.area} should be less than sum {individual_area} "
+        "(internal faces removed)"
+    )
+
+
+def test_union_fallback_to_concatenate() -> None:
+    """If boolean union fails, fallback to concatenate ensures caching still works.
+
+    This tests the degradation mode: volume correct but surface area inflated.
+    """
+    from unittest.mock import patch
+
+    from openbim_runner.util.geometry import _merge_part_meshes
+
+    cube1 = trimesh.creation.box()
+    cube2 = trimesh.creation.box().apply_translation([2.0, 0.0, 0.0])
+
+    with patch("trimesh.boolean.union", side_effect=RuntimeError("union failed")):
+        merged = _merge_part_meshes([cube1, cube2])
+
+    assert merged is not None
+    assert abs(abs(merged.volume) - 2.0) < 1e-6, "Volume still correct with fallback"

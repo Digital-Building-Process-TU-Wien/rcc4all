@@ -194,15 +194,33 @@ def reshape_flat(verts: tuple[float, ...], faces: tuple[int, ...]) -> trimesh.Tr
     return trimesh.Trimesh(vertices=vertices, faces=face_array, process=False)
 
 
+def _merge_part_meshes(part_meshes: list[trimesh.Trimesh]) -> trimesh.Trimesh:
+    """Merge part meshes into a single solid, removing internal touching surfaces.
+
+    Uses boolean union (manifold engine) to produce a watertight shell with correct
+    surface area. Falls back to concatenate if union fails (volume correct but area
+    inflated due to internal faces).
+    """
+    if len(part_meshes) == 1:
+        return part_meshes[0]
+    try:
+        return trimesh.boolean.union(part_meshes, engine="manifold")
+    except Exception:
+        return trimesh.util.concatenate(part_meshes)
+
+
 def _merge_decomposed_parents(
     ifc_model: Any, cache: dict[str, trimesh.Trimesh]
 ) -> dict[str, trimesh.Trimesh]:
     """Synthesize geometry for aggregation/nesting parents that have no own body.
 
     A parent whose immediate parts all have cached geometry (and which itself has
-    none) gets an `ifc:<parent_id>` entry built by concatenating its parts' meshes
-    (world coordinates already applied by the iterator). Parents with their own
+    none) gets an `ifc:<parent_id>` entry built by merging its parts' meshes via
+    boolean union (removing internal touching surfaces). Parents with their own
     geometry are left untouched to avoid double-counting.
+
+    This implementation is recursive and order-independent: nested parents without
+    geometry are resolved from their sub-parts before being used by their own parents.
     """
     try:
         rel_types = ["IfcRelAggregates", "IfcRelNests"]
@@ -210,6 +228,7 @@ def _merge_decomposed_parents(
     except Exception:
         return cache
 
+    decompositions: dict[int, list[Any]] = {}
     for rel in rels:
         parent = getattr(rel, "RelatingObject", None)
         parts = getattr(rel, "RelatedObjects", None) or []
@@ -218,23 +237,35 @@ def _merge_decomposed_parents(
         parent_id = getattr(parent, "id", None)
         if parent_id is None:
             continue
-        parent_id_val = parent_id()
-        key = f"ifc:{parent_id_val}"
+        decompositions.setdefault(parent_id(), []).extend(parts)
+
+    resolving: set[int] = set()
+
+    def resolve(entity_id: int) -> trimesh.Trimesh | None:
+        key = f"ifc:{entity_id}"
         if key in cache:
-            continue
-        part_meshes: list[trimesh.Trimesh] = []
-        all_parts_cached = True
-        for part in parts:
-            part_id = getattr(part, "id", None)
-            if part_id is None:
-                all_parts_cached = False
-                break
-            part_key = f"ifc:{part_id()}"
-            part_mesh = cache.get(part_key)
-            if part_mesh is None:
-                all_parts_cached = False
-                break
-            part_meshes.append(part_mesh)
-        if all_parts_cached:
-            cache[key] = trimesh.util.concatenate(part_meshes)
+            return cache[key]
+        parts = decompositions.get(entity_id)
+        if not parts or entity_id in resolving:
+            return None
+        resolving.add(entity_id)
+        try:
+            part_meshes: list[trimesh.Trimesh] = []
+            for part in parts:
+                part_id = getattr(part, "id", None)
+                if part_id is None:
+                    return None
+                part_mesh = resolve(part_id())
+                if part_mesh is None:
+                    return None
+                part_meshes.append(part_mesh)
+            mesh = _merge_part_meshes(part_meshes)
+            cache[key] = mesh
+            return mesh
+        finally:
+            resolving.discard(entity_id)
+
+    for parent_id in decompositions:
+        resolve(parent_id)
+
     return cache
