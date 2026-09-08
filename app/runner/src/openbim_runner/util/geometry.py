@@ -194,14 +194,29 @@ def reshape_flat(verts: tuple[float, ...], faces: tuple[int, ...]) -> trimesh.Tr
     return trimesh.Trimesh(vertices=vertices, faces=face_array, process=False)
 
 
+def _merge_part_meshes(part_meshes: list[trimesh.Trimesh]) -> trimesh.Trimesh:
+    """Merge part meshes into a single solid, removing internal touching surfaces.
+
+    Uses boolean union (manifold engine) to produce a watertight shell with correct
+    surface area. Falls back to concatenate if union fails (volume correct but area
+    inflated due to internal faces).
+    """
+    if len(part_meshes) == 1:
+        return part_meshes[0]
+    try:
+        return trimesh.boolean.union(part_meshes, engine="manifold")
+    except Exception:
+        return trimesh.util.concatenate(part_meshes)
+
+
 def _merge_decomposed_parents(
     ifc_model: Any, cache: dict[str, trimesh.Trimesh]
 ) -> dict[str, trimesh.Trimesh]:
     """Synthesize geometry for aggregation/nesting parents that have no own body.
 
     A parent whose immediate parts all have cached geometry (and which itself has
-    none) gets an `ifc:<parent_id>` entry built by concatenating its parts' meshes
-    (world coordinates already applied by the iterator). Parents with their own
+    none) gets an `ifc:<parent_id>` entry built by merging its parts' meshes via
+    boolean union (removing internal touching surfaces). Parents with their own
     geometry are left untouched to avoid double-counting.
 
     This implementation is recursive and order-independent: nested parents without
@@ -244,7 +259,7 @@ def _merge_decomposed_parents(
                 if part_mesh is None:
                     return None
                 part_meshes.append(part_mesh)
-            mesh = trimesh.util.concatenate(part_meshes)
+            mesh = _merge_part_meshes(part_meshes)
             cache[key] = mesh
             return mesh
         finally:
