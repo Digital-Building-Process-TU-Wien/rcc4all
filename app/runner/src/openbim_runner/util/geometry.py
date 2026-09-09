@@ -12,6 +12,7 @@ import trimesh
 from openbim_runner.nodes.base import ExecutionContext
 
 GEOMETRY_LIBRARY: ifcopenshell.geom.GEOMETRY_LIBRARY = "hybrid-cgal-simple-opencascade"
+ALIGNMENT_TUBE_RADIUS = 3.0e-4  # 0.30 mm; total error ≤0.40 mm @R=300m (<0.5 mm target)
 
 
 def build_geometry_cache(
@@ -56,6 +57,8 @@ def build_geometry_cache(
                 )
         if not iterator.next():
             break
+
+    _add_alignment_geometry(ifc_model, cache, settings=settings)
 
     return _merge_decomposed_parents(ifc_model, cache)
 
@@ -192,6 +195,74 @@ def reshape_flat(verts: tuple[float, ...], faces: tuple[int, ...]) -> trimesh.Tr
     vertices = np.asarray(verts, dtype=np.float64).reshape(-1, 3)
     face_array = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
     return trimesh.Trimesh(vertices=vertices, faces=face_array, process=False)
+
+
+def _add_alignment_geometry(
+    ifc_model: Any,
+    cache: dict[str, trimesh.Trimesh],
+    settings: Any,
+    *,
+    shape_creator: Callable[[Any, Any], Any] | None = None,
+) -> None:
+    """Add alignment centerline tubes to the geometry cache.
+
+    IfcAlignment entities have no Body representation, so they are skipped by the
+    Body-only iterator. This function adds them via a dedicated pass using
+    ifcopenshell.geom.create_shape, which tessellates the alignment curve into a
+    polyline. The polyline is then converted to a thin tube mesh for compatibility,
+    e.g. with generic mesh-mesh distance routines.
+
+    Accuracy: total deviation ≤ tube_radius + tessellation_deviation.
+    With ALIGNMENT_TUBE_RADIUS=0.30 mm and tessellation ≤0.10 mm @R=300 m
+    (min Radius main track), worst-case error ≈ 0.40 mm (<0.5 mm target).
+
+    Note: the sliver aspect ratio (~4200:1 with 0.5 m chords) is acceptable for
+    distance checks; if robustness issues arise, reduce linear-deflection for
+    denser chords or adjust the tube radius.
+
+    Args:
+        ifc_model: The IFC model.
+        cache: The geometry cache dict (modified in place).
+        settings: The ifcopenshell geom settings (reuse from build_geometry_cache).
+        shape_creator: Callable(settings, element) -> shape with .geometry.verts.
+            Defaults to ifcopenshell.geom.create_shape (DI for tests).
+    """
+    shape_creator = shape_creator or ifcopenshell.geom.create_shape
+
+    try:
+        alignments = ifc_model.by_type("IfcAlignment")
+    except Exception:
+        return
+
+    for alignment in alignments:
+        try:
+            shape = shape_creator(settings, alignment)
+            verts = shape.geometry.verts  # pyright: ignore[reportAttributeAccessIssue]
+            if len(verts) < 6:
+                continue
+
+            key = f"ifc:{alignment.id()}"
+            if key in cache:
+                continue
+
+            verts_np = np.asarray(verts, dtype=np.float64).reshape(-1, 3)
+
+            from shapely.geometry import Polygon
+
+            n_sections = 16
+            angles = np.linspace(0, 2 * np.pi, n_sections, endpoint=False)
+            circle_pts = np.column_stack(
+                [
+                    ALIGNMENT_TUBE_RADIUS * np.cos(angles),
+                    ALIGNMENT_TUBE_RADIUS * np.sin(angles),
+                ]
+            )
+            polygon = Polygon(circle_pts)
+
+            tube_mesh = trimesh.creation.sweep_polygon(polygon, verts_np)
+            cache[key] = tube_mesh
+        except Exception:
+            continue
 
 
 def _merge_part_meshes(part_meshes: list[trimesh.Trimesh]) -> trimesh.Trimesh:
