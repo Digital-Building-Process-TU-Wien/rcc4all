@@ -803,6 +803,7 @@ dependencies = [
     { name = "python-fcl" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "shapely" },
     { name = "trimesh" },
 ]
 
@@ -823,6 +824,7 @@ requires-dist = [
     { name = "pymeshfix" },
     { name = "python-fcl" },
     { name = "scipy", specifier = ">=1.17.1" },
+    { name = "shapely" },
     { name = "trimesh", specifier = ">=4.0.0" },
 ]
 

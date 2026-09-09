@@ -8,11 +8,13 @@ import ifcopenshell.geom
 import numpy as np
 import pymeshfix
 import trimesh
+from shapely.geometry import Polygon
 
 from openbim_runner.nodes.base import ExecutionContext
 
 GEOMETRY_LIBRARY: ifcopenshell.geom.GEOMETRY_LIBRARY = "hybrid-cgal-simple-opencascade"
 ALIGNMENT_TUBE_RADIUS = 3.0e-4  # 0.30 mm; total error ≤0.40 mm @R=300m (<0.5 mm target)
+ALIGNMENT_TUBE_SECTIONS = 16  # cross-section segments for sweep_polygon
 
 
 def build_geometry_cache(
@@ -227,37 +229,34 @@ def _add_alignment_geometry(
         shape_creator: Callable(settings, element) -> shape with .geometry.verts.
             Defaults to ifcopenshell.geom.create_shape (DI for tests).
     """
-    shape_creator = shape_creator or ifcopenshell.geom.create_shape
-
     try:
         alignments = ifc_model.by_type("IfcAlignment")
     except Exception:
         return
 
+    shape_creator = shape_creator or ifcopenshell.geom.create_shape
+
+    angles = np.linspace(0, 2 * np.pi, ALIGNMENT_TUBE_SECTIONS, endpoint=False)
+    circle_pts = np.column_stack(
+        [
+            ALIGNMENT_TUBE_RADIUS * np.cos(angles),
+            ALIGNMENT_TUBE_RADIUS * np.sin(angles),
+        ]
+    )
+    polygon = Polygon(circle_pts)
+
     for alignment in alignments:
         try:
+            key = f"ifc:{alignment.id()}"
+            if key in cache:
+                continue
+
             shape = shape_creator(settings, alignment)
             verts = shape.geometry.verts  # pyright: ignore[reportAttributeAccessIssue]
             if len(verts) < 6:
                 continue
 
-            key = f"ifc:{alignment.id()}"
-            if key in cache:
-                continue
-
             verts_np = np.asarray(verts, dtype=np.float64).reshape(-1, 3)
-
-            from shapely.geometry import Polygon
-
-            n_sections = 16
-            angles = np.linspace(0, 2 * np.pi, n_sections, endpoint=False)
-            circle_pts = np.column_stack(
-                [
-                    ALIGNMENT_TUBE_RADIUS * np.cos(angles),
-                    ALIGNMENT_TUBE_RADIUS * np.sin(angles),
-                ]
-            )
-            polygon = Polygon(circle_pts)
 
             tube_mesh = trimesh.creation.sweep_polygon(polygon, verts_np)
             cache[key] = tube_mesh

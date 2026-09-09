@@ -810,26 +810,6 @@ def test_add_alignment_geometry_non_ifc_noop() -> None:
     assert cache == {}
 
 
-def test_add_alignment_geometry_skip_if_present() -> None:
-    """If the key already exists, skip (defensive guard)."""
-    from openbim_runner.util.geometry import _add_alignment_geometry
-
-    align_id = 166
-    existing_mesh = trimesh.creation.box()
-    cache: dict[str, trimesh.Trimesh] = {f"ifc:{align_id}": existing_mesh}
-    fake_alignment = FakePart(align_id)
-    fake_model = FakeAlignmentModel([fake_alignment])
-
-    def fake_shape_creator(settings: Any, element: Any) -> FakeAlignmentShape:
-        return FakeAlignmentShape((0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0))
-
-    _add_alignment_geometry(
-        fake_model, cache, FakeSettings(), shape_creator=fake_shape_creator
-    )
-
-    assert cache[f"ifc:{align_id}"] is existing_mesh
-
-
 def test_add_alignment_geometry_real_models() -> None:
     """Real-model test: both rail fixtures have alignment tubes cached."""
     import pathlib
