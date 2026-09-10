@@ -14,7 +14,7 @@ from openbim_runner.nodes.base import ExecutionContext
 
 GEOMETRY_LIBRARY: ifcopenshell.geom.GEOMETRY_LIBRARY = "hybrid-cgal-simple-opencascade"
 ALIGNMENT_TUBE_RADIUS = 3.0e-4  # 0.30 mm; total error ≤0.40 mm @R=300m (<0.5 mm target)
-ALIGNMENT_TUBE_SECTIONS = 16  # cross-section segments for sweep_polygon
+ALIGNMENT_TUBE_SECTIONS = 8  # cross-section segments for sweep_polygon
 
 
 def build_geometry_cache(
