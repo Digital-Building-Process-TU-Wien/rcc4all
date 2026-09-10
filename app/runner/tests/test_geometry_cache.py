@@ -754,3 +754,83 @@ def test_union_fallback_to_concatenate() -> None:
 
     assert merged is not None
     assert abs(abs(merged.volume) - 2.0) < 1e-6, "Volume still correct with fallback"
+
+
+class FakeAlignmentModel:
+    def __init__(self, alignments: list[Any]) -> None:
+        self._alignments = alignments
+
+    def by_type(self, name: str) -> list[Any]:
+        if name == "IfcAlignment":
+            return self._alignments
+        return []
+
+
+class FakeAlignmentShape:
+    def __init__(self, verts: tuple[float, ...]) -> None:
+        self.geometry = FakeGeometry(verts, ())
+
+
+def test_add_alignment_geometry_di_unit() -> None:
+    """DI unit test: fake model with IfcAlignment + fake shape_creator."""
+    from openbim_runner.util.geometry import _add_alignment_geometry
+
+    align_id = 166
+    verts = (0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0)
+    fake_alignment = FakePart(align_id)
+    fake_model = FakeAlignmentModel([fake_alignment])
+
+    def fake_shape_creator(settings: Any, element: Any) -> FakeAlignmentShape:
+        return FakeAlignmentShape(verts)
+
+    cache: dict[str, trimesh.Trimesh] = {}
+    fake_settings = FakeSettings()
+
+    _add_alignment_geometry(
+        fake_model, cache, fake_settings, shape_creator=fake_shape_creator
+    )
+
+    key = f"ifc:{align_id}"
+    assert key in cache
+    mesh = cache[key]
+    assert isinstance(mesh, trimesh.Trimesh)
+    assert mesh.is_watertight
+    assert len(mesh.faces) > 0
+
+
+def test_add_alignment_geometry_non_ifc_noop() -> None:
+    """Non-IFC model or by_type failure should be a no-op."""
+    from openbim_runner.util.geometry import _add_alignment_geometry
+
+    cache: dict[str, trimesh.Trimesh] = {}
+    fake_settings = FakeSettings()
+
+    _add_alignment_geometry(object(), cache, fake_settings)
+
+    assert cache == {}
+
+
+def test_add_alignment_geometry_real_models() -> None:
+    """Real-model test: both rail fixtures have alignment tubes cached."""
+    import pathlib
+
+    from openbim_runner.util.geometry import build_geometry_cache
+
+    base = pathlib.Path(__file__).parent / "testdata" / "models" / "rail"
+    fixtures = ["simple_railway.ifc", "Simple_Railway-Civil_3D.ifc"]
+
+    for fname in fixtures:
+        ifc_path = base / fname
+        if not ifc_path.exists():
+            pytest.skip(f"{fname} fixture not found")
+
+        model = ifcopenshell.open(str(ifc_path))
+        cache = build_geometry_cache(model)
+
+        alignments = model.by_type("IfcAlignment")
+        for align in alignments:
+            key = f"ifc:{align.id()}"
+            assert key in cache, f"Alignment {align.id()} should be cached in {fname}"
+            mesh = cache[key]
+            assert mesh.is_watertight, f"Alignment tube should be watertight in {fname}"
+            assert len(mesh.faces) > 0, f"Alignment tube should have faces in {fname}"
