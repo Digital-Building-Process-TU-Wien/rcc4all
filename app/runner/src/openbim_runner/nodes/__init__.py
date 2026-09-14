@@ -16,6 +16,7 @@ from .get_property.get_property import get_property
 from .ids_checker.ids_checker import ids_checker
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
 from .loi_check.loi_check import loi_check
+from .measurement.measurement import measurement
 from .tilt_of_components.tilt_of_components import tilt_of_components
 
 __all__ = [
@@ -34,6 +35,7 @@ __all__ = [
     "ids_checker",
     "ifc_element_filter",
     "loi_check",
+    "measurement",
     "node",
     "tilt_of_components",
 ]

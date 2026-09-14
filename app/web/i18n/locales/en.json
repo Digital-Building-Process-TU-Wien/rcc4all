@@ -304,6 +304,37 @@
       "operatorContains": "contains",
       "operatorStartsWith": "starts with",
       "operatorEndsWith": "ends with"
+    },
+    "measurement": {
+      "title": "Measurement",
+      "description": "Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.",
+      "measurementType": "Measurement Type",
+      "measurementTypeHelp": "Computes volume, surface area, projected area, component height, minimum distance between elements (List A × List B pattern), and distance to reference (point/plane).",
+      "listBWarning": "List B is only used for \"Minimum Distance Between Elements\" mode and will be ignored.",
+      "projectionNormal": "Projection Normal",
+      "projectionNormalHelp": "Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view).",
+      "direction": "Direction",
+      "directionHelp": "Direction vector for extent computation. Default [0,0,1] computes vertical height.",
+      "referenceType": "Reference Type",
+      "referenceTypeHelp": "Choose between distance to a reference point or perpendicular distance to a reference plane.",
+      "referenceTypePoint": "Point",
+      "referenceTypePlane": "Plane",
+      "referencePoint": "Reference Point",
+      "referencePointHelp": "Coordinates [x, y, z] of the reference point (or plane origin).",
+      "planeNormal": "Plane Normal",
+      "planeNormalHelp": "Normal vector of the reference plane. Default [0,0,1] is the XY plane.",
+      "typeVolume": "Volume",
+      "typeSurfaceArea": "Surface Area",
+      "typeProjectedArea": "Projected Area",
+      "typeComponentHeight": "Component Height",
+      "typeDistanceBetween": "Minimum Distance Between Elements",
+      "typeDistanceToReference": "Distance to Reference",
+      "presetXyPlane": "XY Plane (Z)",
+      "presetYzPlane": "YZ Plane (X)",
+      "presetXzPlane": "XZ Plane (Y)",
+      "presetZAxis": "Z Axis (Height)",
+      "presetXAxis": "X Axis",
+      "presetYAxis": "Y Axis"
     }
   }
 }
