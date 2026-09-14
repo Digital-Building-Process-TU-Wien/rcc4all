@@ -18,8 +18,9 @@ dependencies = [
     "pymeshfix",
     "pydantic>=2.11.0",
     "rtree",
-    "scipy>=1.17.1",
+    "shapely",
     "trimesh>=4.0.0",
+    "scipy>=1.17.1",
 ]
 
 [project.scripts]
