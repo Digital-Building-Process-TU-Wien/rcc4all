@@ -29,6 +29,10 @@ export interface BCFOutput {
      * BCF topic description (sentence) resolved per failing check, same placeholders as the title template. The comparison row's expected value supplies the limit.
      */
     description_template?: string
+    /**
+     * Model slug to resolve element identities against. Defaults to the main model.
+     */
+    model_slug?: string
   }
   result: {
     /**
@@ -139,6 +143,14 @@ export interface CollisionDetection {
      * 'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).
      */
     mode?: ('boolean' | 'intersection_mesh')
+    /**
+     * Model slug that List A references refer to. Defaults to the main model.
+     */
+    model_slug_a?: string
+    /**
+     * Model slug that List B references refer to. Defaults to the main model.
+     */
+    model_slug_b?: string
   }
   result: {
     /**
@@ -173,11 +185,11 @@ export interface CollisionDetection {
   }
   inputs: {
     /**
-     * First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`), in the order to test. When empty, the whole model is used.
+     * First list of references — mix of express IDs (int → `<model A>:expr:<id>`) and object IDs (str → `gen:<id>`), in the order to test. When empty, the whole model is used.
      */
     list_a?: (number | string)[]
     /**
-     * Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set.
+     * Second (optional) list of references — mix of express IDs (int → `<model B>:expr:<id>`) and object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set.
      */
     list_b?: (number | string)[]
   }
@@ -243,6 +255,10 @@ export interface ResolveObjectNames {
      * When enabled, raises an error if an express ID does not exist in the model.
      */
     fail_on_missing?: boolean
+    /**
+     * Model slug to resolve express IDs against. Defaults to the main model.
+     */
+    model_slug?: string
   }
   result: {
     /**
@@ -283,6 +299,10 @@ export interface GetProperty {
        */
       property_name?: string
     }[]
+    /**
+     * Model slug to read properties from. Defaults to the main model.
+     */
+    model_slug?: string
   }
   result: {
     /**
@@ -368,6 +388,10 @@ export interface IDSChecker {
      * Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.
      */
     report_format?: (('json' | 'html') | null)
+    /**
+     * Model slug to validate against. Defaults to the main model.
+     */
+    model_slug?: string
   }
   result: {
     /**
@@ -445,6 +469,10 @@ export interface IfcElementFilter {
        */
       value?: string
     }[]
+    /**
+     * Model slug to filter against. Defaults to the main model.
+     */
+    model_slug?: string
   }
   result: {
     /**
@@ -513,6 +541,10 @@ export interface LOICheck {
        */
       inclusive_max?: boolean
     }[]
+    /**
+     * Model slug to run comparisons against. Defaults to the main model.
+     */
+    model_slug?: string
   }
   result: {
     /**
@@ -638,6 +670,10 @@ export interface TiltOfComponents {
      * Shared tolerance added/subtracted to the limits when flagging.
      */
     tolerance?: number
+    /**
+     * Model slug to measure elements against. Defaults to the main model.
+     */
+    model_slug?: string
   }
   result: {
     /**

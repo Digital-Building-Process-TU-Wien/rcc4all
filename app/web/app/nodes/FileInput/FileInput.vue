@@ -1,30 +1,29 @@
 <script setup lang="ts">
 import type { Node } from '@vue-flow/core'
-import { useScopedNode } from '~/composables/useScopedNode'
+import { useFlowStore } from '~/stores/flow'
 
-// This is a workaround node for development so we dont need to have the cms running at all times.
-// Thats why this type is not defined in the schema and we use a generic Node type here with a custom data interface.
+// This is a web-only visual node. It does not exist in the runner schema and is
+// excluded from the workflow payload. Selecting a file here assigns the workflow's
+// MAIN IFC model slot (path + content hash); other model slots are managed in the
+// sidebar model manager. The runner receives the assigned files via the workflow
+// definition's `files` member.
 interface FileInputData {
-  settings?: {
-    file_path?: string
-  }
-  result?: {
-    file_path?: string
-  }
-  filename?: string
+  label?: string
 }
 
 type FileInputNode = Node<FileInputData>
 
-const props = defineProps<{
+defineProps<{
   node: FileInputNode
 }>()
 
-const node = useScopedNode<FileInputNode>(props.node.id)
-
 const { t } = useI18n()
+const store = useFlowStore()
+
+const mainFile = computed(() => store.files.find(file => file.slug === 'main'))
 
 const search = ref('')
+const assigning = ref(false)
 
 const { data, error, pending, refresh } = useFetch('/api/dev-files', {
   default: () => ({ files: [] }),
@@ -43,12 +42,25 @@ const filteredFiles = computed(() => {
   return files.value.filter(file => file.toLowerCase().includes(query))
 })
 
-function clearSelection() {
-  node.value.data!.filename = undefined
-}
-
-function selectFilename(filename: string) {
-  node.value.data!.filename = filename
+async function assignMainFile(filename: string) {
+  assigning.value = true
+  try {
+    let hash = ''
+    try {
+      const result = await $fetch<{ hash: string }>('/api/dev-file-hash', {
+        query: { name: filename },
+      })
+      hash = result?.hash ?? ''
+    }
+    catch {
+      // Hashing is best-effort; the runner only warns on a mismatch.
+      hash = ''
+    }
+    store.setMainFile({ path: filename, hash })
+  }
+  finally {
+    assigning.value = false
+  }
 }
 </script>
 
@@ -68,16 +80,8 @@ function selectFilename(filename: string) {
       <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
         <Icon name="i-lucide-file" class="size-4 text-slate-400" />
         <span class="flex-1 truncate">
-          {{ node.data?.filename || t('node.fileInput.noFileSelected') }}
+          {{ mainFile?.path || t('node.fileInput.noFileSelected') }}
         </span>
-        <UButton
-          v-if="node.data?.filename"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          :label="t('node.fileInput.clear')"
-          @click="clearSelection"
-        />
       </div>
     </div>
 
@@ -122,10 +126,11 @@ function selectFilename(filename: string) {
             v-for="file in filteredFiles"
             :key="file"
             color="neutral"
-            :variant="node.data?.filename === file ? 'soft' : 'ghost'"
+            :variant="mainFile?.path === file ? 'soft' : 'ghost'"
             block
+            :loading="assigning"
             class="justify-start truncate"
-            @click="selectFilename(file)"
+            @click="assignMainFile(file)"
           >
             <span class="truncate">{{ file }}</span>
           </UButton>

@@ -11,6 +11,11 @@ class GetNameSettings(NodeModel):
         title="Fail on missing",
         description="When enabled, raises an error if an express ID does not exist in the model.",
     )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to resolve express IDs against. Defaults to the main model.",
+    )
 
 
 class GetNameInputs(NodeModel):
@@ -35,9 +40,10 @@ async def get_name(
 ) -> GetNameResult:
     object_names: list[str | None] = []
 
+    model = context.resolve_model(settings.model_slug)
     for express_id in inputs.express_ids:
         try:
-            entity = context.ifc_model.by_id(express_id)
+            entity = model.by_id(express_id)
             object_name = getattr(entity, "Name", None)
             if object_name is not None:
                 object_name = str(object_name)

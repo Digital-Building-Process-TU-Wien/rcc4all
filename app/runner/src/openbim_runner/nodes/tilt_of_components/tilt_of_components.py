@@ -8,7 +8,7 @@ import trimesh
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
-from openbim_runner.util.geometry import cache_mesh, resolve_mesh
+from openbim_runner.util.geometry import cache_mesh, expr_key, resolve_mesh
 
 ElementCategory = Literal["2d", "1d"]
 ComparisonMethod = Literal[
@@ -73,6 +73,11 @@ class TiltOfComponentsSettings(NodeModel):
         default=0.1,
         title="Tolerance (°)",
         description="Shared tolerance added/subtracted to the limits when flagging.",
+    )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to measure elements against. Defaults to the main model.",
     )
 
 
@@ -171,7 +176,10 @@ async def tilt_of_components(
     if not express_ids:
         try:
             express_ids = [
-                entity.id() for entity in context.ifc_model.by_type("IfcElement")
+                entity.id()
+                for entity in context.resolve_model(settings.model_slug).by_type(
+                    "IfcElement"
+                )
             ]
         except RuntimeError:
             express_ids = []
@@ -181,8 +189,8 @@ async def tilt_of_components(
     failed_count = 0
 
     for express_id in express_ids:
-        class_name = _resolve_class_name(context, express_id)
-        mesh = _resolve_composed_mesh(context, express_id)
+        class_name = _resolve_class_name(context, express_id, settings.model_slug)
+        mesh = _resolve_composed_mesh(context, express_id, settings.model_slug)
 
         if mesh is None or len(mesh.faces) == 0:
             elements.append(
@@ -221,12 +229,12 @@ async def tilt_of_components(
         element_count=len(elements),
         check_count=check_count,
         failed_count=failed_count,
-        model_name=_resolve_model_name(context),
+        model_name=_resolve_model_name(context, settings.model_slug),
         elements=elements,
     )
 
 
-def _resolve_model_name(context: ExecutionContext) -> str:
+def _resolve_model_name(context: ExecutionContext, model_slug: str) -> str:
     """Node-local best-effort name of the checked IFC model.
 
     Uses the IFC header ``FILE_NAME`` and reduces it to the basename (stripping
@@ -245,8 +253,9 @@ def _resolve_model_name(context: ExecutionContext) -> str:
             base = base[: -len(".ifc")]
         return base or None
 
+    model = context.resolve_model(model_slug)
     try:
-        header = getattr(context.ifc_model, "header", None)
+        header = getattr(model, "header", None)
         file_name = getattr(header, "file_name", None)
         stored_name = _basename_stem(getattr(file_name, "name", None))
         if stored_name is not None:
@@ -255,7 +264,7 @@ def _resolve_model_name(context: ExecutionContext) -> str:
         pass
 
     try:
-        for project in context.ifc_model.by_type("IfcProject"):
+        for project in model.by_type("IfcProject"):
             name = getattr(project, "Name", None)
             if isinstance(name, str) and name:
                 return name
@@ -277,16 +286,16 @@ def _validate_settings(settings: TiltOfComponentsSettings) -> None:
         raise ValueError("upper_limit must not be negative for this comparison method.")
 
 
-def _resolve_class_name(context: ExecutionContext, express_id: int) -> str:
+def _resolve_class_name(context: ExecutionContext, express_id: int, model_slug: str) -> str:
     try:
-        entity = context.ifc_model.by_id(express_id)
+        entity = context.resolve_model(model_slug).by_id(express_id)
         return entity.is_a()
     except RuntimeError:
         return "unknown"
 
 
 def _resolve_composed_mesh(
-    context: ExecutionContext, express_id: int
+    context: ExecutionContext, express_id: int, model_slug: str
 ) -> trimesh.Trimesh | None:
     """Resolve the mesh used to measure an element.
 
@@ -297,14 +306,14 @@ def _resolve_composed_mesh(
     """
     try:
         try:
-            mesh = resolve_mesh(context, f"ifc:{express_id}")
+            mesh = resolve_mesh(context, expr_key(model_slug, express_id))
             if len(mesh.faces) > 0:
                 return mesh
         except ValueError:
             pass
 
-        entity = context.ifc_model.by_id(express_id)
-        parts = _collect_descendant_meshes(context, entity, set())
+        entity = context.resolve_model(model_slug).by_id(express_id)
+        parts = _collect_descendant_meshes(context, entity, set(), model_slug)
         if not parts:
             return None
 
@@ -325,6 +334,7 @@ def _collect_descendant_meshes(
     context: ExecutionContext,
     entity: Any,
     seen: set[int],
+    model_slug: str,
 ) -> list[trimesh.Trimesh]:
     """Collect Body meshes from an element's aggregated component sub-tree.
 
@@ -350,13 +360,13 @@ def _collect_descendant_meshes(
                 continue
             seen.add(part_id)
             try:
-                mesh = resolve_mesh(context, f"ifc:{part_id}")
+                mesh = resolve_mesh(context, expr_key(model_slug, part_id))
                 if len(mesh.faces) > 0:
                     collected.append(mesh)
                     continue
             except ValueError:
                 pass
-            collected.extend(_collect_descendant_meshes(context, part, seen))
+            collected.extend(_collect_descendant_meshes(context, part, seen, model_slug))
     return collected
 
 

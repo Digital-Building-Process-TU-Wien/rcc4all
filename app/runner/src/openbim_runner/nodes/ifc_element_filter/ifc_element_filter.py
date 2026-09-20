@@ -57,6 +57,11 @@ class IfcElementFilterSettings(NodeModel):
         title="Filter rows",
         description="List of component filter rows. Include rows are unioned, exclude rows are subtracted.",
     )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to filter against. Defaults to the main model.",
+    )
 
 
 class IfcElementFilterInputs(NodeModel):
@@ -203,7 +208,7 @@ def _matches_row(entity: Any, row: FilterRow) -> bool:
 
 
 def _candidate_entities(
-    context: ExecutionContext,
+    model: Any,
     inputs: IfcElementFilterInputs,
     rows: list[FilterRow],
 ) -> list[Any]:
@@ -216,7 +221,7 @@ def _candidate_entities(
                 continue
             seen.add(express_id)
             try:
-                candidates.append(context.ifc_model.by_id(express_id))
+                candidates.append(model.by_id(express_id))
             except RuntimeError:
                 continue
         return candidates
@@ -228,7 +233,7 @@ def _candidate_entities(
             continue
         entity_type = _clean(row.entity_type) or "IfcElement"
         try:
-            entities = context.ifc_model.by_type(entity_type)
+            entities = model.by_type(entity_type)
         except RuntimeError:
             entities = []
         for entity in entities:
@@ -247,9 +252,10 @@ async def ifc_element_filter(
     inputs: IfcElementFilterInputs,
     context: ExecutionContext,
 ) -> IfcElementFilterResult:
+    model = context.resolve_model(settings.model_slug)
     matched: list[Any] = []
 
-    for entity in _candidate_entities(context, inputs, settings.filter_rows):
+    for entity in _candidate_entities(model, inputs, settings.filter_rows):
         matches_include = False
         matches_exclude = False
 

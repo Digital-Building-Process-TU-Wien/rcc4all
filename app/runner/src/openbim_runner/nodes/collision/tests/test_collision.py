@@ -63,7 +63,7 @@ def test_collision_overlapping_pair_is_emitted_grouped() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:1": ["ifc:2"]}
+    assert result.collisions == {"main:expr:1": ["main:expr:2"]}
     assert result.errors == []
 
 
@@ -98,7 +98,7 @@ def test_collision_non_watertight_overlapping_reports_collision() -> None:
         context,
     )
 
-    assert result.collisions == {"gen:broken": ["ifc:2"]}
+    assert result.collisions == {"gen:broken": ["main:expr:2"]}
     assert result.errors == []
     assert result.intersection_meshes == {}
 
@@ -139,7 +139,7 @@ def test_collision_non_watertight_inside_convex_reports_collision() -> None:
         context,
     )
 
-    assert result.collisions == {"gen:floating": ["ifc:1"]}
+    assert result.collisions == {"gen:floating": ["main:expr:1"]}
     assert result.errors == []
     assert result.intersection_meshes == {}
 
@@ -157,7 +157,7 @@ def test_collision_cartesian_product_groups_colliding_keys() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:1": ["ifc:3"]}
+    assert result.collisions == {"main:expr:1": ["main:expr:3"]}
     assert result.errors == []
 
 
@@ -174,7 +174,7 @@ def test_collision_lists_mix_express_and_object_ids() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:1": ["gen:cube"]}
+    assert result.collisions == {"main:expr:1": ["gen:cube"]}
     assert result.errors == []
 
 
@@ -190,7 +190,7 @@ def test_collision_groups_multiple_collisions_per_key() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:1": ["ifc:2", "ifc:3"]}
+    assert result.collisions == {"main:expr:1": ["main:expr:2", "main:expr:3"]}
 
 
 def test_collision_empty_b_falls_back_to_whole_model() -> None:
@@ -205,7 +205,7 @@ def test_collision_empty_b_falls_back_to_whole_model() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:1": ["ifc:2", "ifc:3"]}
+    assert result.collisions == {"main:expr:1": ["main:expr:2", "main:expr:3"]}
 
 
 def test_collision_empty_a_falls_back_to_whole_model() -> None:
@@ -220,7 +220,7 @@ def test_collision_empty_a_falls_back_to_whole_model() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:2": ["ifc:1"], "ifc:3": ["ifc:1"]}
+    assert result.collisions == {"main:expr:2": ["main:expr:1"], "main:expr:3": ["main:expr:1"]}
 
 
 def test_collision_self_pair_is_skipped_when_both_fall_back() -> None:
@@ -234,7 +234,7 @@ def test_collision_self_pair_is_skipped_when_both_fall_back() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:1": ["ifc:2"], "ifc:2": ["ifc:1"]}
+    assert result.collisions == {"main:expr:1": ["main:expr:2"], "main:expr:2": ["main:expr:1"]}
 
 
 def test_collision_mode_boolean_stores_no_intersection_mesh() -> None:
@@ -248,12 +248,12 @@ def test_collision_mode_boolean_stores_no_intersection_mesh() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:1": ["ifc:2"]}
+    assert result.collisions == {"main:expr:1": ["main:expr:2"]}
     assert result.errors == []
     assert result.intersection_meshes == {}
     assert (
         context.geometry_cache is None
-        or "inter:intersection_ifc:1_ifc:2" not in context.geometry_cache
+        or "inter:intersection_main:expr:1_main:expr:2" not in context.geometry_cache
     )
 
 
@@ -268,13 +268,13 @@ def test_collision_mode_intersection_mesh_stores_deterministic_key() -> None:
         context,
     )
 
-    assert result.collisions == {"ifc:1": ["ifc:2"]}
+    assert result.collisions == {"main:expr:1": ["main:expr:2"]}
     assert result.errors == []
     assert result.intersection_meshes == {
-        "ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2"
+        "main:expr:1__main:expr:2": "inter:intersection_main:expr:1_main:expr:2"
     }
     assert context.geometry_cache is not None
-    key = "inter:intersection_ifc:1_ifc:2"
+    key = "inter:intersection_main:expr:1_main:expr:2"
     assert key in context.geometry_cache
     assert resolve_mesh(context, key).volume > 0
 
@@ -295,12 +295,12 @@ def test_collision_mode_intersection_mesh_fcl_pair_gets_null() -> None:
         context,
     )
 
-    assert result.collisions == {"gen:broken": ["ifc:2"]}
+    assert result.collisions == {"gen:broken": ["main:expr:2"]}
     assert result.errors == []
-    assert result.intersection_meshes == {"gen:broken__ifc:2": None}
+    assert result.intersection_meshes == {"gen:broken__main:expr:2": None}
     assert (
         context.geometry_cache is None
-        or "inter:intersection_gen:broken_ifc:2" not in context.geometry_cache
+        or "inter:intersection_gen:broken_main:expr:2" not in context.geometry_cache
     )
 
 
@@ -392,7 +392,7 @@ def test_collision_keeps_cross_tree_decomposition_collisions() -> None:
             40: ([0.5, 0, 0], [2, 2, 2]),
         },
     )
-    assert result.collisions == {"ifc:20": ["ifc:40"]}
+    assert result.collisions == {"main:expr:20": ["main:expr:40"]}
     assert result.errors == []
 
 

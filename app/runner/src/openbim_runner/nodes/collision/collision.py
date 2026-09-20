@@ -14,6 +14,7 @@ from openbim_runner.util.geometry import (
     ensure_watertight,
     resolve_mesh,
     resolve_side,
+    split_expr_key,
 )
 
 VOLUME_TOLERANCE = 1e-9
@@ -30,6 +31,16 @@ class CollisionSettings(NodeModel):
             "geometry cache under a deterministic key (documented in the README)."
         ),
     )
+    model_slug_a: str = Field(
+        default="main",
+        title="Model A",
+        description="Model slug that List A references refer to. Defaults to the main model.",
+    )
+    model_slug_b: str = Field(
+        default="main",
+        title="Model B",
+        description="Model slug that List B references refer to. Defaults to the main model.",
+    )
 
 
 class CollisionInputs(NodeModel):
@@ -37,7 +48,7 @@ class CollisionInputs(NodeModel):
         default=[],
         title="List A",
         description=(
-            "First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs "
+            "First list of references — mix of express IDs (int → `<model A>:expr:<id>`) and object IDs "
             "(str → `gen:<id>`), in the order to test. When empty, the whole model is used."
         ),
     )
@@ -45,7 +56,7 @@ class CollisionInputs(NodeModel):
         default=[],
         title="List B",
         description=(
-            "Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and "
+            "Second (optional) list of references — mix of express IDs (int → `<model B>:expr:<id>`) and "
             "object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set."
         ),
     )
@@ -96,19 +107,26 @@ def _aabb_overlap(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool:
 
 
 def _is_ancestor_pair(
-    key_a: str, key_b: str, exclusions: frozenset[tuple[int, int]]
+    key_a: str,
+    key_b: str,
+    exclusions_by_slug: dict[str, frozenset[tuple[int, int]]],
 ) -> bool:
     """True if two cache keys are IFC ancestor/descendant express IDs to skip.
 
-    Only ``ifc:<id>`` keys participate; ``gen:``/``inter:`` keys have no IFC
-    aggregation identity and are never excluded.
+    Only `<slug>:expr:<id>` keys participate; ``gen:``/``inter:`` keys have no IFC
+    aggregation identity and are never excluded. Ancestor exclusion is intra-model:
+    keys from different model slugs are never excluded.
     """
-    if not (key_a.startswith("ifc:") and key_b.startswith("ifc:")):
+    parsed_a = split_expr_key(key_a)
+    parsed_b = split_expr_key(key_b)
+    if parsed_a is None or parsed_b is None:
         return False
-    try:
-        id_a = int(key_a[4:])
-        id_b = int(key_b[4:])
-    except ValueError:
+    slug_a, id_a = parsed_a
+    slug_b, id_b = parsed_b
+    if slug_a != slug_b:
+        return False
+    exclusions = exclusions_by_slug.get(slug_a)
+    if not exclusions:
         return False
     return (min(id_a, id_b), max(id_a, id_b)) in exclusions
 
@@ -185,9 +203,18 @@ async def collision(
     inputs: CollisionInputs,
     context: ExecutionContext,
 ) -> CollisionResult:
-    keys_a = resolve_side(context, refs=inputs.list_a)
-    keys_b = resolve_side(context, refs=inputs.list_b)
-    exclusions = _aggregation_exclusions(context.ifc_model)
+    keys_a = resolve_side(context, refs=inputs.list_a, slug=settings.model_slug_a)
+    keys_b = resolve_side(context, refs=inputs.list_b, slug=settings.model_slug_b)
+
+    exclusions_by_slug: dict[str, frozenset[tuple[int, int]]] = {}
+    for slug in {settings.model_slug_a, settings.model_slug_b}:
+        try:
+            model = context.resolve_model(slug)
+        except ValueError:
+            model = None
+        exclusions_by_slug[slug] = (
+            _aggregation_exclusions(model) if model is not None else frozenset()
+        )
 
     collisions: dict[str, list[str]] = {}
     errors: list[CollisionError] = []
@@ -197,7 +224,7 @@ async def collision(
         for key_b in keys_b:
             if key_a == key_b:
                 continue
-            if _is_ancestor_pair(key_a, key_b, exclusions):
+            if _is_ancestor_pair(key_a, key_b, exclusions_by_slug):
                 continue
 
             mesh_a = resolve_mesh(context, key_a)

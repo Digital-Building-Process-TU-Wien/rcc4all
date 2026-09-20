@@ -26,7 +26,11 @@ export interface CompleteResult {
 }
 
 export interface WorkflowData {
-  ifc_path: string
+  files: Array<{
+    path: string
+    slug: string
+    hash: string
+  }>
   nodes: Array<{
     id: string
     type: string

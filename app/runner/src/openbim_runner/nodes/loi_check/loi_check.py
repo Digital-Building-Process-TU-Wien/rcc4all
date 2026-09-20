@@ -91,6 +91,11 @@ class LoiCheckSettings(NodeModel):
         title="Comparison rows",
         description="List of property comparison rules. Each row is checked against every input element.",
     )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to run comparisons against. Defaults to the main model.",
+    )
 
 
 class LoiCheckInputs(NodeModel):
@@ -231,18 +236,19 @@ async def loi_check(
 
     # Optional express_ids input: when empty (unconnected), gather all elements
     # from the model context, consistent with the element filter's IfcElement default.
+    model = context.resolve_model(settings.model_slug)
     express_ids = inputs.express_ids
     if not express_ids:
         try:
             express_ids = [
-                entity.id() for entity in context.ifc_model.by_type("IfcElement")
+                entity.id() for entity in model.by_type("IfcElement")
             ]
         except RuntimeError:
             express_ids = []
 
     for express_id in express_ids:
         try:
-            entity = context.ifc_model.by_id(express_id)
+            entity = model.by_id(express_id)
         except RuntimeError:
             if not specified_types:
                 elements.append(

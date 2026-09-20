@@ -92,6 +92,11 @@ class BcfOutputSettings(NodeModel):
             "title template. The comparison row's expected value supplies the limit."
         ),
     )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to resolve element identities against. Defaults to the main model.",
+    )
 
 
 class BcfOutputInputs(NodeModel):
@@ -293,11 +298,11 @@ def _expectation_clause(check: PropertyCheckResult) -> str:
 
 
 def _resolve_identity(
-    context: ExecutionContext, element_id: int, property_key: str
+    context: ExecutionContext, element_id: int, property_key: str, model_slug: str
 ) -> tuple[str, str]:
     """Resolve (guid, name) for an element by express ID (identity lookup only)."""
     try:
-        entity = context.ifc_model.by_id(element_id)
+        entity = context.resolve_model(model_slug).by_id(element_id)
     except RuntimeError as error:
         raise ValueError(
             f"Could not resolve IFC entity for express ID {element_id} "
@@ -401,7 +406,7 @@ async def bcf_output(
 
             failed_check_count += 1
             element_guid, element_name = _resolve_identity(
-                context, element.express_id, check.property_key
+                context, element.express_id, check.property_key, settings.model_slug
             )
 
             namespace = _build_namespace(

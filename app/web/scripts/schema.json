@@ -52,6 +52,11 @@
               "default": "",
               "description": "BCF topic description (sentence) resolved per failing check, same placeholders as the title template. The comparison row's expected value supplies the limit.",
               "type": "string"
+            },
+            "model_slug": {
+              "default": "main",
+              "description": "Model slug to resolve element identities against. Defaults to the main model.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -293,6 +298,16 @@
                 "intersection_mesh"
               ],
               "type": "string"
+            },
+            "model_slug_a": {
+              "default": "main",
+              "description": "Model slug that List A references refer to. Defaults to the main model.",
+              "type": "string"
+            },
+            "model_slug_b": {
+              "default": "main",
+              "description": "Model slug that List B references refer to. Defaults to the main model.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -362,7 +377,7 @@
           "properties": {
             "list_a": {
               "default": [],
-              "description": "First list of references \u2014 mix of express IDs (int \u2192 `ifc:<id>`) and object IDs (str \u2192 `gen:<id>`), in the order to test. When empty, the whole model is used.",
+              "description": "First list of references \u2014 mix of express IDs (int \u2192 `<model A>:expr:<id>`) and object IDs (str \u2192 `gen:<id>`), in the order to test. When empty, the whole model is used.",
               "items": {
                 "anyOf": [
                   {
@@ -377,7 +392,7 @@
             },
             "list_b": {
               "default": [],
-              "description": "Second (optional) list of references \u2014 mix of express IDs (int \u2192 `ifc:<id>`) and object IDs (str \u2192 `gen:<id>`). When empty, the whole model is used as the counterpart set.",
+              "description": "Second (optional) list of references \u2014 mix of express IDs (int \u2192 `<model B>:expr:<id>`) and object IDs (str \u2192 `gen:<id>`). When empty, the whole model is used as the counterpart set.",
               "items": {
                 "anyOf": [
                   {
@@ -610,6 +625,11 @@
               "default": false,
               "description": "When enabled, raises an error if an express ID does not exist in the model.",
               "type": "boolean"
+            },
+            "model_slug": {
+              "default": "main",
+              "description": "Model slug to resolve express IDs against. Defaults to the main model.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -722,6 +742,11 @@
                 "type": "object"
               },
               "type": "array"
+            },
+            "model_slug": {
+              "default": "main",
+              "description": "Model slug to read properties from. Defaults to the main model.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -945,6 +970,11 @@
               ],
               "default": null,
               "description": "Format f\u00fcr den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist."
+            },
+            "model_slug": {
+              "default": "main",
+              "description": "Model slug to validate against. Defaults to the main model.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -1141,6 +1171,11 @@
                 "type": "object"
               },
               "type": "array"
+            },
+            "model_slug": {
+              "default": "main",
+              "description": "Model slug to filter against. Defaults to the main model.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -1305,6 +1340,11 @@
                 "type": "object"
               },
               "type": "array"
+            },
+            "model_slug": {
+              "default": "main",
+              "description": "Model slug to run comparisons against. Defaults to the main model.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -1570,6 +1610,11 @@
               "default": 0.1,
               "description": "Shared tolerance added/subtracted to the limits when flagging.",
               "type": "number"
+            },
+            "model_slug": {
+              "default": "main",
+              "description": "Model slug to measure elements against. Defaults to the main model.",
+              "type": "string"
             }
           },
           "type": "object"

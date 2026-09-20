@@ -1,5 +1,11 @@
 {
-  "ifc_path": "test.ifc",
+  "files": [
+    {
+      "path": "test.ifc",
+      "slug": "main",
+      "hash": ""
+    }
+  ],
   "nodes": [
     {
       "id": "get_name",

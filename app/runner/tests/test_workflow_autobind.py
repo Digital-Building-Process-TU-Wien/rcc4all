@@ -6,6 +6,7 @@ import pytest
 
 from openbim_runner.nodes.base import NodeModel
 from openbim_runner.workflow import (
+    ModelFile,
     WorkflowDefinition,
     WorkflowEdge,
     WorkflowNode,
@@ -13,6 +14,10 @@ from openbim_runner.workflow import (
     resolve_auto_bindings,
     resolve_input_bindings,
 )
+
+
+def _files() -> list[ModelFile]:
+    return [ModelFile(path="model.ifc", slug="main")]
 
 
 def _node(node_id: str, node_type: str, **extra: Any) -> WorkflowNode:
@@ -32,7 +37,7 @@ def _bindings(
     nodes: list[WorkflowNode], edges: list[tuple[str, str]]
 ) -> tuple[dict[str, dict[str, str]], dict[str, WorkflowNode]]:
     workflow = WorkflowDefinition(
-        ifc_path="model.ifc",
+        files=_files(),
         nodes=nodes,
         edges=[WorkflowEdge(source=s, target=t) for s, t in edges],
     )
@@ -96,7 +101,7 @@ def test_two_compatible_predecessors_raise() -> None:
     loi_b = _loi_check("loi-b")
     bcf = _bcf("bcf-1")
     workflow = WorkflowDefinition(
-        ifc_path="model.ifc",
+        files=_files(),
         nodes=[loi_a, loi_b, bcf],
         edges=[
             WorkflowEdge(source="loi-a", target="bcf-1"),

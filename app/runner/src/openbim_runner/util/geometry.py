@@ -17,18 +17,42 @@ ALIGNMENT_TUBE_RADIUS = 3.0e-4  # 0.30 mm; total error ≤0.40 mm @R=300m (<0.5 
 ALIGNMENT_TUBE_SECTIONS = 8  # cross-section segments for sweep_polygon
 
 
+def expr_key(slug: str, express_id: int) -> str:
+    """Geometry-cache key for an IFC entity: ``<slug>:expr:<express_id>``."""
+    return f"{slug}:expr:{express_id}"
+
+
+def split_expr_key(key: str) -> tuple[str, int] | None:
+    """Split an express-key ``<slug>:expr:<id>`` into ``(slug, express_id)``.
+
+    Returns ``None`` for keys that are not IFC express keys (e.g. ``gen:`` or
+    ``inter:`` keys).
+    """
+    marker = ":expr:"
+    start = key.find(marker)
+    if start <= 0:
+        return None
+    slug = key[:start]
+    try:
+        return slug, int(key[start + len(marker):])
+    except ValueError:
+        return None
+
+
 def build_geometry_cache(
     ifc_model: Any,
     *,
+    slug: str = "main",
     settings_factory: Callable[..., Any] | None = None,
     shape_iterator: Callable[..., Any] | None = None,
     geometry_library: ifcopenshell.geom.GEOMETRY_LIBRARY = GEOMETRY_LIBRARY,
 ) -> dict[str, trimesh.Trimesh]:
-    """Tessellate the whole IFC model into a geometry cache.
+    """Tessellate the whole IFC model into a geometry cache keyed by model slug.
 
     Dependency-injected for testability: pass fakes for ``settings_factory``
     and ``shape_iterator`` to avoid depending on ifcopenshell. Elements that
-    cannot be tessellated are skipped (absent from the returned cache).
+    cannot be tessellated are skipped (absent from the returned cache). Keys are
+    ``<slug>:expr:<express_id>`` so caches from different models do not collide.
     """
     settings_factory = settings_factory or ifcopenshell.geom.settings
     shape_iterator = shape_iterator or ifcopenshell.geom.iterator
@@ -54,20 +78,18 @@ def build_geometry_cache(
             geometry = shape.geometry  # pyright: ignore[reportAttributeAccessIssue]
             if len(geometry.verts) > 0 and len(geometry.faces) > 0:
                 express_id = shape.id  # pyright: ignore[reportAttributeAccessIssue]
-                cache[f"ifc:{express_id}"] = reshape_flat(
+                cache[expr_key(slug, express_id)] = reshape_flat(
                     geometry.verts, geometry.faces
                 )
         if not iterator.next():
             break
 
-    _add_alignment_geometry(ifc_model, cache, settings=settings)
+    _add_alignment_geometry(ifc_model, cache, settings=settings, slug=slug)
 
-    return _merge_decomposed_parents(ifc_model, cache)
+    return _merge_decomposed_parents(ifc_model, cache, slug=slug)
 
 
 def _ensure_cache(context: ExecutionContext) -> dict[str, trimesh.Trimesh]:
-    if context.geometry_cache is None:
-        context.geometry_cache = {}
     return context.geometry_cache
 
 
@@ -79,23 +101,25 @@ def cache_mesh(
     object_id: str | None = None,
     intermediate: bool = False,
     key: str | None = None,
+    slug: str | None = None,
 ) -> str:
     """Store a mesh in the cache and return its key.
 
-    - ``express_id`` stores an IFC body under ``ifc:<express_id>``.
+    - ``express_id`` stores an IFC body under ``<slug>:expr:<express_id>``.
     - ``object_id`` stores an external/generated geometry under ``gen:<object_id>``.
     - ``intermediate`` stores an internal helper mesh under ``inter:<uuid>`` (excluded
       from the whole-model expansion).
     - ``key`` stores the mesh under an explicit, fully-specified key (e.g. a
-      deterministic intermediate key like ``inter:intersection_ifc:1_ifc:2``).
+      deterministic intermediate key like ``inter:intersection_1_expr:2``).
 
     Exactly one of these must be provided, and the key must not already exist.
+    ``slug`` defaults to the execution context's main model.
     """
     if key is not None:
         if not key:
             raise ValueError("cache_mesh 'key' must be a non-empty string.")
     elif express_id is not None:
-        key = f"ifc:{express_id}"
+        key = expr_key(context.resolve_slug(slug), express_id)
     elif object_id is not None:
         key = f"gen:{object_id}"
     elif intermediate:
@@ -123,21 +147,26 @@ def resolve_mesh(context: ExecutionContext, key: str) -> trimesh.Trimesh:
 
 def is_model_key(key: str) -> bool:
     """True for user-referencable cache keys (IFC or generated), excluding intermediates."""
-    return key.startswith("ifc:") or key.startswith("gen:")
+    return split_expr_key(key) is not None or key.startswith("gen:")
 
 
 def resolve_side(
-    context: ExecutionContext, *, refs: list[int | str] | None = None
+    context: ExecutionContext,
+    *,
+    refs: list[int | str] | None = None,
+    slug: str | None = None,
 ) -> list[str]:
     """Resolve a list of mixed references into ordered geometry-cache keys.
 
-    An ``int`` reference is an express ID mapping to ``ifc:<id>``; a ``str`` reference
-    is an object ID mapping to ``gen:<object_id>``. Order is preserved. When the list is
-    empty the whole model is used: every user-referencable key in the cache, in cache
-    insertion order. Raises ``ValueError`` for a reference that has no cached geometry.
+    An ``int`` reference is an express ID mapping to ``<slug>:expr:<id>``; a ``str``
+    reference is an object ID mapping to ``gen:<object_id>``. Order is preserved.
+    When the list is empty the whole model is used: every user-referencable key in
+    the cache, in cache insertion order. Raises ``ValueError`` for a reference that
+    has no cached geometry. ``slug`` defaults to the execution context's main model.
     """
     cache = _ensure_cache(context)
     refs = refs or []
+    resolved_slug = context.resolve_slug(slug)
 
     if not refs:
         return [key for key in cache if is_model_key(key)]
@@ -145,7 +174,7 @@ def resolve_side(
     keys: list[str] = []
     for ref in refs:
         if isinstance(ref, int):
-            key = f"ifc:{ref}"
+            key = expr_key(resolved_slug, ref)
             if key not in cache:
                 raise ValueError(
                     f"Express ID {ref} has no tessellated geometry in the cache."
@@ -204,6 +233,7 @@ def _add_alignment_geometry(
     cache: dict[str, trimesh.Trimesh],
     settings: Any,
     *,
+    slug: str = "main",
     shape_creator: Callable[[Any, Any], Any] | None = None,
 ) -> None:
     """Add alignment centerline tubes to the geometry cache.
@@ -247,7 +277,7 @@ def _add_alignment_geometry(
 
     for alignment in alignments:
         try:
-            key = f"ifc:{alignment.id()}"
+            key = expr_key(slug, alignment.id())
             if key in cache:
                 continue
 
@@ -280,13 +310,16 @@ def _merge_part_meshes(part_meshes: list[trimesh.Trimesh]) -> trimesh.Trimesh:
 
 
 def _merge_decomposed_parents(
-    ifc_model: Any, cache: dict[str, trimesh.Trimesh]
+    ifc_model: Any,
+    cache: dict[str, trimesh.Trimesh],
+    *,
+    slug: str = "main",
 ) -> dict[str, trimesh.Trimesh]:
     """Synthesize geometry for aggregation/nesting parents that have no own body.
 
     A parent whose immediate parts all have cached geometry (and which itself has
-    none) gets an `ifc:<parent_id>` entry built by merging its parts' meshes via
-    boolean union (removing internal touching surfaces). Parents with their own
+    none) gets an `<slug>:expr:<parent_id>` entry built by merging its parts' meshes
+    via boolean union (removing internal touching surfaces). Parents with their own
     geometry are left untouched to avoid double-counting.
 
     This implementation is recursive and order-independent: nested parents without
@@ -312,7 +345,7 @@ def _merge_decomposed_parents(
     resolving: set[int] = set()
 
     def resolve(entity_id: int) -> trimesh.Trimesh | None:
-        key = f"ifc:{entity_id}"
+        key = expr_key(slug, entity_id)
         if key in cache:
             return cache[key]
         parts = decompositions.get(entity_id)

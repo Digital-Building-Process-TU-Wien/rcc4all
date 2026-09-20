@@ -358,9 +358,9 @@ npm run dev
 
 1. **Open the node editor**: `http://localhost:3001/node-demo`
 
-2. **Add a File Input node** (to specify the IFC file):
+2. **Add a File Input node** (to assign the main IFC file):
    - Drag `File Input` to canvas
-   - Click on it and select an IFC file from the list
+   - Click on it and select an IFC file from the list; this becomes the workflow's main model
 
 3. **Add your Template Node**:
    - Drag `Template Node` to canvas
@@ -513,7 +513,13 @@ Here's what a complete workflow JSON looks like:
 
 ```json
 {
-  "ifc_path": "test.ifc",
+  "files": [
+    {
+      "path": "test.ifc",
+      "slug": "main",
+      "hash": ""
+    }
+  ],
   "nodes": [
     {
       "id": "file_input",

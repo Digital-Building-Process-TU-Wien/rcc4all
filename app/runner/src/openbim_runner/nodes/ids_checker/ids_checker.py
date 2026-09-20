@@ -25,6 +25,11 @@ class IdsCheckerSettings(NodeModel):
         title="Report Format",
         description="Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.",
     )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to validate against. Defaults to the main model.",
+    )
 
 
 class IdsCheckerInputs(NodeModel):
@@ -102,8 +107,10 @@ async def ids_checker(
     except Exception as e:
         raise ValueError(f"Failed to parse IDS file: {e}") from e
 
+    model = context.resolve_model(settings.model_slug)
+
     try:
-        ids_file.validate(context.ifc_model)
+        ids_file.validate(model)
     except Exception as e:
         raise RuntimeError(f"Validation error: {e}") from e
 

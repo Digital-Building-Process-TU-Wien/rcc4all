@@ -144,8 +144,11 @@ function parseSettings(settings: any, _nodeType: string) {
 }
 
 async function runWorkflow() {
-  const fileInputNode = nodes.value.find(node => node.data.nodeName === 'FileInput')
-  const ifcPath = fileInputNode?.data?.filename || 'test.ifc'
+  const workflowFiles = store.files.map(file => ({
+    path: file.path,
+    slug: file.slug,
+    hash: file.hash,
+  }))
 
   const workflowNodeIds = new Set<string>()
   const workflowNodes = nodes.value
@@ -169,7 +172,7 @@ async function runWorkflow() {
     }))
 
   store.setWorkflowData({
-    ifc_path: ifcPath,
+    files: workflowFiles,
     nodes: workflowNodes,
     edges: workflowEdges,
   })

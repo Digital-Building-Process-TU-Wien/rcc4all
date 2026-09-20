@@ -6,6 +6,7 @@ import InputBindingsSection from '~/components/nodes/InputBindingsSection.vue'
 import { useScopedNode } from '~/composables/useScopedNode'
 import { useFlowStore } from '~/stores/flow'
 import { getAvailableNodes, getNodeComponent } from '~/utils/nodes'
+import { getNodeSchema } from '~/utils/schema-helpers'
 
 interface Props {
   isOpen: boolean
@@ -40,6 +41,49 @@ const nodeDocs = computed(() => {
   const availableNodes = getAvailableNodes(locale.value as SupportedLocale)
   return availableNodes.find(n => n.nodeName === node.value?.data?.nodeName)
 })
+
+const nodeName = computed(() => node.value?.data?.nodeName ?? '')
+
+const modelFields = computed(() => {
+  if (!nodeName.value) {
+    return []
+  }
+  const settings = (getNodeSchema(nodeName.value as any) as any)?.properties?.settings?.properties
+  if (!settings) {
+    return []
+  }
+  return Object.keys(settings)
+    .filter(key => key.startsWith('model_slug'))
+    .map(key => ({
+      key,
+      label: key === 'model_slug_a'
+        ? t('slideover.modelA')
+        : key === 'model_slug_b'
+          ? t('slideover.modelB')
+          : t('slideover.model'),
+    }))
+})
+
+const modelOptions = computed(() => store.files.map(file => ({
+  label: store.getSlugLabel(file.slug),
+  value: file.slug,
+})))
+
+function getModelValue(key: string): string {
+  return (node.value?.data?.settings?.[key] as string) ?? 'main'
+}
+
+function setModelValue(key: string, value: string) {
+  const scoped = node.value
+  if (!scoped?.data) {
+    return
+  }
+  scoped.data.settings = { ...scoped.data.settings, [key]: value }
+}
+
+function onModelChange(key: string, value: unknown) {
+  setModelValue(key, typeof value === 'string' && value ? value : 'main')
+}
 </script>
 
 <template>
@@ -65,6 +109,23 @@ const nodeDocs = computed(() => {
               <p class="mt-1 text-xs text-muted">
                 {{ t('slideover.labelHint') }}
               </p>
+            </div>
+
+            <div v-if="modelFields.length" class="mb-4 space-y-3">
+              <div v-for="field in modelFields" :key="field.key">
+                <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
+                  {{ field.label }}
+                </label>
+                <USelect
+                  :model-value="getModelValue(field.key)"
+                  :options="modelOptions"
+                  class="mt-1"
+                  @update:model-value="value => onModelChange(field.key, value)"
+                />
+                <p class="mt-1 text-xs text-muted">
+                  {{ t('slideover.modelHint') }}
+                </p>
+              </div>
             </div>
 
             <component

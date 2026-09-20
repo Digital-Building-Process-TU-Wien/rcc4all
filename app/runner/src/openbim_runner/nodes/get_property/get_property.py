@@ -44,6 +44,11 @@ class GetPropertySettings(NodeModel):
         title="Selections",
         description="List of properties to read from each entity.",
     )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to read properties from. Defaults to the main model.",
+    )
 
 
 class GetPropertyInputs(NodeModel):
@@ -133,9 +138,11 @@ async def get_property(
         tuple[int, str, dict[str, str | None]]
     ] = []  # (express_id, class, properties)
 
+    model = context.resolve_model(settings.model_slug)
+
     for express_id in inputs.express_ids:
         try:
-            entity = context.ifc_model.by_id(express_id)
+            entity = model.by_id(express_id)
             entity_class = entity.is_a()
         except RuntimeError:
             # Entity not found - use "unknown" class with empty properties

@@ -32,7 +32,7 @@ The core feature is a no-code editor where domain experts can compose reusable c
 
 The visual scripting editor produces a workflow JSON that is executed by the [runner](../runner). The flow:
 1. User creates nodes and connects them on the canvas
-2. FileInput node provides the IFC file path (excluded from workflow JSON)
+2. IFC models are assigned to named slots in the sidebar (the main slot is required); the `FileInput` node assigns the main model file. These slots are serialized as the workflow's `files` member
 3. Workflow JSON is saved to `.dev-files/` and passed to the Python runner
 4. Results are displayed in a new tab, also saved to `.dev-files/`
 
