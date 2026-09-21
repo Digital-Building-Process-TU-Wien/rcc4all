@@ -44,11 +44,6 @@ class GetPropertySettings(NodeModel):
         title="Selections",
         description="List of properties to read from each entity.",
     )
-    model_slug: str = Field(
-        default="main",
-        title="Model",
-        description="Model slug to read properties from. Defaults to the main model.",
-    )
 
 
 class GetPropertyInputs(NodeModel):
@@ -56,6 +51,11 @@ class GetPropertyInputs(NodeModel):
         default=[],
         title="Express IDs",
         description="List of IFC express IDs to read property values from.",
+    )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to read properties from. Defaults to the main model.",
     )
 
 
@@ -114,6 +114,11 @@ class GetPropertyResult(NodeModel):
         title="Properties",
         description="Distinct values with counts per property (output_mode = model).",
     )
+    model_slug: str = Field(
+        default="main",
+        title="Model slug",
+        description="Slug of the model the express IDs were resolved against.",
+    )
 
 
 @node()
@@ -138,7 +143,7 @@ async def get_property(
         tuple[int, str, dict[str, str | None]]
     ] = []  # (express_id, class, properties)
 
-    model = context.resolve_model(settings.model_slug)
+    model = context.resolve_model(inputs.model_slug)
 
     for express_id in inputs.express_ids:
         try:
@@ -176,7 +181,9 @@ async def get_property(
             ElementProperties(express_id=eid, properties=props)
             for eid, _, props in resolved
         ]
-        return GetPropertyResult(mode="elements", elements=elements)
+        return GetPropertyResult(
+            mode="elements", elements=elements, model_slug=inputs.model_slug
+        )
 
     if settings.output_mode == "by_class":
         # Aggregate per class, per property, per value with counts
@@ -198,7 +205,9 @@ async def get_property(
                     ValueWithCount(value=v, count=c) for v, c in sorted_values
                 ]
             classes.append(ClassGroup(id=cls, properties=property_lists))
-        return GetPropertyResult(mode="by_class", classes=classes)
+        return GetPropertyResult(
+            mode="by_class", classes=classes, model_slug=inputs.model_slug
+        )
 
     # model
     # Aggregate distinct values with counts per property key
@@ -219,4 +228,6 @@ async def get_property(
         sorted_values = sorted(value_counts.items(), key=lambda x: (-x[1], x[0]))
         properties[key] = [ValueWithCount(value=v, count=c) for v, c in sorted_values]
 
-    return GetPropertyResult(mode="model", properties=properties)
+    return GetPropertyResult(
+        mode="model", properties=properties, model_slug=inputs.model_slug
+    )

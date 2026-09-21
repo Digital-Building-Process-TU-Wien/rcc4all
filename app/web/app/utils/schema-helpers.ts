@@ -61,6 +61,11 @@ export function getInputDescription(nodeName: string, inputName: string): string
 export interface TypeInfo {
   type: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'null'
   items?: TypeInfo
+  /**
+   * Set when the schema is a union (`anyOf`) of two or more non-null types.
+   * `type` mirrors the first member so plain displays stay sensible.
+   */
+  anyOf?: TypeInfo[]
 }
 
 export function getOutputType(nodeName: string, outputField: string): TypeInfo {
@@ -86,17 +91,31 @@ function parseTypeSchema(schema: any): TypeInfo {
     }
   }
 
-  if (schema.anyOf) {
-    const nonNullType = schema.anyOf.find((t: any) => t.type !== 'null')
-    if (nonNullType)
-      return parseTypeSchema(nonNullType)
-    return { type: 'null' }
+  if (Array.isArray(schema.anyOf)) {
+    const members = schema.anyOf
+      .filter((t: any) => t.type !== 'null')
+      .map(parseTypeSchema)
+    if (members.length === 0)
+      return { type: 'null' }
+    if (members.length === 1)
+      return members[0]
+    return { ...members[0], anyOf: members }
   }
 
   return { type: schema.type || 'null' }
 }
 
-export function areTypesCompatible(output: TypeInfo, input: TypeInfo): boolean {
+/**
+ * Whether an output type can feed an input type. Unions are honoured on both
+ * sides: every member of a union output must fit, and a union input accepts an
+ * output if any of its members do.
+ */
+function isAssignable(output: TypeInfo, input: TypeInfo): boolean {
+  if (output.anyOf)
+    return output.anyOf.every(member => isAssignable(member, input))
+  if (input.anyOf)
+    return input.anyOf.some(member => isAssignable(output, member))
+
   // 'null' means unknown/no type — accept while the schema lacks a concrete type.
   if (output.type === 'null')
     return true
@@ -112,16 +131,59 @@ export function areTypesCompatible(output: TypeInfo, input: TypeInfo): boolean {
   return false
 }
 
+export function areTypesCompatible(output: TypeInfo, input: TypeInfo): boolean {
+  return isAssignable(output, input)
+}
+
 function areItemsCompatible(output: TypeInfo | undefined, input: TypeInfo | undefined): boolean {
   if (!output || !input)
     return true
-  if (output.type === 'null')
-    return true
-  if (output.type === input.type)
-    return true
-  if (output.type === 'integer' && input.type === 'number')
-    return true
-  return false
+  return isAssignable(output, input)
+}
+
+/** Human-readable type name for warnings, e.g. `array<integer | string>`. */
+export function describeType(type: TypeInfo): string {
+  if (type.anyOf?.length)
+    return type.anyOf.map(describeType).join(' | ')
+  if (type.type === 'array')
+    return `array<${type.items ? describeType(type.items) : 'any'}>`
+  return type.type
+}
+
+const MODEL_SLUG_PREFIX = 'model_slug'
+
+/**
+ * A model input is a consumer's model selection (fed by a File Input node's output).
+ * Model ports only connect to other model ports — never to ordinary data ports.
+ */
+export function isModelInput(inputName: string): boolean {
+  return inputName.startsWith(MODEL_SLUG_PREFIX)
+}
+
+/**
+ * The File Input node's `model_slug` output is the only model-producing port.
+ */
+export function isModelOutput(nodeName: string, outputName: string): boolean {
+  return nodeName === 'file_input' && outputName === 'model_slug'
+}
+
+/**
+ * Whether a source node's output may feed a target node's input, taking the
+ * dedicated model port into account in addition to type compatibility.
+ */
+export function arePortsCompatible(
+  targetNodeName: string,
+  inputName: string,
+  sourceNodeName: string,
+  outputName: string,
+): boolean {
+  const modelToData = isModelInput(inputName) !== isModelOutput(sourceNodeName, outputName)
+  if (modelToData)
+    return false
+  return areTypesCompatible(
+    getOutputType(sourceNodeName, outputName),
+    getInputType(targetNodeName, inputName),
+  )
 }
 
 export function formatLabel(str: string): string {

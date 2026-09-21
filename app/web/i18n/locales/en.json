@@ -103,16 +103,32 @@
     "duplicateModelSlug": "A model named '{slug}' already exists.",
     "modelFileRequired": "Select an IFC file for the model."
   },
+  "modelBar": {
+    "addModel": "Add IFC Model",
+    "modalTitle": "Add IFC Model",
+    "modalDescription": "Pick an IFC file and assign it to a slot.",
+    "fileLabel": "IFC File",
+    "searchFiles": "Search files...",
+    "noFilesFound": "No files found.",
+    "isMain": "This is the main IFC",
+    "isMainHint": "Assigned to the main slot.",
+    "nameLabel": "Model name",
+    "namePlaceholder": "Model name (e.g. arch)",
+    "fileRequired": "Select an IFC file.",
+    "cancel": "Cancel",
+    "confirm": "Add",
+    "save": "Save",
+    "replace": "Replace file",
+    "removeFile": "Remove file",
+    "replaceTitle": "Replace IFC model",
+    "replaceDescription": "Pick a different IFC file for this model slot."
+  },
   "slideover": {
     "nodeDetails": "Node Details",
     "description": "Configure and inspect node properties",
     "nodeLabel": "Node Label",
     "customLabelPlaceholder": "Enter custom label...",
     "labelHint": "This label will be shown in the graph and binding dropdowns",
-    "model": "Model",
-    "modelA": "Model A",
-    "modelB": "Model B",
-    "modelHint": "The IFC model this node resolves express IDs and geometry against. Defaults to the main model.",
     "documentation": "Documentation",
     "noDetailedDocs": "No detailed documentation available",
     "unknownNode": "Unknown Node",
@@ -124,7 +140,11 @@
     "title": "Input Bindings",
     "selectSourceNode": "Select source node...",
     "selectOutput": "Select output...",
+    "none": "None",
     "typeMismatch": "Type mismatch",
+    "model": "Model",
+    "modelA": "Model A",
+    "modelB": "Model B",
     "noConfigurableInputs": "This node has no configurable inputs"
   },
   "execution": {
@@ -172,19 +192,9 @@
   },
   "node": {
     "fileInput": {
-      "title": "File Input Node",
-      "description": "Select a local development file to attach to this node.",
-      "selectedFile": "Selected file",
-      "noFileSelected": "No file selected",
-      "clear": "Clear",
-      "searchFiles": "Search files",
-      "filterFilenames": "Filter filenames",
-      "retry": "Retry",
-      "unableToLoad": "Unable to load development files.",
-      "loadingFiles": "Loading files...",
-      "noFilesFound": "No files were found in web/.dev-files",
-      "addIfcFile": "Please add an ifc file in the folder {folder} to use this node.",
-      "noFilenameMatch": "No filenames match your search."
+      "title": "File Input",
+      "description": "Points to an IFC model assigned in the editor's model bar.",
+      "selectModel": "Select a model..."
     },
     "getName": {
       "title": "Get Name Node",

@@ -25,11 +25,6 @@ class IdsCheckerSettings(NodeModel):
         title="Report Format",
         description="Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.",
     )
-    model_slug: str = Field(
-        default="main",
-        title="Model",
-        description="Model slug to validate against. Defaults to the main model.",
-    )
 
 
 class IdsCheckerInputs(NodeModel):
@@ -37,6 +32,11 @@ class IdsCheckerInputs(NodeModel):
         default=[],
         title="Express IDs",
         description="Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.",
+    )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to validate against. Defaults to the main model.",
     )
 
 
@@ -107,7 +107,7 @@ async def ids_checker(
     except Exception as e:
         raise ValueError(f"Failed to parse IDS file: {e}") from e
 
-    model = context.resolve_model(settings.model_slug)
+    model = context.resolve_model(inputs.model_slug)
 
     try:
         ids_file.validate(model)

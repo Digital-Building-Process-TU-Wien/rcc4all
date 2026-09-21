@@ -103,16 +103,32 @@
     "duplicateModelSlug": "Ein Modell namens '{slug}' existiert bereits.",
     "modelFileRequired": "Wählen Sie eine IFC-Datei für das Modell aus."
   },
+  "modelBar": {
+    "addModel": "IFC-Modell hinzufügen",
+    "modalTitle": "IFC-Modell hinzufügen",
+    "modalDescription": "IFC-Datei auswählen und einem Slot zuweisen.",
+    "fileLabel": "IFC-Datei",
+    "searchFiles": "Dateien durchsuchen...",
+    "noFilesFound": "Keine Dateien gefunden.",
+    "isMain": "Dies ist das Haupt-IFC",
+    "isMainHint": "Wird dem Haupt-Slot zugewiesen.",
+    "nameLabel": "Modellname",
+    "namePlaceholder": "Modellname (z. B. arch)",
+    "fileRequired": "Wählen Sie eine IFC-Datei aus.",
+    "cancel": "Abbrechen",
+    "confirm": "Hinzufügen",
+    "save": "Speichern",
+    "replace": "Datei ersetzen",
+    "removeFile": "Datei entfernen",
+    "replaceTitle": "IFC-Modell ersetzen",
+    "replaceDescription": "Wählen Sie eine andere IFC-Datei für diesen Modell-Slot."
+  },
   "slideover": {
     "nodeDetails": "Node-Details",
     "description": "Node-Eigenschaften konfigurieren und prüfen",
     "nodeLabel": "Node-Name",
     "customLabelPlaceholder": "Eigenen Namen eingeben...",
     "labelHint": "Dieser Name wird im Diagramm und in den Verbindungs-Dropdowns angezeigt",
-    "model": "Modell",
-    "modelA": "Modell A",
-    "modelB": "Modell B",
-    "modelHint": "Das IFC-Modell, gegen das dieser Node Express-IDs und Geometrie auflöst. Standardmäßig das Hauptmodell.",
     "documentation": "Dokumentation",
     "noDetailedDocs": "Keine ausführliche Dokumentation verfügbar",
     "unknownNode": "Unbekannter Node",
@@ -124,7 +140,11 @@
     "title": "Eingangsbindungen",
     "selectSourceNode": "Quellnode auswählen...",
     "selectOutput": "Ausgabe auswählen...",
+    "none": "Keine",
     "typeMismatch": "Typkonflikt",
+    "model": "Modell",
+    "modelA": "Modell A",
+    "modelB": "Modell B",
     "noConfigurableInputs": "Dieser Node hat keine konfigurierbaren Eingänge"
   },
   "execution": {
@@ -172,19 +192,9 @@
   },
   "node": {
     "fileInput": {
-      "title": "Datei-Eingabe-Node",
-      "description": "Wählen Sie eine lokale Entwicklungsdatei aus, um sie an diesen Node anzuhängen.",
-      "selectedFile": "Ausgewählte Datei",
-      "noFileSelected": "Keine Datei ausgewählt",
-      "clear": "Leeren",
-      "searchFiles": "Dateien durchsuchen",
-      "filterFilenames": "Dateinamen filtern",
-      "retry": "Erneut versuchen",
-      "unableToLoad": "Entwicklungsdateien konnten nicht geladen werden.",
-      "loadingFiles": "Dateien werden geladen...",
-      "noFilesFound": "Keine Dateien in web/.dev-files gefunden",
-      "addIfcFile": "Bitte legen Sie eine IFC-Datei im Ordner {folder} ab, um diesen Node zu verwenden.",
-      "noFilenameMatch": "Keine Dateinamen entsprechen Ihrer Suche."
+      "title": "Datei-Eingabe",
+      "description": "Verweist auf ein IFC-Modell, das in der Modellleiste des Editors zugewiesen wurde.",
+      "selectModel": "Modell auswählen..."
     },
     "getName": {
       "title": "Name abrufen",

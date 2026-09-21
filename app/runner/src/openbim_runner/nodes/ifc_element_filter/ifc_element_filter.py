@@ -57,11 +57,6 @@ class IfcElementFilterSettings(NodeModel):
         title="Filter rows",
         description="List of component filter rows. Include rows are unioned, exclude rows are subtracted.",
     )
-    model_slug: str = Field(
-        default="main",
-        title="Model",
-        description="Model slug to filter against. Defaults to the main model.",
-    )
 
 
 class IfcElementFilterInputs(NodeModel):
@@ -69,6 +64,11 @@ class IfcElementFilterInputs(NodeModel):
         default=None,
         title="Express IDs",
         description="Optional list of IFC express IDs to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result.",
+    )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to filter against. Defaults to the main model.",
     )
 
 
@@ -252,7 +252,7 @@ async def ifc_element_filter(
     inputs: IfcElementFilterInputs,
     context: ExecutionContext,
 ) -> IfcElementFilterResult:
-    model = context.resolve_model(settings.model_slug)
+    model = context.resolve_model(inputs.model_slug)
     matched: list[Any] = []
 
     for entity in _candidate_entities(model, inputs, settings.filter_rows):

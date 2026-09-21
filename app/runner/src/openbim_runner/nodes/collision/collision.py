@@ -31,16 +31,6 @@ class CollisionSettings(NodeModel):
             "geometry cache under a deterministic key (documented in the README)."
         ),
     )
-    model_slug_a: str = Field(
-        default="main",
-        title="Model A",
-        description="Model slug that List A references refer to. Defaults to the main model.",
-    )
-    model_slug_b: str = Field(
-        default="main",
-        title="Model B",
-        description="Model slug that List B references refer to. Defaults to the main model.",
-    )
 
 
 class CollisionInputs(NodeModel):
@@ -59,6 +49,16 @@ class CollisionInputs(NodeModel):
             "Second (optional) list of references — mix of express IDs (int → `<model B>:expr:<id>`) and "
             "object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set."
         ),
+    )
+    model_slug_a: str = Field(
+        default="main",
+        title="Model A",
+        description="Model slug that List A references refer to. Defaults to the main model.",
+    )
+    model_slug_b: str = Field(
+        default="main",
+        title="Model B",
+        description="Model slug that List B references refer to. Defaults to the main model.",
     )
 
 
@@ -203,11 +203,11 @@ async def collision(
     inputs: CollisionInputs,
     context: ExecutionContext,
 ) -> CollisionResult:
-    keys_a = resolve_side(context, refs=inputs.list_a, slug=settings.model_slug_a)
-    keys_b = resolve_side(context, refs=inputs.list_b, slug=settings.model_slug_b)
+    keys_a = resolve_side(context, refs=inputs.list_a, slug=inputs.model_slug_a)
+    keys_b = resolve_side(context, refs=inputs.list_b, slug=inputs.model_slug_b)
 
     exclusions_by_slug: dict[str, frozenset[tuple[int, int]]] = {}
-    for slug in {settings.model_slug_a, settings.model_slug_b}:
+    for slug in {inputs.model_slug_a, inputs.model_slug_b}:
         try:
             model = context.resolve_model(slug)
         except ValueError:

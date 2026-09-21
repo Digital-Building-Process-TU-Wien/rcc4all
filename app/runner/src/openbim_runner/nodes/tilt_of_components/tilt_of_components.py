@@ -74,11 +74,6 @@ class TiltOfComponentsSettings(NodeModel):
         title="Tolerance (°)",
         description="Shared tolerance added/subtracted to the limits when flagging.",
     )
-    model_slug: str = Field(
-        default="main",
-        title="Model",
-        description="Model slug to measure elements against. Defaults to the main model.",
-    )
 
 
 class TiltOfComponentsInputs(NodeModel):
@@ -89,6 +84,11 @@ class TiltOfComponentsInputs(NodeModel):
             "Optional list of IFC express IDs to measure. When empty, all IFC elements "
             "in the model are checked."
         ),
+    )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to measure elements against. Defaults to the main model.",
     )
 
 
@@ -177,7 +177,7 @@ async def tilt_of_components(
         try:
             express_ids = [
                 entity.id()
-                for entity in context.resolve_model(settings.model_slug).by_type(
+                for entity in context.resolve_model(inputs.model_slug).by_type(
                     "IfcElement"
                 )
             ]
@@ -189,8 +189,8 @@ async def tilt_of_components(
     failed_count = 0
 
     for express_id in express_ids:
-        class_name = _resolve_class_name(context, express_id, settings.model_slug)
-        mesh = _resolve_composed_mesh(context, express_id, settings.model_slug)
+        class_name = _resolve_class_name(context, express_id, inputs.model_slug)
+        mesh = _resolve_composed_mesh(context, express_id, inputs.model_slug)
 
         if mesh is None or len(mesh.faces) == 0:
             elements.append(
@@ -229,7 +229,7 @@ async def tilt_of_components(
         element_count=len(elements),
         check_count=check_count,
         failed_count=failed_count,
-        model_name=_resolve_model_name(context, settings.model_slug),
+        model_name=_resolve_model_name(context, inputs.model_slug),
         elements=elements,
     )
 

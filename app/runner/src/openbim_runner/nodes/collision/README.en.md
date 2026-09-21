@@ -4,7 +4,7 @@ description: Clash detection between two geometry lists via AABB prefilter, bool
 categories: geometry,collision
 ---
 
-The `collision` node detects clashes between two lists of cached geometries. References are **express IDs** (`int` → `<model>:expr:<id>`) for IFC elements or **object IDs** (`str` → `gen:<id>`) for generated geometry. Each list resolves express IDs against its own model (settings `model_slug_a` / `model_slug_b`, both defaulting to the main model), so the two lists may come from different IFC files. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:
+The `collision` node detects clashes between two lists of cached geometries. References are **express IDs** (`int` → `<model>:expr:<id>`) for IFC elements or **object IDs** (`str` → `gen:<id>`) for generated geometry. Each list resolves express IDs against its own model (inputs `model_slug_a` / `model_slug_b`, both defaulting to the main model), so the two lists may come from different IFC files. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:
 
 1. **AABB prefilter** — skip pairs with non-overlapping bounding boxes.
 2. **Boolean intersection** — repair both meshes to watertight, compute the intersection. A pair collides when the intersection has positive volume.

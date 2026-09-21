@@ -4,12 +4,14 @@ import { useFlowStore } from '@/stores/flow'
 import { useFlowGraph } from '~/composables/useFlowGraph'
 import { useScopedNode } from '~/composables/useScopedNode'
 import {
-  areTypesCompatible,
+  arePortsCompatible,
+  describeType,
   getInputDescription,
   getInputLabel,
   getInputType,
   getNodeInputs,
   getOutputType,
+  isModelInput,
 } from '~/utils/schema-helpers'
 
 interface Props {
@@ -28,6 +30,22 @@ const bindingOptions = computed(() => getBindingOptions(props.nodeId))
 
 const currentBindings = computed(() => node.value.data.input_bindings || {})
 
+// Sentinel for the explicit "None" entry in the binding dropdowns. Selecting it
+// removes the binding so the input falls back to its default.
+const NONE_VALUE = '__none__'
+
+/** Friendly, localized labels for the dedicated model input ports. */
+function resolveInputLabel(inputName: string): string {
+  if (isModelInput(inputName)) {
+    if (inputName === 'model_slug_a')
+      return t('bindings.modelA')
+    if (inputName === 'model_slug_b')
+      return t('bindings.modelB')
+    return t('bindings.model')
+  }
+  return getInputLabel(props.nodeName, inputName)
+}
+
 function getBindingSource(inputName: string): string | undefined {
   const binding = currentBindings.value[inputName]
   if (!binding)
@@ -42,7 +60,19 @@ function getBindingOutput(inputName: string): string | undefined {
   return binding.split('.')[1]
 }
 
-function getSourceNodeOutputs(inputName: string): { label: string, value: string }[] {
+/** The source dropdown always offers an explicit "None" entry to clear the binding. */
+function getSourceSelectValue(inputName: string): string {
+  return getBindingSource(inputName) ?? NONE_VALUE
+}
+
+function getSourceOptions(): { label: string, value: string }[] {
+  return [
+    { label: t('bindings.none'), value: NONE_VALUE },
+    ...bindingOptions.value.map(opt => ({ label: opt.label, value: opt.id })),
+  ]
+}
+
+function getOutputOptions(inputName: string): { label: string, value: string }[] {
   const sourceId = getBindingSource(inputName)
   if (!sourceId)
     return []
@@ -51,38 +81,46 @@ function getSourceNodeOutputs(inputName: string): { label: string, value: string
   if (!option)
     return []
 
-  const inputType = getInputType(props.nodeName, inputName)
-  return option.outputs
-    .filter(output => areTypesCompatible(getOutputType(option.nodeName, output), inputType))
-    .map(output => ({
-      label: output,
-      value: output,
-    }))
+  return [
+    { label: t('bindings.none'), value: NONE_VALUE },
+    ...option.outputs
+      .filter(output => arePortsCompatible(props.nodeName, inputName, option.nodeName, output))
+      .map(output => ({ label: output, value: output })),
+  ]
+}
+
+function clearBinding(inputName: string) {
+  const bindings = { ...currentBindings.value }
+  delete bindings[inputName]
+  node.value.data.input_bindings = bindings
 }
 
 function updateBinding(inputName: string, sourceId?: string, outputField?: string) {
   const currentSource = getBindingSource(inputName)
   const currentOutput = getBindingOutput(inputName)
 
+  const sourceChanged = sourceId !== undefined && sourceId !== currentSource
   const newSource = sourceId ?? currentSource
-  let newOutput = outputField ?? currentOutput
+  // Changing the source invalidates the previous output; re-resolve it below.
+  let newOutput = outputField ?? (sourceChanged ? undefined : currentOutput)
 
   const bindings = { ...currentBindings.value }
 
   if (newSource && !newOutput) {
     const sourceOption = bindingOptions.value.find(opt => opt.id === newSource)
-    if (sourceOption?.outputs?.length === 1) {
-      newOutput = sourceOption.outputs[0]
-    }
+    const compatibleOutputs = sourceOption
+      ? sourceOption.outputs.filter(output =>
+          arePortsCompatible(props.nodeName, inputName, sourceOption.nodeName, output))
+      : []
+    newOutput = compatibleOutputs[0]
   }
 
   if (newSource && newOutput) {
     bindings[inputName] = `${newSource}.${newOutput}`
   }
-  else if (newSource && !outputField) {
-    bindings[inputName] = newSource
-  }
-  else if (!newSource) {
+  else {
+    // No source, or a source with no compatible output: the input stays unbound
+    // and falls back to its default.
     delete bindings[inputName]
   }
 
@@ -102,8 +140,8 @@ function getTypeWarning(inputName: string): string | null {
   const outputType = getOutputType(sourceNode.data.nodeName, outputField)
   const inputType = getInputType(props.nodeName, inputName)
 
-  if (!areTypesCompatible(outputType, inputType)) {
-    return `${t('bindings.typeMismatch')}: ${outputType.type} → ${inputType.type}`
+  if (!arePortsCompatible(props.nodeName, inputName, sourceNode.data.nodeName, outputField)) {
+    return `${t('bindings.typeMismatch')}: ${describeType(outputType)} → ${describeType(inputType)}`
   }
 
   return null
@@ -118,26 +156,27 @@ function getTypeWarning(inputName: string): string | null {
 
     <div v-for="inputName in nodeInputs" :key="inputName" class="mb-4">
       <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
-        {{ getInputLabel(props.nodeName, inputName) }}
+        {{ resolveInputLabel(inputName) }}
       </label>
 
       <div class="grid grid-cols-2 gap-2 mt-1">
         <USelect
-          :model-value="getBindingSource(inputName)"
-          :items="bindingOptions.map(opt => ({ value: opt.id, label: opt.label }))"
+          :model-value="getSourceSelectValue(inputName)"
+          :items="getSourceOptions()"
           value-key="value"
           label-key="label"
           :placeholder="t('bindings.selectSourceNode')"
-          @update:model-value="(sourceId: string) => updateBinding(inputName, sourceId)"
+          @update:model-value="(value: string) => value === NONE_VALUE ? clearBinding(inputName) : updateBinding(inputName, value)"
         />
 
         <USelect
           :model-value="getBindingOutput(inputName)"
-          :items="getSourceNodeOutputs(inputName)"
-          item-key="value"
+          :items="getOutputOptions(inputName)"
+          value-key="value"
+          label-key="label"
           :placeholder="t('bindings.selectOutput')"
           :disabled="!getBindingSource(inputName)"
-          @update:model-value="(output: string) => updateBinding(inputName, undefined, output)"
+          @update:model-value="(value: string) => value === NONE_VALUE ? clearBinding(inputName) : updateBinding(inputName, undefined, value)"
         />
       </div>
 

@@ -33,7 +33,8 @@ export const useFlowStore = defineStore('flow', () => {
     zoom: 1,
   })
   const workflowData = ref<WorkflowData | null>(null)
-  const files = ref<ModelFile[]>([{ slug: 'main', path: 'test.ifc', hash: '' }])
+  // The `main` slot is always present but starts unassigned; no file is implied.
+  const files = ref<ModelFile[]>([{ slug: 'main', path: '', hash: '' }])
 
   const nodes = computed(() => Object.values(nodesById.value))
 
@@ -123,10 +124,16 @@ export const useFlowStore = defineStore('flow', () => {
   }
 
   /**
-   * Remove a non-main slot. The reserved `main` slot cannot be removed.
+   * Remove a model slot. The reserved `main` slot is never removed; deleting it
+   * unassigns its file and leaves the empty placeholder in place.
    */
   function removeFile(slug: string) {
     if (slug === 'main') {
+      const mainEntry = files.value.find(entry => entry.slug === 'main')
+      if (mainEntry) {
+        mainEntry.path = ''
+        mainEntry.hash = ''
+      }
       return
     }
     files.value = files.value.filter(entry => entry.slug !== slug)

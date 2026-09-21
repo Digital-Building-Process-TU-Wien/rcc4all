@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { AvailableNode, SupportedLocale } from '~/utils/nodes'
-import { useFlowStore } from '~/stores/flow'
 import { getAvailableNodes } from '~/utils/nodes'
 
 withDefaults(defineProps<Props>(), {
@@ -13,10 +12,6 @@ const emit = defineEmits<{
   clearCanvas: []
 }>()
 
-// Keep in sync with the runner validator:
-// app/runner/src/openbim_runner/workflow.py (MODEL_SLUG_PATTERN).
-const MODEL_SLUG_RE = /^[a-z0-9][a-z0-9-_]*$/
-
 interface Props {
   hasNodes: boolean
   nodeCount: number
@@ -25,70 +20,8 @@ interface Props {
 
 const { locale, t } = useI18n()
 
-const store = useFlowStore()
-
-const { data: devFilesData } = useFetch('/api/dev-files', {
-  default: () => ({ files: [] }),
-  lazy: true,
-  server: false,
-})
-
-const newModelSlug = ref('')
-const newModelFile = ref('')
-const modelError = ref('')
-
-const modelFileOptions = computed(() => (devFilesData.value?.files ?? []).map(
-  file => ({ label: file, value: file }),
-))
-
-async function addModel() {
-  const slug = newModelSlug.value.trim()
-  modelError.value = ''
-  if (!MODEL_SLUG_RE.test(slug)) {
-    modelError.value = t('library.invalidModelSlug')
-    return
-  }
-  if (slug.toLowerCase() === 'main') {
-    modelError.value = t('library.mainSlugReserved')
-    return
-  }
-  if (store.files.some(file => file.slug === slug)) {
-    modelError.value = t('library.duplicateModelSlug', { slug })
-    return
-  }
-  if (!newModelFile.value) {
-    modelError.value = t('library.modelFileRequired')
-    return
-  }
-  const hash = await hashFile(newModelFile.value)
-  store.addFile({ slug, path: newModelFile.value, hash })
-  newModelSlug.value = ''
-  newModelFile.value = ''
-}
-
-// Best-effort: records a bare SHA-256 hex digest so the runner can warn when a
-// file on disk changes after assignment. A failure records an empty hash, which
-// tells the runner to skip the check.
-async function hashFile(filename: string): Promise<string> {
-  try {
-    const result = await $fetch<{ hash: string }>('/api/dev-file-hash', {
-      query: { name: filename },
-    })
-    return result?.hash ?? ''
-  }
-  catch {
-    return ''
-  }
-}
-
 const availableNodes = computed(() => {
   const nodes = getAvailableNodes(locale.value as SupportedLocale)
-  nodes.push({
-    nodeName: 'FileInput',
-    label: t('node.fileInput.title'),
-    categories: ['Other'],
-    description: t('node.fileInput.description'),
-  })
   nodes.push({
     nodeName: 'JsonOutput',
     label: t('node.jsonOutput.title'),
@@ -304,82 +237,6 @@ function handleAddNode(node: AvailableNode) {
             {{ t('library.noNodesMatch') }}
           </div>
         </template>
-
-        <UDivider class="my-1" />
-
-        <div class="rounded-xl border border-default bg-default/80 p-3 space-y-3">
-          <div>
-            <p class="text-sm font-medium text-highlighted">
-              {{ t('library.modelsTitle') }}
-            </p>
-            <p class="mt-1 text-xs text-muted">
-              {{ t('library.modelsDescription') }}
-            </p>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <div
-              v-for="file in store.files"
-              :key="file.slug"
-              class="flex items-center gap-2 rounded-lg border border-default bg-default/50 px-3 py-2"
-            >
-              <Icon name="i-lucide-file" class="size-4 text-muted shrink-0" />
-              <div class="min-w-0 flex-1">
-                <p class="flex items-center gap-1.5 text-sm text-highlighted">
-                  <span class="truncate font-medium">{{ file.slug === 'main' ? t('library.modelMain') : file.slug }}</span>
-                  <UBadge
-                    v-if="file.slug === 'main'"
-                    color="primary"
-                    variant="subtle"
-                    size="xs"
-                  >
-                    {{ t('library.mainBadge') }}
-                  </UBadge>
-                </p>
-                <p class="truncate text-xs text-muted">
-                  {{ file.path || t('library.noFileAssigned') }}
-                </p>
-              </div>
-              <UButton
-                v-if="file.slug !== 'main'"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                size="xs"
-                :title="t('library.removeModel')"
-                @click="store.removeFile(file.slug)"
-              />
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-2 pt-1">
-            <UInput
-              v-model="newModelSlug"
-              icon="i-lucide-tag"
-              :placeholder="t('library.newModelSlug')"
-              size="sm"
-              clearable
-            />
-            <USelect
-              v-model="newModelFile"
-              :options="modelFileOptions"
-              :placeholder="t('library.newModelFile')"
-              size="sm"
-            />
-            <UButton
-              color="neutral"
-              variant="outline"
-              size="sm"
-              icon="i-lucide-plus"
-              :label="t('library.addModel')"
-              block
-              @click="addModel"
-            />
-            <p v-if="modelError" class="text-xs text-error">
-              {{ modelError }}
-            </p>
-          </div>
-        </div>
       </div>
     </template>
 

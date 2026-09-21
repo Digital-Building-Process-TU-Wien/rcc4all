@@ -7,7 +7,7 @@ import SlideOver from '~/components/nodes/Slideover.vue'
 import WorkflowNode from '~/components/nodes/WorkflowNode.vue'
 import { useFlowStore } from '~/stores/flow'
 import { getAvailableNodes } from '~/utils/nodes'
-import { getNodeInputs, getNodeOutputs } from '~/utils/schema-helpers'
+import { getNodeInputs, getNodeOutputs, isModelInput } from '~/utils/schema-helpers'
 
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -20,12 +20,6 @@ const { locale, t } = useI18n()
 
 const availableNodes = computed(() => {
   const nodes = getAvailableNodes(locale.value as SupportedLocale)
-  nodes.push({
-    nodeName: 'FileInput',
-    label: t('node.fileInput.title'),
-    categories: ['Other'],
-    description: t('node.fileInput.description'),
-  })
   nodes.push({
     nodeName: 'JsonOutput',
     label: t('node.jsonOutput.title'),
@@ -69,26 +63,46 @@ function handleConnect(params: Connection) {
   store.addEdges(edge)
 
   const targetNode = store.nodesById[params.target]
-  if (targetNode) {
-    const inputs = getNodeInputs(targetNode.data.nodeName)
-    const outputs = getNodeOutputs(params.source)
+  const sourceNode = store.nodesById[params.source]
+  if (!targetNode || !sourceNode)
+    return
 
-    if (inputs.length > 0 && outputs.length > 0) {
-      const firstInput = inputs[0]
-      const firstOutput = outputs[0]
+  const sourceOutputs = getNodeOutputs(sourceNode.data.nodeName)
+  if (sourceOutputs.length === 0)
+    return
 
-      const currentBindings = targetNode.data.input_bindings || {}
+  const targetInputs = getNodeInputs(targetNode.data.nodeName)
+  if (targetInputs.length === 0)
+    return
 
-      if (firstInput && !currentBindings[firstInput]) {
-        store.updateNodeData(params.target, {
-          input_bindings: {
-            ...currentBindings,
-            [firstInput]: `${params.source}.${firstOutput}`,
-          },
-        })
-      }
-    }
+  const currentBindings = targetNode.data.input_bindings || {}
+
+  // A File Input node's output is a model slug; it feeds the target's model input.
+  if (sourceNode.data.nodeName === 'file_input') {
+    const modelInput = targetInputs.find(name => isModelInput(name) && !currentBindings[name])
+      ?? targetInputs.find(name => isModelInput(name))
+    if (!modelInput)
+      return
+
+    store.updateNodeData(params.target, {
+      input_bindings: {
+        ...currentBindings,
+        [modelInput]: `${params.source}.model_slug`,
+      },
+    })
+    return
   }
+
+  const firstInput = targetInputs.find(name => !isModelInput(name) && !currentBindings[name])
+  if (!firstInput)
+    return
+
+  store.updateNodeData(params.target, {
+    input_bindings: {
+      ...currentBindings,
+      [firstInput]: `${params.source}.${sourceOutputs[0]}`,
+    },
+  })
 }
 
 function handleNodeClick(params: { node: Node<NodeData> }) {
@@ -114,7 +128,7 @@ function getNextNodePosition() {
 function addNodeToCanvas(availableNode: AvailableNode, position?: { x: number, y: number }) {
   const shouldFitView = nodes.value.length === 0
 
-  const isFileInputNode = availableNode.nodeName === 'FileInput'
+  const isFileInputNode = availableNode.nodeName === 'file_input'
 
   store.addNodes({
     id: nanoid(),
@@ -144,15 +158,17 @@ function parseSettings(settings: any, _nodeType: string) {
 }
 
 async function runWorkflow() {
-  const workflowFiles = store.files.map(file => ({
-    path: file.path,
-    slug: file.slug,
-    hash: file.hash,
-  }))
+  const workflowFiles = store.files
+    .filter(file => file.path)
+    .map(file => ({
+      path: file.path,
+      slug: file.slug,
+      hash: file.hash,
+    }))
 
   const workflowNodeIds = new Set<string>()
   const workflowNodes = nodes.value
-    .filter(node => node.data.nodeName !== 'FileInput' && node.data.nodeName !== 'JsonOutput')
+    .filter(node => node.data.nodeName !== 'JsonOutput')
     .map((node) => {
       workflowNodeIds.add(node.id)
       return {
@@ -194,16 +210,25 @@ async function runWorkflow() {
         @clear-canvas="clearCanvas"
       />
 
-      <NodeCanvas
-        :nodes="nodes"
-        :edges="store.edges"
-        :viewport="viewport"
-        :node-types="nodeTypes"
-        :has-nodes="hasNodes"
-        :available-nodes="availableNodes"
-        @connect="handleConnect"
-        @node-click="handleNodeClick"
-      />
+      <UDashboardPanel class="min-w-0">
+        <template #default>
+          <div class="flex h-full min-h-0 flex-col">
+            <ModelBar />
+
+            <NodeCanvas
+              class="min-h-0 flex-1"
+              :nodes="nodes"
+              :edges="store.edges"
+              :viewport="viewport"
+              :node-types="nodeTypes"
+              :has-nodes="hasNodes"
+              :available-nodes="availableNodes"
+              @connect="handleConnect"
+              @node-click="handleNodeClick"
+            />
+          </div>
+        </template>
+      </UDashboardPanel>
     </UDashboardGroup>
   </div>
 </template>

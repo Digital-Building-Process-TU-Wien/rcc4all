@@ -92,11 +92,6 @@ class BcfOutputSettings(NodeModel):
             "title template. The comparison row's expected value supplies the limit."
         ),
     )
-    model_slug: str = Field(
-        default="main",
-        title="Model",
-        description="Model slug to resolve element identities against. Defaults to the main model.",
-    )
 
 
 class BcfOutputInputs(NodeModel):
@@ -104,6 +99,11 @@ class BcfOutputInputs(NodeModel):
         default=[],
         title="Elements",
         description="Elements and their property check results from LOI-Check (LOI-Check.elements).",
+    )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to resolve element identities against. Defaults to the main model.",
     )
 
 
@@ -406,7 +406,7 @@ async def bcf_output(
 
             failed_check_count += 1
             element_guid, element_name = _resolve_identity(
-                context, element.express_id, check.property_key, settings.model_slug
+                context, element.express_id, check.property_key, inputs.model_slug
             )
 
             namespace = _build_namespace(
