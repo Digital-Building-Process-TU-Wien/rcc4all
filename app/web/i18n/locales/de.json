@@ -99,7 +99,7 @@
     "addModel": "Modell hinzufügen",
     "invalidModelSlug": "Ungültiger Modellname. Verwenden Sie Kleinbuchstaben, Ziffern, '-' oder '_'.",
     "mainSlugReserved": "Der Name 'main' ist reserviert.",
-    "duplicateModelSlug": "Ein Modell namens '{{slug}}' existiert bereits.",
+    "duplicateModelSlug": "Ein Modell namens '{slug}' existiert bereits.",
     "modelFileRequired": "Wählen Sie eine IFC-Datei für das Modell aus."
   },
   "slideover": {

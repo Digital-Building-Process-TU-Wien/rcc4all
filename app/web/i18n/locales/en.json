@@ -99,7 +99,7 @@
     "addModel": "Add model",
     "invalidModelSlug": "Invalid model name. Use lowercase letters, digits, '-' or '_'.",
     "mainSlugReserved": "The name 'main' is reserved.",
-    "duplicateModelSlug": "A model named '{{slug}}' already exists.",
+    "duplicateModelSlug": "A model named '{slug}' already exists.",
     "modelFileRequired": "Select an IFC file for the model."
   },
   "slideover": {
