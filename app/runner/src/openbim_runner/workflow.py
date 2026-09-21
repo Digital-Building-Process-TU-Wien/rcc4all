@@ -81,6 +81,8 @@ class WorkflowDefinition(NodeModel):
     )
 
 
+# Keep in sync with the web validator below:
+# app/web/app/components/nodes/NodeLibrarySidebar.vue (MODEL_SLUG_RE).
 MODEL_SLUG_PATTERN = r"^[a-z0-9][a-z0-9-_]*$"
 
 
@@ -114,9 +116,7 @@ def validate_model_files(files: list[ModelFile]) -> None:
         slugs[slug] = model_file
 
     if "main" not in slugs:
-        raise ValueError(
-            "Workflow must define a file with the reserved slug 'main'."
-        )
+        raise ValueError("Workflow must define a file with the reserved slug 'main'.")
 
 
 def load_workflow(workflow_path: Path) -> WorkflowDefinition:
@@ -403,9 +403,9 @@ async def execute_workflow_async(
 def _warn_on_hash_mismatch(model_file: ModelFile, resolved_path: Path) -> None:
     """Non-fatal warning when an IFC file's content differs from its recorded hash.
 
-    The hash is recorded by the web when a file is assigned to a slot. A mismatch
-    signals the file on disk changed since assignment; the workflow still runs
-    against the current file contents.
+    The hash is recorded by the web when a file is assigned to a slot as a bare
+    SHA-256 hex digest. A mismatch signals the file on disk changed since
+    assignment; the workflow still runs against the current file contents.
     """
     import hashlib
 
@@ -413,8 +413,7 @@ def _warn_on_hash_mismatch(model_file: ModelFile, resolved_path: Path) -> None:
         digest = hashlib.sha256(resolved_path.read_bytes()).hexdigest()
     except OSError:
         return
-    recorded = model_file.hash.removeprefix("sha256:")
-    if digest != recorded:
+    if digest != model_file.hash:
         print(
             f"WARNING: IFC file '{model_file.slug}' hash does not match the "
             "workflow definition (file changed since it was assigned)."

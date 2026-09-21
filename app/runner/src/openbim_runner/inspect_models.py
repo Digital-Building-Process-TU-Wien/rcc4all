@@ -74,7 +74,9 @@ def process_model(
         mesh = cache[key]
         combined.append(mesh)
         parts = split_expr_key(key)
-        elements.append({"express_id": parts[1] if parts else key, **_mesh_report(mesh)})
+        elements.append(
+            {"express_id": parts[1] if parts else key, **_mesh_report(mesh)}
+        )
 
     combined_verts = 0
     if combined:

@@ -240,9 +240,7 @@ async def loi_check(
     express_ids = inputs.express_ids
     if not express_ids:
         try:
-            express_ids = [
-                entity.id() for entity in model.by_type("IfcElement")
-            ]
+            express_ids = [entity.id() for entity in model.by_type("IfcElement")]
         except RuntimeError:
             express_ids = []
 

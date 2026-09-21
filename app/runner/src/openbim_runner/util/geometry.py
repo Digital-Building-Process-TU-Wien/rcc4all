@@ -34,7 +34,7 @@ def split_expr_key(key: str) -> tuple[str, int] | None:
         return None
     slug = key[:start]
     try:
-        return slug, int(key[start + len(marker):])
+        return slug, int(key[start + len(marker) :])
     except ValueError:
         return None
 
@@ -160,16 +160,20 @@ def resolve_side(
 
     An ``int`` reference is an express ID mapping to ``<slug>:expr:<id>``; a ``str``
     reference is an object ID mapping to ``gen:<object_id>``. Order is preserved.
-    When the list is empty the whole model is used: every user-referencable key in
-    the cache, in cache insertion order. Raises ``ValueError`` for a reference that
-    has no cached geometry. ``slug`` defaults to the execution context's main model.
+    When the list is empty the whole referenced model is used: every IFC express key
+    for ``slug`` plus any generated ``gen:`` keys, in cache insertion order. Raises
+    ``ValueError`` for a reference that has no cached geometry. ``slug`` defaults to
+    the execution context's main model.
     """
     cache = _ensure_cache(context)
     refs = refs or []
     resolved_slug = context.resolve_slug(slug)
 
     if not refs:
-        return [key for key in cache if is_model_key(key)]
+        prefix = f"{resolved_slug}:"
+        return [
+            key for key in cache if key.startswith(prefix) or key.startswith("gen:")
+        ]
 
     keys: list[str] = []
     for ref in refs:

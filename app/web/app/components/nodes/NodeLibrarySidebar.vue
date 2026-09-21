@@ -13,6 +13,8 @@ const emit = defineEmits<{
   clearCanvas: []
 }>()
 
+// Keep in sync with the runner validator:
+// app/runner/src/openbim_runner/workflow.py (MODEL_SLUG_PATTERN).
 const MODEL_SLUG_RE = /^[a-z0-9][a-z0-9-_]*$/
 
 interface Props {
@@ -39,7 +41,7 @@ const modelFileOptions = computed(() => (devFilesData.value?.files ?? []).map(
   file => ({ label: file, value: file }),
 ))
 
-function addModel() {
+async function addModel() {
   const slug = newModelSlug.value.trim()
   modelError.value = ''
   if (!MODEL_SLUG_RE.test(slug)) {
@@ -58,9 +60,25 @@ function addModel() {
     modelError.value = t('library.modelFileRequired')
     return
   }
-  store.addFile({ slug, path: newModelFile.value, hash: '' })
+  const hash = await hashFile(newModelFile.value)
+  store.addFile({ slug, path: newModelFile.value, hash })
   newModelSlug.value = ''
   newModelFile.value = ''
+}
+
+// Best-effort: records a bare SHA-256 hex digest so the runner can warn when a
+// file on disk changes after assignment. A failure records an empty hash, which
+// tells the runner to skip the check.
+async function hashFile(filename: string): Promise<string> {
+  try {
+    const result = await $fetch<{ hash: string }>('/api/dev-file-hash', {
+      query: { name: filename },
+    })
+    return result?.hash ?? ''
+  }
+  catch {
+    return ''
+  }
 }
 
 const availableNodes = computed(() => {
@@ -308,7 +326,7 @@ function handleAddNode(node: AvailableNode) {
               <Icon name="i-lucide-file" class="size-4 text-muted shrink-0" />
               <div class="min-w-0 flex-1">
                 <p class="flex items-center gap-1.5 text-sm text-highlighted">
-                  <span class="truncate font-medium">{{ store.getSlugLabel(file.slug) }}</span>
+                  <span class="truncate font-medium">{{ file.slug === 'main' ? t('library.modelMain') : file.slug }}</span>
                   <UBadge
                     v-if="file.slug === 'main'"
                     color="primary"

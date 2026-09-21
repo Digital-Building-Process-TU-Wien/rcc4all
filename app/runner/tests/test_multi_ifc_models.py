@@ -77,7 +77,9 @@ def test_duplicate_slugs_are_rejected() -> None:
 
 @pytest.mark.parametrize("slug", ["Main", "Arch Plan", "ä", "arch.name", "arc h"])
 def test_invalid_slug_pattern_is_rejected(slug: str) -> None:
-    workflow = _definition([ModelFile(path="a.ifc", slug="main"), ModelFile(path="b.ifc", slug=slug)])
+    workflow = _definition(
+        [ModelFile(path="a.ifc", slug="main"), ModelFile(path="b.ifc", slug=slug)]
+    )
     with pytest.raises(ValueError, match="Invalid model slug"):
         validate_model_files(workflow.files)
 
@@ -98,7 +100,10 @@ def test_valid_slugs_pass() -> None:
 
 def _context() -> ExecutionContext:
     return ExecutionContext(
-        models={"main": cast(Any, _FakeModel("main")), "arch": cast(Any, _FakeModel("arch"))},
+        models={
+            "main": cast(Any, _FakeModel("main")),
+            "arch": cast(Any, _FakeModel("arch")),
+        },
         node_outputs={},
     )
 
@@ -117,9 +122,7 @@ def test_resolve_model_by_slug() -> None:
 
 def test_resolve_model_unknown_slug_lists_known() -> None:
     context = _context()
-    with pytest.raises(
-        ValueError, match=r"Unknown model slug 'nope'.*Available slugs"
-    ):
+    with pytest.raises(ValueError, match=r"Unknown model slug 'nope'.*Available slugs"):
         context.resolve_model("nope")
 
 
@@ -149,3 +152,12 @@ def test_resolve_side_uses_slug() -> None:
     cache_mesh(context, trimesh.creation.box(), express_id=7, slug="arch")
     assert resolve_side(context, refs=[7]) == ["main:expr:7"]
     assert resolve_side(context, refs=[7], slug="arch") == ["arch:expr:7"]
+
+
+def test_resolve_side_empty_scopes_to_slug() -> None:
+    context = _context()
+    cache_mesh(context, trimesh.creation.box(), express_id=1)
+    cache_mesh(context, trimesh.creation.box(), express_id=2, slug="arch")
+    cache_mesh(context, trimesh.creation.box(), object_id="shared")
+    assert resolve_side(context, slug="main") == ["main:expr:1", "gen:shared"]
+    assert resolve_side(context, slug="arch") == ["arch:expr:2", "gen:shared"]

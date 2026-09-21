@@ -220,7 +220,10 @@ def test_collision_empty_a_falls_back_to_whole_model() -> None:
         context,
     )
 
-    assert result.collisions == {"main:expr:2": ["main:expr:1"], "main:expr:3": ["main:expr:1"]}
+    assert result.collisions == {
+        "main:expr:2": ["main:expr:1"],
+        "main:expr:3": ["main:expr:1"],
+    }
 
 
 def test_collision_self_pair_is_skipped_when_both_fall_back() -> None:
@@ -234,7 +237,10 @@ def test_collision_self_pair_is_skipped_when_both_fall_back() -> None:
         context,
     )
 
-    assert result.collisions == {"main:expr:1": ["main:expr:2"], "main:expr:2": ["main:expr:1"]}
+    assert result.collisions == {
+        "main:expr:1": ["main:expr:2"],
+        "main:expr:2": ["main:expr:1"],
+    }
 
 
 def test_collision_mode_boolean_stores_no_intersection_mesh() -> None:

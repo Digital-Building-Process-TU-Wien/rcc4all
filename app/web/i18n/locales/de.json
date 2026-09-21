@@ -91,6 +91,7 @@
     "clearCanvas": "Arbeitsfläche leeren",
     "modelsTitle": "IFC-Modelle",
     "modelsDescription": "Jede IFC-Datei ist ein benannter Modell-Slot. Das Hauptmodell ist erforderlich; fügen Sie weitere Modelle hinzu, um zu vergleichen oder zu validieren.",
+    "modelMain": "Main",
     "mainBadge": "Main",
     "noFileAssigned": "Keine Datei zugewiesen",
     "removeModel": "Modell entfernen",

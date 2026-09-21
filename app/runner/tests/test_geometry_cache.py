@@ -273,13 +273,19 @@ def test_cache_mesh_accepts_explicit_key() -> None:
 
 def test_cache_mesh_explicit_key_duplicate_raises() -> None:
     context = _context()
-    cache_mesh(context, trimesh.creation.box(), key="inter:intersection_main:expr:1_main:expr:2")
+    cache_mesh(
+        context,
+        trimesh.creation.box(),
+        key="inter:intersection_main:expr:1_main:expr:2",
+    )
 
     with pytest.raises(
         ValueError, match="'inter:intersection_main:expr:1_main:expr:2' already exists"
     ):
         cache_mesh(
-            context, trimesh.creation.box(), key="inter:intersection_main:expr:1_main:expr:2"
+            context,
+            trimesh.creation.box(),
+            key="inter:intersection_main:expr:1_main:expr:2",
         )
 
 
@@ -307,7 +313,11 @@ def test_resolve_side_mixed_list_preserves_order() -> None:
     cache_mesh(context, trimesh.creation.box(), object_id="a")
     cache_mesh(context, trimesh.creation.box(), express_id=2)
 
-    assert resolve_side(context, refs=["a", 1, 2]) == ["gen:a", "main:expr:1", "main:expr:2"]
+    assert resolve_side(context, refs=["a", 1, 2]) == [
+        "gen:a",
+        "main:expr:1",
+        "main:expr:2",
+    ]
 
 
 def test_resolve_side_empty_list_returns_whole_model() -> None:
@@ -499,7 +509,9 @@ def test_build_geometry_cache_synthesizes_composite_wall_model() -> None:
     for pid in part_ids:
         assert f"main:expr:{pid}" in cache, f"Part {pid} should be cached"
 
-    assert f"main:expr:{wall_id}" in cache, f"Composite wall {wall_id} should be synthesized"
+    assert f"main:expr:{wall_id}" in cache, (
+        f"Composite wall {wall_id} should be synthesized"
+    )
 
     wall_mesh = cache[f"main:expr:{wall_id}"]
     assert wall_mesh.is_watertight, "Synthesized wall should be watertight"
@@ -590,8 +602,12 @@ def test_nested_layer_without_geometry_adversarial_order() -> None:
 
     cache = _merge_decomposed_parents(FakeAggregateModel([rel_wall, rel_l3]), cache)
 
-    assert "main:expr:212" in cache, "Nested Layer-3 should be synthesized from sub-layers"
-    assert "main:expr:170" in cache, "Wall should be synthesized even with adversarial order"
+    assert "main:expr:212" in cache, (
+        "Nested Layer-3 should be synthesized from sub-layers"
+    )
+    assert "main:expr:170" in cache, (
+        "Wall should be synthesized even with adversarial order"
+    )
 
     layer3_mesh = cache["main:expr:212"]
     wall_mesh = cache["main:expr:170"]
@@ -636,12 +652,16 @@ def test_multilayered_testmodel_wall4_nested_layers() -> None:
         assert mesh.is_watertight, f"Sub-layer {sub_id} should be watertight"
         assert abs(mesh.volume) > 0, f"Sub-layer {sub_id} should have positive volume"
 
-    assert f"main:expr:{layer3_id}" in cache, f"Layer-3 ({layer3_id}) should be synthesized"
+    assert f"main:expr:{layer3_id}" in cache, (
+        f"Layer-3 ({layer3_id}) should be synthesized"
+    )
     layer3_mesh = cache[f"main:expr:{layer3_id}"]
     assert layer3_mesh.is_watertight, "Layer-3 should be watertight"
     assert abs(layer3_mesh.volume) > 0, "Layer-3 should have positive volume"
 
-    assert f"main:expr:{wall4_id}" in cache, f"Wall-4 ({wall4_id}) should be synthesized"
+    assert f"main:expr:{wall4_id}" in cache, (
+        f"Wall-4 ({wall4_id}) should be synthesized"
+    )
     wall4_mesh = cache[f"main:expr:{wall4_id}"]
     assert wall4_mesh.is_watertight, "Wall-4 should be watertight"
     assert abs(wall4_mesh.volume) > 0, "Wall-4 should have positive volume"

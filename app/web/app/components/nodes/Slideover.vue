@@ -65,7 +65,7 @@ const modelFields = computed(() => {
 })
 
 const modelOptions = computed(() => store.files.map(file => ({
-  label: store.getSlugLabel(file.slug),
+  label: file.slug === 'main' ? t('library.modelMain') : file.slug,
   value: file.slug,
 })))
 

@@ -286,7 +286,9 @@ def _validate_settings(settings: TiltOfComponentsSettings) -> None:
         raise ValueError("upper_limit must not be negative for this comparison method.")
 
 
-def _resolve_class_name(context: ExecutionContext, express_id: int, model_slug: str) -> str:
+def _resolve_class_name(
+    context: ExecutionContext, express_id: int, model_slug: str
+) -> str:
     try:
         entity = context.resolve_model(model_slug).by_id(express_id)
         return entity.is_a()
@@ -366,7 +368,9 @@ def _collect_descendant_meshes(
                     continue
             except ValueError:
                 pass
-            collected.extend(_collect_descendant_meshes(context, part, seen, model_slug))
+            collected.extend(
+                _collect_descendant_meshes(context, part, seen, model_slug)
+            )
     return collected
 
 

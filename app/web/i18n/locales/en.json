@@ -91,6 +91,7 @@
     "clearCanvas": "Clear canvas",
     "modelsTitle": "IFC Models",
     "modelsDescription": "Each IFC file is a named model slot. The main model is required; add more models to compare or validate against.",
+    "modelMain": "Main",
     "mainBadge": "Main",
     "noFileAssigned": "No file assigned",
     "removeModel": "Remove model",

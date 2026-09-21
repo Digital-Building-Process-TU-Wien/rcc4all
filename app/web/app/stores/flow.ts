@@ -39,11 +39,6 @@ export const useFlowStore = defineStore('flow', () => {
 
   const hasNodes = computed(() => nodes.value.length > 0)
   const nodeCount = computed(() => nodes.value.length)
-  const modelSlugs = computed(() => files.value.map(file => file.slug))
-
-  function getSlugLabel(slug: string): string {
-    return slug === 'main' ? 'Main' : slug
-  }
 
   function addNodes(newNodes: Node | Node[]) {
     const nodesArray = Array.isArray(newNodes) ? newNodes : [newNodes]
@@ -111,10 +106,6 @@ export const useFlowStore = defineStore('flow', () => {
 
   function getWorkflowData() {
     return workflowData.value
-  }
-
-  function setFiles(newFiles: ModelFile[]) {
-    files.value = [...newFiles]
   }
 
   /**
@@ -198,8 +189,6 @@ export const useFlowStore = defineStore('flow', () => {
     nodes,
     hasNodes,
     nodeCount,
-    modelSlugs,
-    getSlugLabel,
     addNodes,
     setNodes,
     removeNode,
@@ -210,7 +199,6 @@ export const useFlowStore = defineStore('flow', () => {
     updateViewport,
     setWorkflowData,
     getWorkflowData,
-    setFiles,
     addFile,
     removeFile,
     setMainFile,
