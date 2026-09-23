@@ -4,7 +4,7 @@ description: Clash-Detection zwischen zwei Geometrielisten über AABB-Präfilter
 categories: geometry,collision
 ---
 
-Der `collision`-Node erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **voll qualifizierte Geometrie-Cache-Keys**: `<slug>:expr:<id>` (z. B. `main:expr:63`) für IFC-Elemente, `gen:<object_id>` für generierte Geometrie oder `inter:<id>` für Hilfsgeometrie — alle drei sind als Eingabe zulässig. Jede Referenz nennt ihr eigenes Modell und wird gegen genau dieses aufgelöst — der Node hat keine `model_slug`-Eingänge. Gemischte Listen aus mehreren Modellen sind erlaubt und sind der Hauptanwendungsfall, sodass die beiden Listen aus unterschiedlichen IFC-Dateien stammen können. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
+Der `collision`-Node erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **voll qualifizierte Geometrie-Cache-Keys**: `<slug>:expr:<id>` (z. B. `main:expr:63`) für IFC-Elemente, `gen:<object_id>` für generierte Geometrie oder `inter:<id>` für Hilfsgeometrie. IFC-Referenzen werden gegen das darin genannte Modell aufgelöst. `gen:`- und `inter:`-Keys werden direkt aus dem gemeinsamen Geometrie-Cache gelesen. Die beiden Listen dürfen daher aus unterschiedlichen IFC-Dateien stammen. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
 
 1. **AABB-Präfilter** — Paare ohne überlappende Bounding-Boxes überspringen.
 2. **Boolesche Schnittmenge** — beide Netze zu wasserdichten Netzen reparieren, Schnittmenge berechnen. Eine Kollision liegt vor, wenn die Schnittmenge positives Volumen hat.
@@ -46,7 +46,7 @@ Im Modus `intersection_mesh` wird jedes über die Boolesche Operation entschiede
 inter:intersection_{key_a}_{key_b}
 ```
 
-Da es sich um eine `inter:`-ID handelt, ist sie von Kollisionseingaben ausgeschlossen (gültiger Geometrie-Cache-Key, aber keine Element-Referenz, die zu einer Entität aufgelöst wird). Da Paare nicht dedupliziert werden, erhalten `X↔Y` und `Y↔X` jeweils eine eigene ID. Über FCL entschiedene Kollisionen erscheinen mit einem `null`-Wert — es wird kein Netz gespeichert.
+Die `inter:`-ID ist ein gültiger Geometrie-Cache-Key und kann an Geometrieknoten wie den measurement-Node übergeben werden. Da Paare nicht dedupliziert werden, erhalten `X↔Y` und `Y↔X` jeweils eine eigene ID. Über FCL entschiedene Kollisionen erscheinen mit einem `null`-Wert; es wird kein Netz gespeichert.
 
 ## Hinweise
 

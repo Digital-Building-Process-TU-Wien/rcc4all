@@ -17,20 +17,21 @@ Der `ids_checker` Node validiert IFC-Elemente gegen eine IDS-Datei (Information 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
 | `ids_file` | `str` | Pfad zur IDS-Spezifikationsdatei (erforderlich). |
-| `generate_detailed_report` | `bool` (Standard: `false`) | Wenn aktiviert, werden die Ergebnisse zusätzlich nach Specification gruppiert (für Report-Generierung). Die kombinierten Listen werden immer erstellt. |
-| `report_format` | `"json" \| "html" \| null` (Standard: `null`) | Format für den generierten Report. Nur wirksam wenn `generate_detailed_report` aktiviert ist. Report wird als `ids_report-{timestamp}.{format}` im Output-Verzeichnis gespeichert. |
+| `generate_detailed_report` | `bool` (Standard: `false`) | Ergänzt das Ergebnis um eine Gruppierung nach Specification. Die kombinierten Listen werden immer erstellt. Für eine Report-Datei sind zusätzlich `report_format` und Referenzen aus einem einzigen Modell erforderlich. |
+| `report_format` | `"json" \| "html" \| null` (Standard: `null`) | Format für die generierte Report-Datei. Ein Report wird nur geschrieben, wenn `generate_detailed_report` und `report_format` aktiviert sind. Die Datei wird als `ids_report-{timestamp}.{format}` im Output-Verzeichnis gespeichert. |
 
 ## Ausgabe-Verhalten
 
-Die kombinierten Listen (`failed_express_ids`, `passed_express_ids`) werden immer erstellt. Bei aktivierter Checkbox gibt es zusätzlich eine Gruppierung nach Specification für detaillierte Reports. Der detaillierte Report (`generate_detailed_report` + `report_format`) erfordert Referenzen aus einem einzigen Modell.
+Die kombinierten Listen (`failed_express_ids`, `passed_express_ids`) werden immer erstellt. Bei aktivierter Checkbox gibt es zusätzlich eine Gruppierung nach Specification. Eine Report-Datei wird nur geschrieben, wenn `generate_detailed_report` und `report_format` aktiviert sind.
 
 ## Result
 
-`IdsCheckerResult` enthält drei Felder:
+`IdsCheckerResult` enthält vier Felder:
 
 - `failed_express_ids: list[str]` — voll qualifizierte Referenzen (`<slug>:expr:<id>`) der Elemente, die mindestens eine IDS-Anforderung nicht erfüllt haben. Wird immer erstellt.
 - `passed_express_ids: list[str]` — voll qualifizierte Referenzen der Elemente, die alle anwendbaren IDS-Anforderungen erfüllt haben. Wird immer erstellt.
-- `specifications: list[SpecificationResult] | null` — Pro-Spezifikation-Aufschlüsselung. Nur enthalten, wenn `generate_detailed_report` aktiviert ist. Wird bei Deaktivierung nicht im Output ausgegeben.
+- `specifications: list[SpecificationResult] | null` — Pro-Spezifikation-Aufschlüsselung. Ist gefüllt, wenn `generate_detailed_report` aktiviert ist; andernfalls `null`.
+- `report_path: str | null` — Pfad zur generierten Report-Datei. Ist nur gefüllt, wenn `generate_detailed_report` und `report_format` aktiviert sind; andernfalls `null`.
 
 Eine Entität, die auf keine Spezifikation passt, wird stillschweigend aus beiden Listen ausgeschlossen.
 

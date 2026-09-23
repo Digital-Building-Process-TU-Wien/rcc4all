@@ -2,6 +2,12 @@
 import type { AvailableNode, SupportedLocale } from '~/utils/nodes'
 import { getAvailableNodes } from '~/utils/nodes'
 
+interface Props {
+  hasNodes: boolean
+  nodeCount: number
+  isRunning?: boolean
+}
+
 withDefaults(defineProps<Props>(), {
   isRunning: false,
 })
@@ -11,12 +17,6 @@ const emit = defineEmits<{
   runWorkflow: []
   clearCanvas: []
 }>()
-
-interface Props {
-  hasNodes: boolean
-  nodeCount: number
-  isRunning?: boolean
-}
 
 const { locale, t } = useI18n()
 

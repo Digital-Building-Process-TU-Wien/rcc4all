@@ -18,9 +18,9 @@ before starting any session on this node.
 - Comparison node = pure logic, emits slim structured result (no messages).
 - BCF generation = separate downstream `bcf_output` node (built; see
   `../bcf_output/bcf_output.md`).
-- The BCF node resolves the GlobalId from the `express_id` via the model
-  (`ExecutionContext.ifc_model.by_id(express_id).GlobalId`); comparisons therefore
-  do NOT emit a `ifc_guid` field (kept slim).
+- The BCF node resolves the GlobalId from each qualified `express_id` via
+  `ExecutionContext.resolve_model(reference.slug).by_id(reference.express_id)`;
+  comparisons therefore do NOT emit an `ifc_guid` field (kept slim).
 - 3D BCF Viewpoints out of scope; components linked by IfcGuid only.
 
 ## Node specification
@@ -37,20 +37,21 @@ Each row is checked against every input element → supports multiple entities A
 multiple checks per element simultaneously.
 
 ### Inputs
-- `express_ids: list[int]` (same as get_property) — OPTIONAL. When empty
-  (unconnected), the node gathers all elements from the model context via
-  `context.ifc_model.by_type("IfcElement")` (consistent with the element filter's
-  default). The Component (`specified_types`) filter then narrows the set.
+- `express_ids: list[str]` — REQUIRED list of qualified element references
+  (`<slug>:expr:<id>`), typically bound to `ifc_element_filter`. Each reference
+  resolves against the model named inside it. An unbound input fails
+  validation; an empty bound list processes zero elements.
 
 ### Result (slim — NO message field)
 - `element_count`, `total_checks`, `failed_count` (failed_count = count of failed
   *checks* across all elements, confirmed via design example)
-- `passed_express_ids`, `failed_express_ids`: flat lists of express IDs of the
-  elements that were actually checked (had ≥1 applied check). An element whose
+- `passed_express_ids`, `failed_express_ids`: flat lists of qualified element
+  references (`<slug>:expr:<id>`) for the elements that were actually checked
+  (had ≥1 applied check). An element whose
   checks all passed is in `passed_express_ids`; an element with ≥1 failed check
   is in `failed_express_ids` (the two lists partition the checked elements).
-  Elements with zero applied checks (e.g. missing/invalid express IDs emitted as
-  class `unknown`) are excluded from both lists. Order follows `elements`.
+  Elements with zero applicable checks are excluded from both lists. Order follows
+  `elements`.
 - `elements`: ordered list of
   - `express_id`, `class_name`, `failed`
   - `checks`: list of `PropertyCheckResult`
@@ -146,8 +147,7 @@ User requirement: provide a list of accepted values (e.g. wall material in
 
 ## Edge cases handled
 - Missing property (actual=None) → failed.
-- Missing/invalid express_id → element with class_name="unknown",
-  empty checks, failed=False.
+- Malformed or non-IFC references fail before element processing.
 - No rows → raises `ValueError`; row without property_name → raises `ValueError`.
 - Bool property values stringified as "true"/"false" (get_property convention).
 

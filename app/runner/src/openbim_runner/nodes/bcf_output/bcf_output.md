@@ -17,8 +17,8 @@ before starting any session on this node.
 - Reuse `ComparisonElement` / `PropertyCheckResult` from
   `openbim_runner.nodes.loi_check.loi_check` — single source of truth for what
   was checked. No re-typing of conditions/limits.
-- GUID/name resolved by identity lookup only:
-  `context.ifc_model.by_id(express_id)` → `GlobalId`, `Name`.
+- GUID/name resolved from each qualified reference through
+  `context.resolve_model(reference.slug).by_id(reference.express_id)` → `GlobalId`, `Name`.
 - One BCF topic per **failing check** (an element failing 3 rules → 3 topics).
 - **Markup-only output (no viewpoints)**: the `.bcf` contains only
   `bcf.version`, `project.bcfp` and one `markup.bcf` per topic. No `.bcfv`
@@ -85,9 +85,8 @@ Resolution uses a custom `_Namespace` (attribute access) + `_ResolvingFormatter`
    neighbor(s) of the node (via workflow edges) are considered; a single
    compatible source auto-binds, zero leaves the input unbound (falls through
    to rule 1), and multiple is an error telling the user to bind explicitly.
-   Explicit `input_bindings` always override. Only inputs tagged `AutoBind`
-   participate — unmarked inputs (e.g. `loi_check.express_ids`) keep their
-   "unbound = whole model" semantics.
+   Explicit `input_bindings` always override. `loi_check.express_ids` is
+   required, and an empty bound list processes zero elements.
 2. **Unknown/unresolvable placeholder** → fail, naming the placeholder and the
    offending check (element id + property key).
 3. **Missing/unresolvable element GUID** (entity not found or no `GlobalId`) →

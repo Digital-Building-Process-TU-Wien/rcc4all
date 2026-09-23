@@ -4,7 +4,7 @@ description: Clash detection between two geometry lists via AABB prefilter, bool
 categories: geometry,collision
 ---
 
-The `collision` node detects clashes between two lists of cached geometries. References are **fully qualified geometry cache keys**: `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, or `inter:<id>` for helper/intersection geometry. Each reference resolves against the model named inside it (via `context.resolve_model(slug)`), so the two lists may come from different IFC files — mixed-model lists are fine and are the main use case. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:
+The `collision` node detects clashes between two lists of cached geometries. References are **fully qualified geometry cache keys**: `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, or `inter:<id>` for helper/intersection geometry. IFC references resolve against the model named inside them, while `gen:` and `inter:` keys are read directly from the shared geometry cache. The two lists may therefore come from different IFC files. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:
 
 1. **AABB prefilter** — skip pairs with non-overlapping bounding boxes.
 2. **Boolean intersection** — repair both meshes to watertight, compute the intersection. A pair collides when the intersection has positive volume.
@@ -46,7 +46,7 @@ In `intersection_mesh` mode, each boolean-decided colliding pair is cached under
 inter:intersection_{key_a}_{key_b}
 ```
 
-It is an `inter:` key, so it is excluded from collision inputs. Because pairs are not deduplicated, `X↔Y` and `Y↔X` each get their own key. FCL-decided collisions appear with a `null` value — no mesh is stored.
+It is an `inter:` key and can be passed to geometry consumers such as the measurement node. Because pairs are not deduplicated, `X↔Y` and `Y↔X` each get their own key. FCL-decided collisions appear with a `null` value; no mesh is stored.
 
 ## Notes
 

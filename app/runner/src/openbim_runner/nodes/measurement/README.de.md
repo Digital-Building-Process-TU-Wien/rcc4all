@@ -82,9 +82,10 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 
 - **List A** (optional): Erste Liste voll qualifizierter Geometrie-Cache-Schlüssel
   (`<slug>:expr:<id>` für IFC-Elemente, `gen:<object_id>` für generierte Geometrie,
-  `inter:<id>` für Hilfs-/Schnittgeometrie). Jede Referenz wird gegen das in ihr genannte
-  Modell aufgelöst, gemischte Listen aus mehreren Modellen sind erlaubt. Eine leere Liste
-  liefert null Messungen.
+  `inter:<id>` für Hilfs-/Schnittgeometrie). IFC-Referenzen werden gegen das darin genannte
+  Modell aufgelöst. `gen:`- und `inter:`-Keys werden aus dem gemeinsamen Geometrie-Cache
+  gelesen. Gemischte Listen aus mehreren Modellen sind erlaubt. Eine leere Liste liefert
+  null Messungen.
   - **Dict-Eingabe**: Akzeptiert auch ein Dict (z. B. die `intersection_meshes`-Ausgabe des collision-Knotens). Die Nicht-Null-Werte des Dicts (Schnittmengen-Cache-Schlüssel) werden verwendet.
 - **List B** (optional): Zweite Liste von Elementreferenzen (gleiches Format wie List A). Leer = Paare innerhalb von List A (beide Richtungen). Nicht leer = kartesisches Produkt A×B (eine Richtung pro Paar). **Nur verwendet im Modus `minimaler Abstand zwischen Elementen`; in allen anderen Modi ignoriert.**
 

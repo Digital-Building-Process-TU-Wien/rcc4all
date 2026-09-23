@@ -82,9 +82,9 @@ Only used when **Measurement type** is `distance_to_reference` and **Reference t
 
 - **List A** (optional): First list of fully qualified geometry cache keys
   (`<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry,
-  `inter:<id>` for helper/intersection geometry). Each reference resolves against the
-  model named inside it, so mixed-model lists are allowed. An empty list yields zero
-  measurements.
+  `inter:<id>` for helper/intersection geometry). IFC references resolve against the
+  model named inside them; `gen:` and `inter:` keys are read from the shared geometry
+  cache. Mixed-model lists are allowed. An empty list yields zero measurements.
   - **Dict input**: Also accepts a dict (e.g., the `intersection_meshes` output from the collision node). The dict's non-null values (intersection mesh cache keys) are used.
 - **List B** (optional): Second list of element references (same format as List A). When empty, pairs are formed within List A (both directions). When non-empty, computes cartesian product A×B (one direction per pair). **Only used in `minimum distance between elements` mode; ignored in all other modes.**
 

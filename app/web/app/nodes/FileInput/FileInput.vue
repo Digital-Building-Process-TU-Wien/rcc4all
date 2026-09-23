@@ -1,24 +1,15 @@
 <script setup lang="ts">
-import type { Node } from '@vue-flow/core'
+import type { SchemaNodeType } from '~/utils/schema-helpers'
 import { useScopedNode } from '~/composables/useScopedNode'
 import { useFlowStore } from '~/stores/flow'
 
-// File Input node. Its sidebar lists the IFC models assigned in the editor's
-// top-bar model manager and lets the user pick which one this node refers to.
-// The node outputs that model's slug (`model_slug`), which is wired to the
-// model input of an ifc_element_filter (the only remaining model port).
-interface FileInputData {
-  label?: string
-  settings?: {
-    slug?: string
-  }
+type FileInputNode = SchemaNodeType<'file_input'>
+
+interface Props {
+  node: FileInputNode
 }
 
-type FileInputNode = Node<FileInputData>
-
-const props = defineProps<{
-  node: FileInputNode
-}>()
+const props = defineProps<Props>()
 
 const { t } = useI18n()
 const store = useFlowStore()
@@ -30,9 +21,6 @@ const modelOptions = computed(() => store.files.map(file => ({
   value: file.slug,
 })))
 
-if (!node.value.data) {
-  node.value.data = { label: '', settings: { slug: 'main' } }
-}
 if (!node.value.data.settings) {
   node.value.data.settings = { slug: 'main' }
 }

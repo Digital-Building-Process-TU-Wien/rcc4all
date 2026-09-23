@@ -93,7 +93,7 @@ Flagged checks store a helper geometry in the geometry cache for visualization:
 
 where `<ref>` is the element's full qualified reference (`<slug>:expr:<id>`).
 
-These are `inter:` keys, so they are excluded from collision inputs.
+These are `inter:` helper keys and can be passed to geometry consumers such as the collision and measurement nodes.
 
 ## Notes on openings
 
