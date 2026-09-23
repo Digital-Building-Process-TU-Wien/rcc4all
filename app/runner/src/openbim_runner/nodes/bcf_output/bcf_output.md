@@ -12,8 +12,6 @@ before starting any session on this node.
   queries properties or defines conditions itself.
 - **Relationship:** Part 2 of the LOI-Check + BCF effort. `loi_check` produces
   the slim structured result; `bcf_output` generates the messages/BCF.
-- The older draft in `loi_check.md` called this node `bcf_export`; the final
-  name decided with the user is **`bcf_output`**.
 
 ## Decided architecture (locked with user)
 - Reuse `ComparisonElement` / `PropertyCheckResult` from
@@ -25,7 +23,7 @@ before starting any session on this node.
 - **Markup-only output (no viewpoints)**: the `.bcf` contains only
   `bcf.version`, `project.bcfp` and one `markup.bcf` per topic. No `.bcfv`
   view files, no camera, and no `<Header>` are written (viewpoint/camera/header
-  generation was removed as out of scope).
+  generation is out of scope).
 - BCF 3.0 written with stdlib `zipfile` + `xml.etree.ElementTree` + `uuid`
   (ifcopenshell has NO BCF writer; no new dependencies).
 - Output file: `context.output_dir / bcf_output-<yyyyMMdd-HHmmss>.bcf`
@@ -54,7 +52,8 @@ before starting any session on this node.
   `label`, so renaming the LOI-Check node does not affect it.
 
 ### Placeholders (Python `string.Formatter`)
-Element-level: `{id}`, `{guid}`, `{name}`, `{class_name}`.
+Element-level: `{id}`, `{guid}`, `{name}`, `{class_name}`. `{id}` renders the
+bare IFC express ID (BCF does not know qualified references).
 Per-property (keyed by the failed check's `property_key`, e.g.
 `Pset_WallCommon.ThermalTransmittance` or `ThermalTransmittance`):
 `{<key>.actual}`, `{<key>.expected}`, `{<key>.condition}`,

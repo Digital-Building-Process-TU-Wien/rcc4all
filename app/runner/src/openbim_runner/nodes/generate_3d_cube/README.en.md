@@ -4,7 +4,7 @@ description: Create a 3D cube geometry with customizable size, position, and rot
 categories: 3D operation,
 ---
 
-The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation, and stores it in the geometry cache under a user-supplied `object_id`. The object ID is the address used to reference the cube later, e.g. in a `collision` node.
+The `generate_3d_cube` node creates a 3D box geometry with configurable dimensions, position, and rotation, and stores it in the geometry cache under a user-supplied `object_id`. The cache key `gen:<object_id>` is the address used to reference the cube later, e.g. in a `collision` node.
 
 ## Settings
 
@@ -19,7 +19,7 @@ The `generate_3d_cube` node creates a 3D box geometry with configurable dimensio
 
 | Name | Type | Description |
 |------|------|-------------|
-| `object_ids` | `list[string]` | 1-element list with the cube's `object_id`. Feed this into a `collision` node's object-ID input. |
+| `object_ids` | `list[string]` | 1-element list with the cube's qualified cache key `gen:<object_id>`. Feed this directly into a `collision` node's geometry-key input. |
 
 ## Example
 
@@ -34,7 +34,7 @@ The `generate_3d_cube` node creates a 3D box geometry with configurable dimensio
 }
 ```
 
-This creates a 2×2×2 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis, cached under the object ID `box_a`.
+This creates a 2×2×2 cube centered at (5, 3, 0), rotated 45 degrees around the Z-axis, cached under `gen:box_a`.
 
 ## Notes
 
@@ -42,3 +42,4 @@ This creates a 2×2×2 cube centered at (5, 3, 0), rotated 45 degrees around the
 - All size dimensions must be positive (greater than 0)
 - Rotation follows the right-hand rule
 - `object_id` must be non-empty and unique within a run; reusing one raises an error
+- `object_id` must not contain `:expr:` (reserved for qualified IFC element references)

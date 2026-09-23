@@ -11,32 +11,15 @@ import trimesh
 from shapely.geometry import Polygon
 
 from openbim_runner.nodes.base import ExecutionContext
+from openbim_runner.util.references import (
+    expr_key,
+    is_geometry_key,
+    split_expr_key,
+)
 
 GEOMETRY_LIBRARY: ifcopenshell.geom.GEOMETRY_LIBRARY = "hybrid-cgal-simple-opencascade"
 ALIGNMENT_TUBE_RADIUS = 3.0e-4  # 0.30 mm; total error ≤0.40 mm @R=300m (<0.5 mm target)
 ALIGNMENT_TUBE_SECTIONS = 8  # cross-section segments for sweep_polygon
-
-
-def expr_key(slug: str, express_id: int) -> str:
-    """Geometry-cache key for an IFC entity: ``<slug>:expr:<express_id>``."""
-    return f"{slug}:expr:{express_id}"
-
-
-def split_expr_key(key: str) -> tuple[str, int] | None:
-    """Split an express-key ``<slug>:expr:<id>`` into ``(slug, express_id)``.
-
-    Returns ``None`` for keys that are not IFC express keys (e.g. ``gen:`` or
-    ``inter:`` keys).
-    """
-    marker = ":expr:"
-    start = key.find(marker)
-    if start <= 0:
-        return None
-    slug = key[:start]
-    try:
-        return slug, int(key[start + len(marker) :])
-    except ValueError:
-        return None
 
 
 def build_geometry_cache(
@@ -153,40 +136,25 @@ def is_model_key(key: str) -> bool:
 def resolve_side(
     context: ExecutionContext,
     *,
-    refs: list[int | str] | None = None,
-    slug: str | None = None,
+    refs: list[str] | None = None,
 ) -> list[str]:
-    """Resolve a list of mixed references into ordered geometry-cache keys.
+    """Resolve a list of qualified references into ordered geometry-cache keys.
 
-    An ``int`` reference is an express ID mapping to ``<slug>:expr:<id>``; a ``str``
-    reference is an object ID mapping to ``gen:<object_id>``. Order is preserved.
-    When the list is empty the whole referenced model is used: every IFC express key
-    for ``slug`` plus any generated ``gen:`` keys, in cache insertion order. Raises
-    ``ValueError`` for a reference that has no cached geometry. ``slug`` defaults to
-    the execution context's main model.
+    Every entry must already be a fully-qualified geometry cache key
+    (``<slug>:expr:<id>``, ``gen:<object_id>``, or ``inter:<id>``) and must
+    exist in the cache. Order is preserved. An empty list resolves to zero
+    keys — there is no whole-model expansion. Raises ``ValueError`` for a
+    malformed reference or one that has no cached geometry.
     """
     cache = _ensure_cache(context)
-    refs = refs or []
-    resolved_slug = context.resolve_slug(slug)
-
-    if not refs:
-        prefix = f"{resolved_slug}:"
-        return [
-            key for key in cache if key.startswith(prefix) or key.startswith("gen:")
-        ]
-
     keys: list[str] = []
-    for ref in refs:
-        if isinstance(ref, int):
-            key = expr_key(resolved_slug, ref)
-            if key not in cache:
-                raise ValueError(
-                    f"Express ID {ref} has no tessellated geometry in the cache."
-                )
-        else:
-            key = f"gen:{ref}"
-            if key not in cache:
-                raise ValueError(f"Object ID '{ref}' has no geometry in the cache.")
+    for key in refs or []:
+        if not is_geometry_key(key):
+            raise ValueError(f"'{key!r}' is not a valid geometry cache reference.")
+        if key not in cache:
+            raise ValueError(
+                f"Geometry cache key '{key}' is not present in the workflow cache."
+            )
         keys.append(key)
     return keys
 

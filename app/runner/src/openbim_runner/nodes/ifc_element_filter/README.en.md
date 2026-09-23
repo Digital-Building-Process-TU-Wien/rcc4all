@@ -47,16 +47,17 @@ Use this node when you need to:
 
 | Name | Type | Description |
 |------|------|-------------|
-| `express_ids` | `list[int]` | Optional list of IFC express IDs to restrict the filter to. Output keeps the input order and duplicate IDs are removed. When the input is not connected, the whole model is scanned; when connected, an empty list yields an empty result. |
+| `model_slug` | `str` | Slug of the IFC model to scan when `express_ids` is not connected. Defaults to the main model; typically bound to a `file_input`'s `model_slug` output. |
+| `express_ids` | `list[str]` | Optional list of fully qualified element references (`<slug>:expr:<id>`) to restrict the filter to. Output keeps the input order and duplicate references are removed. When the input is not connected, the model named by the `model_slug` input is scanned; when connected, the references narrow the candidates — each reference's own slug wins over the `model_slug` input, missing ids are skipped silently, and an empty bound list yields an empty result. |
 
-When `express_ids` is connected, only the listed entities are considered, and each one still has to match the filter rows (entity type, `PredefinedType`, and property comparisons all apply). An empty connected list stays empty, so chained filters do not silently re-scan the model.
+When `express_ids` is connected, only the referenced elements are considered, and each one still has to match the filter rows (entity type, `PredefinedType`, and property comparisons all apply). Each reference resolves against the model named inside it via `context.resolve_model(slug)`, so mixed-model reference lists are allowed. An empty bound list stays empty, so chained filters do not silently re-scan the model.
 
 ## Outputs
 
 | Name | Type | Description |
 |------|------|-------------|
-| `express_ids` | `list[int]` | Express IDs of all matching entities. |
-| `guids` | `list[str]` | `GlobalId` values of all matching entities in the same order as `express_ids`. |
+| `express_ids` | `list[str]` | Fully qualified references (`<slug>:expr:<id>`) of all matching entities. |
+| `guids` | `list[str]` | Fully qualified GUID references (`<slug>:guid:<GlobalId>`) of all matching entities in the same order as `express_ids`. |
 
 ## Example
 
@@ -89,7 +90,7 @@ Filter all walls, but exclude external walls:
 
 ## Notes
 
-- Empty `filter_rows` returns an empty result.
+- Scan mode (unbound `express_ids`) with no active filter rows returns **all** `IfcElement` entities of the model.
 - Unknown IFC entity types return no matches.
 - String comparisons are case-insensitive.
 - Numeric comparison operators require numeric values.

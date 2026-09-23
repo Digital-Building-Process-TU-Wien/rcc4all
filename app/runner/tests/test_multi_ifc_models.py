@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -146,18 +148,63 @@ def test_cache_mesh_keys_by_slug() -> None:
     assert key_arch in context.geometry_cache
 
 
-def test_resolve_side_uses_slug() -> None:
+def test_resolve_side_honors_slug_scoped_qualified_refs() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), express_id=7)
     cache_mesh(context, trimesh.creation.box(), express_id=7, slug="arch")
-    assert resolve_side(context, refs=[7]) == ["main:expr:7"]
-    assert resolve_side(context, refs=[7], slug="arch") == ["arch:expr:7"]
+    assert resolve_side(context, refs=["main:expr:7"]) == ["main:expr:7"]
+    assert resolve_side(context, refs=["arch:expr:7"]) == ["arch:expr:7"]
 
 
-def test_resolve_side_empty_scopes_to_slug() -> None:
+def test_resolve_side_empty_list_yields_zero_keys() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), express_id=1)
     cache_mesh(context, trimesh.creation.box(), express_id=2, slug="arch")
     cache_mesh(context, trimesh.creation.box(), object_id="shared")
-    assert resolve_side(context, slug="main") == ["main:expr:1", "gen:shared"]
-    assert resolve_side(context, slug="arch") == ["arch:expr:2", "gen:shared"]
+    assert resolve_side(context) == []
+
+
+# --- End-to-end: qualified references through a two-model workflow ------------
+
+
+def test_two_model_workflow_emits_qualified_references(tmp_path: Any) -> None:
+    """Regression for the original bug, end to end: every reference leaving a
+    node carries its own model slug, even for the non-main model."""
+    import shutil
+
+    from openbim_runner.workflow import execute_workflow_async
+
+    test_ifc = Path(__file__).parent / "testdata" / "test.ifc"
+    for slug in ("main", "second_model"):
+        shutil.copy(test_ifc, tmp_path / f"{slug}.ifc")
+
+    workflow_path = tmp_path / "workflow.json"
+    workflow_path.write_text(
+        """
+{
+  "files": [
+    {"path": "main.ifc", "slug": "main", "hash": ""},
+    {"path": "second_model.ifc", "slug": "second_model", "hash": ""}
+  ],
+  "nodes": [
+    {"id": "file-arch", "type": "file_input", "settings": {"slug": "second_model"}},
+    {"id": "filter-arch", "type": "ifc_element_filter",
+     "input_bindings": {"model_slug": "file-arch.model_slug"}},
+    {"id": "concat", "type": "concat_string", "settings": {"separator": ", "},
+     "input_bindings": {"values": "filter-arch.express_ids"}}
+  ],
+  "edges": [
+    {"source": "file-arch", "target": "filter-arch"},
+    {"source": "filter-arch", "target": "concat"}
+  ]
+}
+""",
+        encoding="utf-8",
+    )
+
+    node_outputs, _ = asyncio.run(execute_workflow_async(workflow_path))
+    concat = node_outputs["concat"]
+
+    # The second-model wall reference qualifies with second_model, not main.
+    assert concat.value.startswith("second_model:expr:")
+    assert "main:expr:" not in concat.value

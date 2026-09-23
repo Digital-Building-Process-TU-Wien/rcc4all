@@ -10,7 +10,7 @@ Der `get_property` Node liest Eigenschaftswerte aus IFC-Elementen. Jede Auswahl 
 
 - `FireRating` aus `Pset_WallCommon` für alle Wände lesen, die von einem `ifc_element_filter` gefiltert wurden
 - `LoadBearing`-Status von mehreren Elementklassen für die Analyse extrahieren
-- Unterschiedliche Eigenschaftswerte mit Vorkommenszählern für modellweite Statistiken sammeln
+- Unterschiedliche Eigenschaftswerte mit Vorkommenszählern für Gesamtstatistiken über die Eingabereferenzen sammeln
 
 ## Einstellungen
 
@@ -21,8 +21,8 @@ Bestimmt die Granularität der Ausgabe.
 | Wert | Label | Wann verwenden |
 |------|-------|----------------|
 | `elements` | **Per explicit element** | Jedes Element im Eingang erhält einen eigenen Eintrag mit aufgelösten Eigenschaftswerten. Verwenden, wenn Sie jedes Element einzeln nachgelagert verarbeiten möchten. Erfordert eine Input-Bindung. |
-| `by_class` | **Per element class** | Elemente werden nach ihrer tatsächlichen Laufzeitklasse gruppiert (z.B. `IFCWALL`, `IFCDOOR`). Jede Klasse zeigt unterschiedliche Eigenschaftswerte mit Vorkommenszählern. Verwenden, wenn Sie Statistiken pro Elementtyp möchten. |
-| `model` | **Without element class distinction** | Unterschiedliche Eigenschaftswerte mit Vorkommenszählern über alle Entitäten und PropertySets hinweg. Eigenschaftsschlüssel verwenden einen Wildcard `Pset_*.PropertyName`, um Zähler aus verschiedenen PropertySets zusammenzuführen. Verwenden, wenn Sie modellweite Statistiken möchten. |
+| `by_class` | **Per element class** | Die gegebenen Referenzen werden nach ihrer tatsächlichen Laufzeitklasse gruppiert (z.B. `IFCWALL`, `IFCDOOR`). Jede Klasse zeigt unterschiedliche Eigenschaftswerte mit Vorkommenszählern. Verwenden, wenn Sie Statistiken pro Elementtyp möchten. |
+| `model` | **Without element class distinction** | Unterschiedliche Eigenschaftswerte mit Vorkommenszählern, aggregiert über die gegebenen Referenzen und deren PropertySets hinweg (kein Datei-Scan). Eigenschaftsschlüssel verwenden einen Wildcard `Pset_*.PropertyName`, um Zähler aus verschiedenen PropertySets zusammenzuführen. Verwenden, wenn Sie gesamtstatistische Auswertungen über die Eingabereferenzen möchten. |
 
 ### Selections Tabelle
 
@@ -34,7 +34,12 @@ Bestimmt die Granularität der Ausgabe.
 
 ## Inputs
 
-- **Express IDs** (optional): Liste von IFC Express-IDs, von denen Eigenschaftswerte gelesen werden sollen. Typischerweise mit dem Ausgang eines `ifc_element_filter` verbunden. Wenn unverbunden, ist die Ausgabe leer (keine Elemente zum Lesen).
+- **Express IDs** (erforderlich): Liste voll qualifizierter Referenzen
+  (`<slug>:expr:<id>`), von denen Eigenschaftswerte gelesen werden sollen.
+  Typischerweise mit `ifc_element_filter.express_ids` verbunden. Jede Referenz
+  wird gegen das in ihr genannte Modell aufgelöst; gemischte Listen aus
+  mehreren Modellen sind erlaubt. Ohne Verbindung schlägt die
+  Eingabevalidierung fehl.
 
 ## Outputs
 
@@ -42,8 +47,8 @@ Ausgabestruktur hängt vom **Output mode** ab:
 
 ### Per explicit element
 
-Liste von Elementen mit ihren Express-IDs und Eigenschaftswerten. Jedes Element enthält:
-- `express_id`: Die Express-ID des IFC-Elements
+Liste von Elementen mit ihren voll qualifizierten Referenzen und Eigenschaftswerten. Jedes Element enthält:
+- `express_id`: Die voll qualifizierte Referenz (`<slug>:expr:<id>`) des IFC-Elements
 - `properties`: Wörterbuch von Eigenschaftswerten, geschlüsselt nach `PropertySet.PropertyName`. Werte sind Strings oder `null` für fehlende Modellwerte.
 
 ### Per element class
@@ -68,14 +73,14 @@ Unterschiedliche Werte mit Zählern pro Eigenschaft, aggregiert über alle Prope
 1. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `FireRating`
 2. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `IsExternal`
 
-**Ausgabe** für eine Wand mit Express-ID 101 (Modell hat FireRating="F90", IsExternal=false):
+**Ausgabe** für eine Wand mit Referenz `main:expr:101` (Modell hat FireRating="F90", IsExternal=false):
 
 ```json
 {
   "mode": "elements",
   "elements": [
     {
-      "express_id": 101,
+      "express_id": "main:expr:101",
       "properties": {
         "Pset_WallCommon.FireRating": "F90",
         "Pset_WallCommon.IsExternal": "false"
@@ -97,7 +102,7 @@ Wenn das Modell eine Eigenschaft nicht hat, ist der Wert `null`.
   "mode": "elements",
   "elements": [
     {
-      "express_id": 101,
+      "express_id": "main:expr:101",
       "properties": {
         "Pset_WallCommon.AcousticRating": null
       }

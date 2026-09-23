@@ -10,7 +10,9 @@ betroffene Element referenziert, damit es in einem BCF-Viewer geprüft werden
 kann. Die Datei ist **rein Markup-basiert** (keine 3D-Viewpoint-Daten halten
 sie klein und schnell zu öffnen). Der Node ermittelt selbst keine
 Eigenschaften; er liest die strukturierte `elements`-Ausgabe von `loi_check`
-und löst GUID / Name des Elements nur zur Referenzierung auf.
+und löst GUID / Name des Elements nur zur Referenzierung auf — aus dem Modell,
+das in der voll qualifizierten Referenz (`<slug>:expr:<id>`) des Elements
+genannt ist; der Node hat keinen `model_slug`-Eingang.
 
 ## Anwendungsbeispiel
 
@@ -32,7 +34,10 @@ liefert automatisch das Limit (nichts muss von Hand eingegeben werden).
 
 ## Platzhalter
 
-Auf Elementebene: `{id}`, `{guid}`, `{name}`, `{class_name}`.
+Auf Elementebene: `{id}`, `{guid}`, `{name}`, `{class_name}`. `{id}` rendert
+die nackte IFC-Express-ID (z. B. `63`) — BCF kennt keine qualifizierten
+Referenzen — und `{guid}` die rohe IFC-GlobalId. BCF-Ausgaben enthalten nie
+qualifizierte Referenzen.
 
 Pro Eigenschaft (über den Property-Key der fehlgeschlagenen Prüfung, z. B.
 `Pset_WallCommon.ThermalTransmittance` oder `ThermalTransmittance`):

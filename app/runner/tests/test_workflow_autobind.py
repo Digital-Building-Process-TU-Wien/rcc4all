@@ -88,10 +88,10 @@ def test_explicit_binding_wins_in_payload_resolution() -> None:
 
 
 def test_no_compatible_upstream_stays_unbound() -> None:
-    # get_name's result has no list[ComparisonElement] -> not compatible.
-    source = _node("name-1", "get_name")
+    # concat_string's result has no list[ComparisonElement] -> not compatible.
+    source = _node("concat-1", "concat_string")
     bcf = _bcf("bcf-1")
-    auto, _ = _bindings([source, bcf], [("name-1", "bcf-1")])
+    auto, _ = _bindings([source, bcf], [("concat-1", "bcf-1")])
 
     assert bcf.id not in auto
 
@@ -113,10 +113,10 @@ def test_two_compatible_predecessors_raise() -> None:
 
 
 def test_non_immediate_ancestor_not_picked() -> None:
-    # loi_check feeds get_name which feeds bcf; bcf's only direct predecessor
-    # is get_name (incompatible), so elements stays unbound.
+    # loi_check feeds concat_string which feeds bcf; bcf's only direct
+    # predecessor is concat_string (incompatible), so elements stays unbound.
     loi = _loi_check("loi-1")
-    mid = _node("mid-1", "get_name")
+    mid = _node("mid-1", "concat_string")
     bcf = _bcf("bcf-1")
     auto, _ = _bindings([loi, mid, bcf], [("loi-1", "mid-1"), ("mid-1", "bcf-1")])
 
@@ -125,7 +125,7 @@ def test_non_immediate_ancestor_not_picked() -> None:
 
 def test_unmarked_input_never_auto_bound() -> None:
     # loi_check.express_ids has no AutoBind marker; even with a compatible
-    # upstream present, it must stay unbound (keeps whole-model semantics).
+    # upstream present, it must stay unbound.
     loi = _loi_check("loi-1")
     provider = _node("provider-1", "ifc_element_filter")
     auto, _ = _bindings([provider, loi], [("provider-1", "loi-1")])

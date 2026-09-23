@@ -143,8 +143,6 @@
     "none": "Keine",
     "typeMismatch": "Typkonflikt",
     "model": "Modell",
-    "modelA": "Modell A",
-    "modelB": "Modell B",
     "noConfigurableInputs": "Dieser Node hat keine konfigurierbaren Eingänge"
   },
   "execution": {
@@ -195,10 +193,6 @@
       "title": "Datei-Eingabe",
       "description": "Verweist auf ein IFC-Modell, das in der Modellleiste des Editors zugewiesen wurde.",
       "selectModel": "Modell auswählen..."
-    },
-    "getName": {
-      "title": "Name abrufen",
-      "failOnMissing": "Fehlgeschlagen bei fehlendem Wert"
     },
     "generate3dCube": {
       "title": "3D-Würfel erzeugen",

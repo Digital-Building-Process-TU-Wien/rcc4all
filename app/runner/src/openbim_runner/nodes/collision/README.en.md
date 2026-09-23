@@ -4,7 +4,7 @@ description: Clash detection between two geometry lists via AABB prefilter, bool
 categories: geometry,collision
 ---
 
-The `collision` node detects clashes between two lists of cached geometries. References are **express IDs** (`int` → `<model>:expr:<id>`) for IFC elements or **object IDs** (`str` → `gen:<id>`) for generated geometry. Each list resolves express IDs against its own model (inputs `model_slug_a` / `model_slug_b`, both defaulting to the main model), so the two lists may come from different IFC files. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:
+The `collision` node detects clashes between two lists of cached geometries. References are **fully qualified geometry cache keys**: `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, or `inter:<id>` for helper/intersection geometry. Each reference resolves against the model named inside it (via `context.resolve_model(slug)`), so the two lists may come from different IFC files — mixed-model lists are fine and are the main use case. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:
 
 1. **AABB prefilter** — skip pairs with non-overlapping bounding boxes.
 2. **Boolean intersection** — repair both meshes to watertight, compute the intersection. A pair collides when the intersection has positive volume.
@@ -14,16 +14,14 @@ The `collision` node detects clashes between two lists of cached geometries. Ref
 
 | Name | Type | Description |
 |------|------|-------------|
-| `list_a` | `list[number \| string]` | First list of references — express IDs (`int`) and/or object IDs (`str`) |
-| `list_b` | `list[number \| string]` | Second list of references — same encoding. When empty, falls back to the whole model. |
+| `list_a` | `list[str]` | First list of fully qualified geometry cache keys (required) |
+| `list_b` | `list[str]` | Second list of fully qualified geometry cache keys (required) |
 
-Both lists default to empty, which expands to the whole model. A reference with no cached geometry raises an error.
+Both inputs are required and unbound inputs fail input validation. An empty list means zero geometry keys, so no pairs are tested. A malformed reference or one with no cached geometry raises an error.
 
 ## Pairing
 
-- **Cartesian product**: every A element is tested against every B element. Unequal list sizes are fine.
-- **Whole-model fallback**: when a list is empty, that side expands to all cached geometries.
-- **Self-pairs** are skipped. Pairs are not deduplicated: both `X↔Y` and `Y↔X` are emitted.
+- **Self-pairs** are skipped. Ancestor/descendant pairs via `IfcRelAggregates`/`IfcRelNests` are also skipped (intra-model only). Pairs are not deduplicated: both `X↔Y` and `Y↔X` are emitted.
 
 ## Mode
 
@@ -48,7 +46,7 @@ In `intersection_mesh` mode, each boolean-decided colliding pair is cached under
 inter:intersection_{key_a}_{key_b}
 ```
 
-It is an `inter:` key, so it is excluded from collision inputs and the whole-model fallback. Because pairs are not deduplicated, `X↔Y` and `Y↔X` each get their own key. FCL-decided collisions appear with a `null` value — no mesh is stored.
+It is an `inter:` key, so it is excluded from collision inputs. Because pairs are not deduplicated, `X↔Y` and `Y↔X` each get their own key. FCL-decided collisions appear with a `null` value — no mesh is stored.
 
 ## Notes
 

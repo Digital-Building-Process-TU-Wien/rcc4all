@@ -11,6 +11,7 @@ from openbim_runner.util.ifc_properties import (
     get_property_value,
     stringify_value,
 )
+from openbim_runner.util.references import iter_resolved_elements
 
 OutputMode = Literal["elements", "by_class", "model"]
 
@@ -47,22 +48,19 @@ class GetPropertySettings(NodeModel):
 
 
 class GetPropertyInputs(NodeModel):
-    express_ids: list[int] = Field(
-        default=[],
+    express_ids: list[str] = Field(
         title="Express IDs",
-        description="List of IFC express IDs to read property values from.",
-    )
-    model_slug: str = Field(
-        default="main",
-        title="Model",
-        description="Model slug to read properties from. Defaults to the main model.",
+        description=(
+            "Qualified element references (`<slug>:expr:<id>`) to read property "
+            "values from. Bind ifc_element_filter output here."
+        ),
     )
 
 
 class ElementProperties(NodeModel):
-    express_id: int = Field(
+    express_id: str = Field(
         title="Express ID",
-        description="The express ID of the IFC entity.",
+        description="The qualified element reference (`<slug>:expr:<id>`).",
     )
     properties: dict[str, str | None] = Field(
         default={},
@@ -114,11 +112,6 @@ class GetPropertyResult(NodeModel):
         title="Properties",
         description="Distinct values with counts per property (output_mode = model).",
     )
-    model_slug: str = Field(
-        default="main",
-        title="Model slug",
-        description="Slug of the model the express IDs were resolved against.",
-    )
 
 
 @node()
@@ -140,18 +133,18 @@ async def get_property(
 
     # Resolve per-entity properties (common for all output modes)
     resolved: list[
-        tuple[int, str, dict[str, str | None]]
-    ] = []  # (express_id, class, properties)
+        tuple[str, str, dict[str, str | None]]
+    ] = []  # (reference, class, properties)
 
-    model = context.resolve_model(inputs.model_slug)
-
-    for express_id in inputs.express_ids:
+    for element, model in iter_resolved_elements(
+        inputs.express_ids, context, node="get_property"
+    ):
         try:
-            entity = model.by_id(express_id)
+            entity = model.by_id(element.express_id)
             entity_class = entity.is_a()
         except RuntimeError:
             # Entity not found - use "unknown" class with empty properties
-            resolved.append((express_id, "unknown", {}))
+            resolved.append((element.reference, "unknown", {}))
             continue
 
         psets = get_psets(entity)
@@ -173,17 +166,15 @@ async def get_property(
             )
             elem_props[key] = stringify_value(value)
 
-        resolved.append((express_id, entity_class, elem_props))
+        resolved.append((element.reference, entity_class, elem_props))
 
     # Build output based on mode
     if settings.output_mode == "elements":
         elements = [
-            ElementProperties(express_id=eid, properties=props)
-            for eid, _, props in resolved
+            ElementProperties(express_id=ref, properties=props)
+            for ref, _, props in resolved
         ]
-        return GetPropertyResult(
-            mode="elements", elements=elements, model_slug=inputs.model_slug
-        )
+        return GetPropertyResult(mode="elements", elements=elements)
 
     if settings.output_mode == "by_class":
         # Aggregate per class, per property, per value with counts
@@ -205,9 +196,7 @@ async def get_property(
                     ValueWithCount(value=v, count=c) for v, c in sorted_values
                 ]
             classes.append(ClassGroup(id=cls, properties=property_lists))
-        return GetPropertyResult(
-            mode="by_class", classes=classes, model_slug=inputs.model_slug
-        )
+        return GetPropertyResult(mode="by_class", classes=classes)
 
     # model
     # Aggregate distinct values with counts per property key
@@ -228,6 +217,4 @@ async def get_property(
         sorted_values = sorted(value_counts.items(), key=lambda x: (-x[1], x[0]))
         properties[key] = [ValueWithCount(value=v, count=c) for v, c in sorted_values]
 
-    return GetPropertyResult(
-        mode="model", properties=properties, model_slug=inputs.model_slug
-    )
+    return GetPropertyResult(mode="model", properties=properties)

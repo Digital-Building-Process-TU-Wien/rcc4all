@@ -4,7 +4,7 @@ description: Clash-Detection zwischen zwei Geometrielisten über AABB-Präfilter
 categories: geometry,collision
 ---
 
-Der `collision`-Node erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **Express-IDs** (`int` → `<model>:expr:<id>`) für IFC-Elemente oder **Objekt-IDs** (`str` → `gen:<id>`) für generierte Geometrie. Jede Liste löst Express-IDs gegen ihr eigenes Modell auf (Eingänge `model_slug_a` / `model_slug_b`, beide standardmäßig das Hauptmodell), sodass die beiden Listen aus unterschiedlichen IFC-Dateien stammen können. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
+Der `collision`-Node erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **voll qualifizierte Geometrie-Cache-Keys**: `<slug>:expr:<id>` (z. B. `main:expr:63`) für IFC-Elemente, `gen:<object_id>` für generierte Geometrie oder `inter:<id>` für Hilfsgeometrie — alle drei sind als Eingabe zulässig. Jede Referenz nennt ihr eigenes Modell und wird gegen genau dieses aufgelöst — der Node hat keine `model_slug`-Eingänge. Gemischte Listen aus mehreren Modellen sind erlaubt und sind der Hauptanwendungsfall, sodass die beiden Listen aus unterschiedlichen IFC-Dateien stammen können. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchläuft eine dreistufige Pipeline:
 
 1. **AABB-Präfilter** — Paare ohne überlappende Bounding-Boxes überspringen.
 2. **Boolesche Schnittmenge** — beide Netze zu wasserdichten Netzen reparieren, Schnittmenge berechnen. Eine Kollision liegt vor, wenn die Schnittmenge positives Volumen hat.
@@ -14,16 +14,14 @@ Der `collision`-Node erkennt Kollisionen zwischen zwei Listen zwischengespeicher
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
-| `list_a` | `list[number \| string]` | Erste Liste von Referenzen — Express-IDs (`int`) und/oder Objekt-IDs (`str`) |
-| `list_b` | `list[number \| string]` | Zweite Liste von Referenzen — gleiche Kodierung. Wenn leer, Fallback auf das gesamte Modell. |
+| `list_a` | `list[string]` | Erste Liste von Geometrie-Cache-Keys — `<slug>:expr:<id>`, `gen:<object_id>` oder `inter:<id>` (erforderlich) |
+| `list_b` | `list[string]` | Zweite Liste von Geometrie-Cache-Keys — gleiche Kodierung (erforderlich) |
 
-Beide Listen sind standardmäßig leer und erweitern sich auf das gesamte Modell. Eine Referenz ohne zwischengespeicherte Geometrie löst einen Fehler aus.
+Beide Listen sind erforderlich. Eine leere Liste bedeutet null Elemente — es werden keine Paare getestet (kein Ganzmodell-Fallback). Eine missgebildete Referenz oder eine Referenz ohne zwischengespeicherte Geometrie löst einen Fehler aus.
 
 ## Paarbildung
 
-- **Kartesisches Produkt**: jedes A-Element wird gegen jedes B-Element getestet. Ungleiche Listengrößen sind erlaubt.
-- **Fallback auf das gesamte Modell**: wenn eine Liste leer ist, wird diese Seite auf alle zwischengespeicherten Geometrien erweitert.
-- **Selbstpaare** werden übersprungen. Paare werden nicht dedupliziert: sowohl `X↔Y` als auch `Y↔X` werden ausgegeben.
+- **Selbstpaare** sowie Vorfahr-/Nachfahr-Paare über `IfcRelAggregates`/`IfcRelNests` (nur innerhalb desselben Modells) werden übersprungen. Paare werden nicht dedupliziert: sowohl `X↔Y` als auch `Y↔X` werden ausgegeben.
 
 ## Modus
 
@@ -48,7 +46,7 @@ Im Modus `intersection_mesh` wird jedes über die Boolesche Operation entschiede
 inter:intersection_{key_a}_{key_b}
 ```
 
-Da es sich um eine `inter:`-ID handelt, ist sie von Kollisionseingaben und vom Ganzmodell-Fallback ausgeschlossen. Da Paare nicht dedupliziert werden, erhalten `X↔Y` und `Y↔X` jeweils eine eigene ID. Über FCL entschiedene Kollisionen erscheinen mit einem `null`-Wert — es wird kein Netz gespeichert.
+Da es sich um eine `inter:`-ID handelt, ist sie von Kollisionseingaben ausgeschlossen (gültiger Geometrie-Cache-Key, aber keine Element-Referenz, die zu einer Entität aufgelöst wird). Da Paare nicht dedupliziert werden, erhalten `X↔Y` und `Y↔X` jeweils eine eigene ID. Über FCL entschiedene Kollisionen erscheinen mit einem `null`-Wert — es wird kein Netz gespeichert.
 
 ## Hinweise
 

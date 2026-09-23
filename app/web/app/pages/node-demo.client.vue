@@ -77,8 +77,12 @@ function handleConnect(params: Connection) {
 
   const currentBindings = targetNode.data.input_bindings || {}
 
-  // A File Input node's output is a model slug; it feeds the target's model input.
+  // A File Input node's output is a model slug; ifc_element_filter is the only
+  // node with a model input left, so it is the only valid auto-wire target.
   if (sourceNode.data.nodeName === 'file_input') {
+    if (targetNode.data.nodeName !== 'ifc_element_filter')
+      return
+
     const modelInput = targetInputs.find(name => isModelInput(name) && !currentBindings[name])
       ?? targetInputs.find(name => isModelInput(name))
     if (!modelInput)

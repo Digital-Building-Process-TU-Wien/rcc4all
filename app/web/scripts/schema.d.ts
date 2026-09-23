@@ -6,7 +6,6 @@ export interface NodeRegistrySchema {
   concat_string?: ConcatenateStrings
   file_input?: FileInput
   generate_3d_cube?: Generate3DCube
-  get_name?: ResolveObjectNames
   get_property?: GetProperty
   ids_checker?: IDSChecker
   ifc_element_filter?: IfcElementFilter
@@ -76,9 +75,9 @@ export interface BCFOutput {
      */
     elements?: {
       /**
-       * The express ID of the IFC entity.
+       * The qualified element reference (`<slug>:expr:<id>`).
        */
-      express_id: number
+      express_id: string
       /**
        * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
        */
@@ -129,10 +128,6 @@ export interface BCFOutput {
         passed: boolean
       }[]
     }[]
-    /**
-     * Model slug to resolve element identities against. Defaults to the main model.
-     */
-    model_slug?: string
   }
 }
 /**
@@ -178,21 +173,13 @@ export interface CollisionDetection {
   }
   inputs: {
     /**
-     * First list of references — mix of express IDs (int → `<model A>:expr:<id>`) and object IDs (str → `gen:<id>`), in the order to test. When empty, the whole model is used.
+     * First list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`), in the order to test. Bind ifc_element_filter output here.
      */
-    list_a?: (number | string)[]
+    list_a: string[]
     /**
-     * Second (optional) list of references — mix of express IDs (int → `<model B>:expr:<id>`) and object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set.
+     * Second list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`) to test the first list against. Mixed-model lists are allowed; each reference resolves against its own model.
      */
-    list_b?: (number | string)[]
-    /**
-     * Model slug that List A references refer to. Defaults to the main model.
-     */
-    model_slug_a?: string
-    /**
-     * Model slug that List B references refer to. Defaults to the main model.
-     */
-    model_slug_b?: string
+    list_b: string[]
   }
 }
 /**
@@ -259,40 +246,9 @@ export interface Generate3DCube {
   }
   result: {
     /**
-     * 1-element list with the object_id of the generated cube.
+     * 1-element list with the qualified geometry cache key (`gen:<object_id>`) of the generated cube.
      */
     object_ids?: string[]
-  }
-}
-/**
- * Look up IFC object names by express ID from workflow input.
- */
-export interface ResolveObjectNames {
-  settings: {
-    /**
-     * When enabled, raises an error if an express ID does not exist in the model.
-     */
-    fail_on_missing?: boolean
-  }
-  result: {
-    /**
-     * Ordered list of IFC object names aligned with the input express IDs.
-     */
-    object_names?: (string | null)[]
-    /**
-     * Slug of the model the express IDs were resolved against.
-     */
-    model_slug?: string
-  }
-  inputs: {
-    /**
-     * Ordered list of IFC express IDs whose object names should be resolved.
-     */
-    express_ids?: number[]
-    /**
-     * Model slug to resolve express IDs against. Defaults to the main model.
-     */
-    model_slug?: string
   }
 }
 /**
@@ -332,9 +288,9 @@ export interface GetProperty {
      */
     elements?: ({
       /**
-       * The express ID of the IFC entity.
+       * The qualified element reference (`<slug>:expr:<id>`).
        */
-      express_id: number
+      express_id: string
       /**
        * Dictionary of property values keyed by 'Pset.Property' format.
        */
@@ -381,20 +337,12 @@ export interface GetProperty {
         count: number
       }[]
     } | null)
-    /**
-     * Slug of the model the express IDs were resolved against.
-     */
-    model_slug?: string
   }
   inputs: {
     /**
-     * List of IFC express IDs to read property values from.
+     * Qualified element references (`<slug>:expr:<id>`) to read property values from. Bind ifc_element_filter output here.
      */
-    express_ids?: number[]
-    /**
-     * Model slug to read properties from. Defaults to the main model.
-     */
-    model_slug?: string
+    express_ids: string[]
   }
 }
 /**
@@ -417,13 +365,13 @@ export interface IDSChecker {
   }
   result: {
     /**
-     * List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).
+     * Qualified references of entities that failed at least one IDS requirement (combined across all specifications).
      */
-    failed_express_ids?: number[]
+    failed_express_ids?: string[]
     /**
-     * List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).
+     * Qualified references of entities that passed all applicable IDS requirements (combined across all specifications).
      */
-    passed_express_ids?: number[]
+    passed_express_ids?: string[]
     /**
      * Per-specification breakdown. Only included when generate_detailed_report is enabled.
      */
@@ -433,13 +381,13 @@ export interface IDSChecker {
        */
       name?: string
       /**
-       * List of express IDs of entities that failed this specification's requirements.
+       * Qualified references of entities that failed this specification's requirements.
        */
-      failed_express_ids?: number[]
+      failed_express_ids?: string[]
       /**
-       * List of express IDs of entities that passed this specification's requirements.
+       * Qualified references of entities that passed this specification's requirements.
        */
-      passed_express_ids?: number[]
+      passed_express_ids?: string[]
     }[] | null)
     /**
      * Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.
@@ -448,13 +396,9 @@ export interface IDSChecker {
   }
   inputs: {
     /**
-     * Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.
+     * Qualified element references (`<slug>:expr:<id>`) to validate against the IDS requirements. Mixed-model lists are grouped by model and each model is validated once. Bind ifc_element_filter output here.
      */
-    express_ids?: number[]
-    /**
-     * Model slug to validate against. Defaults to the main model.
-     */
-    model_slug?: string
+    express_ids: string[]
   }
 }
 /**
@@ -498,21 +442,21 @@ export interface IfcElementFilter {
   }
   result: {
     /**
-     * Express IDs of all matching IFC entities.
+     * Qualified references (`<slug>:expr:<id>`) of all matching IFC entities.
      */
-    express_ids?: number[]
+    express_ids?: string[]
     /**
-     * GlobalId values for all matching IFC entities in the same order as express_ids.
+     * Qualified GUID references (`<slug>:guid:<GlobalId>`) for all matching IFC entities in the same order as express_ids.
      */
     guids?: string[]
   }
   inputs: {
     /**
-     * Optional list of IFC express IDs to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result.
+     * Optional list of qualified element references (`<slug>:expr:<id>`) to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result. Per-reference model slugs win over the model input.
      */
-    express_ids?: (number[] | null)
+    express_ids?: (string[] | null)
     /**
-     * Model slug to filter against. Defaults to the main model.
+     * Model slug to scan when no references are bound. Defaults to the main model.
      */
     model_slug?: string
   }
@@ -582,21 +526,21 @@ export interface LOICheck {
      */
     failed_count: number
     /**
-     * Express IDs of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.
+     * Qualified references of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.
      */
-    passed_express_ids?: number[]
+    passed_express_ids?: string[]
     /**
-     * Express IDs of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.
+     * Qualified references of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.
      */
-    failed_express_ids?: number[]
+    failed_express_ids?: string[]
     /**
      * Ordered list of elements with their property check results.
      */
     elements?: {
       /**
-       * The express ID of the IFC entity.
+       * The qualified element reference (`<slug>:expr:<id>`).
        */
-      express_id: number
+      express_id: string
       /**
        * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
        */
@@ -650,13 +594,9 @@ export interface LOICheck {
   }
   inputs: {
     /**
-     * Optional list of IFC express IDs to run property comparisons against. When empty (not connected), all IFC elements in the model are checked.
+     * Qualified element references (`<slug>:expr:<id>`) to run property comparisons against. Bind ifc_element_filter output here.
      */
-    express_ids?: number[]
-    /**
-     * Model slug to run comparisons against. Defaults to the main model.
-     */
-    model_slug?: string
+    express_ids: string[]
   }
 }
 /**
@@ -711,17 +651,13 @@ export interface TiltOfComponents {
      */
     failed_count: number
     /**
-     * Name of the checked IFC model.
-     */
-    model_name?: string
-    /**
      * Ordered list of elements with their tilt checks.
      */
     elements?: {
       /**
-       * The express ID of the IFC entity.
+       * The qualified element reference (`<slug>:expr:<id>`).
        */
-      express_id: number
+      express_id: string
       /**
        * IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.
        */
@@ -759,12 +695,8 @@ export interface TiltOfComponents {
   }
   inputs: {
     /**
-     * Optional list of IFC express IDs to measure. When empty, all IFC elements in the model are checked.
+     * Qualified element references (`<slug>:expr:<id>`) to measure. Bind ifc_element_filter output here.
      */
-    express_ids?: number[]
-    /**
-     * Model slug to measure elements against. Defaults to the main model.
-     */
-    model_slug?: string
+    express_ids: string[]
   }
 }

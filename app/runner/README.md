@@ -29,8 +29,7 @@ tests/ <-- integration tests / multiple nodes / workflows
 
 - `base.py` defines the shared Pydantic base model, the `@node()` decorator, and the dispatcher.
 - Each node is a plain function with one typed settings model, an optional typed inputs model, and one typed result model.
-- `ifc_element_filter` filters IFC elements by entity type, predefined type, and property set values.
-- `get_name` resolves IFC object names from configured express IDs.
+- `ifc_element_filter` filters IFC elements by entity type, predefined type, and property set values; it is the element source of the graph.
 - `concat_string` joins a string list that the workflow resolves before the node is called.
 
 ## Implementation Philosophy
@@ -44,7 +43,7 @@ The runtime layer stays intentionally small:
 
 This keeps the execution layer stable while making node metadata easier to manage separately.
 
-The workflow engine now resolves `node_id.field_name` references centrally. Nodes no longer look up upstream outputs themselves.
+The workflow engine resolves `node_id.field_name` references centrally; nodes do not look up upstream outputs themselves.
 
 
 ## Features
@@ -161,7 +160,7 @@ print(result.object_names)
 
 The minimal runnable prototype lives in `tests/testdata/demo.json` and currently wires:
 
-- `get_name -> concat_string`
+- `ifc_element_filter -> concat_string`
 
 The demo fixture expects `test.ifc` in the same directory. Run it with:
 
@@ -180,10 +179,10 @@ The runner currently performs only minimal validation:
 
 - it checks that edge endpoints exist
 - it uses both edges and `input_bindings` references to derive execution order
-- it resolves `input_bindings` references like `get_name.object_names` before executing each node
+- it resolves `input_bindings` references like `filter.express_ids` before executing each node
 - it executes the registered functions and prints their outputs as JSON
 
-Each node now uses a `settings` object plus an optional `input_bindings` object. `settings` is validated against the node's settings model, and the resolved binding payload is validated against the node's inputs model.
+Each node uses a `settings` object plus an optional `input_bindings` object. `settings` is validated against the node's settings model, and the resolved binding payload is validated against the node's inputs model.
 
 ## Geometry Testing
 

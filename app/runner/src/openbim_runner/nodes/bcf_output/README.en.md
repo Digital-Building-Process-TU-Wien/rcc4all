@@ -9,7 +9,8 @@ file — one **topic per failing check**, each referencing the failing element s
 it can be reviewed in a BCF viewer. The file is **markup-only** (no 3D
 viewpoint data keeps it small and fast to open). The node never queries
 properties itself; it reads `loi_check`'s structured `elements` output and
-resolves each element's GUID/name only to reference it.
+resolves each element's GlobalId and Name from the model named inside the
+element's qualified reference — only to reference it.
 
 ## Use-case example
 
@@ -30,7 +31,10 @@ check automatically supplies the limit (nothing needs to be typed by hand).
 
 ## Placeholders
 
-Element-level: `{id}`, `{guid}`, `{name}`, `{class_name}`.
+Element-level: `{id}`, `{guid}`, `{name}`, `{class_name}`. `{id}` renders the
+element's bare IFC express ID (e.g. `63`) — BCF has no notion of qualified
+references — and `{guid}` renders the raw IFC `GlobalId`. BCF output never
+contains qualified references.
 
 Per-property (keyed by the failed check's property key, e.g.
 `Pset_WallCommon.ThermalTransmittance` or `ThermalTransmittance`):

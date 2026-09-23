@@ -65,8 +65,8 @@ All enabled rows are combined using OR logic (union of include rows, then subtra
 
 | Name | Type | Description |
 |------|------|-------------|
-| `express_ids` | `list[int]` | Express IDs of all matching entities |
-| `guids` | `list[str]` | Global Unique Identifiers (GUIDs) of all matching entities |
+| `express_ids` | `list[str]` | Fully qualified references (`<slug>:expr:<id>`) of all matching entities |
+| `guids` | `list[str]` | Fully qualified GUID references (`<slug>:guid:<GlobalId>`) of all matching entities |
 
 ## Examples
 
@@ -231,7 +231,7 @@ All enabled rows are combined using OR logic (union of include rows, then subtra
 - **PredefinedType**: Empty string means "Any" (all predefined types)
 - **Property filters**: Case-insensitive for string comparisons
 - **Include/Exclude logic**: All include rows are evaluated first (OR), then exclude rows are subtracted
-- **GUIDs**: Returned in the same order as express_ids
+- **GUIDs**: Returned as qualified references (`<slug>:guid:<GlobalId>`), in the same order as express_ids
 - **Unknown entity types**: Return empty results (no error thrown)
 
 ## Filter Logic

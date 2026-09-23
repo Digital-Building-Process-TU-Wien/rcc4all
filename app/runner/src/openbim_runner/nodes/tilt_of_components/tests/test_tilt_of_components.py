@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any, cast
 
+import pytest
 import trimesh
 
+from conftest import main_ref as _ref
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.tilt_of_components.tilt_of_components import (
     TiltOfComponentsInputs,
@@ -109,7 +111,7 @@ def test_2d_vertical_wall_tilt_is_90_and_flagged_by_lower_limit() -> None:
             comparison_method="greater_than_lower",
             lower_limit=89.0,
         ),
-        TiltOfComponentsInputs(express_ids=[1]),
+        TiltOfComponentsInputs(express_ids=[_ref(1)]),
         context,
     )
 
@@ -125,25 +127,6 @@ def test_2d_vertical_wall_tilt_is_90_and_flagged_by_lower_limit() -> None:
         assert check.geometry_key is not None
     assert result.failed_count == 1
     assert result.check_count == 1
-    assert result.model_name == "Testmodell_TiltOfComponentsRule"
-
-
-def test_model_name_uses_basename_stem() -> None:
-    context = _context()
-    _add_element(context, 1, _box([4.0, 0.2, 3.0]))
-    cast(
-        Any, context.ifc_model
-    ).header.file_name.name = (
-        "C:\\Models\\2021-Projects\\Testmodell_TiltOfComponentsRule.ifc"
-    )
-
-    result = _run(
-        TiltOfComponentsSettings(element_category="2d"),
-        TiltOfComponentsInputs(express_ids=[1]),
-        context,
-    )
-
-    assert result.model_name == "Testmodell_TiltOfComponentsRule"
 
 
 def test_2d_horizontal_slab_tilt_is_0_and_passes_lower_limit() -> None:
@@ -157,7 +140,7 @@ def test_2d_horizontal_slab_tilt_is_0_and_passes_lower_limit() -> None:
             comparison_method="greater_than_lower",
             lower_limit=1.0,
         ),
-        TiltOfComponentsInputs(express_ids=[2]),
+        TiltOfComponentsInputs(express_ids=[_ref(2)]),
         context,
     )
 
@@ -180,14 +163,17 @@ def test_2d_flagged_surface_caches_helper_geometry() -> None:
             comparison_method="greater_than_lower",
             lower_limit=89.0,
         ),
-        TiltOfComponentsInputs(express_ids=[3]),
+        TiltOfComponentsInputs(express_ids=[_ref(3)]),
         context,
     )
 
     keys = {
         check.geometry_key for check in result.elements[0].checks if check.geometry_key
     }
-    assert keys == {"inter:tilt_surface_3_0", "inter:tilt_surface_3_1"}
+    assert keys == {
+        "inter:tilt_surface_main:expr:3_0",
+        "inter:tilt_surface_main:expr:3_1",
+    }
     for key in keys:
         assert context.geometry_cache is not None
         assert key in context.geometry_cache
@@ -208,7 +194,7 @@ def test_1d_vertical_column_tilt_is_90_and_flagged_by_lower_limit() -> None:
             comparison_method="greater_than_lower",
             lower_limit=89.0,
         ),
-        TiltOfComponentsInputs(express_ids=[10]),
+        TiltOfComponentsInputs(express_ids=[_ref(10)]),
         context,
     )
 
@@ -218,7 +204,7 @@ def test_1d_vertical_column_tilt_is_90_and_flagged_by_lower_limit() -> None:
     assert check.tilt_angle == 90.0
     assert check.passed is False
     assert check.expected == "less than or equal to 89"
-    assert check.geometry_key == "inter:tilt_axis_10"
+    assert check.geometry_key == "inter:tilt_axis_main:expr:10"
     assert context.geometry_cache is not None
     assert check.geometry_key in context.geometry_cache
 
@@ -234,7 +220,7 @@ def test_1d_horizontal_beam_tilt_is_0_and_passes_lower_limit() -> None:
             comparison_method="greater_than_lower",
             lower_limit=1.0,
         ),
-        TiltOfComponentsInputs(express_ids=[11]),
+        TiltOfComponentsInputs(express_ids=[_ref(11)]),
         context,
     )
 
@@ -259,7 +245,7 @@ def test_inside_interval_flags_tilt_within_interval() -> None:
             interval_lower=89.0,
             interval_upper=91.0,
         ),
-        TiltOfComponentsInputs(express_ids=[20]),
+        TiltOfComponentsInputs(express_ids=[_ref(20)]),
         context,
     )
 
@@ -278,7 +264,7 @@ def test_outside_interval_passes_tilt_within_interval() -> None:
             interval_lower=89.0,
             interval_upper=91.0,
         ),
-        TiltOfComponentsInputs(express_ids=[21]),
+        TiltOfComponentsInputs(express_ids=[_ref(21)]),
         context,
     )
 
@@ -296,7 +282,7 @@ def test_less_than_upper_flags_shallow_surface() -> None:
             comparison_method="less_than_upper",
             upper_limit=1.0,
         ),
-        TiltOfComponentsInputs(express_ids=[22]),
+        TiltOfComponentsInputs(express_ids=[_ref(22)]),
         context,
     )
 
@@ -311,7 +297,7 @@ def test_missing_express_id_produces_unknown_element_without_checks() -> None:
 
     result = _run(
         TiltOfComponentsSettings(),
-        TiltOfComponentsInputs(express_ids=[999]),
+        TiltOfComponentsInputs(express_ids=[_ref(999)]),
         context,
     )
 
@@ -321,7 +307,7 @@ def test_missing_express_id_produces_unknown_element_without_checks() -> None:
     assert element.failed is False
 
 
-def test_empty_input_gathers_all_ifc_elements() -> None:
+def test_bound_but_empty_runs_vacuously() -> None:
     context = _context()
     _add_element(context, 30, _box([4.0, 0.2, 3.0]))
     _add_element(context, 31, _box([0.3, 0.3, 4.0]))
@@ -332,8 +318,16 @@ def test_empty_input_gathers_all_ifc_elements() -> None:
         context,
     )
 
-    assert result.element_count == 2
-    assert result.check_count == 2
+    assert result.element_count == 0
+    assert result.check_count == 0
+    assert result.elements == []
+
+
+def test_unbound_express_ids_fails_validation() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="express_ids"):
+        TiltOfComponentsInputs.model_validate({})
 
 
 def _add_decomposed(
@@ -362,7 +356,7 @@ def test_decomposed_parent_without_body_measured_from_part_meshes() -> None:
 
     result = _run(
         TiltOfComponentsSettings(element_category="2d"),
-        TiltOfComponentsInputs(express_ids=[1]),
+        TiltOfComponentsInputs(express_ids=[_ref(1)]),
         context,
     )
 
@@ -383,7 +377,7 @@ def test_recursive_nested_decomposition_collects_descendant_meshes() -> None:
 
     result = _run(
         TiltOfComponentsSettings(element_category="2d"),
-        TiltOfComponentsInputs(express_ids=[1]),
+        TiltOfComponentsInputs(express_ids=[_ref(1)]),
         context,
     )
 
@@ -402,7 +396,7 @@ def test_decomposed_parent_and_parts_all_measured() -> None:
 
     result = _run(
         TiltOfComponentsSettings(element_category="2d"),
-        TiltOfComponentsInputs(express_ids=[1, 2, 3]),
+        TiltOfComponentsInputs(express_ids=[_ref(1), _ref(2), _ref(3)]),
         context,
     )
 
@@ -422,7 +416,7 @@ def test_parent_with_own_body_ignores_decomposition() -> None:
 
     result = _run(
         TiltOfComponentsSettings(element_category="2d"),
-        TiltOfComponentsInputs(express_ids=[1]),
+        TiltOfComponentsInputs(express_ids=[_ref(1)]),
         context,
     )
 
@@ -440,7 +434,7 @@ def test_decomposition_cycle_does_not_loop() -> None:
 
     result = _run(
         TiltOfComponentsSettings(element_category="2d"),
-        TiltOfComponentsInputs(express_ids=[1]),
+        TiltOfComponentsInputs(express_ids=[_ref(1)]),
         context,
     )
 

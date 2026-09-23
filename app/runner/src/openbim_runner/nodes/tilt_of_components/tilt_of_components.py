@@ -9,6 +9,7 @@ from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 from openbim_runner.util.geometry import cache_mesh, expr_key, resolve_mesh
+from openbim_runner.util.references import ElementRef, parse_element_refs
 
 ElementCategory = Literal["2d", "1d"]
 ComparisonMethod = Literal[
@@ -77,18 +78,12 @@ class TiltOfComponentsSettings(NodeModel):
 
 
 class TiltOfComponentsInputs(NodeModel):
-    express_ids: list[int] = Field(
-        default=[],
+    express_ids: list[str] = Field(
         title="Express IDs",
         description=(
-            "Optional list of IFC express IDs to measure. When empty, all IFC elements "
-            "in the model are checked."
+            "Qualified element references (`<slug>:expr:<id>`) to measure. Bind "
+            "ifc_element_filter output here."
         ),
-    )
-    model_slug: str = Field(
-        default="main",
-        title="Model",
-        description="Model slug to measure elements against. Defaults to the main model.",
     )
 
 
@@ -113,9 +108,9 @@ class TiltSurfaceCheck(NodeModel):
 
 
 class TiltsElement(NodeModel):
-    express_id: int = Field(
+    express_id: str = Field(
         title="Express ID",
-        description="The express ID of the IFC entity.",
+        description="The qualified element reference (`<slug>:expr:<id>`).",
     )
     class_name: str = Field(
         title="Class name",
@@ -149,11 +144,6 @@ class TiltOfComponentsResult(NodeModel):
         title="Failed count",
         description="Number of elements with at least one flagged surface/axis.",
     )
-    model_name: str = Field(
-        default="",
-        title="Model name",
-        description="Name of the checked IFC model.",
-    )
     elements: list[TiltsElement] = Field(
         default=[],
         title="Elements",
@@ -172,30 +162,19 @@ async def tilt_of_components(
     if settings.horizontal_separation_angle < 0:
         raise ValueError("horizontal_separation_angle must not be negative.")
 
-    express_ids = list(inputs.express_ids)
-    if not express_ids:
-        try:
-            express_ids = [
-                entity.id()
-                for entity in context.resolve_model(inputs.model_slug).by_type(
-                    "IfcElement"
-                )
-            ]
-        except RuntimeError:
-            express_ids = []
-
     elements: list[TiltsElement] = []
     check_count = 0
     failed_count = 0
 
-    for express_id in express_ids:
-        class_name = _resolve_class_name(context, express_id, inputs.model_slug)
-        mesh = _resolve_composed_mesh(context, express_id, inputs.model_slug)
+    for element in parse_element_refs(inputs.express_ids, node="tilt_of_components"):
+        reference = element.reference
+        class_name = _resolve_class_name(context, element)
+        mesh = _resolve_composed_mesh(context, element)
 
         if mesh is None or len(mesh.faces) == 0:
             elements.append(
                 TiltsElement(
-                    express_id=express_id,
+                    express_id=reference,
                     class_name=class_name,
                     element_category=settings.element_category,
                     failed=False,
@@ -208,7 +187,7 @@ async def tilt_of_components(
             settings,
             mesh,
             context=context,
-            express_id=express_id,
+            reference=reference,
         )
         element_failed = any(not check.passed for check in checks)
         check_count += 1
@@ -217,7 +196,7 @@ async def tilt_of_components(
 
         elements.append(
             TiltsElement(
-                express_id=express_id,
+                express_id=reference,
                 class_name=class_name,
                 element_category=settings.element_category,
                 failed=element_failed,
@@ -229,49 +208,8 @@ async def tilt_of_components(
         element_count=len(elements),
         check_count=check_count,
         failed_count=failed_count,
-        model_name=_resolve_model_name(context, inputs.model_slug),
         elements=elements,
     )
-
-
-def _resolve_model_name(context: ExecutionContext, model_slug: str) -> str:
-    """Node-local best-effort name of the checked IFC model.
-
-    Uses the IFC header ``FILE_NAME`` and reduces it to the basename (stripping
-    any directory portion and the file extension). Falls back to the
-    ``IfcProject`` name, then to an empty string. Never raises.
-    """
-
-    def _basename_stem(value: object) -> str | None:
-        if not isinstance(value, str):
-            return None
-        normalized = value.replace("\\", "/").rstrip("/")
-        if not normalized:
-            return None
-        base = normalized.rsplit("/", 1)[-1]
-        if base.lower().endswith(".ifc"):
-            base = base[: -len(".ifc")]
-        return base or None
-
-    model = context.resolve_model(model_slug)
-    try:
-        header = getattr(model, "header", None)
-        file_name = getattr(header, "file_name", None)
-        stored_name = _basename_stem(getattr(file_name, "name", None))
-        if stored_name is not None:
-            return stored_name
-    except (AttributeError, RuntimeError):
-        pass
-
-    try:
-        for project in model.by_type("IfcProject"):
-            name = getattr(project, "Name", None)
-            if isinstance(name, str) and name:
-                return name
-    except (AttributeError, RuntimeError):
-        return ""
-
-    return ""
 
 
 def _validate_settings(settings: TiltOfComponentsSettings) -> None:
@@ -286,20 +224,19 @@ def _validate_settings(settings: TiltOfComponentsSettings) -> None:
         raise ValueError("upper_limit must not be negative for this comparison method.")
 
 
-def _resolve_class_name(
-    context: ExecutionContext, express_id: int, model_slug: str
-) -> str:
+def _resolve_class_name(context: ExecutionContext, element: ElementRef) -> str:
+    """Resolve the IFC class of a parsed element reference; 'unknown' if missing."""
     try:
-        entity = context.resolve_model(model_slug).by_id(express_id)
+        entity = context.resolve_model(element.slug).by_id(element.express_id)
         return entity.is_a()
     except RuntimeError:
         return "unknown"
 
 
 def _resolve_composed_mesh(
-    context: ExecutionContext, express_id: int, model_slug: str
+    context: ExecutionContext, element: ElementRef
 ) -> trimesh.Trimesh | None:
-    """Resolve the mesh used to measure an element.
+    """Resolve the mesh used to measure a parsed element reference.
 
     The element's own tessellated Body mesh is used when available. Otherwise the
     element is treated as an assembly: the Body meshes of all its aggregated
@@ -308,14 +245,14 @@ def _resolve_composed_mesh(
     """
     try:
         try:
-            mesh = resolve_mesh(context, expr_key(model_slug, express_id))
+            mesh = resolve_mesh(context, element.reference)
             if len(mesh.faces) > 0:
                 return mesh
         except ValueError:
             pass
 
-        entity = context.resolve_model(model_slug).by_id(express_id)
-        parts = _collect_descendant_meshes(context, entity, set(), model_slug)
+        entity = context.resolve_model(element.slug).by_id(element.express_id)
+        parts = _collect_descendant_meshes(context, entity, set(), element.slug)
         if not parts:
             return None
 
@@ -379,7 +316,7 @@ def _compute_checks(
     mesh: trimesh.Trimesh,
     *,
     context: ExecutionContext,
-    express_id: int,
+    reference: str,
 ) -> list[TiltSurfaceCheck]:
     vertices = np.asarray(mesh.vertices, dtype=np.float64)
     faces = np.asarray(mesh.faces, dtype=np.int64)
@@ -392,7 +329,7 @@ def _compute_checks(
             faces,
             normals,
             context,
-            express_id,
+            reference,
         )
     return _checks_1d(
         settings,
@@ -400,7 +337,7 @@ def _compute_checks(
         faces,
         normals,
         context,
-        express_id,
+        reference,
     )
 
 
@@ -410,7 +347,7 @@ def _checks_2d(
     faces: np.ndarray,
     normals: np.ndarray,
     context: ExecutionContext,
-    express_id: int,
+    reference: str,
 ) -> list[TiltSurfaceCheck]:
     separation = settings.horizontal_separation_angle / _DEG
     groups = _group_surfaces(normals, separation)
@@ -432,7 +369,7 @@ def _checks_2d(
         passed = not _is_flagged(settings, tilt)
         geometry_key: str | None = None
         if not passed:
-            geometry_key = f"inter:tilt_surface_{express_id}_{surface_index}"
+            geometry_key = f"inter:tilt_surface_{reference}_{surface_index}"
             cache_mesh(
                 context=context,
                 mesh=_build_submesh(vertices, faces, group),
@@ -456,7 +393,7 @@ def _checks_1d(
     faces: np.ndarray,
     normals: np.ndarray,
     context: ExecutionContext,
-    express_id: int,
+    reference: str,
 ) -> list[TiltSurfaceCheck]:
     separation = settings.horizontal_separation_angle / _DEG
     groups = _group_surfaces(normals, separation)
@@ -483,7 +420,7 @@ def _checks_1d(
     passed = not _is_flagged(settings, tilt)
     geometry_key: str | None = None
     if not passed:
-        geometry_key = f"inter:tilt_axis_{express_id}"
+        geometry_key = f"inter:tilt_axis_{reference}"
         cache_mesh(
             context=context,
             mesh=_build_axis_line(centroid1, centroid2),

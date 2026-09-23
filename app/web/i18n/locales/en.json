@@ -143,8 +143,6 @@
     "none": "None",
     "typeMismatch": "Type mismatch",
     "model": "Model",
-    "modelA": "Model A",
-    "modelB": "Model B",
     "noConfigurableInputs": "This node has no configurable inputs"
   },
   "execution": {
@@ -195,10 +193,6 @@
       "title": "File Input",
       "description": "Points to an IFC model assigned in the editor's model bar.",
       "selectModel": "Select a model..."
-    },
-    "getName": {
-      "title": "Get Name Node",
-      "failOnMissing": "Fail on Missing"
     },
     "generate3dCube": {
       "title": "Generate 3D Cube",

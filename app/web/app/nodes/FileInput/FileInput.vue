@@ -5,9 +5,8 @@ import { useFlowStore } from '~/stores/flow'
 
 // File Input node. Its sidebar lists the IFC models assigned in the editor's
 // top-bar model manager and lets the user pick which one this node refers to.
-// The node outputs that model's slug (`model_slug`), which is wired to a
-// consumer's model input (see the Slideover input bindings). Consumers fall
-// back to the reserved `main` model when nothing is connected.
+// The node outputs that model's slug (`model_slug`), which is wired to the
+// model input of an ifc_element_filter (the only remaining model port).
 interface FileInputData {
   label?: string
   settings?: {

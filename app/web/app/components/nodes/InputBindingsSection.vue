@@ -34,15 +34,10 @@ const currentBindings = computed(() => node.value.data.input_bindings || {})
 // removes the binding so the input falls back to its default.
 const NONE_VALUE = '__none__'
 
-/** Friendly, localized labels for the dedicated model input ports. */
+/** Friendly, localized labels for the dedicated model input port. */
 function resolveInputLabel(inputName: string): string {
-  if (isModelInput(inputName)) {
-    if (inputName === 'model_slug_a')
-      return t('bindings.modelA')
-    if (inputName === 'model_slug_b')
-      return t('bindings.modelB')
+  if (isModelInput(inputName))
     return t('bindings.model')
-  }
   return getInputLabel(props.nodeName, inputName)
 }
 

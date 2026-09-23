@@ -297,14 +297,17 @@ def test_cache_mesh_duplicate_key_raises() -> None:
         cache_mesh(context, trimesh.creation.box(), object_id="dup")
 
 
-def test_resolve_side_maps_express_and_object_ids() -> None:
+def test_resolve_side_honors_qualified_refs() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), express_id=1)
     cache_mesh(context, trimesh.creation.box(), express_id=2)
     cache_mesh(context, trimesh.creation.box(), object_id="a")
     cache_mesh(context, trimesh.creation.box(), intermediate=True)
 
-    assert resolve_side(context, refs=[2, "a"]) == ["main:expr:2", "gen:a"]
+    assert resolve_side(context, refs=["main:expr:2", "gen:a"]) == [
+        "main:expr:2",
+        "gen:a",
+    ]
 
 
 def test_resolve_side_mixed_list_preserves_order() -> None:
@@ -313,32 +316,43 @@ def test_resolve_side_mixed_list_preserves_order() -> None:
     cache_mesh(context, trimesh.creation.box(), object_id="a")
     cache_mesh(context, trimesh.creation.box(), express_id=2)
 
-    assert resolve_side(context, refs=["a", 1, 2]) == [
+    assert resolve_side(context, refs=["gen:a", "main:expr:1", "main:expr:2"]) == [
         "gen:a",
         "main:expr:1",
         "main:expr:2",
     ]
 
 
-def test_resolve_side_empty_list_returns_whole_model() -> None:
+def test_resolve_side_accepts_inter_key() -> None:
+    context = _context()
+    mesh = cache_mesh(context, trimesh.creation.box(), intermediate=True)
+
+    assert resolve_side(context, refs=[mesh]) == [mesh]
+
+
+def test_resolve_side_empty_list_yields_zero_keys() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), express_id=1)
     cache_mesh(context, trimesh.creation.box(), object_id="a")
     cache_mesh(context, trimesh.creation.box(), intermediate=True)
 
-    keys = resolve_side(context, refs=[])
-    assert keys == ["main:expr:1", "gen:a"]
-    assert all(is_model_key(key) for key in keys)
+    assert resolve_side(context, refs=[]) == []
 
 
 def test_resolve_side_missing_reference_raises() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), express_id=1)
 
-    with pytest.raises(ValueError, match="Express ID 9 has no tessellated geometry"):
-        resolve_side(context, refs=[9])
-    with pytest.raises(ValueError, match="Object ID 'ghost' has no geometry"):
-        resolve_side(context, refs=["ghost"])
+    with pytest.raises(
+        ValueError, match="'main:expr:9' is not present in the workflow cache"
+    ):
+        resolve_side(context, refs=["main:expr:9"])
+    with pytest.raises(
+        ValueError, match="'gen:ghost' is not present in the workflow cache"
+    ):
+        resolve_side(context, refs=["gen:ghost"])
+    with pytest.raises(ValueError, match="not a valid geometry cache reference"):
+        resolve_side(context, refs=["cube1"])
 
 
 class FakePart:

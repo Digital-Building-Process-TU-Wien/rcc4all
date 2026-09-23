@@ -56,9 +56,11 @@ comparison method is active at a time.
 
 ## Inputs
 
-- **Express IDs** (optional): List of IFC express IDs to measure. Typically
-  connected to the output of an `ifc_element_filter`. When unconnected, all IFC
-  elements in the model are checked.
+- **Express IDs** (required): a list of fully qualified element references
+  (`<slug>:expr:<id>`). Typically connected to the output of an
+  `ifc_element_filter`. Each reference resolves against the model named inside
+  it, so mixed-model lists are allowed. An unbound required input fails input
+  validation; an empty bound list processes zero elements.
 
 ## Outputs
 
@@ -68,9 +70,9 @@ The result is a slim, structured check per element:
 - `check_count`: number of elements with at least one surface/axis check (elements
   without tessellated geometry are skipped and not counted)
 - `failed_count`: number of elements with at least one flagged surface/axis
-- `model_name`: name of the checked IFC model (taken from the IFC header file name)
 - `elements`: ordered list of
-  - `express_id`, `class_name` (IFC class or `unknown`), `element_category`
+  - `express_id` (the qualified reference string), `class_name` (IFC class or
+    `unknown`), `element_category`
   - `failed`: true when at least one check was flagged
   - `checks`: list of `TiltSurfaceCheck`:
     - `expected`: human-readable pass condition combined from the comparison
@@ -86,11 +88,12 @@ not individual checks.
 
 Flagged checks store a helper geometry in the geometry cache for visualization:
 
-- 2D: the flagged surface triangles under `inter:tilt_surface_{express_id}_{surface_index}`
-- 1D: a thin axis cylinder under `inter:tilt_axis_{express_id}`
+- 2D: the flagged surface triangles under `inter:tilt_surface_<ref>_<index>`
+- 1D: a thin axis cylinder under `inter:tilt_axis_<ref>`
 
-These are `inter:` keys, so they are excluded from collision inputs and the
-whole-model fallback.
+where `<ref>` is the element's full qualified reference (`<slug>:expr:<id>`).
+
+These are `inter:` keys, so they are excluded from collision inputs.
 
 ## Notes on openings
 

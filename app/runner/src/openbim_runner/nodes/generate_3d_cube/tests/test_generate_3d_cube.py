@@ -29,8 +29,7 @@ def _run(
 
 def _mesh_from_result(result: Generate3DCubeResult, context: ExecutionContext):
     assert context.geometry_cache is not None
-    object_id = result.object_ids[0]
-    return context.geometry_cache[f"gen:{object_id}"]
+    return context.geometry_cache[result.object_ids[0]]
 
 
 def test_generate_3d_cube_default_unit_cube_at_origin() -> None:
@@ -39,7 +38,7 @@ def test_generate_3d_cube_default_unit_cube_at_origin() -> None:
     result = _run(Generate3DCubeSettings(object_id="cube1"), context)
 
     assert isinstance(result, Generate3DCubeResult)
-    assert result.object_ids == ["cube1"]
+    assert result.object_ids == ["gen:cube1"]
     assert context.geometry_cache is not None
     assert "gen:cube1" in context.geometry_cache
     mesh = _mesh_from_result(result, context)
@@ -131,6 +130,16 @@ def test_generate_3d_cube_empty_object_id_raises_error() -> None:
         _run(Generate3DCubeSettings(object_id=""), context)
 
 
+def test_generate_3d_cube_expr_marker_object_id_raises_error() -> None:
+    context = _context()
+
+    with pytest.raises(ValueError, match="must not contain ':expr:'"):
+        _run(
+            Generate3DCubeSettings(object_id="main:expr:5"),
+            context,
+        )
+
+
 def test_generate_3d_cube_duplicate_object_id_raises_error() -> None:
     context = _context()
     _run(Generate3DCubeSettings(object_id="cube"), context)
@@ -144,6 +153,6 @@ def test_generate_3d_cube_output_is_object_id() -> None:
 
     result = _run(Generate3DCubeSettings(object_id="cube_out"), context)
 
-    assert result.object_ids == ["cube_out"]
+    assert result.object_ids == ["gen:cube_out"]
     assert context.geometry_cache is not None
     assert "gen:cube_out" in context.geometry_cache

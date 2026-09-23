@@ -16,6 +16,7 @@ from openbim_runner.util.geometry import (
     resolve_side,
     split_expr_key,
 )
+from openbim_runner.util.references import EXPR_KIND, split_reference
 
 VOLUME_TOLERANCE = 1e-9
 AGGREGATION_REL_TYPES = ("IfcRelAggregates", "IfcRelNests")
@@ -34,31 +35,20 @@ class CollisionSettings(NodeModel):
 
 
 class CollisionInputs(NodeModel):
-    list_a: list[int | str] = Field(
-        default=[],
+    list_a: list[str] = Field(
         title="List A",
         description=(
-            "First list of references — mix of express IDs (int → `<model A>:expr:<id>`) and object IDs "
-            "(str → `gen:<id>`), in the order to test. When empty, the whole model is used."
+            "First list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` "
+            "or `inter:<id>`), in the order to test. Bind ifc_element_filter output here."
         ),
     )
-    list_b: list[int | str] = Field(
-        default=[],
+    list_b: list[str] = Field(
         title="List B",
         description=(
-            "Second (optional) list of references — mix of express IDs (int → `<model B>:expr:<id>`) and "
-            "object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set."
+            "Second list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` "
+            "or `inter:<id>`) to test the first list against. Mixed-model lists are allowed; "
+            "each reference resolves against its own model."
         ),
-    )
-    model_slug_a: str = Field(
-        default="main",
-        title="Model A",
-        description="Model slug that List A references refer to. Defaults to the main model.",
-    )
-    model_slug_b: str = Field(
-        default="main",
-        title="Model B",
-        description="Model slug that List B references refer to. Defaults to the main model.",
     )
 
 
@@ -203,11 +193,22 @@ async def collision(
     inputs: CollisionInputs,
     context: ExecutionContext,
 ) -> CollisionResult:
-    keys_a = resolve_side(context, refs=inputs.list_a, slug=inputs.model_slug_a)
-    keys_b = resolve_side(context, refs=inputs.list_b, slug=inputs.model_slug_b)
+    keys_a = resolve_side(context, refs=inputs.list_a)
+    keys_b = resolve_side(context, refs=inputs.list_b)
 
+    # Ancestor exclusion is intra-model: derive the model slugs actually present
+    # in the reference lists and gather aggregation exclusions for each. gen:/
+    # inter: keys carry no model slug, so they contribute nothing here.
+    slugs: set[str] = set()
+    for key in (*keys_a, *keys_b):
+        try:
+            slug, kind, _value = split_reference(key)
+        except ValueError:
+            continue
+        if kind == EXPR_KIND:
+            slugs.add(slug)
     exclusions_by_slug: dict[str, frozenset[tuple[int, int]]] = {}
-    for slug in {inputs.model_slug_a, inputs.model_slug_b}:
+    for slug in slugs:
         try:
             model = context.resolve_model(slug)
         except ValueError:

@@ -6,6 +6,7 @@ from typing import Any, cast
 import pytest
 import trimesh
 
+from conftest import main_ref as _ref
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.collision.collision import (
     CollisionInputs,
@@ -44,7 +45,7 @@ def test_collision_disjoint_pair_is_not_emitted() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=[1], list_b=[2]),
+        CollisionInputs(list_a=[_ref(1)], list_b=[_ref(2)]),
         context,
     )
 
@@ -59,7 +60,7 @@ def test_collision_overlapping_pair_is_emitted_grouped() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=[1], list_b=[2]),
+        CollisionInputs(list_a=[_ref(1)], list_b=[_ref(2)]),
         context,
     )
 
@@ -74,7 +75,7 @@ def test_collision_face_touching_pair_is_not_emitted() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=[1], list_b=[2]),
+        CollisionInputs(list_a=[_ref(1)], list_b=[_ref(2)]),
         context,
     )
 
@@ -94,7 +95,7 @@ def test_collision_non_watertight_overlapping_reports_collision() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=["broken"], list_b=[2]),
+        CollisionInputs(list_a=["gen:broken"], list_b=[_ref(2)]),
         context,
     )
 
@@ -115,7 +116,7 @@ def test_collision_non_watertight_disjoint_no_collision() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=["broken"], list_b=[2]),
+        CollisionInputs(list_a=["gen:broken"], list_b=[_ref(2)]),
         context,
     )
 
@@ -135,7 +136,7 @@ def test_collision_non_watertight_inside_convex_reports_collision() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=["floating"], list_b=[1]),
+        CollisionInputs(list_a=["gen:floating"], list_b=[_ref(1)]),
         context,
     )
 
@@ -153,7 +154,7 @@ def test_collision_cartesian_product_groups_colliding_keys() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=[1, 2], list_b=[3, 4]),
+        CollisionInputs(list_a=[_ref(1), _ref(2)], list_b=[_ref(3), _ref(4)]),
         context,
     )
 
@@ -170,7 +171,7 @@ def test_collision_lists_mix_express_and_object_ids() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=[1], list_b=["cube"]),
+        CollisionInputs(list_a=[_ref(1)], list_b=["gen:cube"]),
         context,
     )
 
@@ -186,61 +187,33 @@ def test_collision_groups_multiple_collisions_per_key() -> None:
 
     result = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=[1], list_b=[2, 3]),
+        CollisionInputs(list_a=[_ref(1)], list_b=[_ref(2), _ref(3)]),
         context,
     )
 
     assert result.collisions == {"main:expr:1": ["main:expr:2", "main:expr:3"]}
 
 
-def test_collision_empty_b_falls_back_to_whole_model() -> None:
+def test_collision_bound_but_empty_lists_yield_no_pairs() -> None:
     context = _context()
     _express_box(context, 1, [0, 0, 0])
     _express_box(context, 2, [1, 0, 0])
-    _express_box(context, 3, [0.5, 0, 0])
 
-    result = _run(
+    result_a = _run(
         CollisionSettings(),
-        CollisionInputs(list_a=[1], list_b=[]),
+        CollisionInputs(list_a=[_ref(1)], list_b=[]),
         context,
     )
+    assert result_a.collisions == {}
+    assert result_a.errors == []
 
-    assert result.collisions == {"main:expr:1": ["main:expr:2", "main:expr:3"]}
-
-
-def test_collision_empty_a_falls_back_to_whole_model() -> None:
-    context = _context()
-    _express_box(context, 1, [0, 0, 0])
-    _express_box(context, 2, [1, 0, 0])
-    _express_box(context, 3, [0.5, 0, 0])
-
-    result = _run(
-        CollisionSettings(),
-        CollisionInputs(list_a=[], list_b=[1]),
-        context,
-    )
-
-    assert result.collisions == {
-        "main:expr:2": ["main:expr:1"],
-        "main:expr:3": ["main:expr:1"],
-    }
-
-
-def test_collision_self_pair_is_skipped_when_both_fall_back() -> None:
-    context = _context()
-    _express_box(context, 1, [0, 0, 0])
-    _express_box(context, 2, [1, 0, 0])
-
-    result = _run(
+    result_ab = _run(
         CollisionSettings(),
         CollisionInputs(list_a=[], list_b=[]),
         context,
     )
-
-    assert result.collisions == {
-        "main:expr:1": ["main:expr:2"],
-        "main:expr:2": ["main:expr:1"],
-    }
+    assert result_ab.collisions == {}
+    assert result_ab.errors == []
 
 
 def test_collision_mode_boolean_stores_no_intersection_mesh() -> None:
@@ -250,7 +223,7 @@ def test_collision_mode_boolean_stores_no_intersection_mesh() -> None:
 
     result = _run(
         CollisionSettings(mode="boolean"),
-        CollisionInputs(list_a=[1], list_b=[2]),
+        CollisionInputs(list_a=[_ref(1)], list_b=[_ref(2)]),
         context,
     )
 
@@ -270,7 +243,7 @@ def test_collision_mode_intersection_mesh_stores_deterministic_key() -> None:
 
     result = _run(
         CollisionSettings(mode="intersection_mesh"),
-        CollisionInputs(list_a=[1], list_b=[2]),
+        CollisionInputs(list_a=[_ref(1)], list_b=[_ref(2)]),
         context,
     )
 
@@ -297,7 +270,7 @@ def test_collision_mode_intersection_mesh_fcl_pair_gets_null() -> None:
 
     result = _run(
         CollisionSettings(mode="intersection_mesh"),
-        CollisionInputs(list_a=["broken"], list_b=[2]),
+        CollisionInputs(list_a=["gen:broken"], list_b=[_ref(2)]),
         context,
     )
 
@@ -310,26 +283,56 @@ def test_collision_mode_intersection_mesh_fcl_pair_gets_null() -> None:
     )
 
 
+def test_collision_mixed_model_refs_resolve_against_own_model() -> None:
+    """Regression for the original bug: a filter on `main` feeding a collision with
+    refs from both models must resolve each ref against its own model."""
+    context = ExecutionContext(
+        models={"main": cast(Any, object()), "second_model": cast(Any, object())},
+        node_outputs={},
+    )
+    # Same express ID in both models, different geometry.
+    mesh_main = trimesh.creation.box(extents=[1, 1, 1])
+    mesh_main.apply_translation([0, 0, 0])
+    cache_mesh(context, mesh_main, express_id=63, slug="main")
+    mesh_second = trimesh.creation.box(extents=[1, 1, 1])
+    mesh_second.apply_translation([0.9, 0, 0])
+    cache_mesh(context, mesh_second, express_id=63, slug="second_model")
+
+    result = _run(
+        CollisionSettings(),
+        CollisionInputs(
+            list_a=["main:expr:63"],
+            list_b=["second_model:expr:63"],
+        ),
+        context,
+    )
+
+    assert result.collisions == {"main:expr:63": ["second_model:expr:63"]}
+    assert result.errors == []
+
+
 def test_collision_missing_express_id_raises() -> None:
     context = _context()
     _express_box(context, 1, [0, 0, 0])
 
-    with pytest.raises(ValueError, match="Express ID 999 has no tessellated geometry"):
+    with pytest.raises(
+        ValueError, match="'main:expr:999' is not present in the workflow cache"
+    ):
         _run(
             CollisionSettings(),
-            CollisionInputs(list_a=[1], list_b=[999]),
+            CollisionInputs(list_a=[_ref(1)], list_b=[_ref(999)]),
             context,
         )
 
 
-def test_collision_missing_object_id_raises() -> None:
+def test_collision_malformed_reference_raises() -> None:
     context = _context()
     _express_box(context, 1, [0, 0, 0])
 
-    with pytest.raises(ValueError, match="Object ID 'ghost' has no geometry"):
+    with pytest.raises(ValueError, match="not a valid geometry cache reference"):
         _run(
             CollisionSettings(),
-            CollisionInputs(list_a=["ghost"], list_b=[1]),
+            CollisionInputs(list_a=["ghost"], list_b=[_ref(1)]),
             context,
         )
 
@@ -378,7 +381,7 @@ def test_collision_skips_parent_child_decomposition() -> None:
     # Wall parent 10 overlaps its own aggregated part 20 -> self-comparison, skipped.
     result = _run_with_model(
         [_FakeAggregateRel(10, [20])],
-        CollisionInputs(list_a=[10], list_b=[20]),
+        CollisionInputs(list_a=[_ref(10)], list_b=[_ref(20)]),
         {10: ([0, 0, 0], [2, 2, 2]), 20: ([1, 0, 0], [2, 2, 2])},
     )
     assert result.collisions == {}
@@ -390,7 +393,7 @@ def test_collision_keeps_cross_tree_decomposition_collisions() -> None:
     # 20 (tree1) overlaps 40 (tree2): distinct elements, must still be reported.
     result = _run_with_model(
         [_FakeAggregateRel(10, [20]), _FakeAggregateRel(30, [40])],
-        CollisionInputs(list_a=[20], list_b=[40]),
+        CollisionInputs(list_a=[_ref(20)], list_b=[_ref(40)]),
         {
             10: ([0, 0, 0], [2, 2, 2]),
             20: ([0, 0, 0], [2, 2, 2]),
@@ -402,14 +405,16 @@ def test_collision_keeps_cross_tree_decomposition_collisions() -> None:
     assert result.errors == []
 
 
-def test_collision_skips_parent_child_in_whole_model_fallback() -> None:
-    # list_b empty -> whole model fallback. Parent 10 vs its own part 20 must be
-    # skipped even though the whole model includes both. (Regression for the
-    # reported Attika self-collision on decomposed walls.)
+def test_collision_skips_parent_child_decomposition_pairs() -> None:
+    # Wall parent 10 overlaps its own aggregated part 20 -> self-comparison, skipped.
     result = _run_with_model(
         [_FakeAggregateRel(10, [20])],
-        CollisionInputs(list_a=[10], list_b=[]),
-        {10: ([0, 0, 0], [2, 2, 2]), 20: ([1, 0, 0], [2, 2, 2])},
+        CollisionInputs(list_a=[_ref(10)], list_b=[_ref(20), _ref(30)]),
+        {
+            10: ([0, 0, 0], [2, 2, 2]),
+            20: ([1, 0, 0], [2, 2, 2]),
+            30: ([10, 0, 0], [2, 2, 2]),
+        },
     )
     assert result.collisions == {}
     assert result.errors == []
@@ -419,7 +424,7 @@ def test_collision_transitive_ancestor_descendant_is_skipped() -> None:
     # Grandparent 10 -> 20 -> 30. 10 vs 30 (grandchild) is a self-comparison too.
     result = _run_with_model(
         [_FakeAggregateRel(10, [20]), _FakeAggregateRel(20, [30])],
-        CollisionInputs(list_a=[10], list_b=[30]),
+        CollisionInputs(list_a=[_ref(10)], list_b=[_ref(30)]),
         {
             10: ([0, 0, 0], [2, 2, 2]),
             20: ([0, 0, 0], [2, 2, 2]),

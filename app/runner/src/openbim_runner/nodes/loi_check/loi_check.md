@@ -82,7 +82,7 @@ multiple checks per element simultaneously.
    for all operators.
 
 ## Output filtering by Component (user decision)
-The Component (`entity_type`) column now FILTERS the elements emitted in the
+The Component (`entity_type`) column FILTERS the elements emitted in the
 output (in addition to limiting which checks apply per row):
 - If ANY row uses an "Any Element" signal — empty Component (the default / the
   `Any Element` dropdown choice) OR the literal `any` token (case-insensitive) —
@@ -90,8 +90,7 @@ output (in addition to limiting which checks apply per row):
   row's check applies to every element.
 - Otherwise, if every row specifies an explicit Component, only elements matching
   at least one of those types are emitted (union of specified types).
-  Non-matching elements are excluded entirely (they no longer appear with 0
-  checks).
+  Non-matching elements are excluded entirely from the output.
 - Missing/invalid express IDs are excluded when a filter is active (their type is
   unknown); otherwise included as class `unknown` (e.g. when an Any Element row
   disables filtering, or when no row specifies a Component).
@@ -107,8 +106,8 @@ options and per-barrier **inclusive / exclusive**. The Min/Max/incl. controls
 live in the Target value column, shown when `condition` is between/outside.
 
 ComparisonRow additions:
-- `condition` literal gains `between` and `outside` (removed the separate
-  `range_relation` field — condition is now the single source).
+- `condition` literal: `between` and `outside` (the single source for range
+  relations; there is no separate `range_relation` field).
 - `range_min: str = ""`, `range_max: str = ""`
 - `inclusive_min: bool = True`, `inclusive_max: bool = True`
 
@@ -118,7 +117,7 @@ Evaluation (numeric only; used when `condition ∈ {between, outside}`):
 - non-numeric actual → failed.
 Validation (run-time ValueError): when condition is between/outside, both
 barriers must be set and numeric; missing/non-numeric barrier → ValueError.
-Result: PropertyCheckResult gains optional `expected_min`/`expected_max`;
+Result: PropertyCheckResult has optional `expected_min`/`expected_max`;
 `condition` is `between`/`outside` for range rows (drives future BCF messages).
 
 Web: the Condition dropdown includes `between`/`outside`. When selected, the
@@ -132,7 +131,7 @@ User requirement: provide a list of accepted values (e.g. wall material in
 {concrete, wood, masonry}). New `one_of` condition (label "one of (∈)").
 
 - `ComparisonRow.allowed_values: list[str] = []`.
-- `condition` literal gains `one_of`.
+- `condition` literal includes `one_of`.
 - Matching is **case-insensitive** (trimmed, lowercased); missing actual (None)
   → failed. Empty accepted values ignored.
 - Validation: `condition == "one_of"` requires ≥ 1 non-empty value else

@@ -192,7 +192,6 @@ Add your import and export:
 from .base import ExecutionContext, NodeDefinition, NodeModel, dispatch, get_registry, get_registry_schema, node
 from .concat_string.concat_string import concat_string
 from .generate_3d_cube.generate_3d_cube import generate_3d_cube
-from .get_name.get_name import get_name
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
 from .template_node.template_node import template_node  # ← ADD THIS
 
@@ -203,7 +202,6 @@ __all__ = [
     "concat_string",
     "dispatch",
     "generate_3d_cube",
-    "get_name",
     "get_registry",
     "get_registry_schema",
     "ifc_element_filter",
@@ -310,7 +308,6 @@ const nodeNameToComponent: Record<string, string> = {
   concat_string: 'ConcatString',
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',
-  get_name: 'GetName',
   ifc_element_filter: 'IfcElementFilter',
   template_node: 'TemplateNode',  // ← ADD THIS
 }
@@ -390,7 +387,7 @@ npm run dev
 | Pattern | Settings | Inputs | Context | Example |
 |---------|----------|--------|---------|---------|
 | Settings + Inputs | ✓ | ✓ | ✗ | `template_node`, `concat_string` |
-| Settings + Inputs + Context | ✓ | ✓ | ✓ | `get_name` |
+| Settings + Inputs + Context | ✓ | ✓ | ✓ | `loi_check` |
 | Settings + Context | ✓ | ✗ | ✓ | `ifc_element_filter` |
 | Inputs + Context | ✗ | ✓ | ✓ | `generate_3d_cube` |
 

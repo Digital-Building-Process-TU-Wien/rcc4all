@@ -21,6 +21,7 @@ from openbim_runner.nodes.loi_check.loi_check import (
     ComparisonElement,
     PropertyCheckResult,
 )
+from openbim_runner.util.references import parse_element_ref
 
 # Fixed identity / bookkeeping values used inside each generated markup.
 _TOPIC_TYPE = "ERROR"
@@ -99,11 +100,6 @@ class BcfOutputInputs(NodeModel):
         default=[],
         title="Elements",
         description="Elements and their property check results from LOI-Check (LOI-Check.elements).",
-    )
-    model_slug: str = Field(
-        default="main",
-        title="Model",
-        description="Model slug to resolve element identities against. Defaults to the main model.",
     )
 
 
@@ -204,7 +200,7 @@ def _resolve_template(
     namespace: _Namespace,
     formatter: _ResolvingFormatter,
     *,
-    element_id: int,
+    element_id: str,
     property_key: str,
 ) -> str:
     if not template:
@@ -221,7 +217,7 @@ def _resolve_template(
 
 def _build_namespace(
     *,
-    element_id: int,
+    element_id: str,
     element_guid: str,
     element_name: str,
     class_name: str,
@@ -298,21 +294,22 @@ def _expectation_clause(check: PropertyCheckResult) -> str:
 
 
 def _resolve_identity(
-    context: ExecutionContext, element_id: int, property_key: str, model_slug: str
+    context: ExecutionContext, reference: str, property_key: str
 ) -> tuple[str, str]:
-    """Resolve (guid, name) for an element by express ID (identity lookup only)."""
+    """Resolve (guid, name) for a qualified element reference (identity lookup only)."""
+    element = parse_element_ref(reference, node="bcf_output")
     try:
-        entity = context.resolve_model(model_slug).by_id(element_id)
+        entity = context.resolve_model(element.slug).by_id(element.express_id)
     except RuntimeError as error:
         raise ValueError(
-            f"Could not resolve IFC entity for express ID {element_id} "
+            f"Could not resolve IFC entity for reference {reference} "
             f"(check '{property_key}')."
         ) from error
 
     guid = getattr(entity, "GlobalId", None)
     if not guid:
         raise ValueError(
-            f"Element express ID {element_id} has no GlobalId (check '{property_key}'); "
+            f"Element {reference} has no GlobalId (check '{property_key}'); "
             "the element GUID is required to reference it in BCF."
         )
 
@@ -405,12 +402,15 @@ async def bcf_output(
                 continue
 
             failed_check_count += 1
+            # BCF has no notion of our qualified-reference syntax; the {id}
+            # placeholder must render the bare IFC express ID.
+            element_ref = parse_element_ref(element.express_id, node="bcf_output")
             element_guid, element_name = _resolve_identity(
-                context, element.express_id, check.property_key, inputs.model_slug
+                context, element.express_id, check.property_key
             )
 
             namespace = _build_namespace(
-                element_id=element.express_id,
+                element_id=str(element_ref.express_id),
                 element_guid=element_guid,
                 element_name=element_name,
                 class_name=element.class_name,

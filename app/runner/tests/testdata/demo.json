@@ -8,13 +8,10 @@
   ],
   "nodes": [
     {
-      "id": "get_name",
-      "type": "get_name",
+      "id": "filter",
+      "type": "ifc_element_filter",
       "settings": {
-        "fail_on_missing": false
-      },
-      "inputs": {
-        "express_ids": [265, 498, 2524, 4616]
+        "filter_rows": []
       }
     },
     {
@@ -24,13 +21,13 @@
         "separator": ", "
       },
       "input_bindings": {
-        "values": "get_name.object_names"
+        "values": "filter.express_ids"
       }
     }
   ],
   "edges": [
     {
-      "source": "get_name",
+      "source": "filter",
       "target": "concat_names"
     }
   ]

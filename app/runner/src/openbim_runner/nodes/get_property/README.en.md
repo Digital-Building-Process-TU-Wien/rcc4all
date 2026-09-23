@@ -10,7 +10,7 @@ The `get_property` node reads property values from IFC entities. Each selection 
 
 - Read `FireRating` from `Pset_WallCommon` for all walls filtered by an `ifc_element_filter`
 - Extract `LoadBearing` status from multiple element classes for analysis
-- Gather distinct property values with occurrence counts for model-wide statistics
+- Gather distinct property values with occurrence counts across the selection
 
 ## Settings
 
@@ -21,8 +21,8 @@ Determines the granularity of the output.
 | Value | Label | When to use |
 |-------|-------|-------------|
 | `elements` | **Per explicit element** | Each element in the input gets its own entry with resolved property values. Use when you need to process each element individually downstream. Requires an input binding. |
-| `by_class` | **Per element class** | Elements are grouped by their actual runtime class (e.g., `IFCWALL`, `IFCDOOR`). Each class shows distinct property values with occurrence counts. Use when you want statistics per element type. |
-| `model` | **Without element class distinction** | Distinct property values with occurrence counts across all entities and property sets. Property keys use a wildcard `Pset_*.PropertyName` to merge counts from different psets. Use when you want overall model-wide statistics. |
+| `by_class` | **Per element class** | The given elements are grouped by their actual runtime class (e.g., `IFCWALL`, `IFCDOOR`). Each class shows distinct property values with occurrence counts. Use when you want statistics per element type. |
+| `model` | **Without element class distinction** | Distinct property values with occurrence counts aggregated over the given input elements and property sets (no file scan). Property keys use a wildcard `Pset_*.PropertyName` to merge counts from different psets. Use when you want overall statistics across the selection. |
 
 ### Selections table
 
@@ -34,7 +34,12 @@ Determines the granularity of the output.
 
 ## Inputs
 
-- **Express IDs** (optional): List of IFC express IDs to read property values from. Typically connected to the output of an `ifc_element_filter`. When unconnected, the output will be empty (no elements to read from).
+- **Express IDs** (required): a list of fully qualified element references
+  (`<slug>:expr:<id>`) to read property values from. Typically connected to the
+  output of an `ifc_element_filter`. Each reference resolves against the model
+  named inside it, so mixed-model lists are allowed. An unbound required input
+  fails input validation; an empty bound list yields an empty result (no
+  elements to read from).
 
 ## Outputs
 
@@ -42,8 +47,8 @@ Output structure depends on **Output mode**:
 
 ### Per explicit element
 
-List of elements with their express IDs and property values. Each element contains:
-- `express_id`: The IFC entity's express ID
+List of elements with their qualified references and property values. Each element contains:
+- `express_id`: the element's fully qualified reference (`<slug>:expr:<id>`)
 - `properties`: Dictionary of property values keyed by `PropertySet.PropertyName`. Values are strings, or `null` for missing model values.
 
 ### Per element class
@@ -55,7 +60,7 @@ Aggregated by IFC class. Output contains:
 
 ### Without element class distinction
 
-Distinct values with counts per property, aggregated across all property sets and classes. Output contains:
+Distinct values with counts per property, aggregated over the given elements across all property sets and classes. Output contains:
 - `properties`: Dictionary keyed by `Pset_*.PropertyName` (wildcard pset to aggregate across psets), each containing:
   - Array of `{ value, count }` objects sorted by count (descending) then value (ascending)
   - Missing/null values are excluded from the count
@@ -68,14 +73,14 @@ Distinct values with counts per property, aggregated across all property sets an
 1. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `FireRating`
 2. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `IsExternal`
 
-**Output** for a wall with express_id 101 (model has FireRating="F90", IsExternal=false):
+**Output** for a wall with qualified reference `main:expr:101` (model has FireRating="F90", IsExternal=false):
 
 ```json
 {
   "mode": "elements",
   "elements": [
     {
-      "express_id": 101,
+      "express_id": "main:expr:101",
       "properties": {
         "Pset_WallCommon.FireRating": "F90",
         "Pset_WallCommon.IsExternal": "false"
@@ -97,7 +102,7 @@ If the model doesn't have a property, the value is `null`.
   "mode": "elements",
   "elements": [
     {
-      "express_id": 101,
+      "express_id": "main:expr:101",
       "properties": {
         "Pset_WallCommon.AcousticRating": null
       }
@@ -137,7 +142,7 @@ If the model doesn't have a property, the value is `null`.
 
 ### Example 4: Output mode — Without element class distinction (with cross-pset aggregation)
 
-**Scenario:** Multiple walls and slabs with `Compartmentation` property. Walls store it in `Pset_WallCommon`, slabs in `Pset_SlabCommon`. You want overall model-wide counts.
+**Scenario:** Multiple walls and slabs with `Compartmentation` property. Walls store it in `Pset_WallCommon`, slabs in `Pset_SlabCommon`. You want overall counts across the given elements.
 
 **Selections:**
 1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `Compartmentation`
