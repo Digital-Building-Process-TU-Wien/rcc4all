@@ -644,7 +644,7 @@ export interface Measurement {
      */
     measurements?: {
       /**
-       * The geometry cache key (e.g., `ifc:123`, `gen:abc`, `inter:...`) of the measured element.
+       * The geometry cache key (e.g., `main:expr:63`, `gen:mycube`, `inter:...`) of the measured element, or the raw input when no geometry was found.
        */
       reference: string
       /**
@@ -659,15 +659,15 @@ export interface Measurement {
   }
   inputs: {
     /**
-     * First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`), in the order to test. When empty, the whole model is used. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are used.
+     * First list of fully qualified geometry cache keys — `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, `inter:<id>` for helper/intersection geometry — in the order to test. An empty list yields zero measurements. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are used.
      */
-    list_a?: ((number | string)[] | {
+    list_a?: (string[] | {
       [k: string]: (string | null)
     })
     /**
-     * Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`). When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.
+     * Second (optional) list of fully qualified geometry cache keys. When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.
      */
-    list_b?: ((number | string)[] | {
+    list_b?: (string[] | {
       [k: string]: (string | null)
     })
   }

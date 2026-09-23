@@ -9,6 +9,7 @@ from trimesh.proximity import ProximityQuery
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 from openbim_runner.util.geometry import ensure_watertight, resolve_mesh
+from openbim_runner.util.references import is_geometry_key
 
 MeasurementType = Literal[
     "volume",
@@ -54,24 +55,25 @@ class MeasurementSettings(NodeModel):
 
 
 class MeasurementInputs(NodeModel):
-    list_a: list[int | str] | dict[str, str | None] = Field(
+    list_a: list[str] | dict[str, str | None] = Field(
         default=[],
         title="List A",
         description=(
-            "First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs "
-            "(str → `gen:<id>`), in the order to test. When empty, the whole model is used. "
-            "Also accepts a dict (e.g., collision node's `intersection_meshes` output); "
-            "in this case, the dict's non-null values (intersection mesh cache keys) are used."
+            "First list of fully qualified geometry cache keys — `<slug>:expr:<id>` for IFC "
+            "elements, `gen:<object_id>` for generated geometry, `inter:<id>` for helper/intersection "
+            "geometry — in the order to test. An empty list yields zero measurements. Also accepts a "
+            "dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's "
+            "non-null values (intersection mesh cache keys) are used."
         ),
     )
-    list_b: list[int | str] | dict[str, str | None] = Field(
+    list_b: list[str] | dict[str, str | None] = Field(
         default=[],
         title="List B",
         description=(
-            "Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and "
-            "object IDs (str → `gen:<id>`). When empty, pairs are formed within List A. "
-            "When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision "
-            "node's `intersection_meshes` output); non-null values are used as cache keys."
+            "Second (optional) list of fully qualified geometry cache keys. When empty, pairs are "
+            "formed within List A. When non-empty, computes cartesian product AxB. Also accepts a "
+            "dict (e.g., collision node's `intersection_meshes` output); non-null values are used "
+            "as cache keys."
         ),
     )
 
@@ -79,7 +81,7 @@ class MeasurementInputs(NodeModel):
 class MeasurementItem(NodeModel):
     reference: str = Field(
         title="Reference",
-        description="The geometry cache key (e.g., `ifc:123`, `gen:abc`, `inter:...`) of the measured element.",
+        description="The geometry cache key (e.g., `main:expr:63`, `gen:mycube`, `inter:...`) of the measured element, or the raw input when no geometry was found.",
     )
     value: float | None = Field(
         default=None,
@@ -111,8 +113,8 @@ class MeasurementResult(NodeModel):
 
 def _compute_distance_between(
     context: ExecutionContext,
-    list_a: list[int | str] | dict[str, str | None],
-    list_b: list[int | str] | dict[str, str | None],
+    list_a: list[str] | dict[str, str | None],
+    list_b: list[str] | dict[str, str | None],
 ) -> MeasurementResult:
     """Compute minimal surface-to-surface distance between element pairs.
 
@@ -196,15 +198,14 @@ def _resolve_reference(
 
 def _resolve_keys(
     context: ExecutionContext,
-    refs: list[int | str] | dict[str, str | None] | None = None,
+    refs: list[str] | dict[str, str | None] | None = None,
 ) -> list[tuple[str, str | None]]:
-    """Resolve a list of mixed references into (reference_label, cache_key_or_None) pairs.
+    """Resolve a list of qualified references into (reference_label, cache_key_or_None) pairs.
 
-    - int → `ifc:<id>`
-    - str starting with `ifc:`, `gen:`, or `inter:` → use as-is
-    - str (other) → `gen:<id>`
-    - Empty refs → whole model (all cache keys)
-    - Dict (e.g., collision `intersection_meshes`) → use non-null values as cache keys
+    - Qualified geometry cache key (`<slug>:expr:<id>`, `gen:<object_id>`, `inter:<id>`)
+      → used as-is
+    - Malformed reference → (ref_label, None); the geometry lookup reports it missing
+    - Dict (e.g., collision `intersection_meshes`) → check non-null values like list entries
 
     Returns (ref_label, key) for present geometry, (ref_label, None) for missing.
     """
@@ -212,32 +213,15 @@ def _resolve_keys(
     refs = refs or []
 
     if isinstance(refs, dict):
-        results: list[tuple[str, str | None]] = []
-        for pair_key, mesh_key in refs.items():
-            if mesh_key is None:
-                continue
-            if mesh_key in cache:
-                results.append((mesh_key, mesh_key))
-            else:
-                results.append((pair_key, None))
-        return results
-
-    if not refs:
-        return [(key, key) for key in cache]
+        refs = [mesh_key for mesh_key in refs.values() if mesh_key is not None]
 
     results_list: list[tuple[str, str | None]] = []
     for ref in refs:
-        if isinstance(ref, int):
-            key = f"ifc:{ref}"
-        elif (
-            ref.startswith("ifc:") or ref.startswith("gen:") or ref.startswith("inter:")
-        ):
-            key = ref
-        else:
-            key = f"gen:{ref}"
-
-        if key in cache:
-            results_list.append((key, key))
+        if not is_geometry_key(ref):
+            results_list.append((str(ref), None))
+            continue
+        if ref in cache:
+            results_list.append((ref, ref))
         else:
             results_list.append((str(ref), None))
 
@@ -307,7 +291,7 @@ def _pair_distance(a: trimesh.Trimesh, b: trimesh.Trimesh) -> float:
 
 def _compute_distance_to_reference(
     context: ExecutionContext,
-    list_a: list[int | str] | dict[str, str | None],
+    list_a: list[str] | dict[str, str | None],
     reference_type: Literal["point", "plane"],
     reference_point: list[float],
     reference_normal: list[float],

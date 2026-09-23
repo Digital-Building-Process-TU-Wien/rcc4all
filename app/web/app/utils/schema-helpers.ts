@@ -91,7 +91,7 @@ function parseTypeSchema(schema: any): TypeInfo {
     }
   }
 
-if (Array.isArray(schema.anyOf)) {
+  if (Array.isArray(schema.anyOf)) {
     const members = schema.anyOf
       .filter((t: any) => t.type !== 'null')
       .map(parseTypeSchema)
@@ -119,10 +119,6 @@ function isAssignable(output: TypeInfo, input: TypeInfo): boolean {
   // 'null' means unknown/no type — accept while the schema lacks a concrete type.
   if (output.type === 'null')
     return true
-
-  // If the input accepts multiple forms (anyOf), accept if output matches any candidate.
-  if (input.anyOf?.length)
-    return input.anyOf.some(candidate => areTypesCompatible(output, candidate))
 
   // For arrays, compare item types rather than only the top-level 'array' type.
   if (output.type === 'array' && input.type === 'array')
