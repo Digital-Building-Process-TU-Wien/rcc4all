@@ -141,6 +141,11 @@ def build_node_lookup(workflow: WorkflowDefinition) -> dict[str, WorkflowNode]:
     return node_lookup
 
 
+def describe_node(workflow_node: WorkflowNode) -> str:
+    """Label and id of a node, for error messages."""
+    return f"'{workflow_node.get_label()}' (id '{workflow_node.id}')"
+
+
 def parse_reference(reference: str) -> tuple[str, str]:
     try:
         node_id, field_name = reference.split(".", maxsplit=1)
@@ -183,11 +188,18 @@ def build_execution_order(workflow: WorkflowDefinition) -> list[str]:
         add_dependency(adjacency, indegree, source=edge.source, target=edge.target)
 
     for workflow_node in workflow.nodes:
-        for reference in workflow_node.input_bindings.values():
-            source_node_id, _ = parse_reference(reference)
+        for input_name, reference in workflow_node.input_bindings.items():
+            try:
+                source_node_id, _ = parse_reference(reference)
+            except ValueError as error:
+                raise ValueError(
+                    f"Node {describe_node(workflow_node)} input '{input_name}' has "
+                    f"an invalid reference: {error}"
+                ) from error
             if source_node_id not in node_lookup:
                 raise ValueError(
-                    f"Node '{workflow_node.id}' input binding references unknown node '{source_node_id}'."
+                    f"Node {describe_node(workflow_node)} input '{input_name}' points "
+                    f"to unknown node '{source_node_id}'."
                 )
 
             add_dependency(
@@ -226,15 +238,23 @@ def resolve_input_bindings(
     input_payload: dict[str, Any] = {}
 
     for input_name, reference in effective.items():
-        source_node_id, field_name = parse_reference(reference)
+        try:
+            source_node_id, field_name = parse_reference(reference)
+        except ValueError as error:
+            raise ValueError(
+                f"Node {describe_node(workflow_node)} input '{input_name}' has "
+                f"an invalid reference: {error}"
+            ) from error
         source_output = node_outputs.get(source_node_id)
         if source_output is None:
             raise ValueError(
-                f"Node '{workflow_node.id}' input '{input_name}' references '{reference}' before '{source_node_id}' has run."
+                f"Node {describe_node(workflow_node)} input '{input_name}' points "
+                f"to '{source_node_id}', which has not run yet."
             )
         if not hasattr(source_output, field_name):
             raise ValueError(
-                f"Node '{workflow_node.id}' input '{input_name}' references missing field '{field_name}' on '{source_node_id}'."
+                f"Node {describe_node(workflow_node)} input '{input_name}' points "
+                f"to missing field '{field_name}' on '{source_node_id}'."
             )
 
         input_payload[input_name] = getattr(source_output, field_name)
@@ -329,15 +349,16 @@ def _resolve_auto_source(
         source_id, field_name = candidates[0]
         if field_name is None:
             raise ValueError(
-                f"Node '{node_id}' input '{input_name}' auto-bind is ambiguous: "
-                f"upstream node '{source_id}' exposes multiple compatible outputs."
+                f"Node '{node_lookup[node_id].get_label()}' (id '{node_id}') input "
+                f"'{input_name}' auto-bind is ambiguous: upstream node '{source_id}' "
+                "has several matching outputs."
             )
         return f"{source_id}.{field_name}"
 
     raise ValueError(
-        f"Node '{node_id}' input '{input_name}' auto-bind is ambiguous: "
-        f"{len(candidates)} directly-upstream nodes provide a compatible output. "
-        "Connect a single upstream node or set the input binding explicitly."
+        f"Node '{node_lookup[node_id].get_label()}' (id '{node_id}') input "
+        f"'{input_name}' auto-bind is ambiguous: {len(candidates)} upstream nodes "
+        "provide a matching output. Connect one or set the binding explicitly."
     )
 
 
@@ -369,11 +390,13 @@ async def execute_workflow_async(
         workflow_node = node_lookup[node_id]
         definition = node_registry.get(workflow_node.type)
         if definition is None:
-            raise ValueError(f"Unknown node type '{workflow_node.type}'.")
+            raise ValueError(
+                f"Node {describe_node(workflow_node)} has unknown type '{workflow_node.type}'."
+            )
 
         if workflow_node.input_bindings and not definition.takes_inputs:
             raise ValueError(
-                f"Node '{workflow_node.id}' does not accept input bindings."
+                f"Node {describe_node(workflow_node)} does not accept input bindings."
             )
 
         settings_payload = workflow_node.settings

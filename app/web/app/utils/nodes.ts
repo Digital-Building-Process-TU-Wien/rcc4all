@@ -78,6 +78,7 @@ const nodeNameToComponent: Record<string, string> = {
   ids_checker: 'IdsChecker',
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
+  measurement: 'Measurement',
   loi_check: 'LoiCheck',
   tilt_of_components: 'TiltOfComponents',
 }
