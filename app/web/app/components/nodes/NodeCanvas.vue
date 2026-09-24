@@ -63,7 +63,7 @@ function handleDrop(event: DragEvent) {
 
   const position = getCanvasCoordinates(event)
 
-  const isFileInputNode = nodeName === 'FileInput'
+  const isFileInputNode = nodeName === 'file_input'
 
   store.addNodes({
     id: nanoid(),

@@ -32,9 +32,18 @@ The core feature is a no-code editor where domain experts can compose reusable c
 
 The visual scripting editor produces a workflow JSON that is executed by the [runner](../runner). The flow:
 1. User creates nodes and connects them on the canvas
-2. FileInput node provides the IFC file path (excluded from workflow JSON)
+2. IFC models are assigned to named slots via the **Add IFC Model** button in the editor header. The reserved `main` slot is required; other slots have unique slugs. These slots are serialized as the workflow's `files` member. A **File Input** node selects one assigned model and outputs its slug. Connect it to an **IFC Element Filter** node's `model_slug` input to choose the model that the filter scans. Other IFC consumers select their model from each qualified reference, such as `main:expr:123`.
 3. Workflow JSON is saved to `.dev-files/` and passed to the Python runner
 4. Results are displayed in a new tab, also saved to `.dev-files/`
+
+### Migrating existing workflows
+
+Multi-model workflows use these contracts:
+
+- Replace the old top-level `ifc_path` with `files`; the main file must use the slug `main`.
+- Replace a File Input node's old `filename` field with `settings.slug`; the slug must already exist in `files`.
+- Replace bare IFC express IDs in node inputs with qualified references such as `main:expr:123`.
+- Bind `ifc_element_filter.express_ids` before passing references to downstream IFC consumers. A bound empty list stays empty; downstream inputs no longer expand an unbound or empty list to the whole model.
 
 ### Permission Model
 - **Super Admins**: Full system access via Payload admin UI

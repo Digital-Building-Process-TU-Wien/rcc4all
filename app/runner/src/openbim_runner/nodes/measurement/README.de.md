@@ -80,11 +80,12 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 
 ## Eingaben
 
-- **List A** (optional): Erste Liste von Elementreferenzen. Akzeptiert:
-  - Express-IDs (int → `ifc:<id>`)
-  - Objekt-IDs (str → `gen:<id>`)
-  - Vollständige Geometrie-Cache-Schlüssel (`ifc:`, `gen:`, `inter:`)
-  - Leer = gesamtes Modell (alle zwischengespeicherten Geometrien)
+- **List A** (optional): Erste Liste voll qualifizierter Geometrie-Cache-Schlüssel
+  (`<slug>:expr:<id>` für IFC-Elemente, `gen:<object_id>` für generierte Geometrie,
+  `inter:<id>` für Hilfs-/Schnittgeometrie). IFC-Referenzen werden gegen das darin genannte
+  Modell aufgelöst. `gen:`- und `inter:`-Keys werden aus dem gemeinsamen Geometrie-Cache
+  gelesen. Gemischte Listen aus mehreren Modellen sind erlaubt. Eine leere Liste liefert
+  null Messungen.
   - **Dict-Eingabe**: Akzeptiert auch ein Dict (z. B. die `intersection_meshes`-Ausgabe des collision-Knotens). Die Nicht-Null-Werte des Dicts (Schnittmengen-Cache-Schlüssel) werden verwendet.
 - **List B** (optional): Zweite Liste von Elementreferenzen (gleiches Format wie List A). Leer = Paare innerhalb von List A (beide Richtungen). Nicht leer = kartesisches Produkt A×B (eine Richtung pro Paar). **Nur verwendet im Modus `minimaler Abstand zwischen Elementen`; in allen anderen Modi ignoriert.**
 
@@ -93,7 +94,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - **Type**: Der verwendete Messungstyp (z. B. `volume`, `surface_area`, `projected_area`, `component_height`, `distance_between`, `distance_to_reference`)
 - **Unit**: Die Maßeinheit (`volume_unit` für Volumen, `area_unit` für Oberfläche und projizierte Fläche, `length_unit` für Bauteilhöhe, minimaler Abstand zwischen Elementen und Abstand zur Referenz, in Modell-Einheiten)
 - **Measurements**: Liste der Messungen, jeweils mit:
-  - `reference`: Der Geometrie-Cache-Schlüssel (z. B. `ifc:123`, `gen:abc`) oder für `distance_between`: `<keyA>_<keyB>` (directional, **NICHT** sortiert)
+  - `reference`: Der Geometrie-Cache-Schlüssel (z. B. `main:expr:123`, `gen:abc`) oder für `distance_between`: `<keyA>_<keyB>` (directional, **NICHT** sortiert)
   - `value`: Der gemessene Wert (null wenn Geometrie fehlt oder Messung fehlgeschlagen)
   - `error`: Fehlergrund falls Messung fehlgeschlagen (z. B. `no cached geometry`, `non-watertight`)
 
@@ -105,7 +106,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Messungstyp: `volume`
 
 **Eingaben:**
-- List A: `[101, 102, 103]` (Express-IDs von drei Wänden)
+- List A: `["main:expr:101", "main:expr:102", "main:expr:103"]` (drei Wände)
 
 **Ausgabe:**
 ```json
@@ -113,20 +114,20 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "volume",
   "unit": "volume_unit",
   "measurements": [
-    { "reference": "ifc:101", "value": 2.5, "error": null },
-    { "reference": "ifc:102", "value": 3.1, "error": null },
-    { "reference": "ifc:103", "value": 1.8, "error": null }
+    { "reference": "main:expr:101", "value": 2.5, "error": null },
+    { "reference": "main:expr:102", "value": 3.1, "error": null },
+    { "reference": "main:expr:103", "value": 1.8, "error": null }
   ]
 }
 ```
 
-### Beispiel 2: Oberfläche des gesamten Modells
+### Beispiel 2: Oberfläche mehrerer Elemente
 
 **Einstellungen:**
 - Messungstyp: `surface_area`
 
 **Eingaben:**
-- List A: `[]` (leer = gesamtes Modell)
+- List A: `["main:expr:1", "main:expr:2"]`
 
 **Ausgabe:**
 ```json
@@ -134,8 +135,8 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "surface_area",
   "unit": "area_unit",
   "measurements": [
-    { "reference": "ifc:1", "value": 45.2, "error": null },
-    { "reference": "ifc:2", "value": 12.8, "error": null },
+    { "reference": "main:expr:1", "value": 45.2, "error": null },
+    { "reference": "main:expr:2", "value": 12.8, "error": null },
     ...
   ]
 }
@@ -148,7 +149,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Projektionsnormal: `[0.0, 0.0, 1.0]` (Draufsicht)
 
 **Eingaben:**
-- List A: `[101]` (Express-ID einer Wand)
+- List A: `["main:expr:101"]` (eine Wand)
 
 **Ausgabe:**
 ```json
@@ -156,7 +157,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "projected_area",
   "unit": "area_unit",
   "measurements": [
-    { "reference": "ifc:101", "value": 3.5, "error": null }
+    { "reference": "main:expr:101", "value": 3.5, "error": null }
   ]
 }
 ```
@@ -168,7 +169,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Richtung: `[0.0, 0.0, 1.0]` (vertikale Höhe)
 
 **Eingaben:**
-- List A: `[101]` (Express-ID einer Wand)
+- List A: `["main:expr:101"]` (eine Wand)
 
 **Ausgabe:**
 ```json
@@ -176,7 +177,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "component_height",
   "unit": "length_unit",
   "measurements": [
-    { "reference": "ifc:101", "value": 2.8, "error": null }
+    { "reference": "main:expr:101", "value": 2.8, "error": null }
   ]
 }
 ```
@@ -189,7 +190,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Messungstyp: `volume`
 
 **Eingaben:**
-- List A: `{"ifc:1__ifc:2": "inter:intersection_ifc:1_ifc:2", "ifc:3__ifc:4": "inter:intersection_ifc:3_ifc:4"}`
+- List A: `{"main:expr:1__main:expr:2": "inter:intersection_main:expr:1_main:expr:2", "main:expr:3__main:expr:4": "inter:intersection_main:expr:3_main:expr:4"}`
 
 **Ausgabe:**
 ```json
@@ -197,8 +198,8 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "volume",
   "unit": "volume_unit",
   "measurements": [
-    { "reference": "inter:intersection_ifc:1_ifc:2", "value": 0.05, "error": null },
-    { "reference": "inter:intersection_ifc:3_ifc:4", "value": 0.12, "error": null }
+    { "reference": "inter:intersection_main:expr:1_main:expr:2", "value": 0.05, "error": null },
+    { "reference": "inter:intersection_main:expr:3_main:expr:4", "value": 0.12, "error": null }
   ]
 }
 ```
@@ -209,7 +210,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Messungstyp: `distance_between`
 
 **Eingaben:**
-- List A: `[101, 102]` (Express-IDs von zwei getrennten Wänden)
+- List A: `["main:expr:101", "main:expr:102"]` (zwei getrennte Wände)
 - List B: `[]` (leer → Paare innerhalb von List A, beide Richtungen)
 
 **Ausgabe:**
@@ -218,8 +219,8 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "distance_between",
   "unit": "length_unit",
   "measurements": [
-    { "reference": "ifc:101_ifc:102", "value": 2.5, "error": null },
-    { "reference": "ifc:102_ifc:101", "value": 2.5, "error": null }
+    { "reference": "main:expr:101_main:expr:102", "value": 2.5, "error": null },
+    { "reference": "main:expr:102_main:expr:101", "value": 2.5, "error": null }
   ]
 }
 ```
@@ -232,7 +233,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Referenzpunkt: `[0.0, 0.0, 0.0]` (Weltursprung)
 
 **Eingaben:**
-- List A: `[101, 102]`
+- List A: `["main:expr:101", "main:expr:102"]`
 
 **Ausgabe:**
 ```json
@@ -240,8 +241,8 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "distance_to_reference",
   "unit": "length_unit",
   "measurements": [
-    { "reference": "ifc:101", "value": 5.2, "error": null },
-    { "reference": "ifc:102", "value": 8.7, "error": null }
+    { "reference": "main:expr:101", "value": 5.2, "error": null },
+    { "reference": "main:expr:102", "value": 8.7, "error": null }
   ]
 }
 ```
@@ -252,7 +253,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 - Messungstyp: `volume`
 
 **Eingaben:**
-- List A: `[101, 999]` (999 hat keine zwischengespeicherte Geometrie)
+- List A: `["main:expr:101", "main:expr:999"]` (`main:expr:999` hat keine zwischengespeicherte Geometrie)
 
 **Ausgabe:**
 ```json
@@ -260,8 +261,8 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
   "type": "volume",
   "unit": "volume_unit",
   "measurements": [
-    { "reference": "ifc:101", "value": 2.5, "error": null },
-    { "reference": "ifc:999", "value": null, "error": "no cached geometry" }
+    { "reference": "main:expr:101", "value": 2.5, "error": null },
+    { "reference": "main:expr:999", "value": null, "error": "no cached geometry" }
   ]
 }
 ```
@@ -284,4 +285,4 @@ Messungen werden in **Modell-Einheiten** (den nativen Einheiten der IFC-Modellge
 - **Wasserdichtigkeit für Volumen erforderlich**: Die Volumenberechnung erfordert wasserdichte Geometrie. Der Knoten versucht automatisch, nicht wasserdichte Meshes zu reparieren. Wenn die Reparatur fehlschlägt, wird die Messung mit Fehler gemeldet. Alle anderen Modi funktionieren mit jedem Mesh.
 - **Abstand zwischen**: Referenzen folgen dem Format `<keyA>_<keyB>` (directional, **NICHT** sortiert). Bei leerer List B wird jedes ungeordnete Paar in **beiden Richtungen** ausgegeben. Bei nicht-leerer List B eine Richtung pro A×B-Paar. Sich schneidende Paare geben `0.0` zurück (erkannt via AABB + FCL Kollision). Nur Elemente mit tessellierter Body-Geometrie sind messbar.
 - **Abstand zur Referenz**: Im `plane`-Modus, wenn die Ebene das Mesh schneidet (min ≤ 0 ≤ max über Vertices), ist Abstand = 0. Null-Normale (z. B. `[0.0, 0.0, 0.0]`) erzeugt Fehler `undefined normal`. Nur Elemente mit tessellierter Body-Geometrie sind messbar.
-- **Gesamtmodell-Fallback**: Wenn `List A` leer ist, misst der Knoten alle zwischengespeicherten Geometrien.
+- **Leere Liste**: Eine leere `List A` liefert null Messungen.

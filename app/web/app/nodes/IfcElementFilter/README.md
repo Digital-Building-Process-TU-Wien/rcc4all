@@ -43,13 +43,13 @@ All enabled rows are combined using OR logic (union of include rows, then subtra
 - `starts_with` - Starts with prefix (case-insensitive)
 - `ends_with` - Ends with suffix (case-insensitive)
 
-## Inputs
+## Settings
 
 | Name | Type | Description |
 |------|------|-------------|
 | `filter_rows` | `list[FilterRow]` | List of filter rows. Each row defines a complete filter condition. |
 
-### FilterRow Structure
+### FilterRow structure
 
 | Name | Type | Description |
 |------|------|-------------|
@@ -61,12 +61,21 @@ All enabled rows are combined using OR logic (union of include rows, then subtra
 | `operator` | `str` | Comparison operator (see list above) |
 | `value` | `str` | Value to compare against |
 
+## Inputs
+
+| Name | Type | Description |
+|------|------|-------------|
+| `model_slug` | `str` | Model to scan when `express_ids` is not connected. Defaults to `main`; usually bound to a File Input node's `model_slug` output. |
+| `express_ids` | `list[str]` | Optional qualified element references (`<slug>:expr:<id>`) that restrict the candidates. Each reference resolves against its own model, so mixed-model lists are allowed. An empty bound list returns no elements. |
+
+When `express_ids` is not connected, the node scans the model selected by `model_slug`. With no active filter rows, this scan mode returns all `IfcElement` entities in that model.
+
 ## Outputs
 
 | Name | Type | Description |
 |------|------|-------------|
-| `express_ids` | `list[int]` | Express IDs of all matching entities |
-| `guids` | `list[str]` | Global Unique Identifiers (GUIDs) of all matching entities |
+| `express_ids` | `list[str]` | Fully qualified references (`<slug>:expr:<id>`) of all matching entities |
+| `guids` | `list[str]` | Fully qualified GUID references (`<slug>:guid:<GlobalId>`) of all matching entities |
 
 ## Examples
 
@@ -216,7 +225,7 @@ All enabled rows are combined using OR logic (union of include rows, then subtra
 }
 ```
 
-### Example 8: Empty filter returns no elements
+### Example 8: Empty filter in scan mode returns all elements
 ```json
 {
   "filter_rows": []
@@ -225,13 +234,13 @@ All enabled rows are combined using OR logic (union of include rows, then subtra
 
 ## Notes
 
-- **Empty filter_rows**: Returns an empty result (no entities selected)
+- **Empty filter_rows**: In scan mode, returns all `IfcElement` entities. With a bound `express_ids` input, only the referenced elements are considered.
 - **Disabled rows**: Are completely ignored during evaluation
 - **Entity types**: Case-insensitive but should be provided in standard IFC format (e.g., IFCWALL)
 - **PredefinedType**: Empty string means "Any" (all predefined types)
 - **Property filters**: Case-insensitive for string comparisons
 - **Include/Exclude logic**: All include rows are evaluated first (OR), then exclude rows are subtracted
-- **GUIDs**: Returned in the same order as express_ids
+- **GUIDs**: Returned as qualified references (`<slug>:guid:<GlobalId>`), in the same order as express_ids
 - **Unknown entity types**: Return empty results (no error thrown)
 
 ## Filter Logic

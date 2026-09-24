@@ -29,8 +29,7 @@ tests/ <-- integration tests / multiple nodes / workflows
 
 - `base.py` defines the shared Pydantic base model, the `@node()` decorator, and the dispatcher.
 - Each node is a plain function with one typed settings model, an optional typed inputs model, and one typed result model.
-- `ifc_element_filter` filters IFC elements by entity type, predefined type, and property set values.
-- `get_name` resolves IFC object names from configured express IDs.
+- `ifc_element_filter` filters IFC elements by entity type, predefined type, and property set values; it is the element source of the graph.
 - `concat_string` joins a string list that the workflow resolves before the node is called.
 
 ## Implementation Philosophy
@@ -44,7 +43,7 @@ The runtime layer stays intentionally small:
 
 This keeps the execution layer stable while making node metadata easier to manage separately.
 
-The workflow engine now resolves `node_id.field_name` references centrally. Nodes no longer look up upstream outputs themselves.
+The workflow engine resolves `node_id.field_name` references centrally; nodes do not look up upstream outputs themselves.
 
 
 ## Features
@@ -102,6 +101,7 @@ from pydantic import Field
 
 from openbim_runner.nodes import ExecutionContext, node
 from openbim_runner.nodes.base import NodeModel
+from openbim_runner.util.references import iter_resolved_elements
 
 
 class EvaluateSettings(NodeModel):
@@ -109,7 +109,7 @@ class EvaluateSettings(NodeModel):
 
 
 class EvaluateInputs(NodeModel):
-   express_ids: list[int] = Field(default=[])
+   express_ids: list[str] = Field(default=[])
 
 
 class EvaluateResult(NodeModel):
@@ -124,11 +124,15 @@ async def evaluate(
 ) -> EvaluateResult:
    object_names = []
 
-   for express_id in inputs.express_ids:
-      entity = context.ifc_model.by_id(express_id)
+   for element, model in iter_resolved_elements(
+      inputs.express_ids,
+      context,
+      node="evaluate",
+   ):
+      entity = model.by_id(element.express_id)
       object_name = None if entity is None else getattr(entity, "Name", None)
       if object_name is None and not settings.allow_missing:
-         raise ValueError(f"Could not resolve a name for express ID {express_id}.")
+         raise ValueError(f"Could not resolve a name for {element.reference}.")
 
       object_names.append(object_name)
 
@@ -150,7 +154,7 @@ from openbim_runner.nodes import dispatch
 result = await dispatch(
    "evaluate",
    {"allow_missing": True},
-   inputs_payload={"express_ids": [12, 34, 56]},
+   inputs_payload={"express_ids": ["main:expr:12", "main:expr:34", "main:expr:56"]},
    context=context,
 )
 
@@ -161,7 +165,7 @@ print(result.object_names)
 
 The minimal runnable prototype lives in `tests/testdata/demo.json` and currently wires:
 
-- `get_name -> concat_string`
+- `ifc_element_filter -> concat_string`
 
 The demo fixture expects `test.ifc` in the same directory. Run it with:
 
@@ -180,10 +184,19 @@ The runner currently performs only minimal validation:
 
 - it checks that edge endpoints exist
 - it uses both edges and `input_bindings` references to derive execution order
-- it resolves `input_bindings` references like `get_name.object_names` before executing each node
+- it resolves `input_bindings` references like `filter.express_ids` before executing each node
 - it executes the registered functions and prints their outputs as JSON
 
-Each node now uses a `settings` object plus an optional `input_bindings` object. `settings` is validated against the node's settings model, and the resolved binding payload is validated against the node's inputs model.
+Each node uses a `settings` object plus an optional `input_bindings` object. `settings` is validated against the node's settings model, and the resolved binding payload is validated against the node's inputs model.
+
+## Migrating existing workflows
+
+Multi-model workflows use these contracts:
+
+- Replace the old top-level `ifc_path` with `files`; the main file must use the slug `main`.
+- Replace a File Input node's old `filename` field with `settings.slug`; the slug must already exist in `files`.
+- Replace bare IFC express IDs in node inputs with qualified references such as `main:expr:123`.
+- Bind `ifc_element_filter.express_ids` before passing references to downstream IFC consumers. A bound empty list stays empty; downstream inputs no longer expand an unbound or empty list to the whole model.
 
 ## Geometry Testing
 

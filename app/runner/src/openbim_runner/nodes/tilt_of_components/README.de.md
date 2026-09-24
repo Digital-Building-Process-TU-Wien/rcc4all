@@ -4,7 +4,7 @@ description: Misst die Neigung von Bauteilen (Wände/Decken als 2D-Flächen, St�
 categories: geometry
 ---
 
-Der `tilt_of_components`-Knoten misst die Neigung von IFC-Bauteilen relativ zur
+Der `tilt_of_components`-Node misst die Neigung von IFC-Bauteilen relativ zur
 horizontalen Ebene und kennzeichnet Bauteile, die außerhalb eines konfigurierten
 Grenzwerts liegen. Der Neigungswert entspricht stets dem **kleineren Winkel zwischen
 der dominanten Fläche/Achse des Bauteils und der horizontalen Ebene**: eine vertikale
@@ -57,9 +57,11 @@ nur eine Vergleichsmethode aktiv ist.
 
 ## Eingaben
 
-- **Express-IDs** (optional): Liste der IFC-Express-IDs, die gemessen werden
-  sollen. Üblicherweise mit dem Ausgang eines `ifc_element_filter` verbunden. Wenn
-  nicht verbunden, werden alle IFC-Elemente im Modell geprüft.
+- **Express-IDs** (erforderlich): Liste voll qualifizierter Referenzen
+  (`<slug>:expr:<id>`) der zu messenden IFC-Elemente. Üblicherweise mit
+  `ifc_element_filter.express_ids` verbunden. Jede Referenz wird gegen das in
+  ihr genannte Modell aufgelöst; gemischte Listen aus mehreren Modellen sind
+  erlaubt. Ohne Verbindung schlägt die Eingabevalidierung fehl.
 
 ## Ausgaben
 
@@ -70,9 +72,9 @@ Das Ergebnis ist eine schlanke, strukturierte Prüfung pro Element:
   (Elemente ohne Geometrie werden übersprungen und nicht gezählt)
 - `failed_count`: Anzahl der Elemente mit mindestens einer gekennzeichneten
   Fläche/Achse
-- `model_name`: Name des geprüften IFC-Modells (aus dem Dateinamen im IFC-Header)
 - `elements`: geordnete Liste aus
-  - `express_id`, `class_name` (IFC-Klasse oder `unknown`), `element_category`
+  - `express_id` (voll qualifizierte Referenz `<slug>:expr:<id>`), `class_name`
+    (IFC-Klasse oder `unknown`), `element_category`
   - `failed`: true, wenn mindestens eine Prüfung gekennzeichnet wurde
   - `checks`: Liste von `TiltSurfaceCheck`:
     - `expected`: lesbare Soll-Bedingung, aus Vergleichsmethode und Grenzwerten
@@ -89,11 +91,12 @@ Elemente, nicht einzelne Prüfungen.
 Gekennzeichnete Prüfungen speichern eine Hilfsgeometrie im Geometrie-Cache zur
 Visualisierung:
 
-- 2D: die gekennzeichneten Flächen-Dreiecke unter `inter:tilt_surface_{express_id}_{surface_index}`
-- 1D: einen dünnen Achszylinder unter `inter:tilt_axis_{express_id}`
+- 2D: die gekennzeichneten Flächen-Dreiecke unter `inter:tilt_surface_<ref>_<index>`
+- 1D: einen dünnen Achszylinder unter `inter:tilt_axis_<ref>`
 
-Dies sind `inter:`-Schlüssel, die von den Eingaben des Kollisionsknotens und vom
-Modell-Fallback ausgeschlossen sind.
+Dabei ist `<ref>` die voll qualifizierte Element-Referenz des betreffenden
+Bauteils. Dies sind `inter:`-Schlüssel — gültige Geometrie-Cache-Keys, aber
+keine Element-Referenzen und nie zu einer Entität aufgelöst.
 
 ## Hinweise zu Öffnungen
 

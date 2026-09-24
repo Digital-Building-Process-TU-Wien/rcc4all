@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
+from openbim_runner.util.geometry import expr_key
+from openbim_runner.util.references import parse_element_refs
 
 
 class IdsCheckerSettings(NodeModel):
@@ -28,10 +30,13 @@ class IdsCheckerSettings(NodeModel):
 
 
 class IdsCheckerInputs(NodeModel):
-    express_ids: list[int] = Field(
-        default=[],
+    express_ids: list[str] = Field(
         title="Express IDs",
-        description="Optional list of IFC entity express IDs to validate. If provided, only these entities will be checked against the IDS requirements. If not provided, the whole IFC file is tested.",
+        description=(
+            "Qualified element references (`<slug>:expr:<id>`) to validate against the "
+            "IDS requirements. Mixed-model lists are grouped by model and each model is "
+            "validated once. Bind ifc_element_filter output here."
+        ),
     )
 
 
@@ -41,28 +46,28 @@ class IdsCheckerSpecificationResult(NodeModel):
         title="Specification Name",
         description="Name of the IDS specification.",
     )
-    failed_express_ids: list[int] = Field(
+    failed_express_ids: list[str] = Field(
         default=[],
         title="Failed Express IDs",
-        description="List of express IDs of entities that failed this specification's requirements.",
+        description="Qualified references of entities that failed this specification's requirements.",
     )
-    passed_express_ids: list[int] = Field(
+    passed_express_ids: list[str] = Field(
         default=[],
         title="Passed Express IDs",
-        description="List of express IDs of entities that passed this specification's requirements.",
+        description="Qualified references of entities that passed this specification's requirements.",
     )
 
 
 class IdsCheckerResult(NodeModel):
-    failed_express_ids: list[int] = Field(
+    failed_express_ids: list[str] = Field(
         default=[],
         title="Failed Express IDs",
-        description="List of express IDs of entities that failed at least one IDS requirement (combined across all specifications).",
+        description="Qualified references of entities that failed at least one IDS requirement (combined across all specifications).",
     )
-    passed_express_ids: list[int] = Field(
+    passed_express_ids: list[str] = Field(
         default=[],
         title="Passed Express IDs",
-        description="List of express IDs of entities that passed all applicable IDS requirements (combined across all specifications).",
+        description="Qualified references of entities that passed all applicable IDS requirements (combined across all specifications).",
     )
     specifications: list[IdsCheckerSpecificationResult] | None = Field(
         default=None,
@@ -95,59 +100,95 @@ async def ids_checker(
     if not ids_path.exists():
         raise FileNotFoundError(f"IDS file not found: {ids_path}")
 
-    input_id_set = set(inputs.express_ids) if inputs.express_ids else None
+    # Group the qualified references by their model slug; each model is
+    # validated once and results are filtered down to the given references.
+    refs_by_slug: dict[str, set[int]] = {}
+    for element in parse_element_refs(inputs.express_ids, node="ids_checker"):
+        refs_by_slug.setdefault(element.slug, set()).add(element.express_id)
 
-    try:
-        ids_file = ids.open(str(ids_path))
-    except Exception as e:
-        raise ValueError(f"Failed to parse IDS file: {e}") from e
-
-    try:
-        ids_file.validate(context.ifc_model)
-    except Exception as e:
-        raise RuntimeError(f"Validation error: {e}") from e
-
-    all_applicable_ids: set[int] = set()
-    all_failed_ids: set[int] = set()
-    specification_results: list[IdsCheckerSpecificationResult] = []
-
-    for specification in ids_file.specifications:
-        applicable_entities = specification.applicable_entities
-        failed_entities = specification.failed_entities
-
-        if input_id_set is not None:
-            applicable_entities = [
-                e for e in applicable_entities if e.id() in input_id_set
-            ]
-            failed_entities = {e for e in failed_entities if e.id() in input_id_set}
-
-        spec_applicable_ids = {e.id() for e in applicable_entities}
-        spec_failed_ids = {e.id() for e in failed_entities}
-        spec_passed_ids = spec_applicable_ids - spec_failed_ids
-
-        for e in applicable_entities:
-            all_applicable_ids.add(e.id())
-        for e in failed_entities:
-            all_failed_ids.add(e.id())
-
-        specification_results.append(
-            IdsCheckerSpecificationResult(
-                name=specification.name,
-                failed_express_ids=sorted(spec_failed_ids),
-                passed_express_ids=sorted(spec_passed_ids),
-            )
+    # The reporter wraps one ids file (and therefore one validated model);
+    # refuse mixed-model runs up front instead of after full validation.
+    if (
+        settings.generate_detailed_report
+        and settings.report_format
+        and len(refs_by_slug) > 1
+    ):
+        raise ValueError(
+            "Detailed IDS reports require references from a single model; "
+            f"got {len(refs_by_slug)} models."
         )
+
+    all_applicable_ids: set[str] = set()
+    all_failed_ids: set[str] = set()
+    merged_specs: dict[str, tuple[set[str], set[str]]] = {}
+    spec_order: list[str] = []
+    ids_file: Any | None = None
+
+    for slug in sorted(refs_by_slug):
+        wanted_ids = refs_by_slug[slug]
+
+        try:
+            ids_file = ids.open(str(ids_path))
+        except Exception as e:
+            raise ValueError(f"Failed to parse IDS file: {e}") from e
+
+        model = context.resolve_model(slug)
+
+        try:
+            ids_file.validate(model)
+        except Exception as e:
+            raise RuntimeError(f"Validation error: {e}") from e
+
+        for specification in ids_file.specifications:
+            applicable_entities = [
+                e for e in specification.applicable_entities if e.id() in wanted_ids
+            ]
+            failed_entities = {
+                e for e in specification.failed_entities if e.id() in wanted_ids
+            }
+
+            spec_failed = {expr_key(slug, e.id()) for e in failed_entities}
+            spec_passed = {
+                expr_key(slug, e.id()) for e in applicable_entities
+            } - spec_failed
+
+            if specification.name in merged_specs:
+                merged_failed, merged_passed = merged_specs[specification.name]
+                merged_specs[specification.name] = (
+                    merged_failed | spec_failed,
+                    merged_passed | spec_passed,
+                )
+            else:
+                merged_specs[specification.name] = (spec_failed, spec_passed)
+                spec_order.append(specification.name)
+
+            all_applicable_ids |= {expr_key(slug, e.id()) for e in applicable_entities}
+            all_failed_ids |= spec_failed
 
     failed_express_ids = sorted(all_failed_ids)
     passed_express_ids = sorted(all_applicable_ids - all_failed_ids)
+
+    specification_results = [
+        IdsCheckerSpecificationResult(
+            name=name,
+            failed_express_ids=sorted(merged_specs[name][0]),
+            passed_express_ids=sorted(merged_specs[name][1]),
+        )
+        for name in spec_order
+    ]
 
     specifications = (
         specification_results if settings.generate_detailed_report else None
     )
 
-    # Report-Datei generieren wenn beide Settings aktiv
+    # Report-Datei generieren wenn beide Settings aktiv. The single-model
+    # requirement was already validated above.
     report_path: str | None = None
-    if settings.generate_detailed_report and settings.report_format:
+    if (
+        settings.generate_detailed_report
+        and settings.report_format
+        and ids_file is not None
+    ):
         from ifctester import reporter
 
         # Output-Verzeichnis ermitteln

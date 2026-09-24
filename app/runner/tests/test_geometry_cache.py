@@ -169,9 +169,9 @@ def test_build_geometry_cache_caches_every_element() -> None:
         shape_iterator=fake.iterator,
     )
 
-    assert set(cache.keys()) == {"ifc:1", "ifc:2"}
-    assert cache["ifc:1"].vertices.shape == (8, 3)
-    assert cache["ifc:1"].faces.shape == (12, 3)
+    assert set(cache.keys()) == {"main:expr:1", "main:expr:2"}
+    assert cache["main:expr:1"].vertices.shape == (8, 3)
+    assert cache["main:expr:1"].faces.shape == (12, 3)
 
 
 def test_build_geometry_cache_uses_hybrid_library_and_settings() -> None:
@@ -205,7 +205,7 @@ def test_build_geometry_cache_skips_empty_geometry() -> None:
         shape_iterator=fake.iterator,
     )
 
-    assert set(cache.keys()) == {"ifc:1", "ifc:3"}
+    assert set(cache.keys()) == {"main:expr:1", "main:expr:3"}
 
 
 def test_build_geometry_cache_returns_empty_when_initialize_fails() -> None:
@@ -242,10 +242,10 @@ def test_cache_mesh_keras_and_resolve() -> None:
     object_key = cache_mesh(context, mesh.copy(), object_id="probe")
     inter_key = cache_mesh(context, mesh.copy(), intermediate=True)
 
-    assert express_key == "ifc:5"
+    assert express_key == "main:expr:5"
     assert object_key == "gen:probe"
     assert inter_key.startswith("inter:")
-    assert resolve_mesh(context, "ifc:5") is mesh
+    assert resolve_mesh(context, "main:expr:5") is mesh
 
     assert is_model_key(express_key) is True
     assert is_model_key(object_key) is True
@@ -264,22 +264,28 @@ def test_cache_mesh_requires_an_id_kind() -> None:
 def test_cache_mesh_accepts_explicit_key() -> None:
     context = _context()
     mesh = trimesh.creation.box()
-    key = cache_mesh(context, mesh, key="inter:intersection_ifc:1_ifc:2")
+    key = cache_mesh(context, mesh, key="inter:intersection_main:expr:1_main:expr:2")
 
-    assert key == "inter:intersection_ifc:1_ifc:2"
+    assert key == "inter:intersection_main:expr:1_main:expr:2"
     assert resolve_mesh(context, key) is mesh
     assert is_model_key(key) is False
 
 
 def test_cache_mesh_explicit_key_duplicate_raises() -> None:
     context = _context()
-    cache_mesh(context, trimesh.creation.box(), key="inter:intersection_ifc:1_ifc:2")
+    cache_mesh(
+        context,
+        trimesh.creation.box(),
+        key="inter:intersection_main:expr:1_main:expr:2",
+    )
 
     with pytest.raises(
-        ValueError, match="'inter:intersection_ifc:1_ifc:2' already exists"
+        ValueError, match="'inter:intersection_main:expr:1_main:expr:2' already exists"
     ):
         cache_mesh(
-            context, trimesh.creation.box(), key="inter:intersection_ifc:1_ifc:2"
+            context,
+            trimesh.creation.box(),
+            key="inter:intersection_main:expr:1_main:expr:2",
         )
 
 
@@ -291,14 +297,17 @@ def test_cache_mesh_duplicate_key_raises() -> None:
         cache_mesh(context, trimesh.creation.box(), object_id="dup")
 
 
-def test_resolve_side_maps_express_and_object_ids() -> None:
+def test_resolve_side_honors_qualified_refs() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), express_id=1)
     cache_mesh(context, trimesh.creation.box(), express_id=2)
     cache_mesh(context, trimesh.creation.box(), object_id="a")
     cache_mesh(context, trimesh.creation.box(), intermediate=True)
 
-    assert resolve_side(context, refs=[2, "a"]) == ["ifc:2", "gen:a"]
+    assert resolve_side(context, refs=["main:expr:2", "gen:a"]) == [
+        "main:expr:2",
+        "gen:a",
+    ]
 
 
 def test_resolve_side_mixed_list_preserves_order() -> None:
@@ -307,28 +316,43 @@ def test_resolve_side_mixed_list_preserves_order() -> None:
     cache_mesh(context, trimesh.creation.box(), object_id="a")
     cache_mesh(context, trimesh.creation.box(), express_id=2)
 
-    assert resolve_side(context, refs=["a", 1, 2]) == ["gen:a", "ifc:1", "ifc:2"]
+    assert resolve_side(context, refs=["gen:a", "main:expr:1", "main:expr:2"]) == [
+        "gen:a",
+        "main:expr:1",
+        "main:expr:2",
+    ]
 
 
-def test_resolve_side_empty_list_returns_whole_model() -> None:
+def test_resolve_side_accepts_inter_key() -> None:
+    context = _context()
+    mesh = cache_mesh(context, trimesh.creation.box(), intermediate=True)
+
+    assert resolve_side(context, refs=[mesh]) == [mesh]
+
+
+def test_resolve_side_empty_list_yields_zero_keys() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), express_id=1)
     cache_mesh(context, trimesh.creation.box(), object_id="a")
     cache_mesh(context, trimesh.creation.box(), intermediate=True)
 
-    keys = resolve_side(context, refs=[])
-    assert keys == ["ifc:1", "gen:a"]
-    assert all(is_model_key(key) for key in keys)
+    assert resolve_side(context, refs=[]) == []
 
 
 def test_resolve_side_missing_reference_raises() -> None:
     context = _context()
     cache_mesh(context, trimesh.creation.box(), express_id=1)
 
-    with pytest.raises(ValueError, match="Express ID 9 has no tessellated geometry"):
-        resolve_side(context, refs=[9])
-    with pytest.raises(ValueError, match="Object ID 'ghost' has no geometry"):
-        resolve_side(context, refs=["ghost"])
+    with pytest.raises(
+        ValueError, match="'main:expr:9' is not present in the workflow cache"
+    ):
+        resolve_side(context, refs=["main:expr:9"])
+    with pytest.raises(
+        ValueError, match="'gen:ghost' is not present in the workflow cache"
+    ):
+        resolve_side(context, refs=["gen:ghost"])
+    with pytest.raises(ValueError, match="not a valid geometry cache reference"):
+        resolve_side(context, refs=["cube1"])
 
 
 class FakePart:
@@ -406,8 +430,8 @@ def test_composite_parent_with_all_parts_cached_is_synthesized() -> None:
 
     cache = _merge_decomposed_parents(fake_model, cache)
 
-    assert "ifc:359" in cache
-    mesh = cache["ifc:359"]
+    assert "main:expr:359" in cache
+    mesh = cache["main:expr:359"]
     assert mesh.is_watertight
     assert abs(abs(mesh.volume) - 2.0) < 1e-6
 
@@ -429,7 +453,7 @@ def test_composite_parent_with_missing_part_is_not_synthesized() -> None:
 
     cache = _merge_decomposed_parents(fake_model, cache)
 
-    assert "ifc:359" not in cache
+    assert "main:expr:359" not in cache
 
 
 def test_composite_parent_with_own_geometry_is_not_overwritten() -> None:
@@ -446,7 +470,7 @@ def test_composite_parent_with_own_geometry_is_not_overwritten() -> None:
         shape_iterator=fake.iterator,
     )
 
-    original_volume = cache["ifc:359"].volume
+    original_volume = cache["main:expr:359"].volume
 
     rel = FakeRel()
     rel.RelatingObject = FakePart(359)
@@ -457,8 +481,8 @@ def test_composite_parent_with_own_geometry_is_not_overwritten() -> None:
 
     cache = _merge_decomposed_parents(fake_model, cache)
 
-    assert "ifc:359" in cache
-    assert abs(cache["ifc:359"].volume - original_volume) < 1e-6
+    assert "main:expr:359" in cache
+    assert abs(cache["main:expr:359"].volume - original_volume) < 1e-6
 
 
 def test_non_ifc_model_returns_cache_unchanged() -> None:
@@ -473,7 +497,7 @@ def test_non_ifc_model_returns_cache_unchanged() -> None:
 
     cache = _merge_decomposed_parents(object(), cache)
 
-    assert set(cache.keys()) == {"ifc:1"}
+    assert set(cache.keys()) == {"main:expr:1"}
 
 
 def test_build_geometry_cache_synthesizes_composite_wall_model() -> None:
@@ -497,11 +521,13 @@ def test_build_geometry_cache_synthesizes_composite_wall_model() -> None:
     part_ids = [96, 111]
 
     for pid in part_ids:
-        assert f"ifc:{pid}" in cache, f"Part {pid} should be cached"
+        assert f"main:expr:{pid}" in cache, f"Part {pid} should be cached"
 
-    assert f"ifc:{wall_id}" in cache, f"Composite wall {wall_id} should be synthesized"
+    assert f"main:expr:{wall_id}" in cache, (
+        f"Composite wall {wall_id} should be synthesized"
+    )
 
-    wall_mesh = cache[f"ifc:{wall_id}"]
+    wall_mesh = cache[f"main:expr:{wall_id}"]
     assert wall_mesh.is_watertight, "Synthesized wall should be watertight"
     assert abs(wall_mesh.volume) > 0, "Synthesized wall should have positive volume"
 
@@ -526,7 +552,7 @@ def test_print_wall_volumes_on_test_volumen() -> None:
     walls = model.by_type("IfcWall")
     for wall in walls:
         wall_id = wall.id()
-        key = f"ifc:{wall_id}"
+        key = f"main:expr:{wall_id}"
         assert key in cache, f"Wall {wall_id} should be in cache"
         mesh = cache[key]
         vol = abs(mesh.volume)
@@ -590,11 +616,15 @@ def test_nested_layer_without_geometry_adversarial_order() -> None:
 
     cache = _merge_decomposed_parents(FakeAggregateModel([rel_wall, rel_l3]), cache)
 
-    assert "ifc:212" in cache, "Nested Layer-3 should be synthesized from sub-layers"
-    assert "ifc:170" in cache, "Wall should be synthesized even with adversarial order"
+    assert "main:expr:212" in cache, (
+        "Nested Layer-3 should be synthesized from sub-layers"
+    )
+    assert "main:expr:170" in cache, (
+        "Wall should be synthesized even with adversarial order"
+    )
 
-    layer3_mesh = cache["ifc:212"]
-    wall_mesh = cache["ifc:170"]
+    layer3_mesh = cache["main:expr:212"]
+    wall_mesh = cache["main:expr:170"]
 
     assert abs(abs(layer3_mesh.volume) - 2.0) < 1e-6
     assert abs(abs(wall_mesh.volume) - 4.0) < 1e-6
@@ -630,19 +660,23 @@ def test_multilayered_testmodel_wall4_nested_layers() -> None:
     sublayer_ids = [228, 246]
 
     for sub_id in sublayer_ids:
-        key = f"ifc:{sub_id}"
+        key = f"main:expr:{sub_id}"
         assert key in cache, f"Sub-layer {sub_id} should be cached"
         mesh = cache[key]
         assert mesh.is_watertight, f"Sub-layer {sub_id} should be watertight"
         assert abs(mesh.volume) > 0, f"Sub-layer {sub_id} should have positive volume"
 
-    assert f"ifc:{layer3_id}" in cache, f"Layer-3 ({layer3_id}) should be synthesized"
-    layer3_mesh = cache[f"ifc:{layer3_id}"]
+    assert f"main:expr:{layer3_id}" in cache, (
+        f"Layer-3 ({layer3_id}) should be synthesized"
+    )
+    layer3_mesh = cache[f"main:expr:{layer3_id}"]
     assert layer3_mesh.is_watertight, "Layer-3 should be watertight"
     assert abs(layer3_mesh.volume) > 0, "Layer-3 should have positive volume"
 
-    assert f"ifc:{wall4_id}" in cache, f"Wall-4 ({wall4_id}) should be synthesized"
-    wall4_mesh = cache[f"ifc:{wall4_id}"]
+    assert f"main:expr:{wall4_id}" in cache, (
+        f"Wall-4 ({wall4_id}) should be synthesized"
+    )
+    wall4_mesh = cache[f"main:expr:{wall4_id}"]
     assert wall4_mesh.is_watertight, "Wall-4 should be watertight"
     assert abs(wall4_mesh.volume) > 0, "Wall-4 should have positive volume"
 
@@ -698,15 +732,15 @@ def test_ifc_member_without_geometry_nested_sublayers() -> None:
 
     cache = _merge_decomposed_parents(FakeAggregateModel([rel_member, rel_wall]), cache)
 
-    assert "ifc:347" in cache, (
+    assert "main:expr:347" in cache, (
         "IfcMember without body should be synthesized from sub-parts"
     )
-    assert "ifc:900" in cache, "Batten-a should be cached"
-    assert "ifc:901" in cache, "Batten-b should be cached"
-    assert "ifc:261" in cache, "Wall should be synthesized from Plate + Member"
+    assert "main:expr:900" in cache, "Batten-a should be cached"
+    assert "main:expr:901" in cache, "Batten-b should be cached"
+    assert "main:expr:261" in cache, "Wall should be synthesized from Plate + Member"
 
-    member_mesh = cache["ifc:347"]
-    wall_mesh = cache["ifc:261"]
+    member_mesh = cache["main:expr:347"]
+    wall_mesh = cache["main:expr:261"]
 
     assert abs(abs(member_mesh.volume) - 2.0) < 1e-6, "Member volume = 2 unit cubes"
     assert abs(abs(wall_mesh.volume) - 3.0) < 1e-6, "Wall volume = Plate + Member"
@@ -790,7 +824,7 @@ def test_add_alignment_geometry_di_unit() -> None:
         fake_model, cache, fake_settings, shape_creator=fake_shape_creator
     )
 
-    key = f"ifc:{align_id}"
+    key = f"main:expr:{align_id}"
     assert key in cache
     mesh = cache[key]
     assert isinstance(mesh, trimesh.Trimesh)
@@ -829,7 +863,7 @@ def test_add_alignment_geometry_real_models() -> None:
 
         alignments = model.by_type("IfcAlignment")
         for align in alignments:
-            key = f"ifc:{align.id()}"
+            key = f"main:expr:{align.id()}"
             assert key in cache, f"Alignment {align.id()} should be cached in {fname}"
             mesh = cache[key]
             assert mesh.is_watertight, f"Alignment tube should be watertight in {fname}"

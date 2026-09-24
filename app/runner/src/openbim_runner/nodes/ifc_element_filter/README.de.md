@@ -4,7 +4,7 @@ description: Filtert IFC-Entitaeten mit tabellenbasierten Include- und Exclude-R
 categories: IFC, Filter, Advanced
 ---
 
-Der `ifc_element_filter` Node filtert IFC-Modellelemente ueber eine Komponententabelle. Jede Zeile beschreibt eine Bedingung mit Entity-Typ, optionalem `PredefinedType` und optionalem Attribut- oder PropertySet-Vergleich. Include-Zeilen werden per OR-Logik zusammengefuehrt, danach werden Exclude-Zeilen vom Ergebnis abgezogen.
+Der `ifc_element_filter` Node filtert IFC-Modellelemente ueber eine Komponententabelle. Er ist die Elementquelle des Graphen: seine `express_ids`-Ausgabe liefert voll qualifizierte Referenzen (`<slug>:expr:<id>`), die alle nachgelagerten Verbraucher-Nodes direkt verbinden. Jede Zeile beschreibt eine Bedingung mit Entity-Typ, optionalem `PredefinedType` und optionalem Attribut- oder PropertySet-Vergleich. Include-Zeilen werden per OR-Logik zusammengefuehrt, danach werden Exclude-Zeilen vom Ergebnis abgezogen.
 
 Verwenden Sie diesen Node, wenn Sie:
 
@@ -47,16 +47,17 @@ Verwenden Sie diesen Node, wenn Sie:
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
-| `express_ids` | `list[int]` | Optionale Liste von IFC-Express-IDs, auf die der Filter eingeschraenkt wird. Die Ausgabe behaelt die Eingabereihenfolge bei, doppelte IDs werden entfernt. Wenn der Eingang nicht verbunden ist, wird das ganze Modell durchsucht; bei verbundenem Eingang liefert eine leere Liste ein leeres Ergebnis. |
+| `model_slug` | `str` | Modell, das im Scan-Modus (unverbundener `express_ids`-Eingang) durchsucht wird. Standardmäßig das Hauptmodell. |
+| `express_ids` | `list[str]` | Optionale Liste voll qualifizierter Referenzen (`<slug>:expr:<id>`), auf die der Filter eingeschränkt wird. Die Ausgabe behaelt die Eingabereihenfolge bei, doppelte IDs werden entfernt. Wenn der Eingang nicht verbunden ist, wird das durch `model_slug` bezeichnete Modell durchsucht; bei verbundenem Eingang liefern eine leere Liste ein leeres Ergebnis und fehlende IDs werden stillschweigend übersprungen. |
 
-Wenn `express_ids` verbunden ist, werden nur die gelisteten Entitaeten betrachtet, und jede muss weiterhin den Filterzeilen entsprechen (Entity-Typ, `PredefinedType` und Eigenschaftsvergleiche). Eine verbundene leere Liste bleibt leer, damit verkettete Filter nicht stillschweigend das ganze Modell erneut durchsuchen.
+Wenn `express_ids` verbunden ist, werden nur die gelisteten Entitaeten betrachtet, und jede muss weiterhin den Filterzeilen entsprechen (Entity-Typ, `PredefinedType` und Eigenschaftsvergleiche). Der Slug jeder Referenz hat Vorrang vor dem `model_slug`-Eingang und wird gegen genau dieses Modell aufgelöst — gemischte Listen aus mehreren Modellen sind daher erlaubt. Eine verbundene leere Liste bleibt leer, damit verkettete Filter nicht stillschweigend das ganze Modell erneut durchsuchen.
 
 ## Ausgaben
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
-| `express_ids` | `list[int]` | Express-IDs aller passenden Entitaeten. |
-| `guids` | `list[str]` | `GlobalId`-Werte aller passenden Entitaeten in derselben Reihenfolge wie `express_ids`. |
+| `express_ids` | `list[str]` | Voll qualifizierte Referenzen (`<slug>:expr:<id>`) aller passenden Entitaeten. |
+| `guids` | `list[str]` | Voll qualifizierte GUID-Referenzen (`<slug>:guid:<GlobalId>`) aller passenden Entitaeten in derselben Reihenfolge wie `express_ids`. |
 
 ## Beispiel
 
@@ -89,8 +90,9 @@ Alle Waende filtern, aber externe Waende ausschliessen:
 
 ## Hinweise
 
-- Leere `filter_rows` liefern ein leeres Ergebnis.
+- Leere `filter_rows` im Scan-Modus (unverbundener `express_ids`-Eingang) liefern alle `IfcElement` des Modells.
 - Unbekannte IFC-Entity-Typen liefern keine Treffer.
+- Die `guids`-Ausgabe qualifizierter GUID-Referenzen (`<slug>:guid:<GlobalId>`) steht bereit; derzeit gibt es noch keinen Verbraucher-Node dafür.
 - Stringvergleiche sind case-insensitive.
 - Numerische Vergleichsoperatoren benoetigen numerische Werte.
 - Vorschlagslisten fuer PropertySets koennen spaeter ueber JSON-Dateien in `app/web/public/list` angebunden werden, ohne den Runner-Vertrag zu aendern.

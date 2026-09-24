@@ -42,10 +42,32 @@ class WorkflowEdge(NodeModel):
     target: str = Field(title="Target node", description="Downstream node ID.")
 
 
-class WorkflowDefinition(NodeModel):
-    ifc_path: str = Field(
-        title="IFC path",
+class ModelFile(NodeModel):
+    """An IFC file assigned to a workflow slot, keyed by a user-chosen slug."""
+
+    path: str = Field(
+        title="Path",
         description="Path to the IFC file, relative to the workflow JSON when not absolute.",
+    )
+    slug: str = Field(
+        title="Slug",
+        description="User-chosen identifier for this model. The reserved slug 'main' is the main IFC file.",
+    )
+    hash: str = Field(
+        default="",
+        title="File hash",
+        description="Optional SHA-256 content hash of the file, recorded when the file was assigned.",
+    )
+
+
+class WorkflowDefinition(NodeModel):
+    files: list[ModelFile] = Field(
+        default=[],
+        title="IFC files",
+        description=(
+            "IFC files loaded for this workflow, each keyed by a model slug. "
+            "Exactly one file must use the reserved slug 'main'."
+        ),
     )
     nodes: list[WorkflowNode] = Field(
         default=[],
@@ -57,6 +79,44 @@ class WorkflowDefinition(NodeModel):
         title="Edges",
         description="Directed edges used to determine execution order.",
     )
+
+
+# Keep in sync with the web validator below:
+# app/web/app/components/nodes/NodeLibrarySidebar.vue (MODEL_SLUG_RE).
+MODEL_SLUG_PATTERN = r"^[a-z0-9][a-z0-9-_]*$"
+
+
+def validate_model_files(files: list[ModelFile]) -> None:
+    """Validate that the workflow's IFC file slots are well-formed.
+
+    - Every slug is non-empty and matches ``MODEL_SLUG_PATTERN``.
+    - Slugs are unique.
+    - The reserved ``main`` slug is present exactly once.
+    """
+    import re
+
+    if not files:
+        raise ValueError(
+            "Workflow must define at least one IFC file with the reserved slug 'main'."
+        )
+
+    slugs: dict[str, ModelFile] = {}
+    for model_file in files:
+        slug = model_file.slug
+        if not slug:
+            raise ValueError("Every IFC file slot must define a non-empty 'slug'.")
+        if not re.fullmatch(MODEL_SLUG_PATTERN, slug):
+            raise ValueError(
+                f"Invalid model slug '{slug}'. Slugs must match "
+                f"'{MODEL_SLUG_PATTERN}' (lowercase letters, digits, '-' or '_'; "
+                "must start with a letter or digit)."
+            )
+        if slug in slugs:
+            raise ValueError(f"Duplicate model slug '{slug}'.")
+        slugs[slug] = model_file
+
+    if "main" not in slugs:
+        raise ValueError("Workflow must define a file with the reserved slug 'main'.")
 
 
 def load_workflow(workflow_path: Path) -> WorkflowDefinition:
@@ -309,11 +369,21 @@ async def execute_workflow_async(
     node_lookup = build_node_lookup(workflow)
     execution_order = build_execution_order(workflow)
     node_registry = get_registry()
-    ifc_model = ifcopenshell.open(
-        str(resolve_ifc_path(workflow_path, workflow.ifc_path))
-    )  # pyright: ignore[reportUnknownMemberType]
+
+    validate_model_files(workflow.files)
+    models: dict[str, Any] = {}
+    for model_file in workflow.files:
+        resolved_path = resolve_ifc_path(workflow_path, model_file.path)
+        model = ifcopenshell.open(str(resolved_path))  # pyright: ignore[reportUnknownMemberType]
+        models[model_file.slug] = model
+        if model_file.hash:
+            _warn_on_hash_mismatch(model_file, resolved_path)
+
+    geometry_cache: dict[str, Any] = {}
+    for slug, model in models.items():
+        geometry_cache.update(build_geometry_cache(model, slug=slug))
+
     node_outputs: dict[str, NodeModel] = {}
-    geometry_cache = build_geometry_cache(ifc_model)
     auto_bindings = resolve_auto_bindings(workflow, node_lookup)
 
     for node_id in execution_order:
@@ -336,7 +406,8 @@ async def execute_workflow_async(
             auto_bindings=auto_bindings.get(workflow_node.id, {}),
         )
         context = ExecutionContext(
-            ifc_model=ifc_model,
+            models=models,
+            main_model_id="main",
             node_outputs=node_outputs,
             workflow_dir=workflow_path.parent,
             geometry_cache=geometry_cache,
@@ -350,6 +421,26 @@ async def execute_workflow_async(
         )
 
     return node_outputs, node_lookup
+
+
+def _warn_on_hash_mismatch(model_file: ModelFile, resolved_path: Path) -> None:
+    """Non-fatal warning when an IFC file's content differs from its recorded hash.
+
+    The hash is recorded by the web when a file is assigned to a slot as a bare
+    SHA-256 hex digest. A mismatch signals the file on disk changed since
+    assignment; the workflow still runs against the current file contents.
+    """
+    import hashlib
+
+    try:
+        digest = hashlib.sha256(resolved_path.read_bytes()).hexdigest()
+    except OSError:
+        return
+    if digest != model_file.hash:
+        print(
+            f"WARNING: IFC file '{model_file.slug}' hash does not match the "
+            "workflow definition (file changed since it was assigned)."
+        )
 
 
 def execute_workflow(

@@ -31,21 +31,62 @@ class AutoBind:
 
 
 class ExecutionContext:
+    """Execution context carrying one or more loaded IFC models.
+
+    A workflow may define several IFC files, each keyed by a user-chosen model
+    slug. The main model uses the reserved slug ``"main"`` and is the default
+    target for nodes that do not opt into another model.
+
+    ``ifc_model`` and ``geometry_cache`` remain available as conveniences for the
+    main model: ``ifc_model`` is a view onto ``models[main_model_id]`` and
+    ``geometry_cache`` is the shared cache (IFC body keys are prefixed with the
+    model slug, e.g. ``main:expr:123``).
+    """
+
     def __init__(
         self,
-        ifc_model: ifcopenshell.file,
-        node_outputs: dict[str, NodeModel],
+        models: dict[str, ifcopenshell.file] | None = None,
+        *,
+        ifc_model: ifcopenshell.file | None = None,
+        node_outputs: dict[str, NodeModel] | None = None,
         workflow_dir: Path | None = None,
         geometry_cache: dict[str, trimesh.Trimesh] | None = None,
         output_dir: Path | None = None,
+        main_model_id: str = "main",
     ) -> None:
-        self.ifc_model = ifc_model
-        self.node_outputs = node_outputs
+        if models is None:
+            if ifc_model is None:
+                raise ValueError(
+                    "ExecutionContext requires a non-empty 'models' mapping or an 'ifc_model'."
+                )
+            models = {main_model_id: ifc_model}
+        self.models = models
+        self.main_model_id = main_model_id
+        self.node_outputs = node_outputs or {}
         self.workflow_dir = workflow_dir
-        self.geometry_cache: dict[str, trimesh.Trimesh] | None = (
+        self.geometry_cache: dict[str, trimesh.Trimesh] = (
             {} if geometry_cache is None else geometry_cache
         )
         self.output_dir = output_dir
+
+    @property
+    def ifc_model(self) -> ifcopenshell.file:
+        """The main IFC model (backward-compatible accessor)."""
+        return self.models[self.main_model_id]
+
+    def resolve_slug(self, slug: str | None = None) -> str:
+        """Normalize and validate a model slug, defaulting to the main model."""
+        resolved = slug or self.main_model_id
+        if resolved not in self.models:
+            raise ValueError(
+                f"Unknown model slug '{resolved}'. "
+                f"Available slugs: {sorted(self.models)}."
+            )
+        return resolved
+
+    def resolve_model(self, slug: str | None = None) -> ifcopenshell.file:
+        """Return the IFC model for ``slug`` (defaults to the main model)."""
+        return self.models[self.resolve_slug(slug)]
 
 
 @dataclass(frozen=True)

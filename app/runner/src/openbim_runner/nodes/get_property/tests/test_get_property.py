@@ -5,6 +5,7 @@ from typing import Any, cast
 
 import pytest
 
+from conftest import main_ref as _ref
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.get_property.get_property import (
     GetPropertyInputs,
@@ -81,13 +82,13 @@ def test_get_property_reads_property_values(monkeypatch: pytest.MonkeyPatch) -> 
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101]),
+            GetPropertyInputs(express_ids=[_ref(101)]),
             context,
         )
     )
 
     assert len(result.elements) == 1
-    assert result.elements[0].express_id == 101
+    assert result.elements[0].express_id == _ref(101)
     assert result.elements[0].properties == {
         "Pset_WallCommon.FireRating": "F90",
         "Pset_WallCommon.IsExternal": "false",
@@ -126,17 +127,17 @@ def test_get_property_multiple_entities(monkeypatch: pytest.MonkeyPatch) -> None
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 205, 77]),
+            GetPropertyInputs(express_ids=[_ref(101), _ref(205), _ref(77)]),
             context,
         )
     )
 
     assert len(result.elements) == 3
-    assert result.elements[0].express_id == 101
+    assert result.elements[0].express_id == _ref(101)
     assert result.elements[0].properties == {"Pset_WallCommon.FireRating": "F90"}
-    assert result.elements[1].express_id == 205
+    assert result.elements[1].express_id == _ref(205)
     assert result.elements[1].properties == {"Pset_WallCommon.FireRating": "F30"}
-    assert result.elements[2].express_id == 77
+    assert result.elements[2].express_id == _ref(77)
     assert result.elements[2].properties == {"Pset_WallCommon.FireRating": "F60"}
 
 
@@ -170,7 +171,7 @@ def test_get_property_missing_property_returns_null(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101]),
+            GetPropertyInputs(express_ids=[_ref(101)]),
             context,
         )
     )
@@ -207,15 +208,15 @@ def test_get_property_missing_express_id_returns_empty(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 999]),  # 999 doesn't exist
+            GetPropertyInputs(express_ids=[_ref(101), _ref(999)]),  # 999 doesn't exist
             context,
         )
     )
 
     assert len(result.elements) == 2
-    assert result.elements[0].express_id == 101
+    assert result.elements[0].express_id == _ref(101)
     assert result.elements[0].properties == {"Pset_WallCommon.FireRating": "F90"}
-    assert result.elements[1].express_id == 999
+    assert result.elements[1].express_id == _ref(999)
     assert result.elements[1].properties == {}
 
 
@@ -248,7 +249,7 @@ def test_get_property_without_property_set_searches_all(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101]),
+            GetPropertyInputs(express_ids=[_ref(101)]),
             context,
         )
     )
@@ -333,7 +334,7 @@ def test_get_property_output_mode_by_class(monkeypatch: pytest.MonkeyPatch) -> N
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 205, 307]),
+            GetPropertyInputs(express_ids=[_ref(101), _ref(205), _ref(307)]),
             context,
         )
     )
@@ -406,7 +407,7 @@ def test_get_property_output_mode_by_class_multiple_properties(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 205, 307, 408]),
+            GetPropertyInputs(express_ids=[_ref(101), _ref(205), _ref(307), _ref(408)]),
             context,
         )
     )
@@ -464,7 +465,7 @@ def test_get_property_output_mode_model(monkeypatch: pytest.MonkeyPatch) -> None
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 205, 307]),
+            GetPropertyInputs(express_ids=[_ref(101), _ref(205), _ref(307)]),
             context,
         )
     )
@@ -509,7 +510,7 @@ def test_get_property_output_mode_model_skips_null(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 205]),
+            GetPropertyInputs(express_ids=[_ref(101), _ref(205)]),
             context,
         )
     )
@@ -548,7 +549,7 @@ def test_get_property_output_mode_default_elements(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101]),
+            GetPropertyInputs(express_ids=[_ref(101)]),
             context,
         )
     )
@@ -556,7 +557,7 @@ def test_get_property_output_mode_default_elements(
     assert result.mode == "elements"
     assert result.elements is not None
     assert len(result.elements) == 1
-    assert result.elements[0].express_id == 101
+    assert result.elements[0].express_id == _ref(101)
     assert result.elements[0].properties == {"Pset_WallCommon.FireRating": "F90"}
 
 
@@ -591,7 +592,9 @@ def test_get_property_entity_type_filters_model_output(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 202]),  # both wall and slab in input
+            GetPropertyInputs(
+                express_ids=[_ref(101), _ref(202)]
+            ),  # both wall and slab in input
             context,
         )
     )
@@ -634,7 +637,7 @@ def test_get_property_entity_type_filters_by_class_output(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 202]),
+            GetPropertyInputs(express_ids=[_ref(101), _ref(202)]),
             context,
         )
     )
@@ -684,7 +687,7 @@ def test_get_property_empty_entity_type_no_filter(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 202]),
+            GetPropertyInputs(express_ids=[_ref(101), _ref(202)]),
             context,
         )
     )
@@ -739,7 +742,7 @@ def test_get_property_model_mode_merges_across_psets(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[101, 102, 201]),
+            GetPropertyInputs(express_ids=[_ref(101), _ref(102), _ref(201)]),
             context,
         )
     )
@@ -814,7 +817,7 @@ def test_get_property_by_class_empty_entity_type_groups_as_unknown(
                     ),
                 ],
             ),
-            GetPropertyInputs(express_ids=[999]),  # non-existent entity
+            GetPropertyInputs(express_ids=[_ref(999)]),  # non-existent entity
             context,
         )
     )

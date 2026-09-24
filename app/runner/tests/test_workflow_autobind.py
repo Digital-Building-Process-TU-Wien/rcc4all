@@ -6,6 +6,7 @@ import pytest
 
 from openbim_runner.nodes.base import NodeModel
 from openbim_runner.workflow import (
+    ModelFile,
     WorkflowDefinition,
     WorkflowEdge,
     WorkflowNode,
@@ -13,6 +14,10 @@ from openbim_runner.workflow import (
     resolve_auto_bindings,
     resolve_input_bindings,
 )
+
+
+def _files() -> list[ModelFile]:
+    return [ModelFile(path="model.ifc", slug="main")]
 
 
 def _node(node_id: str, node_type: str, **extra: Any) -> WorkflowNode:
@@ -32,7 +37,7 @@ def _bindings(
     nodes: list[WorkflowNode], edges: list[tuple[str, str]]
 ) -> tuple[dict[str, dict[str, str]], dict[str, WorkflowNode]]:
     workflow = WorkflowDefinition(
-        ifc_path="model.ifc",
+        files=_files(),
         nodes=nodes,
         edges=[WorkflowEdge(source=s, target=t) for s, t in edges],
     )
@@ -83,10 +88,10 @@ def test_explicit_binding_wins_in_payload_resolution() -> None:
 
 
 def test_no_compatible_upstream_stays_unbound() -> None:
-    # get_name's result has no list[ComparisonElement] -> not compatible.
-    source = _node("name-1", "get_name")
+    # concat_string's result has no list[ComparisonElement] -> not compatible.
+    source = _node("concat-1", "concat_string")
     bcf = _bcf("bcf-1")
-    auto, _ = _bindings([source, bcf], [("name-1", "bcf-1")])
+    auto, _ = _bindings([source, bcf], [("concat-1", "bcf-1")])
 
     assert bcf.id not in auto
 
@@ -96,7 +101,7 @@ def test_two_compatible_predecessors_raise() -> None:
     loi_b = _loi_check("loi-b")
     bcf = _bcf("bcf-1")
     workflow = WorkflowDefinition(
-        ifc_path="model.ifc",
+        files=_files(),
         nodes=[loi_a, loi_b, bcf],
         edges=[
             WorkflowEdge(source="loi-a", target="bcf-1"),
@@ -108,10 +113,10 @@ def test_two_compatible_predecessors_raise() -> None:
 
 
 def test_non_immediate_ancestor_not_picked() -> None:
-    # loi_check feeds get_name which feeds bcf; bcf's only direct predecessor
-    # is get_name (incompatible), so elements stays unbound.
+    # loi_check feeds concat_string which feeds bcf; bcf's only direct
+    # predecessor is concat_string (incompatible), so elements stays unbound.
     loi = _loi_check("loi-1")
-    mid = _node("mid-1", "get_name")
+    mid = _node("mid-1", "concat_string")
     bcf = _bcf("bcf-1")
     auto, _ = _bindings([loi, mid, bcf], [("loi-1", "mid-1"), ("mid-1", "bcf-1")])
 
@@ -120,7 +125,7 @@ def test_non_immediate_ancestor_not_picked() -> None:
 
 def test_unmarked_input_never_auto_bound() -> None:
     # loi_check.express_ids has no AutoBind marker; even with a compatible
-    # upstream present, it must stay unbound (keeps whole-model semantics).
+    # upstream present, it must stay unbound.
     loi = _loi_check("loi-1")
     provider = _node("provider-1", "ifc_element_filter")
     auto, _ = _bindings([provider, loi], [("provider-1", "loi-1")])

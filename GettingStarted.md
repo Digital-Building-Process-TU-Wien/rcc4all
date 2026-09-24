@@ -36,7 +36,8 @@ Example files:
 ### 3. Why `.dev-files`?
 
 - This folder is used for local development files
-- The `FileInput` node reads files from this folder
+- The editor's model manager assigns IFC files from this folder
+- A `File Input` node selects one of those assigned models
 - Workflow JSON and results are also saved here
 - The folder is gitignored (not committed to version control)
 
@@ -192,7 +193,6 @@ Add your import and export:
 from .base import ExecutionContext, NodeDefinition, NodeModel, dispatch, get_registry, get_registry_schema, node
 from .concat_string.concat_string import concat_string
 from .generate_3d_cube.generate_3d_cube import generate_3d_cube
-from .get_name.get_name import get_name
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
 from .template_node.template_node import template_node  # ← ADD THIS
 
@@ -203,7 +203,6 @@ __all__ = [
     "concat_string",
     "dispatch",
     "generate_3d_cube",
-    "get_name",
     "get_registry",
     "get_registry_schema",
     "ifc_element_filter",
@@ -310,7 +309,6 @@ const nodeNameToComponent: Record<string, string> = {
   concat_string: 'ConcatString',
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',
-  get_name: 'GetName',
   ifc_element_filter: 'IfcElementFilter',
   template_node: 'TemplateNode',  // ← ADD THIS
 }
@@ -358,19 +356,23 @@ npm run dev
 
 1. **Open the node editor**: `http://localhost:3001/node-demo`
 
-2. **Add a File Input node** (to specify the IFC file):
-   - Drag `File Input` to canvas
-   - Click on it and select an IFC file from the list
+2. **Assign the main IFC file**:
+   - Use **Add IFC Model** in the editor model bar
+   - Select `test.ifc`; it is stored in the workflow with the reserved slug `main`
 
-3. **Add your Template Node**:
-   - Drag `Template Node` to canvas
+3. **Add an IFC Element Filter**:
+   - Drag `IFC Element Filter` to the canvas
+   - Add a `File Input` node and select the `main` model
+   - Connect File Input's `model_slug` output to the filter's `model_slug` input
+   - The filter now scans the assigned main model
+
+4. **Add your Template Node**:
+   - Drag `Template Node` to the canvas
    - Set `greeting` to "Hi"
+   - The unbound `name` input uses its default value, `World`
 
-4. **Connect nodes** (optional):
-   - You can connect File Input's output to Template Node's input if your node uses IFC data
-
-5. **Run workflow**:
-   - Click "Run Workflow" button
+5. **Run the workflow**:
+   - Click "Run Workflow"
    - Watch the console output in the results view
    - You should see: `"Hi, World!"`
 
@@ -390,7 +392,7 @@ npm run dev
 | Pattern | Settings | Inputs | Context | Example |
 |---------|----------|--------|---------|---------|
 | Settings + Inputs | ✓ | ✓ | ✗ | `template_node`, `concat_string` |
-| Settings + Inputs + Context | ✓ | ✓ | ✓ | `get_name` |
+| Settings + Inputs + Context | ✓ | ✓ | ✓ | `loi_check` |
 | Settings + Context | ✓ | ✗ | ✓ | `ifc_element_filter` |
 | Inputs + Context | ✗ | ✓ | ✓ | `generate_3d_cube` |
 
@@ -513,13 +515,42 @@ Here's what a complete workflow JSON looks like:
 
 ```json
 {
-  "ifc_path": "test.ifc",
+  "files": [
+    {
+      "path": "test.ifc",
+      "slug": "main",
+      "hash": ""
+    }
+  ],
   "nodes": [
     {
       "id": "file_input",
       "type": "file_input",
-      "label": "Select IFC File",
-      "filename": "test.ifc"
+      "label": "Select main model",
+      "settings": {
+        "slug": "main"
+      }
+    },
+    {
+      "id": "walls",
+      "type": "ifc_element_filter",
+      "label": "Find walls",
+      "settings": {
+        "filter_rows": [
+          {
+            "mode": "include",
+            "entity_type": "IFCWALL",
+            "predefined_type": "",
+            "property_set": "",
+            "property_name": "",
+            "operator": "==",
+            "value": ""
+          }
+        ]
+      },
+      "input_bindings": {
+        "model_slug": "file_input.model_slug"
+      }
     },
     {
       "id": "greet_node",
@@ -527,22 +558,25 @@ Here's what a complete workflow JSON looks like:
       "label": "Say Hello",
       "settings": {
         "greeting": "Hi"
-      },
-      "inputs": {
-        "name": "Alice"
       }
     }
   ],
-  "edges": []
+  "edges": [
+    {
+      "source": "file_input",
+      "target": "walls"
+    }
+  ]
 }
 ```
 
 This workflow:
 
-1. Selects `test.ifc` from `.dev-files/`
-2. Runs the template node with greeting "Hi" and name "Alice"
-3. Outputs: `"Hi, Alice!"`
-4. Prints the message to the console
-5. Saves results to `.dev-files/results-{timestamp}.json`
+1. Assigns `test.ifc` to the reserved `main` model slot
+2. Routes the `main` model slug into an IFC element filter
+3. Runs the template node with greeting "Hi" and the default name "World"
+4. Outputs: `"Hi, World!"`
+5. Prints the message to the console
+6. Saves results to `.dev-files/results-{timestamp}.json`
 
 ---
