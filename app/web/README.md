@@ -36,14 +36,14 @@ The visual scripting editor produces a workflow JSON that is executed by the [ru
 3. Workflow JSON is saved to `.dev-files/` and passed to the Python runner
 4. Results are displayed in a new tab, also saved to `.dev-files/`
 
-### Migrating existing workflows
+### Current multi-model contract
 
 Multi-model workflows use these contracts:
 
-- Replace the old top-level `ifc_path` with `files`; the main file must use the slug `main`.
-- Replace a File Input node's old `filename` field with `settings.slug`; the slug must already exist in `files`.
-- Replace bare IFC express IDs in node inputs with qualified references such as `main:expr:123`.
-- Bind `ifc_element_filter.express_ids` before passing references to downstream IFC consumers. A bound empty list stays empty; downstream inputs no longer expand an unbound or empty list to the whole model.
+- Workflows list assigned IFC models in `files`; the main file uses the slug `main`.
+- A File Input node selects one of those models with `settings.slug`.
+- IFC node inputs use qualified references such as `main:expr:123`.
+- Bind `ifc_element_filter.express_ids` before passing references to downstream IFC consumers. A bound empty list remains empty and does not trigger whole-model scanning.
 
 ### Permission Model
 - **Super Admins**: Full system access via Payload admin UI

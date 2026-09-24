@@ -189,14 +189,14 @@ The runner currently performs only minimal validation:
 
 Each node uses a `settings` object plus an optional `input_bindings` object. `settings` is validated against the node's settings model, and the resolved binding payload is validated against the node's inputs model.
 
-## Migrating existing workflows
+## Current multi-model contract
 
 Multi-model workflows use these contracts:
 
-- Replace the old top-level `ifc_path` with `files`; the main file must use the slug `main`.
-- Replace a File Input node's old `filename` field with `settings.slug`; the slug must already exist in `files`.
-- Replace bare IFC express IDs in node inputs with qualified references such as `main:expr:123`.
-- Bind `ifc_element_filter.express_ids` before passing references to downstream IFC consumers. A bound empty list stays empty; downstream inputs no longer expand an unbound or empty list to the whole model.
+- Workflows list assigned IFC models in `files`; the main file uses the slug `main`.
+- A File Input node selects one of those models with `settings.slug`.
+- IFC node inputs use qualified references such as `main:expr:123`.
+- Bind `ifc_element_filter.express_ids` before passing references to downstream IFC consumers. A bound empty list remains empty and does not trigger whole-model scanning.
 
 ## Geometry Testing
 
