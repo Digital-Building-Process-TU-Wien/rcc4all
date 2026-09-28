@@ -169,6 +169,7 @@
       "addIfcFile": "Please add an ifc file in the folder {folder} to use this node.",
       "noFilenameMatch": "No filenames match your search."
     },
+    "GetElementCreationPositionDoor": { "title": "Get Element Creation Position Door", "description": "Extract footprint points (P1-P7) from IFC door openings and walls at bottom elevation.", "pointIndex": "Point index", "elementsOutput": "Element positions (output)", "noOutputYet": "No output yet. Run the workflow.", "phase1Hint": "P1-P4: Corners (clockwise), P5-P6: Midpoints, P7: Centroid", "doorCount": "{count} door | {count} doors", "p7Center": "P7 - Center (Centroid)", "p1Corner": "P1 - Corner (closest to placement)", "p2Corner": "P2 - Corner (clockwise)", "p3Corner": "P3 - Corner (clockwise)", "p4Corner": "P4 - Corner (clockwise)", "p5Midpoint": "P5 - Midpoint (P1-P2)", "p6Midpoint": "P6 - Midpoint (P3-P4)" },
     "getName": {
       "title": "Get Name Node",
       "failOnMissing": "Fail on Missing"
@@ -307,3 +308,5 @@
     }
   }
 }
+
+

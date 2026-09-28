@@ -169,6 +169,22 @@
       "addIfcFile": "Bitte legen Sie eine IFC-Datei im Ordner {folder} ab, um diesen Node zu verwenden.",
       "noFilenameMatch": "Keine Dateinamen entsprechen Ihrer Suche."
     },
+    "getElementCreationPositionDoor": {
+      "title": "Erstelle Elementposition Tür",
+      "description": "Extrahiert Fußpunktpunkte (P1-P7) von IFC-Türöffnungen und Wänden auf Bodenhöhe.",
+      "pointIndex": "Punkt-Index",
+      "elementsOutput": "Element-Positionen (Ausgabe)",
+      "noOutputYet": "Noch keine Ausgabe. Workflow ausführen.",
+      "phase1Hint": "P1-P4: Eckpunkte (clockwise), P5-P6: Mittelpunkte, P7: Zentrum",
+      "doorCount": "{count} Tür | {count} Türen",
+      "p7Center": "P7 - Zentrum (Centroid)",
+      "p1Corner": "P1 - Ecke (nächste zu Placement)",
+      "p2Corner": "P2 - Ecke (clockwise)",
+      "p3Corner": "P3 - Ecke (clockwise)",
+      "p4Corner": "P4 - Ecke (clockwise)",
+      "p5Midpoint": "P5 - Mittelpunkt (P1-P2)",
+      "p6Midpoint": "P6 - Mittelpunkt (P3-P4)"
+    },
     "getName": {
       "title": "Name abrufen",
       "failOnMissing": "Fehlgeschlagen bei fehlendem Wert"

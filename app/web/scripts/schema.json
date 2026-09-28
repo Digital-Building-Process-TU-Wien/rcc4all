@@ -576,6 +576,107 @@
       ],
       "additionalProperties": false
     },
+    "get_element_creation_position_door": {
+      "type": "object",
+      "title": "Get Element Creation Position Door",
+      "description": "Retrieves center points (P7) of IFC door openings at bottom elevation.",
+      "categories": [
+        "IFC",
+        "Geometry"
+      ],
+      "markdownDescription": "The `get_element_creation_position_door` node extracts the center point (P7) from the footprint of IFC door openings. It uses each opening's `ObjectPlacement` to calculate world coordinates at bottom elevation.\n\n## The 7 Points (Future)\n\n```\n     Front\n     \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n    P1      P2      P3\n     \u2502       \u2502       \u2502\n     \u2502       \u2502       \u2502\n     \u2502       P7      \u2502\n     \u2502       \u25cf       \u2502  \u2190 Currently available\n     \u2502       \u2502       \u2502\n    P4      P5      P6\n     \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n     Back\n```\n\n**Current implementation:** Only **P7 (center)** is available. Other points will be added in future phases.\n\n## Settings\n\n| Name | Type | Default | Description |\n|------|------|---------|-------------|\n| `point_index` | `7` | `7` | Currently fixed to 7 (center point). |\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[int]` | List of IFC door express IDs. All IDs in the list are processed. |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `elements` | `list[ElementPositionResult]` | List of door positions. One entry per processed door. |\n\n## ElementPositionResult Structure\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_id` | `int` | The express ID of the processed door. |\n| `point_index` | `int` | Which point was returned (always 7 in current version). |\n| `position` | `list[float]` | World coordinates `[x, y, z]` in meters at bottom elevation. |\n\n## Example\n\n### Single Door\n\nInput:\n```json\n{\n  \"settings\": {\n    \"point_index\": 7\n  },\n  \"inputs\": {\n    \"express_ids\": [18334]\n  }\n}\n```\n\nOutput:\n```json\n{\n  \"elements\": [\n    {\n      \"express_id\": 18334,\n      \"point_index\": 7,\n      \"position\": [0.906, 0.0, 0.0]\n    }\n  ]\n}\n```\n\n### Multiple Doors\n\nInput:\n```json\n{\n  \"settings\": {\n    \"point_index\": 7\n  },\n  \"inputs\": {\n    \"express_ids\": [18334, 19044, 19311]\n  }\n}\n```\n\nOutput:\n```json\n{\n  \"elements\": [\n    {\n      \"express_id\": 18334,\n      \"point_index\": 7,\n      \"position\": [0.906, 0.0, 0.0]\n    },\n    {\n      \"express_id\": 19044,\n      \"point_index\": 7,\n      \"position\": [2.332, 0.0, 0.0]\n    },\n    {\n      \"express_id\": 19311,\n      \"point_index\": 7,\n      \"position\": [4.152, 0.0, 0.0]\n    }\n  ]\n}\n```\n\n## Algorithm\n\n1. Load each `IfcDoor` entity by express ID from the input list\n2. For each door, find the associated `IfcOpeningElement` via `IfcRelFillsElement` relation\n3. Extract placement matrix from opening's `ObjectPlacement` (traversing `PlacementRelTo` hierarchy)\n4. P7 center point = placement origin `[0, 0, 0]` in local coordinates\n5. Transform to world coordinates using placement matrix\n6. Set Z-coordinate to opening's bottom elevation\n7. Return list of all positions\n\n## Notes\n\n- All express IDs in the input list are processed\n- Invalid express IDs are silently skipped\n- Non-door entities are silently skipped\n- Doors without associated openings are silently skipped\n- Only P7 (center) is currently available; other points will be added later\n- No opening width/depth dimensions are required for P7\n- The algorithm supports IFC2x3 and IFC4 schemas\n- Full 3D rotation is supported via placement matrix calculation",
+      "locales": {
+        "de": {
+          "title": "Erstelle Elementposition T\u00fcr",
+          "description": "Ruft Zentrumspunkte (P7) von IFC-T\u00fcr\u00f6ffnungen auf Bodenh\u00f6he ab.",
+          "categories": [
+            "IFC",
+            "Geometrie"
+          ],
+          "markdownDescription": "Der `get_element_creation_position_door` Node extrahiert den Zentrumspunkt (P7) aus der Grundfl\u00e4che von IFC-T\u00fcr\u00f6ffnungen. Er verwendet das `ObjectPlacement` jeder \u00d6ffnung, um die Weltkoordinaten auf Bodenh\u00f6he zu berechnen.\n\n## Die 7 Punkte (Zukunft)\n\n```\n     Vorne\n     \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n    P1      P2      P3\n     \u2502       \u2502       \u2502\n     \u2502       \u2502       \u2502\n     \u2502       P7      \u2502\n     \u2502       \u25cf       \u2502  \u2190 Aktuell verf\u00fcgbar\n     \u2502       \u2502       \u2502\n    P4      P5      P6\n     \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n     Hinten\n```\n\n**Aktuelle Implementierung:** Nur **P7 (Zentrum)** ist verf\u00fcgbar. Andere Punkte werden in zuk\u00fcnftigen Phasen hinzugef\u00fcgt.\n\n## Einstellungen\n\n| Name | Typ | Standard | Beschreibung |\n|------|-----|----------|--------------|\n| `point_index` | `7` | `7` | Aktuell fest auf 7 (Zentrumspunkt). |\n\n## Eing\u00e4nge\n\n| Name | Typ | Beschreibung |\n|------|-----|-------------|\n| `express_ids` | `list[int]` | Liste von IFC-T\u00fcr-Express-IDs. Alle IDs in der Liste werden verarbeitet. |\n\n## Ausg\u00e4nge\n\n| Name | Typ | Beschreibung |\n|------|-----|-------------|\n| `elements` | `list[ElementPositionResult]` | Liste von T\u00fcr-Positionen. Ein Eintrag pro verarbeiteter T\u00fcr. |\n\n## ElementPositionResult-Struktur\n\n| Name | Typ | Beschreibung |\n|------|-----|-------------|\n| `express_id` | `int` | Die Express-ID der verarbeiteten T\u00fcr. |\n| `point_index` | `int` | Welcher Punkt zur\u00fcckgegeben wurde (aktuell immer 7). |\n| `position` | `list[float]` | Weltkoordinaten `[x, y, z]` in Metern auf Bodenh\u00f6he. |\n\n## Beispiel\n\n### Einzelne T\u00fcr\n\nEingabe:\n```json\n{\n  \"settings\": {\n    \"point_index\": 7\n  },\n  \"inputs\": {\n    \"express_ids\": [18334]\n  }\n}\n```\n\nAusgabe:\n```json\n{\n  \"elements\": [\n    {\n      \"express_id\": 18334,\n      \"point_index\": 7,\n      \"position\": [0.906, 0.0, 0.0]\n    }\n  ]\n}\n```\n\n### Mehrere T\u00fcren\n\nEingabe:\n```json\n{\n  \"settings\": {\n    \"point_index\": 7\n  },\n  \"inputs\": {\n    \"express_ids\": [18334, 19044, 19311]\n  }\n}\n```\n\nAusgabe:\n```json\n{\n  \"elements\": [\n    {\n      \"express_id\": 18334,\n      \"point_index\": 7,\n      \"position\": [0.906, 0.0, 0.0]\n    },\n    {\n      \"express_id\": 19044,\n      \"point_index\": 7,\n      \"position\": [2.332, 0.0, 0.0]\n    },\n    {\n      \"express_id\": 19311,\n      \"point_index\": 7,\n      \"position\": [4.152, 0.0, 0.0]\n    }\n  ]\n}\n```\n\n## Algorithmus\n\n1. Jede `IfcDoor`-Entit\u00e4t per Express-ID aus der Eingabeliste laden\n2. F\u00fcr jede T\u00fcr das zugeh\u00f6rige `IfcOpeningElement` \u00fcber `IfcRelFillsElement`-Relation finden\n3. Placement-Matrix aus `ObjectPlacement` der \u00d6ffnung extrahieren (mit `PlacementRelTo`-Hierarchie)\n4. P7 Zentrumspunkt = Placement-Ursprung `[0, 0, 0]` in lokalen Koordinaten\n5. In Weltkoordinaten transformieren using Placement-Matrix\n6. Z-Koordinate auf Boden-Elevation setzen\n7. Liste aller Positionen zur\u00fcckgeben\n\n## Hinweise\n\n- Alle Express-IDs in der Eingabeliste werden verarbeitet\n- Ung\u00fcltige Express-IDs werden stillschweigend \u00fcbersprungen\n- Nicht-T\u00fcr-Entit\u00e4ten werden stillschweigend \u00fcbersprungen\n- T\u00fcren ohne zugeh\u00f6rige \u00d6ffnungen werden stillschweigend \u00fcbersprungen\n- Aktuell ist nur P7 (Zentrum) verf\u00fcgbar; andere Punkte werden sp\u00e4ter hinzugef\u00fcgt\n- Keine \u00d6ffnungs-Breiten/Tiefen-Ma\u00dfe f\u00fcr P7 erforderlich\n- Der Algorithmus unterst\u00fctzt IFC2x3 und IFC4-Schemata\n- Vollst\u00e4ndige 3D-Rotation wird \u00fcber Placement-Matrix-Berechnung unterst\u00fctzt"
+        },
+        "en": {
+          "title": "Get Element Creation Position Door",
+          "description": "Retrieves center points (P7) of IFC door openings at bottom elevation.",
+          "categories": [
+            "IFC",
+            "Geometry"
+          ],
+          "markdownDescription": "The `get_element_creation_position_door` node extracts the center point (P7) from the footprint of IFC door openings. It uses each opening's `ObjectPlacement` to calculate world coordinates at bottom elevation.\n\n## The 7 Points (Future)\n\n```\n     Front\n     \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n    P1      P2      P3\n     \u2502       \u2502       \u2502\n     \u2502       \u2502       \u2502\n     \u2502       P7      \u2502\n     \u2502       \u25cf       \u2502  \u2190 Currently available\n     \u2502       \u2502       \u2502\n    P4      P5      P6\n     \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n     Back\n```\n\n**Current implementation:** Only **P7 (center)** is available. Other points will be added in future phases.\n\n## Settings\n\n| Name | Type | Default | Description |\n|------|------|---------|-------------|\n| `point_index` | `7` | `7` | Currently fixed to 7 (center point). |\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[int]` | List of IFC door express IDs. All IDs in the list are processed. |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `elements` | `list[ElementPositionResult]` | List of door positions. One entry per processed door. |\n\n## ElementPositionResult Structure\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_id` | `int` | The express ID of the processed door. |\n| `point_index` | `int` | Which point was returned (always 7 in current version). |\n| `position` | `list[float]` | World coordinates `[x, y, z]` in meters at bottom elevation. |\n\n## Example\n\n### Single Door\n\nInput:\n```json\n{\n  \"settings\": {\n    \"point_index\": 7\n  },\n  \"inputs\": {\n    \"express_ids\": [18334]\n  }\n}\n```\n\nOutput:\n```json\n{\n  \"elements\": [\n    {\n      \"express_id\": 18334,\n      \"point_index\": 7,\n      \"position\": [0.906, 0.0, 0.0]\n    }\n  ]\n}\n```\n\n### Multiple Doors\n\nInput:\n```json\n{\n  \"settings\": {\n    \"point_index\": 7\n  },\n  \"inputs\": {\n    \"express_ids\": [18334, 19044, 19311]\n  }\n}\n```\n\nOutput:\n```json\n{\n  \"elements\": [\n    {\n      \"express_id\": 18334,\n      \"point_index\": 7,\n      \"position\": [0.906, 0.0, 0.0]\n    },\n    {\n      \"express_id\": 19044,\n      \"point_index\": 7,\n      \"position\": [2.332, 0.0, 0.0]\n    },\n    {\n      \"express_id\": 19311,\n      \"point_index\": 7,\n      \"position\": [4.152, 0.0, 0.0]\n    }\n  ]\n}\n```\n\n## Algorithm\n\n1. Load each `IfcDoor` entity by express ID from the input list\n2. For each door, find the associated `IfcOpeningElement` via `IfcRelFillsElement` relation\n3. Extract placement matrix from opening's `ObjectPlacement` (traversing `PlacementRelTo` hierarchy)\n4. P7 center point = placement origin `[0, 0, 0]` in local coordinates\n5. Transform to world coordinates using placement matrix\n6. Set Z-coordinate to opening's bottom elevation\n7. Return list of all positions\n\n## Notes\n\n- All express IDs in the input list are processed\n- Invalid express IDs are silently skipped\n- Non-door entities are silently skipped\n- Doors without associated openings are silently skipped\n- Only P7 (center) is currently available; other points will be added later\n- No opening width/depth dimensions are required for P7\n- The algorithm supports IFC2x3 and IFC4 schemas\n- Full 3D rotation is supported via placement matrix calculation"
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "point_index": {
+              "const": 7,
+              "default": 7,
+              "description": "Which of the 7 footprint points to return. Currently only P7 (center) is available.",
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "elements": {
+              "default": [],
+              "description": "List of door center positions (P7) for all processed doors.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "express_id": {
+                    "description": "The express ID of the IFC door.",
+                    "type": "integer"
+                  },
+                  "point_index": {
+                    "description": "Which point was returned (currently always 7).",
+                    "type": "integer"
+                  },
+                  "position": {
+                    "description": "World coordinates [x, y, z] in meters at bottom elevation (P7 = center point).",
+                    "items": {
+                      "type": "number"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "express_id",
+                  "point_index",
+                  "position"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "default": [],
+              "description": "List of IFC door express IDs to get positions from. All IDs in the list are processed.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
     "get_name": {
       "type": "object",
       "title": "Resolve Object Names",

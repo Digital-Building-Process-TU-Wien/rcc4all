@@ -68,6 +68,7 @@ const nodeNameToComponent: Record<string, string> = {
   concat_string: 'ConcatString',
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',
+  get_element_creation_position_door: 'GetElementCreationPositionDoor',
   get_name: 'GetName',
   get_property: 'GetProperty',
   ifc_element_filter: 'IfcElementFilter',

@@ -5,6 +5,7 @@ export interface NodeRegistrySchema {
   collision?: CollisionDetection
   concat_string?: ConcatenateStrings
   generate_3d_cube?: Generate3DCube
+  get_element_creation_position_door?: GetElementCreationPositionDoor
   get_name?: ResolveObjectNames
   get_property?: GetProperty
   ifc_element_filter?: IfcElementFilter
@@ -230,6 +231,42 @@ export interface Generate3DCube {
      * 1-element list with the object_id of the generated cube.
      */
     object_ids?: string[]
+  }
+}
+/**
+ * Retrieves center points (P7) of IFC door openings at bottom elevation.
+ */
+export interface GetElementCreationPositionDoor {
+  settings: {
+    /**
+     * Which of the 7 footprint points to return. Currently only P7 (center) is available.
+     */
+    point_index?: 7
+  }
+  result: {
+    /**
+     * List of door center positions (P7) for all processed doors.
+     */
+    elements?: {
+      /**
+       * The express ID of the IFC door.
+       */
+      express_id: number
+      /**
+       * Which point was returned (currently always 7).
+       */
+      point_index: number
+      /**
+       * World coordinates [x, y, z] in meters at bottom elevation (P7 = center point).
+       */
+      position: number[]
+    }[]
+  }
+  inputs: {
+    /**
+     * List of IFC door express IDs to get positions from. All IDs in the list are processed.
+     */
+    express_ids?: number[]
   }
 }
 /**

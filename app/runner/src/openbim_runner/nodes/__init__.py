@@ -11,6 +11,9 @@ from .bcf_output.bcf_output import bcf_output
 from .collision.collision import collision
 from .concat_string.concat_string import concat_string
 from .generate_3d_cube.generate_3d_cube import generate_3d_cube
+from .get_element_creation_position_door.get_element_creation_position_door import (
+    get_element_creation_position_door,
+)
 from .get_name.get_name import get_name
 from .get_property.get_property import get_property
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
@@ -25,6 +28,7 @@ __all__ = [
     "concat_string",
     "dispatch",
     "generate_3d_cube",
+    "get_element_creation_position_door",
     "get_name",
     "get_property",
     "get_registry",
