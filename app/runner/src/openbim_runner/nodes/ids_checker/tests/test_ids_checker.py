@@ -494,7 +494,7 @@ def test_ids_checker_bcf_report_generation() -> None:
         ifc_file.create_entity(
             "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
         )
-        wall = ifc_file.create_entity(
+        ifc_file.create_entity(
             "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
         )
         ifc_file.write(str(ifc_file_path))
@@ -576,13 +576,13 @@ def test_ids_checker_bcf_report_multiple_specifications() -> None:
         ifc_file.create_entity(
             "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
         )
-        wall1 = ifc_file.create_entity(
+        ifc_file.create_entity(
             "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
         )
-        wall2 = ifc_file.create_entity(
+        ifc_file.create_entity(
             "IfcWall", Name="Wall 2", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
         )
-        door = ifc_file.create_entity(
+        ifc_file.create_entity(
             "IfcDoor", Name="Door 1", GlobalId="3y$yN$DPH95gqWMb$mqAOV"
         )
         ifc_file.write(str(ifc_file_path))
