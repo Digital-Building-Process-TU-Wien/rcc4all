@@ -1,0 +1,2 @@
+*.ifc binary -merge
+*.ifcZIP binary -merge

@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import type { ModelFile } from '~/stores/flow'
 
 const LINE_BREAK_RE = /\r?\n/
 const EVENT_SEPARATOR_RE = /\r?\n\r?\n/
@@ -26,7 +27,7 @@ export interface CompleteResult {
 }
 
 export interface WorkflowData {
-  ifc_path: string
+  files: ModelFile[]
   nodes: Array<{
     id: string
     type: string

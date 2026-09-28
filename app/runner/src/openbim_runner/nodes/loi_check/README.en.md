@@ -58,20 +58,27 @@ property value matches any accepted value. Requires at least one accepted value.
 
 ## Inputs
 
-- **Express IDs** (optional): the express IDs to check, usually from
-  `ifc_element_filter`. Unconnected/empty → all `IfcElement`s in the model are
-  checked.
+- **Express IDs** (required): a list of fully qualified element references
+  (`<slug>:expr:<id>`), usually bound to `ifc_element_filter`'s `express_ids`
+  output. Each reference resolves against the model named inside it, so
+  mixed-model lists are allowed. An unbound required input fails input
+  validation; an empty bound list runs vacuously (zero elements checked).
 
 ## Outputs
 
 - `element_count`, `total_checks`, `failed_count`
-- `passed_express_ids`, `failed_express_ids`: flat lists of the express IDs of
-  the checked elements — those whose checks all passed, and those with at least
-  one failed check. Elements with no applied checks are excluded from both lists.
-- `elements`: each with `express_id`, `class_name` (or `unknown`), `failed`, and
-  `checks` — each check has `id`/`property_key`, `property_name`, `condition`,
+- `passed_express_ids`, `failed_express_ids`: flat lists of the qualified
+  element references of the checked elements — those whose checks all passed,
+  and those with at least one failed check. Elements with no applied checks are
+  excluded from both lists.
+- `elements`: each with `express_id` (the qualified reference string),
+  `class_name` (or `unknown`), `failed`, and `checks` — each check has
+  `id`/`property_key`, `property_name`, `condition`,
   `expected`, optional `expected_min`/`expected_max` (range barriers), `actual`
   (`null` if missing), and `passed`.
+
+A reference naming a missing id yields an `unknown` element (with no applied
+checks) when no component type is specified in the comparison table.
 
 ## Example
 
@@ -91,7 +98,7 @@ property value matches any accepted value. Requires at least one accepted value.
   "failed_count": 2,
   "elements": [
     {
-      "express_id": 1235,
+      "express_id": "main:expr:1235",
       "class_name": "IFCWALL",
       "failed": false,
       "checks": [
@@ -101,7 +108,7 @@ property value matches any accepted value. Requires at least one accepted value.
       ]
     },
     {
-      "express_id": 1234,
+      "express_id": "main:expr:1234",
       "class_name": "IFCWALL",
       "failed": true,
       "checks": [

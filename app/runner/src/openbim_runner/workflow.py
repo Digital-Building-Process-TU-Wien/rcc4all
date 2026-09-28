@@ -42,10 +42,32 @@ class WorkflowEdge(NodeModel):
     target: str = Field(title="Target node", description="Downstream node ID.")
 
 
-class WorkflowDefinition(NodeModel):
-    ifc_path: str = Field(
-        title="IFC path",
+class ModelFile(NodeModel):
+    """An IFC file assigned to a workflow slot, keyed by a user-chosen slug."""
+
+    path: str = Field(
+        title="Path",
         description="Path to the IFC file, relative to the workflow JSON when not absolute.",
+    )
+    slug: str = Field(
+        title="Slug",
+        description="User-chosen identifier for this model. The reserved slug 'main' is the main IFC file.",
+    )
+    hash: str = Field(
+        default="",
+        title="File hash",
+        description="Optional SHA-256 content hash of the file, recorded when the file was assigned.",
+    )
+
+
+class WorkflowDefinition(NodeModel):
+    files: list[ModelFile] = Field(
+        default=[],
+        title="IFC files",
+        description=(
+            "IFC files loaded for this workflow, each keyed by a model slug. "
+            "Exactly one file must use the reserved slug 'main'."
+        ),
     )
     nodes: list[WorkflowNode] = Field(
         default=[],
@@ -57,6 +79,44 @@ class WorkflowDefinition(NodeModel):
         title="Edges",
         description="Directed edges used to determine execution order.",
     )
+
+
+# Keep in sync with the web validator below:
+# app/web/app/components/nodes/NodeLibrarySidebar.vue (MODEL_SLUG_RE).
+MODEL_SLUG_PATTERN = r"^[a-z0-9][a-z0-9-_]*$"
+
+
+def validate_model_files(files: list[ModelFile]) -> None:
+    """Validate that the workflow's IFC file slots are well-formed.
+
+    - Every slug is non-empty and matches ``MODEL_SLUG_PATTERN``.
+    - Slugs are unique.
+    - The reserved ``main`` slug is present exactly once.
+    """
+    import re
+
+    if not files:
+        raise ValueError(
+            "Workflow must define at least one IFC file with the reserved slug 'main'."
+        )
+
+    slugs: dict[str, ModelFile] = {}
+    for model_file in files:
+        slug = model_file.slug
+        if not slug:
+            raise ValueError("Every IFC file slot must define a non-empty 'slug'.")
+        if not re.fullmatch(MODEL_SLUG_PATTERN, slug):
+            raise ValueError(
+                f"Invalid model slug '{slug}'. Slugs must match "
+                f"'{MODEL_SLUG_PATTERN}' (lowercase letters, digits, '-' or '_'; "
+                "must start with a letter or digit)."
+            )
+        if slug in slugs:
+            raise ValueError(f"Duplicate model slug '{slug}'.")
+        slugs[slug] = model_file
+
+    if "main" not in slugs:
+        raise ValueError("Workflow must define a file with the reserved slug 'main'.")
 
 
 def load_workflow(workflow_path: Path) -> WorkflowDefinition:
@@ -79,6 +139,11 @@ def build_node_lookup(workflow: WorkflowDefinition) -> dict[str, WorkflowNode]:
         raise ValueError("Workflow contains duplicate node IDs.")
 
     return node_lookup
+
+
+def describe_node(workflow_node: WorkflowNode) -> str:
+    """Label and id of a node, for error messages."""
+    return f"'{workflow_node.get_label()}' (id '{workflow_node.id}')"
 
 
 def parse_reference(reference: str) -> tuple[str, str]:
@@ -123,11 +188,18 @@ def build_execution_order(workflow: WorkflowDefinition) -> list[str]:
         add_dependency(adjacency, indegree, source=edge.source, target=edge.target)
 
     for workflow_node in workflow.nodes:
-        for reference in workflow_node.input_bindings.values():
-            source_node_id, _ = parse_reference(reference)
+        for input_name, reference in workflow_node.input_bindings.items():
+            try:
+                source_node_id, _ = parse_reference(reference)
+            except ValueError as error:
+                raise ValueError(
+                    f"Node {describe_node(workflow_node)} input '{input_name}' has "
+                    f"an invalid reference: {error}"
+                ) from error
             if source_node_id not in node_lookup:
                 raise ValueError(
-                    f"Node '{workflow_node.id}' input binding references unknown node '{source_node_id}'."
+                    f"Node {describe_node(workflow_node)} input '{input_name}' points "
+                    f"to unknown node '{source_node_id}'."
                 )
 
             add_dependency(
@@ -166,15 +238,23 @@ def resolve_input_bindings(
     input_payload: dict[str, Any] = {}
 
     for input_name, reference in effective.items():
-        source_node_id, field_name = parse_reference(reference)
+        try:
+            source_node_id, field_name = parse_reference(reference)
+        except ValueError as error:
+            raise ValueError(
+                f"Node {describe_node(workflow_node)} input '{input_name}' has "
+                f"an invalid reference: {error}"
+            ) from error
         source_output = node_outputs.get(source_node_id)
         if source_output is None:
             raise ValueError(
-                f"Node '{workflow_node.id}' input '{input_name}' references '{reference}' before '{source_node_id}' has run."
+                f"Node {describe_node(workflow_node)} input '{input_name}' points "
+                f"to '{source_node_id}', which has not run yet."
             )
         if not hasattr(source_output, field_name):
             raise ValueError(
-                f"Node '{workflow_node.id}' input '{input_name}' references missing field '{field_name}' on '{source_node_id}'."
+                f"Node {describe_node(workflow_node)} input '{input_name}' points "
+                f"to missing field '{field_name}' on '{source_node_id}'."
             )
 
         input_payload[input_name] = getattr(source_output, field_name)
@@ -269,15 +349,16 @@ def _resolve_auto_source(
         source_id, field_name = candidates[0]
         if field_name is None:
             raise ValueError(
-                f"Node '{node_id}' input '{input_name}' auto-bind is ambiguous: "
-                f"upstream node '{source_id}' exposes multiple compatible outputs."
+                f"Node '{node_lookup[node_id].get_label()}' (id '{node_id}') input "
+                f"'{input_name}' auto-bind is ambiguous: upstream node '{source_id}' "
+                "has several matching outputs."
             )
         return f"{source_id}.{field_name}"
 
     raise ValueError(
-        f"Node '{node_id}' input '{input_name}' auto-bind is ambiguous: "
-        f"{len(candidates)} directly-upstream nodes provide a compatible output. "
-        "Connect a single upstream node or set the input binding explicitly."
+        f"Node '{node_lookup[node_id].get_label()}' (id '{node_id}') input "
+        f"'{input_name}' auto-bind is ambiguous: {len(candidates)} upstream nodes "
+        "provide a matching output. Connect one or set the binding explicitly."
     )
 
 
@@ -288,22 +369,34 @@ async def execute_workflow_async(
     node_lookup = build_node_lookup(workflow)
     execution_order = build_execution_order(workflow)
     node_registry = get_registry()
-    ifc_model = ifcopenshell.open(
-        str(resolve_ifc_path(workflow_path, workflow.ifc_path))
-    )  # pyright: ignore[reportUnknownMemberType]
+
+    validate_model_files(workflow.files)
+    models: dict[str, Any] = {}
+    for model_file in workflow.files:
+        resolved_path = resolve_ifc_path(workflow_path, model_file.path)
+        model = ifcopenshell.open(str(resolved_path))  # pyright: ignore[reportUnknownMemberType]
+        models[model_file.slug] = model
+        if model_file.hash:
+            _warn_on_hash_mismatch(model_file, resolved_path)
+
+    geometry_cache: dict[str, Any] = {}
+    for slug, model in models.items():
+        geometry_cache.update(build_geometry_cache(model, slug=slug))
+
     node_outputs: dict[str, NodeModel] = {}
-    geometry_cache = build_geometry_cache(ifc_model)
     auto_bindings = resolve_auto_bindings(workflow, node_lookup)
 
     for node_id in execution_order:
         workflow_node = node_lookup[node_id]
         definition = node_registry.get(workflow_node.type)
         if definition is None:
-            raise ValueError(f"Unknown node type '{workflow_node.type}'.")
+            raise ValueError(
+                f"Node {describe_node(workflow_node)} has unknown type '{workflow_node.type}'."
+            )
 
         if workflow_node.input_bindings and not definition.takes_inputs:
             raise ValueError(
-                f"Node '{workflow_node.id}' does not accept input bindings."
+                f"Node {describe_node(workflow_node)} does not accept input bindings."
             )
 
         settings_payload = workflow_node.settings
@@ -313,7 +406,8 @@ async def execute_workflow_async(
             auto_bindings=auto_bindings.get(workflow_node.id, {}),
         )
         context = ExecutionContext(
-            ifc_model=ifc_model,
+            models=models,
+            main_model_id="main",
             node_outputs=node_outputs,
             workflow_dir=workflow_path.parent,
             geometry_cache=geometry_cache,
@@ -327,6 +421,26 @@ async def execute_workflow_async(
         )
 
     return node_outputs, node_lookup
+
+
+def _warn_on_hash_mismatch(model_file: ModelFile, resolved_path: Path) -> None:
+    """Non-fatal warning when an IFC file's content differs from its recorded hash.
+
+    The hash is recorded by the web when a file is assigned to a slot as a bare
+    SHA-256 hex digest. A mismatch signals the file on disk changed since
+    assignment; the workflow still runs against the current file contents.
+    """
+    import hashlib
+
+    try:
+        digest = hashlib.sha256(resolved_path.read_bytes()).hexdigest()
+    except OSError:
+        return
+    if digest != model_file.hash:
+        print(
+            f"WARNING: IFC file '{model_file.slug}' hash does not match the "
+            "workflow definition (file changed since it was assigned)."
+        )
 
 
 def execute_workflow(

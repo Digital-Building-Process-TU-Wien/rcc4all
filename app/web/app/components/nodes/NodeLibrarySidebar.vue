@@ -23,12 +23,6 @@ const { locale, t } = useI18n()
 const availableNodes = computed(() => {
   const nodes = getAvailableNodes(locale.value as SupportedLocale)
   nodes.push({
-    nodeName: 'FileInput',
-    label: t('node.fileInput.title'),
-    categories: ['Other'],
-    description: t('node.fileInput.description'),
-  })
-  nodes.push({
     nodeName: 'JsonOutput',
     label: t('node.jsonOutput.title'),
     categories: ['Other'],

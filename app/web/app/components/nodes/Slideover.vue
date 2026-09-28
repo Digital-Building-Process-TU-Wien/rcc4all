@@ -73,7 +73,7 @@ const nodeDocs = computed(() => {
             />
 
             <InputBindingsSection
-              v-if="node.data!.nodeName !== 'FileInput'"
+              v-if="node.data!.nodeName !== 'file_input'"
               :node-id="node.id"
               :node-name="node.data!.nodeName"
             />

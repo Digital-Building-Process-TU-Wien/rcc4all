@@ -9,6 +9,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
+from conftest import main_ref as _ref
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.bcf_output.bcf_output import (
     BcfOutputInputs,
@@ -42,6 +43,12 @@ class FakeIfcModel:
         if express_id not in self.entities_by_id:
             raise RuntimeError("Unknown express ID")
         return self.entities_by_id[express_id]
+
+
+# Qualified references used throughout: 101/102 in main, 77 in a non-main model.
+_REF_101 = _ref(101)
+_REF_102 = _ref(102)
+_REF_999 = _ref(999)
 
 
 def _failing_check(
@@ -97,13 +104,13 @@ def test_one_topic_per_failing_check(tmp_path: Path) -> None:
     )
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check(), _passing_check()],
         ),
         ComparisonElement(
-            express_id=102,
+            express_id=_REF_102,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check(actual="20")],
@@ -140,7 +147,7 @@ def test_written_file_is_valid_bcf(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check()],
@@ -187,7 +194,7 @@ def test_unresolved_placeholder_raises(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check()],
@@ -205,18 +212,56 @@ def test_unresolved_placeholder_raises(tmp_path: Path) -> None:
         )
 
 
+def test_resolves_identity_from_refs_own_model(tmp_path: Path) -> None:
+    """End to end from a non-main model: markup holds the raw GlobalId and the
+    resolution came from the reference's own slug."""
+    model = FakeIfcModel({77: FakeEntity(77, "guid-777", name="Wall C")})
+    context = ExecutionContext(
+        models={
+            "main": cast(Any, FakeIfcModel({})),
+            "second_model": cast(Any, model),
+        },
+        node_outputs={},
+        output_dir=tmp_path,
+    )
+    elements = [
+        ComparisonElement(
+            express_id="second_model:expr:77",
+            class_name="IFCWALL",
+            failed=True,
+            checks=[_failing_check()],
+        )
+    ]
+
+    result = asyncio.run(
+        bcf_output(
+            BcfOutputSettings(title_template="{guid} n={name}"),
+            BcfOutputInputs(elements=elements),
+            context,
+        )
+    )
+
+    assert result.topics[0].guid == "guid-777"
+    filename = sorted(tmp_path.glob("bcf_output-*.bcf"))[-1]
+    with zipfile.ZipFile(filename) as archive:
+        markup_name = next(n for n in archive.namelist() if n.endswith("/markup.bcf"))
+        markup = archive.read(markup_name).decode("utf-8")
+    assert "guid-777" in markup
+    assert "Wall" in markup
+
+
 def test_missing_entity_raises(tmp_path: Path) -> None:
     model = FakeIfcModel({})
     elements = [
         ComparisonElement(
-            express_id=999,
+            express_id=_REF_999,
             class_name="unknown",
             failed=True,
             checks=[_failing_check()],
         )
     ]
 
-    with pytest.raises(ValueError, match="express ID 999"):
+    with pytest.raises(ValueError, match="main:expr:999"):
         _run(
             model,
             BcfOutputSettings(title_template="{guid}", description_template="{guid}"),
@@ -229,7 +274,7 @@ def test_missing_global_id_raises(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check()],
@@ -249,7 +294,7 @@ def test_missing_name_renders_empty(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name=None)})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check()],
@@ -274,7 +319,7 @@ def test_no_topics_writes_empty_bcf(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=False,
             checks=[_passing_check()],
@@ -305,7 +350,7 @@ def test_generic_placeholders_resolve(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check()],
@@ -340,13 +385,13 @@ def test_condition_symbol_map(tmp_path: Path) -> None:
     )
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check(condition="lt")],
         ),
         ComparisonElement(
-            express_id=102,
+            express_id=_REF_102,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check(condition="ge")],
@@ -374,7 +419,7 @@ def test_word_condition_concatenation_is_spaced(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[
@@ -451,7 +496,7 @@ def test_expectation_placeholder_per_condition(
         checks = [_failing_check(condition=condition, expected=expected_value)]
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=checks,
@@ -474,7 +519,7 @@ def test_failure_reason_with_present_actual(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check(condition="lt", expected="10")],
@@ -499,7 +544,7 @@ def test_failure_reason_with_missing_actual(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check(actual=None, expected="10")],
@@ -525,7 +570,7 @@ def test_report_issue_between_bounds_are_included(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_range_check("between")],
@@ -551,7 +596,7 @@ def test_adaptive_placeholders_under_property_key(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_range_check("outside")],
@@ -577,7 +622,7 @@ def test_markup_topic_fields(tmp_path: Path) -> None:
     model = FakeIfcModel({101: FakeEntity(101, "guid-111", name="Wall A")})
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check()],
@@ -620,13 +665,13 @@ def test_zip_structure_is_bcf_30(tmp_path: Path) -> None:
     )
     elements = [
         ComparisonElement(
-            express_id=101,
+            express_id=_REF_101,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check()],
         ),
         ComparisonElement(
-            express_id=102,
+            express_id=_REF_102,
             class_name="IFCWALL",
             failed=True,
             checks=[_failing_check(property_key="Pset_WallCommon.FireRating")],

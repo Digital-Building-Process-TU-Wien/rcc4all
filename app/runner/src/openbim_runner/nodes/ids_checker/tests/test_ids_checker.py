@@ -9,6 +9,7 @@ import ifcopenshell
 import pytest
 from ifctester import ids as ifc_ids
 
+from conftest import main_ref
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.ids_checker.ids_checker import (
     IdsCheckerInputs,
@@ -22,6 +23,19 @@ class FakeIfcModel:
     pass
 
 
+def _ref(entity_or_id: Any) -> str:
+    express_id = entity_or_id.id() if hasattr(entity_or_id, "id") else entity_or_id
+    return main_ref(express_id)
+
+
+def _all_refs(context: ExecutionContext) -> list[str]:
+    """Whole-model reference list (what an unfiltered ifc_element_filter emits)."""
+    try:
+        return [_ref(entity) for entity in context.ifc_model]
+    except TypeError:
+        return []
+
+
 def test_ids_checker_with_empty_ids_file() -> None:
     context = ExecutionContext(
         ifc_model=cast(Any, FakeIfcModel()),
@@ -33,7 +47,7 @@ def test_ids_checker_with_empty_ids_file() -> None:
         asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file=""),
-                IdsCheckerInputs(),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
                 context,
             )
         )
@@ -50,7 +64,7 @@ def test_ids_checker_with_missing_workflow_dir() -> None:
         asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file="test.ids"),
-                IdsCheckerInputs(),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
                 context,
             )
         )
@@ -68,7 +82,7 @@ def test_ids_checker_with_nonexistent_file() -> None:
             asyncio.run(
                 ids_checker(
                     IdsCheckerSettings(ids_file="nonexistent.ids"),
-                    IdsCheckerInputs(),
+                    IdsCheckerInputs(express_ids=_all_refs(context)),
                     context,
                 )
             )
@@ -89,7 +103,7 @@ def test_ids_checker_with_invalid_ids_file() -> None:
             asyncio.run(
                 ids_checker(
                     IdsCheckerSettings(ids_file="test.ids"),
-                    IdsCheckerInputs(),
+                    IdsCheckerInputs(express_ids=["main:expr:1"]),
                     context,
                 )
             )
@@ -128,7 +142,7 @@ def test_ids_checker_with_valid_ids_and_ifc() -> None:
         result = asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file="test.ids"),
-                IdsCheckerInputs(),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
                 context,
             )
         )
@@ -153,7 +167,9 @@ def test_ids_checker_with_entity_filtering() -> None:
         wall2 = ifc_file.create_entity(
             "IfcWall", Name="Wall 2", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
         )
-        ifc_file.create_entity("IfcWall", Name="", GlobalId="3y$yN$DPH95gqWMb$mqAOV")
+        wall3_none = ifc_file.create_entity(
+            "IfcWall", Name="", GlobalId="3y$yN$DPH95gqWMb$mqAOV"
+        )
         ifc_file.write(str(ifc_file_path))
 
         my_ids = ifc_ids.Ids(title="Wall Name Check")
@@ -175,38 +191,104 @@ def test_ids_checker_with_entity_filtering() -> None:
         result_no_filter = asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file="test.ids"),
-                IdsCheckerInputs(express_ids=[]),
+                IdsCheckerInputs(
+                    express_ids=[_ref(wall1), _ref(wall2), _ref(wall3_none)]
+                ),
                 context,
             )
         )
 
         assert len(result_no_filter.failed_express_ids) == 2
         assert len(result_no_filter.passed_express_ids) == 1
-        assert wall1.id() in result_no_filter.passed_express_ids
+        assert _ref(wall1) in result_no_filter.passed_express_ids
 
         result_filtered = asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file="test.ids"),
-                IdsCheckerInputs(express_ids=[wall1.id()]),
+                IdsCheckerInputs(express_ids=[_ref(wall1)]),
                 context,
             )
         )
 
         assert len(result_filtered.failed_express_ids) == 0
         assert len(result_filtered.passed_express_ids) == 1
-        assert wall1.id() in result_filtered.passed_express_ids
+        assert _ref(wall1) in result_filtered.passed_express_ids
 
         result_filtered_wall2 = asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file="test.ids"),
-                IdsCheckerInputs(express_ids=[wall2.id()]),
+                IdsCheckerInputs(express_ids=[_ref(wall2)]),
                 context,
             )
         )
 
         assert len(result_filtered_wall2.failed_express_ids) == 1
         assert len(result_filtered_wall2.passed_express_ids) == 0
-        assert wall2.id() in result_filtered_wall2.failed_express_ids
+        assert _ref(wall2) in result_filtered_wall2.failed_express_ids
+
+
+def test_ids_checker_groups_refs_by_slug_when_refs_span_models() -> None:
+    """Refs from two models: each model is validated once, results qualified."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        def _write_model(path: Path, site_name: str, wall_name: str) -> None:
+            ifc_file = ifcopenshell.file()
+            ifc_file.create_entity(
+                "IfcProject", Name="P", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+            )
+            ifc_file.create_entity(
+                "IfcSite", Name=site_name, GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+            )
+            ifc_file.create_entity(
+                "IfcWall", Name=wall_name, GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+            )
+            ifc_file.write(str(path))
+
+        my_ids = ifc_ids.Ids(title="Wall Name Check")
+        my_spec = ifc_ids.Specification(name="Walls Must Have Name")
+        my_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        my_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
+        my_ids.specifications.append(my_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        main_path = tmpdir_path / "main.ifc"
+        arch_path = tmpdir_path / "arch.ifc"
+        _write_model(main_path, "Site Main", "Wall 1")
+        _write_model(arch_path, "Site Arch", "Nope")
+
+        context = ExecutionContext(
+            models={
+                "main": ifcopenshell.open(str(main_path)),
+                "arch": ifcopenshell.open(str(arch_path)),
+            },
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+        )
+
+        main_walls = [
+            f"main:expr:{e.id()}" for e in context.models["main"].by_type("IfcWall")
+        ]
+        arch_walls = [
+            f"arch:expr:{e.id()}" for e in context.models["arch"].by_type("IfcWall")
+        ]
+
+        result = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(express_ids=[*main_walls, *arch_walls]),
+                context,
+            )
+        )
+
+        # Main wall passes, arch wall fails: each resolved against its own model.
+        assert any(ref.startswith("arch:expr:") for ref in result.failed_express_ids)
+        assert any(ref.startswith("main:expr:") for ref in result.passed_express_ids)
+        assert not any(
+            ref.startswith("main:expr:") for ref in result.failed_express_ids
+        )
 
 
 def test_ids_checker_detailed_report() -> None:
@@ -251,40 +333,40 @@ def test_ids_checker_detailed_report() -> None:
         result_without_report = asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file="test.ids"),
-                IdsCheckerInputs(),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
                 context,
             )
         )
         assert len(result_without_report.failed_express_ids) == 0
         assert len(result_without_report.passed_express_ids) == 2
-        assert wall.id() in result_without_report.passed_express_ids
-        assert door.id() in result_without_report.passed_express_ids
+        assert _ref(wall) in result_without_report.passed_express_ids
+        assert _ref(door) in result_without_report.passed_express_ids
         assert result_without_report.specifications is None
 
         result_with_report = asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file="test.ids", generate_detailed_report=True),
-                IdsCheckerInputs(),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
                 context,
             )
         )
         assert len(result_with_report.failed_express_ids) == 0
         assert len(result_with_report.passed_express_ids) == 2
-        assert wall.id() in result_with_report.passed_express_ids
-        assert door.id() in result_with_report.passed_express_ids
+        assert _ref(wall) in result_with_report.passed_express_ids
+        assert _ref(door) in result_with_report.passed_express_ids
         assert len(result_with_report.specifications) == 2
         wall_spec_result = next(
             s for s in result_with_report.specifications if s.name == "Wall Check"
         )
         assert len(wall_spec_result.failed_express_ids) == 0
         assert len(wall_spec_result.passed_express_ids) == 1
-        assert wall.id() in wall_spec_result.passed_express_ids
+        assert _ref(wall) in wall_spec_result.passed_express_ids
         door_spec_result = next(
             s for s in result_with_report.specifications if s.name == "Door Check"
         )
         assert len(door_spec_result.failed_express_ids) == 0
         assert len(door_spec_result.passed_express_ids) == 1
-        assert door.id() in door_spec_result.passed_express_ids
+        assert _ref(door) in door_spec_result.passed_express_ids
 
 
 def test_ids_checker_report_generation() -> None:
@@ -342,7 +424,7 @@ def test_ids_checker_report_generation() -> None:
                     generate_detailed_report=True,
                     report_format="json",
                 ),
-                IdsCheckerInputs(),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
                 context,
             )
         )
@@ -374,7 +456,7 @@ def test_ids_checker_report_generation() -> None:
                     generate_detailed_report=True,
                     report_format="html",
                 ),
-                IdsCheckerInputs(),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
                 context,
             )
         )
@@ -446,7 +528,7 @@ def test_ids_checker_mixed_pass_fail_single_entity() -> None:
         result = asyncio.run(
             ids_checker(
                 IdsCheckerSettings(ids_file="test.ids"),
-                IdsCheckerInputs(),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
                 context,
             )
         )
@@ -454,7 +536,7 @@ def test_ids_checker_mixed_pass_fail_single_entity() -> None:
         # Wall fails Spec 2, so it should be in failed (not passed)
         assert len(result.failed_express_ids) == 1
         assert len(result.passed_express_ids) == 0
-        assert wall.id() in result.failed_express_ids
+        assert _ref(wall) in result.failed_express_ids
 
 
 def test_ids_checker_with_real_ids_file() -> None:
@@ -471,7 +553,7 @@ def test_ids_checker_with_real_ids_file() -> None:
     result = asyncio.run(
         ids_checker(
             IdsCheckerSettings(ids_file="test.ids"),
-            IdsCheckerInputs(),
+            IdsCheckerInputs(express_ids=_all_refs(context)),
             context,
         )
     )
