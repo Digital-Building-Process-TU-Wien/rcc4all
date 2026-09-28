@@ -4,12 +4,15 @@ export interface NodeRegistrySchema {
   bcf_output?: BCFOutput
   collision?: CollisionDetection
   concat_string?: ConcatenateStrings
+  file_input?: FileInput
   generate_3d_cube?: Generate3DCube
   get_element_creation_position_door?: GetElementCreationPositionDoor
-  get_name?: ResolveObjectNames
   get_property?: GetProperty
+  ids_checker?: IDSChecker
   ifc_element_filter?: IfcElementFilter
   loi_check?: LOICheck
+  measurement?: Measurement
+  tilt_of_components?: TiltOfComponents
 }
 /**
  * Turn LOI-Check failures into a BCF 3.0 issue file.
@@ -74,9 +77,9 @@ export interface BCFOutput {
      */
     elements?: {
       /**
-       * The express ID of the IFC entity.
+       * The qualified element reference (`<slug>:expr:<id>`).
        */
-      express_id: number
+      express_id: string
       /**
        * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
        */
@@ -172,13 +175,13 @@ export interface CollisionDetection {
   }
   inputs: {
     /**
-     * First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`), in the order to test. When empty, the whole model is used.
+     * First list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`), in the order to test. Bind ifc_element_filter output here.
      */
-    list_a?: (number | string)[]
+    list_a: string[]
     /**
-     * Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set.
+     * Second list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`) to test the first list against. Mixed-model lists are allowed; each reference resolves against its own model.
      */
-    list_b?: (number | string)[]
+    list_b: string[]
   }
 }
 /**
@@ -205,6 +208,23 @@ export interface ConcatenateStrings {
   }
 }
 /**
+ * Refers to an IFC model assigned in the editor and outputs its slug.
+ */
+export interface FileInput {
+  settings: {
+    /**
+     * Slug of the IFC model this File Input refers to. Defaults to the main model.
+     */
+    slug?: string
+  }
+  result: {
+    /**
+     * Slug of the selected IFC model, for binding to a consumer's model input.
+     */
+    model_slug?: string
+  }
+}
+/**
  * Create a 3D cube geometry with customizable size, position, and rotation for clash detection.
  */
 export interface Generate3DCube {
@@ -228,7 +248,7 @@ export interface Generate3DCube {
   }
   result: {
     /**
-     * 1-element list with the object_id of the generated cube.
+     * 1-element list with the qualified geometry cache key (`gen:<object_id>`) of the generated cube.
      */
     object_ids?: string[]
   }
@@ -329,9 +349,9 @@ export interface GetProperty {
      */
     elements?: ({
       /**
-       * The express ID of the IFC entity.
+       * The qualified element reference (`<slug>:expr:<id>`).
        */
-      express_id: number
+      express_id: string
       /**
        * Dictionary of property values keyed by 'Pset.Property' format.
        */
@@ -381,9 +401,65 @@ export interface GetProperty {
   }
   inputs: {
     /**
-     * List of IFC express IDs to read property values from.
+     * Qualified element references (`<slug>:expr:<id>`) to read property values from. Bind ifc_element_filter output here.
      */
-    express_ids?: number[]
+    express_ids: string[]
+  }
+}
+/**
+ * Validates the IFC model against one or more IDS specifications.
+ */
+export interface IDSChecker {
+  settings: {
+    /**
+     * Path to the IDS specification file to validate against.
+     */
+    ids_file?: string
+    /**
+     * Wenn aktiviert, werden die Ergebnisse zusätzlich nach Specification gruppiert ausgegeben (für Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.
+     */
+    generate_detailed_report?: boolean
+    /**
+     * Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.
+     */
+    report_format?: (('json' | 'html' | 'bcf') | null)
+  }
+  result: {
+    /**
+     * Qualified references of entities that failed at least one IDS requirement (combined across all specifications).
+     */
+    failed_express_ids?: string[]
+    /**
+     * Qualified references of entities that passed all applicable IDS requirements (combined across all specifications).
+     */
+    passed_express_ids?: string[]
+    /**
+     * Per-specification breakdown. Only included when generate_detailed_report is enabled.
+     */
+    specifications?: ({
+      /**
+       * Name of the IDS specification.
+       */
+      name?: string
+      /**
+       * Qualified references of entities that failed this specification's requirements.
+       */
+      failed_express_ids?: string[]
+      /**
+       * Qualified references of entities that passed this specification's requirements.
+       */
+      passed_express_ids?: string[]
+    }[] | null)
+    /**
+     * Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.
+     */
+    report_path?: (string | null)
+  }
+  inputs: {
+    /**
+     * Qualified element references (`<slug>:expr:<id>`) to validate against the IDS requirements. Mixed-model lists are grouped by model and each model is validated once. Bind ifc_element_filter output here.
+     */
+    express_ids: string[]
   }
 }
 /**
@@ -427,19 +503,23 @@ export interface IfcElementFilter {
   }
   result: {
     /**
-     * Express IDs of all matching IFC entities.
+     * Qualified references (`<slug>:expr:<id>`) of all matching IFC entities.
      */
-    express_ids?: number[]
+    express_ids?: string[]
     /**
-     * GlobalId values for all matching IFC entities in the same order as express_ids.
+     * Qualified GUID references (`<slug>:guid:<GlobalId>`) for all matching IFC entities in the same order as express_ids.
      */
     guids?: string[]
   }
   inputs: {
     /**
-     * Optional list of IFC express IDs to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result.
+     * Optional list of qualified element references (`<slug>:expr:<id>`) to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result. Per-reference model slugs win over the model input.
      */
-    express_ids?: (number[] | null)
+    express_ids?: (string[] | null)
+    /**
+     * Model slug to scan when no references are bound. Defaults to the main model.
+     */
+    model_slug?: string
   }
 }
 /**
@@ -507,21 +587,21 @@ export interface LOICheck {
      */
     failed_count: number
     /**
-     * Express IDs of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.
+     * Qualified references of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.
      */
-    passed_express_ids?: number[]
+    passed_express_ids?: string[]
     /**
-     * Express IDs of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.
+     * Qualified references of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.
      */
-    failed_express_ids?: number[]
+    failed_express_ids?: string[]
     /**
      * Ordered list of elements with their property check results.
      */
     elements?: {
       /**
-       * The express ID of the IFC entity.
+       * The qualified element reference (`<slug>:expr:<id>`).
        */
-      express_id: number
+      express_id: string
       /**
        * IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.
        */
@@ -575,8 +655,181 @@ export interface LOICheck {
   }
   inputs: {
     /**
-     * Optional list of IFC express IDs to run property comparisons against. When empty (not connected), all IFC elements in the model are checked.
+     * Qualified element references (`<slug>:expr:<id>`) to run property comparisons against. Bind ifc_element_filter output here.
      */
-    express_ids?: number[]
+    express_ids: string[]
+  }
+}
+/**
+ * Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.
+ */
+export interface Measurement {
+  settings: {
+    /**
+     * The type of measurement to compute: 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', 'distance_to_reference'.
+     */
+    measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
+    /**
+     * Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view). Only used for 'projected_area' mode.
+     */
+    projection_normal?: number[]
+    /**
+     * Direction vector for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. Normalized internally.
+     */
+    direction?: number[]
+    /**
+     * Reference type for 'distance_to_reference' mode. 'point' computes distance to a reference point; 'plane' computes perpendicular distance to a reference plane.
+     */
+    reference_type?: ('point' | 'plane')
+    /**
+     * Reference point coordinates [x, y, z]. Used for both 'point' and 'plane' reference types.
+     */
+    reference_point?: number[]
+    /**
+     * Plane normal vector [x, y, z]. Only used for 'distance_to_reference' mode with reference_type='plane'. Zero normal results in error entry.
+     */
+    reference_normal?: number[]
+  }
+  result: {
+    /**
+     * The measurement type used to generate this result.
+     */
+    type: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
+    /**
+     * The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).
+     */
+    unit: string
+    /**
+     * List of per-element measurements.
+     */
+    measurements?: {
+      /**
+       * The geometry cache key (e.g., `main:expr:63`, `gen:mycube`, `inter:...`) of the measured element, or the raw input when no geometry was found.
+       */
+      reference: string
+      /**
+       * The measured value. Null if geometry is missing or measurement failed.
+       */
+      value?: (number | null)
+      /**
+       * Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight').
+       */
+      error?: (string | null)
+    }[]
+  }
+  inputs: {
+    /**
+     * First list of fully qualified geometry cache keys — `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, `inter:<id>` for helper/intersection geometry — in the order to test. An empty list yields zero measurements. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are used.
+     */
+    list_a?: (string[] | {
+      [k: string]: (string | null)
+    })
+    /**
+     * Second (optional) list of fully qualified geometry cache keys. When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.
+     */
+    list_b?: (string[] | {
+      [k: string]: (string | null)
+    })
+  }
+}
+/**
+ * Measures the tilt of building components (walls/slabs as 2D surfaces, columns/beams as 1D axes) and flags components whose tilt violates the configured comparison threshold.
+ */
+export interface TiltOfComponents {
+  settings: {
+    /**
+     * '2d' measures the two largest flat surfaces (walls & slabs); '1d' measures the longitudinal axis of the element (columns & beams).
+     */
+    element_category?: ('2d' | '1d')
+    /**
+     * How the measured tilt is checked against the limits. 'greater_than_lower' / 'less_than_upper' use the single lower / upper limit; 'inside_interval' / 'outside_interval' use the interval barriers.
+     */
+    comparison_method?: ('greater_than_lower' | 'less_than_upper' | 'inside_interval' | 'outside_interval')
+    /**
+     * Tilt is flagged when it exceeds this value (comparison_method = greater_than_lower).
+     */
+    lower_limit?: number
+    /**
+     * Tilt is flagged when it is below this value (comparison_method = less_than_upper).
+     */
+    upper_limit?: number
+    /**
+     * Lower barrier used for inside_interval / outside_interval.
+     */
+    interval_lower?: number
+    /**
+     * Upper barrier used for inside_interval / outside_interval.
+     */
+    interval_upper?: number
+    /**
+     * Maximum horizontal angle deviation between two triangles to still count as the same surface. Used to merge the facets of curved / round objects.
+     */
+    horizontal_separation_angle?: number
+    /**
+     * Shared tolerance added/subtracted to the limits when flagging.
+     */
+    tolerance?: number
+  }
+  result: {
+    /**
+     * Number of elements processed.
+     */
+    element_count: number
+    /**
+     * Number of elements with at least one surface/axis check.
+     */
+    check_count: number
+    /**
+     * Number of elements with at least one flagged surface/axis.
+     */
+    failed_count: number
+    /**
+     * Ordered list of elements with their tilt checks.
+     */
+    elements?: {
+      /**
+       * The qualified element reference (`<slug>:expr:<id>`).
+       */
+      express_id: string
+      /**
+       * IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.
+       */
+      class_name: string
+      /**
+       * The element category ('2d' or '1d') used to measure this element.
+       */
+      element_category: ('2d' | '1d')
+      /**
+       * True if at least one surface/axis check in this element was flagged.
+       */
+      failed: boolean
+      /**
+       * Surface ('2d') or axis ('1d') tilt checks for this element.
+       */
+      checks?: {
+        /**
+         * Human-readable expectation combined from the comparison method and limits.
+         */
+        expected: string
+        /**
+         * Measured tilt of the surface or axis in degrees.
+         */
+        tilt_angle: number
+        /**
+         * False when this surface/axis is flagged by the comparison method.
+         */
+        passed: boolean
+        /**
+         * Geometry-cache key of the helper geometry for flagged surfaces/axes.
+         */
+        geometry_key?: (string | null)
+      }[]
+    }[]
+  }
+  inputs: {
+    /**
+     * Qualified element references (`<slug>:expr:<id>`) to measure. Bind ifc_element_filter output here.
+     */
+    express_ids: string[]
   }
 }

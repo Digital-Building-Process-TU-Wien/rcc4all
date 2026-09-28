@@ -12,20 +12,18 @@ before starting any session on this node.
   queries properties or defines conditions itself.
 - **Relationship:** Part 2 of the LOI-Check + BCF effort. `loi_check` produces
   the slim structured result; `bcf_output` generates the messages/BCF.
-- The older draft in `loi_check.md` called this node `bcf_export`; the final
-  name decided with the user is **`bcf_output`**.
 
 ## Decided architecture (locked with user)
 - Reuse `ComparisonElement` / `PropertyCheckResult` from
   `openbim_runner.nodes.loi_check.loi_check` — single source of truth for what
   was checked. No re-typing of conditions/limits.
-- GUID/name resolved by identity lookup only:
-  `context.ifc_model.by_id(express_id)` → `GlobalId`, `Name`.
+- GUID/name resolved from each qualified reference through
+  `context.resolve_model(reference.slug).by_id(reference.express_id)` → `GlobalId`, `Name`.
 - One BCF topic per **failing check** (an element failing 3 rules → 3 topics).
 - **Markup-only output (no viewpoints)**: the `.bcf` contains only
   `bcf.version`, `project.bcfp` and one `markup.bcf` per topic. No `.bcfv`
   view files, no camera, and no `<Header>` are written (viewpoint/camera/header
-  generation was removed as out of scope).
+  generation is out of scope).
 - BCF 3.0 written with stdlib `zipfile` + `xml.etree.ElementTree` + `uuid`
   (ifcopenshell has NO BCF writer; no new dependencies).
 - Output file: `context.output_dir / bcf_output-<yyyyMMdd-HHmmss>.bcf`
@@ -54,7 +52,8 @@ before starting any session on this node.
   `label`, so renaming the LOI-Check node does not affect it.
 
 ### Placeholders (Python `string.Formatter`)
-Element-level: `{id}`, `{guid}`, `{name}`, `{class_name}`.
+Element-level: `{id}`, `{guid}`, `{name}`, `{class_name}`. `{id}` renders the
+bare IFC express ID (BCF does not know qualified references).
 Per-property (keyed by the failed check's `property_key`, e.g.
 `Pset_WallCommon.ThermalTransmittance` or `ThermalTransmittance`):
 `{<key>.actual}`, `{<key>.expected}`, `{<key>.condition}`,
@@ -86,9 +85,8 @@ Resolution uses a custom `_Namespace` (attribute access) + `_ResolvingFormatter`
    neighbor(s) of the node (via workflow edges) are considered; a single
    compatible source auto-binds, zero leaves the input unbound (falls through
    to rule 1), and multiple is an error telling the user to bind explicitly.
-   Explicit `input_bindings` always override. Only inputs tagged `AutoBind`
-   participate — unmarked inputs (e.g. `loi_check.express_ids`) keep their
-   "unbound = whole model" semantics.
+   Explicit `input_bindings` always override. `loi_check.express_ids` is
+   required, and an empty bound list processes zero elements.
 2. **Unknown/unresolvable placeholder** → fail, naming the placeholder and the
    offending check (element id + property key).
 3. **Missing/unresolvable element GUID** (entity not found or no `GlobalId`) →

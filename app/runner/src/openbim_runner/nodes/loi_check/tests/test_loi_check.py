@@ -6,6 +6,7 @@ from typing import Any, cast
 
 import pytest
 
+from conftest import main_ref as _ref
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.loi_check.loi_check import (
     ComparisonRow,
@@ -66,7 +67,7 @@ def _run(
     return asyncio.run(
         loi_check(
             LoiCheckSettings(rows=rows),
-            LoiCheckInputs(express_ids=express_ids),
+            LoiCheckInputs(express_ids=[_ref(i) for i in express_ids]),
             context,
         )
     )
@@ -93,7 +94,7 @@ def test_comparison_emits_class(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     assert result.element_count == 1
-    assert result.elements[0].express_id == 101
+    assert result.elements[0].express_id == _ref(101)
     assert result.elements[0].class_name == "IFCWALL"
     assert result.elements[0].failed is False
 
@@ -550,7 +551,7 @@ def test_entity_type_filters_rows(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     # Only the wall (matching IFCWALL) is emitted; the door is excluded entirely.
-    assert [e.express_id for e in result.elements] == [101]
+    assert [e.express_id for e in result.elements] == [_ref(101)]
     wall_elem = result.elements[0]
     assert wall_elem.checks[0].passed is True
     assert result.element_count == 1
@@ -585,7 +586,7 @@ def test_entity_type_multiple_components_union(monkeypatch: pytest.MonkeyPatch) 
     )
 
     # Wall and slab (specified components) are emitted; door is excluded.
-    assert {e.express_id for e in result.elements} == {101, 202}
+    assert {e.express_id for e in result.elements} == {_ref(101), _ref(202)}
     assert result.element_count == 2
 
 
@@ -609,7 +610,7 @@ def test_entity_type_missing_express_id_excluded(
     )
 
     # Missing express ID (unknown type) is excluded when a component is specified.
-    assert [e.express_id for e in result.elements] == [101]
+    assert [e.express_id for e in result.elements] == [_ref(101)]
 
 
 def test_entity_type_empty_keeps_all_input(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -631,7 +632,7 @@ def test_entity_type_empty_keeps_all_input(monkeypatch: pytest.MonkeyPatch) -> N
     )
 
     # No Component specified -> all input elements are emitted.
-    assert {e.express_id for e in result.elements} == {101, 202}
+    assert {e.express_id for e in result.elements} == {_ref(101), _ref(202)}
     assert result.element_count == 2
     assert result.total_checks == 2
 
@@ -663,9 +664,9 @@ def test_any_element_empty_row_disables_filter(monkeypatch: pytest.MonkeyPatch) 
     )
 
     # The empty (Any Element) row disables output filtering -> all input emitted.
-    assert {e.express_id for e in result.elements} == {101, 202}
-    wall_elem = next(e for e in result.elements if e.express_id == 101)
-    door_elem = next(e for e in result.elements if e.express_id == 202)
+    assert {e.express_id for e in result.elements} == {_ref(101), _ref(202)}
+    wall_elem = next(e for e in result.elements if e.express_id == _ref(101))
+    door_elem = next(e for e in result.elements if e.express_id == _ref(202))
     assert len(wall_elem.checks) == 2
     assert len(door_elem.checks) == 1
     assert result.element_count == 2
@@ -698,9 +699,9 @@ def test_literal_any_token_disables_filter(monkeypatch: pytest.MonkeyPatch) -> N
     )
 
     # The literal "any" token (case-insensitive) disables output filtering too.
-    assert {e.express_id for e in result.elements} == {101, 202}
-    wall_elem = next(e for e in result.elements if e.express_id == 101)
-    door_elem = next(e for e in result.elements if e.express_id == 202)
+    assert {e.express_id for e in result.elements} == {_ref(101), _ref(202)}
+    wall_elem = next(e for e in result.elements if e.express_id == _ref(101))
+    door_elem = next(e for e in result.elements if e.express_id == _ref(202))
     assert len(wall_elem.checks) == 2
     assert len(door_elem.checks) == 1
     assert result.element_count == 2
@@ -1154,15 +1155,14 @@ def test_contains_requires_non_empty_target(monkeypatch: pytest.MonkeyPatch) -> 
         )
 
 
-def test_optional_input_without_component_uses_all(
+def test_bound_but_empty_runs_vacuously(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_A": {"X": "1"}})
-    door = FakeEntity(202, entity_type="IFCDOOR", psets={"Pset_A": {"X": "2"}})
 
     result = _run(
         monkeypatch,
-        FakeIfcModel({101: wall, 202: door}),
+        FakeIfcModel({101: wall}),
         [
             ComparisonRow(
                 property_set="Pset_A",
@@ -1171,36 +1171,57 @@ def test_optional_input_without_component_uses_all(
                 expected_value="1",
             )
         ],
-        [],  # no express_ids -> fall back to all elements from context
+        [],  # bound but empty: zero elements, vacuous pass
     )
 
-    assert {e.express_id for e in result.elements} == {101, 202}
-    assert result.element_count == 2
-    assert result.total_checks == 2
+    assert result.elements == []
+    assert result.element_count == 0
+    assert result.total_checks == 0
 
 
-def test_optional_input_with_component_filters(monkeypatch: pytest.MonkeyPatch) -> None:
-    wall = FakeEntity(101, entity_type="IFCWALL", psets={"Pset_A": {"X": "1"}})
-    door = FakeEntity(202, entity_type="IFCDOOR", psets={"Pset_A": {"X": "2"}})
+def test_unbound_express_ids_fails_validation() -> None:
+    from pydantic import ValidationError
 
-    result = _run(
-        monkeypatch,
-        FakeIfcModel({101: wall, 202: door}),
-        [
-            ComparisonRow(
-                entity_type="IFCWALL",
-                property_set="Pset_A",
-                property_name="X",
-                condition="equals",
-                expected_value="1",
-            )
-        ],
-        [],  # no express_ids -> use all elements, then Component filters to walls
+    with pytest.raises(ValidationError, match="express_ids"):
+        LoiCheckInputs.model_validate({})
+
+
+def test_mixed_model_list_resolves_each_ref_against_own_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wall = FakeEntity(101, psets={"Pset_A": {"X": "1"}})
+    context = ExecutionContext(
+        models={
+            "main": cast(Any, FakeIfcModel({101: wall})),
+            "arch": cast(Any, FakeIfcModel({})),
+        },
+        node_outputs={},
+    )
+    monkeypatch.setattr("ifcopenshell.util.element.get_psets", _fake_get_psets)
+
+    result = asyncio.run(
+        loi_check(
+            LoiCheckSettings(
+                rows=[
+                    ComparisonRow(
+                        property_set="Pset_A",
+                        property_name="X",
+                        condition="equals",
+                        expected_value="1",
+                    )
+                ]
+            ),
+            LoiCheckInputs(express_ids=["main:expr:101", "arch:expr:101"]),
+            context,
+        )
     )
 
-    assert [e.express_id for e in result.elements] == [101]
-    assert result.element_count == 1
-    assert result.total_checks == 1
+    # The main ref resolves against main (pass); the arch ref resolves against
+    # arch, where the id does not exist -> unknown element with no checks.
+    assert result.elements[0].express_id == "main:expr:101"
+    assert result.elements[0].checks[0].passed is True
+    assert result.elements[1].express_id == "arch:expr:101"
+    assert result.elements[1].class_name == "unknown"
 
 
 def test_flat_lists_partition_passed_and_failed(
@@ -1223,8 +1244,8 @@ def test_flat_lists_partition_passed_and_failed(
         [101, 202],
     )
 
-    assert result.passed_express_ids == [101]
-    assert result.failed_express_ids == [202]
+    assert result.passed_express_ids == [_ref(101)]
+    assert result.failed_express_ids == [_ref(202)]
 
 
 def test_flat_lists_all_passing_only_passed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1245,7 +1266,7 @@ def test_flat_lists_all_passing_only_passed(monkeypatch: pytest.MonkeyPatch) -> 
         [101, 202],
     )
 
-    assert result.passed_express_ids == [101, 202]
+    assert result.passed_express_ids == [_ref(101), _ref(202)]
     assert result.failed_express_ids == []
 
 
@@ -1268,7 +1289,7 @@ def test_flat_lists_all_failing_only_failed(monkeypatch: pytest.MonkeyPatch) -> 
     )
 
     assert result.passed_express_ids == []
-    assert result.failed_express_ids == [101, 202]
+    assert result.failed_express_ids == [_ref(101), _ref(202)]
 
 
 def test_flat_lists_exclude_unchecked_missing_ids(
@@ -1290,7 +1311,7 @@ def test_flat_lists_exclude_unchecked_missing_ids(
         [101, 999],  # 999 is missing -> emitted with zero checks, class unknown
     )
 
-    assert result.passed_express_ids == [101]
+    assert result.passed_express_ids == [_ref(101)]
     assert result.failed_express_ids == []
 
 
@@ -1313,8 +1334,8 @@ def test_flat_lists_preserve_input_order(monkeypatch: pytest.MonkeyPatch) -> Non
         [303, 101, 202],
     )
 
-    assert result.passed_express_ids == [303, 101]
-    assert result.failed_express_ids == [202]
+    assert result.passed_express_ids == [_ref(303), _ref(101)]
+    assert result.failed_express_ids == [_ref(202)]
 
 
 def test_flat_lists_empty_when_nothing_checked(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -3,6 +3,8 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 
+const TIMESTAMP_SEPARATOR_RE = /[:.]/g
+
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
@@ -13,7 +15,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+  const timestamp = new Date().toISOString().replace(TIMESTAMP_SEPARATOR_RE, '-').slice(0, -5)
   const filename = `workflow-${timestamp}.json`
   const resultsFilename = `results-${timestamp}.json`
   const devFilesDir = join(process.cwd(), '.dev-files')

@@ -6,6 +6,8 @@ from ifcopenshell.util.element import get_psets
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
+from openbim_runner.util.geometry import expr_key
+from openbim_runner.util.references import guid_key, parse_element_refs
 
 FilterMode = Literal["include", "exclude", "disabled"]
 FilterOperator = Literal[
@@ -60,23 +62,36 @@ class IfcElementFilterSettings(NodeModel):
 
 
 class IfcElementFilterInputs(NodeModel):
-    express_ids: list[int] | None = Field(
+    express_ids: list[str] | None = Field(
         default=None,
         title="Express IDs",
-        description="Optional list of IFC express IDs to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result.",
+        description=(
+            "Optional list of qualified element references (`<slug>:expr:<id>`) to filter "
+            "within. When the input is not connected, the whole model is scanned. When "
+            "connected, an empty list yields an empty result. Per-reference model slugs "
+            "win over the model input."
+        ),
+    )
+    model_slug: str = Field(
+        default="main",
+        title="Model",
+        description="Model slug to scan when no references are bound. Defaults to the main model.",
     )
 
 
 class IfcElementFilterResult(NodeModel):
-    express_ids: list[int] = Field(
+    express_ids: list[str] = Field(
         default=[],
         title="Express IDs",
-        description="Express IDs of all matching IFC entities.",
+        description="Qualified references (`<slug>:expr:<id>`) of all matching IFC entities.",
     )
     guids: list[str] = Field(
         default=[],
         title="GUIDs",
-        description="GlobalId values for all matching IFC entities in the same order as express_ids.",
+        description=(
+            "Qualified GUID references (`<slug>:guid:<GlobalId>`) for all matching IFC "
+            "entities in the same order as express_ids."
+        ),
     )
 
 
@@ -204,39 +219,59 @@ def _matches_row(entity: Any, row: FilterRow) -> bool:
 
 def _candidate_entities(
     context: ExecutionContext,
+    model_slug: str,
     inputs: IfcElementFilterInputs,
     rows: list[FilterRow],
-) -> list[Any]:
-    seen: set[int] = set()
-    candidates: list[Any] = []
+) -> list[tuple[Any, str]]:
+    """Return ``(entity, slug)`` pairs; the slug records where each entity came from."""
+    seen: set[tuple[str, int]] = set()
+    candidates: list[tuple[Any, str]] = []
 
     if inputs.express_ids is not None:
-        for express_id in inputs.express_ids:
-            if express_id in seen:
+        seen_slugs: set[tuple[str, int]] = set()
+        for element in parse_element_refs(
+            inputs.express_ids, node="ifc_element_filter"
+        ):
+            dedupe_key = (element.slug, element.express_id)
+            if dedupe_key in seen_slugs:
                 continue
-            seen.add(express_id)
+            seen_slugs.add(dedupe_key)
             try:
-                candidates.append(context.ifc_model.by_id(express_id))
+                candidates.append(
+                    (
+                        context.resolve_model(element.slug).by_id(element.express_id),
+                        element.slug,
+                    )
+                )
             except RuntimeError:
                 continue
         return candidates
 
-    # No input: gather candidates from every non-disabled row's entity type so
-    # entity types that are not IfcElement subclasses (e.g. IFCSPACE) still match.
-    for row in rows:
-        if row.mode == "disabled":
-            continue
+    # No input: scan the model. Without any row to steer the scan, everything
+    # is a candidate (all IfcElement); otherwise gather candidates from every
+    # non-disabled row's entity type so entity types that are not IfcElement
+    # subclasses (e.g. IFCSPACE) still match.
+    model = context.resolve_model(model_slug)
+    active_rows = [row for row in rows if row.mode != "disabled"]
+    if not active_rows:
+        try:
+            return [(entity, model_slug) for entity in model.by_type("IfcElement")]
+        except RuntimeError:
+            return []
+
+    for row in active_rows:
         entity_type = _clean(row.entity_type) or "IfcElement"
         try:
-            entities = context.ifc_model.by_type(entity_type)
+            entities = model.by_type(entity_type)
         except RuntimeError:
             entities = []
         for entity in entities:
             express_id = entity.id()
-            if express_id in seen:
+            dedupe_key = (model_slug, express_id)
+            if dedupe_key in seen:
                 continue
-            seen.add(express_id)
-            candidates.append(entity)
+            seen.add(dedupe_key)
+            candidates.append((entity, model_slug))
 
     return candidates
 
@@ -247,9 +282,19 @@ async def ifc_element_filter(
     inputs: IfcElementFilterInputs,
     context: ExecutionContext,
 ) -> IfcElementFilterResult:
-    matched: list[Any] = []
+    matched: list[tuple[Any, str]] = []
 
-    for entity in _candidate_entities(context, inputs, settings.filter_rows):
+    candidates = _candidate_entities(
+        context, inputs.model_slug, inputs, settings.filter_rows
+    )
+    active_rows = [row for row in settings.filter_rows if row.mode != "disabled"]
+
+    for entity, slug in candidates:
+        # Without any active row everything is a match (whole-model universe).
+        if not active_rows:
+            matched.append((entity, slug))
+            continue
+
         matches_include = False
         matches_exclude = False
 
@@ -264,11 +309,12 @@ async def ifc_element_filter(
             matches_include = True
 
         if matches_include and not matches_exclude:
-            matched.append(entity)
+            matched.append((entity, slug))
 
-    express_ids = [entity.id() for entity in matched]
+    express_ids = [expr_key(slug, entity.id()) for entity, slug in matched]
     guids = [
-        _string_value(_get_entity_attribute(entity, "GlobalId")) for entity in matched
+        guid_key(slug, _string_value(_get_entity_attribute(entity, "GlobalId")))
+        for entity, slug in matched
     ]
 
     return IfcElementFilterResult(express_ids=express_ids, guids=guids)

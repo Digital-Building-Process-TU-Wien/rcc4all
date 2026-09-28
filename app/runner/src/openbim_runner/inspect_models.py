@@ -9,7 +9,13 @@ from typing import Any
 import ifcopenshell
 import trimesh
 
-from openbim_runner.util.geometry import build_geometry_cache
+from openbim_runner.util.geometry import build_geometry_cache, expr_key, split_expr_key
+
+
+def _expr_sort_key(key: str) -> int:
+    parts = split_expr_key(key)
+    return parts[1] if parts else 0
+
 
 # Dev tooling defaults: resolve the runner tree from the source layout.
 RUNNER_ROOT = Path(__file__).resolve().parents[2]
@@ -64,10 +70,13 @@ def process_model(
 
     elements: list[dict[str, Any]] = []
     combined: list[trimesh.Trimesh] = []
-    for key in sorted(cache, key=lambda k: int(k.split(":")[1])):
+    for key in sorted(cache, key=_expr_sort_key):
         mesh = cache[key]
         combined.append(mesh)
-        elements.append({"express_id": int(key.split(":")[1]), **_mesh_report(mesh)})
+        parts = split_expr_key(key)
+        elements.append(
+            {"express_id": parts[1] if parts else key, **_mesh_report(mesh)}
+        )
 
     combined_verts = 0
     if combined:
@@ -84,7 +93,7 @@ def process_model(
     }
 
     if express_id is not None:
-        target_key = f"ifc:{express_id}"
+        target_key = expr_key("main", express_id)
         if target_key not in cache:
             raise ValueError(
                 f"Express ID {express_id} not found in model '{ifc_path.stem}'."

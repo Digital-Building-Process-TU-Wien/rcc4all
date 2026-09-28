@@ -11,10 +11,14 @@ export const CSV_COLUMNS: Array<CsvColumn> = [
   { key: 'property_name', label: 'property_name' },
 ]
 
+const CSV_SPECIAL_CHARS_RE = /[";,\r\n]/
+const BOM_RE = /^\uFEFF/
+const LINE_BREAK_RE = /\r?\n/
+
 export function escapeCsvValue(value: string | undefined): string {
   const text = value ?? ''
 
-  if (!/[";,\r\n]/.test(text))
+  if (!CSV_SPECIAL_CHARS_RE.test(text))
     return text
 
   return `"${text.replaceAll('"', '""')}"`
@@ -80,8 +84,8 @@ function rowFromCsvRecord(record: Record<string, string>): PropertySelection {
 }
 
 export function rowsFromCsv(text: string): Requirements {
-  const csvText = text.trimStart().replace(/^\uFEFF/, '')
-  const firstLine = csvText.split(/\r?\n/, 1)[0]?.trim().toLowerCase() ?? ''
+  const csvText = text.trimStart().replace(BOM_RE, '')
+  const firstLine = csvText.split(LINE_BREAK_RE, 1)[0]?.trim().toLowerCase() ?? ''
   const delimiter = firstLine === 'sep=;' || firstLine.includes(';') ? ';' : ','
   const parsedRows = parseCsv(csvText, delimiter)
   if (parsedRows[0]?.[0]?.trim().toLowerCase() === 'sep=;')

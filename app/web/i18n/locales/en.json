@@ -88,7 +88,40 @@
     "noNodesMatch": "No nodes match your search.",
     "runWorkflow": "Run Workflow",
     "running": "Running...",
-    "clearCanvas": "Clear canvas"
+    "clearCanvas": "Clear canvas",
+    "modelsTitle": "IFC Models",
+    "modelsDescription": "Each IFC file is a named model slot. The main model is required; add more models to compare or validate against.",
+    "modelMain": "Main",
+    "mainBadge": "Main",
+    "noFileAssigned": "No file assigned",
+    "removeModel": "Remove model",
+    "newModelSlug": "Model name (e.g. arch)",
+    "newModelFile": "Select an IFC file...",
+    "addModel": "Add model",
+    "invalidModelSlug": "Invalid model name. Use lowercase letters, digits, '-' or '_'.",
+    "mainSlugReserved": "The name 'main' is reserved.",
+    "duplicateModelSlug": "A model named '{slug}' already exists.",
+    "modelFileRequired": "Select an IFC file for the model."
+  },
+  "modelBar": {
+    "addModel": "Add IFC Model",
+    "modalTitle": "Add IFC Model",
+    "modalDescription": "Pick an IFC file and assign it to a slot.",
+    "fileLabel": "IFC File",
+    "searchFiles": "Search files...",
+    "noFilesFound": "No files found.",
+    "isMain": "This is the main IFC",
+    "isMainHint": "Assigned to the main slot.",
+    "nameLabel": "Model name",
+    "namePlaceholder": "Model name (e.g. arch)",
+    "fileRequired": "Select an IFC file.",
+    "cancel": "Cancel",
+    "confirm": "Add",
+    "save": "Save",
+    "replace": "Replace file",
+    "removeFile": "Remove file",
+    "replaceTitle": "Replace IFC model",
+    "replaceDescription": "Pick a different IFC file for this model slot."
   },
   "slideover": {
     "nodeDetails": "Node Details",
@@ -107,7 +140,9 @@
     "title": "Input Bindings",
     "selectSourceNode": "Select source node...",
     "selectOutput": "Select output...",
+    "none": "None",
     "typeMismatch": "Type mismatch",
+    "model": "Model",
     "noConfigurableInputs": "This node has no configurable inputs"
   },
   "execution": {
@@ -155,24 +190,25 @@
   },
   "node": {
     "fileInput": {
-      "title": "File Input Node",
-      "description": "Select a local development file to attach to this node.",
-      "selectedFile": "Selected file",
-      "noFileSelected": "No file selected",
-      "clear": "Clear",
-      "searchFiles": "Search files",
-      "filterFilenames": "Filter filenames",
-      "retry": "Retry",
-      "unableToLoad": "Unable to load development files.",
-      "loadingFiles": "Loading files...",
-      "noFilesFound": "No files were found in web/.dev-files",
-      "addIfcFile": "Please add an ifc file in the folder {folder} to use this node.",
-      "noFilenameMatch": "No filenames match your search."
+      "title": "File Input",
+      "description": "Points to an IFC model assigned in the editor's model bar.",
+      "selectModel": "Select a model..."
     },
-    "GetElementCreationPositionDoor": { "title": "Get Element Creation Position Door", "description": "Extract footprint points (P1-P7) from IFC door openings and walls at bottom elevation.", "pointIndex": "Point index", "elementsOutput": "Element positions (output)", "noOutputYet": "No output yet. Run the workflow.", "phase1Hint": "P1-P4: Corners (clockwise), P5-P6: Midpoints, P7: Centroid", "doorCount": "{count} door | {count} doors", "p7Center": "P7 - Center (Centroid)", "p1Corner": "P1 - Corner (closest to placement)", "p2Corner": "P2 - Corner (clockwise)", "p3Corner": "P3 - Corner (clockwise)", "p4Corner": "P4 - Corner (clockwise)", "p5Midpoint": "P5 - Midpoint (P1-P2)", "p6Midpoint": "P6 - Midpoint (P3-P4)" },
-    "getName": {
-      "title": "Get Name Node",
-      "failOnMissing": "Fail on Missing"
+    "GetElementCreationPositionDoor": {
+      "title": "Get Element Creation Position Door",
+      "description": "Extract footprint points (P1-P7) from IFC door openings and walls at bottom elevation.",
+      "pointIndex": "Point index",
+      "elementsOutput": "Element positions (output)",
+      "noOutputYet": "No output yet. Run the workflow.",
+      "phase1Hint": "P1-P4: Corners (clockwise), P5-P6: Midpoints, P7: Centroid",
+      "doorCount": "{count} door | {count} doors",
+      "p7Center": "P7 - Center (Centroid)",
+      "p1Corner": "P1 - Corner (closest to placement)",
+      "p2Corner": "P2 - Corner (clockwise)",
+      "p3Corner": "P3 - Corner (clockwise)",
+      "p4Corner": "P4 - Corner (clockwise)",
+      "p5Midpoint": "P5 - Midpoint (P1-P2)",
+      "p6Midpoint": "P6 - Midpoint (P3-P4)"
     },
     "generate3dCube": {
       "title": "Generate 3D Cube",
@@ -305,6 +341,66 @@
       "operatorContains": "contains",
       "operatorStartsWith": "starts with",
       "operatorEndsWith": "ends with"
+    },
+    "measurement": {
+      "title": "Measurement",
+      "description": "Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.",
+      "measurementType": "Measurement Type",
+      "measurementTypeHelp": "Computes volume, surface area, projected area, component height, minimum distance between elements (List A × List B pattern), and distance to reference (point/plane).",
+      "listBWarning": "List B is only used for \"Minimum Distance Between Elements\" mode and will be ignored.",
+      "projectionNormal": "Projection Normal",
+      "projectionNormalHelp": "Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view).",
+      "direction": "Direction",
+      "directionHelp": "Direction vector for extent computation. Default [0,0,1] computes vertical height.",
+      "referenceType": "Reference Type",
+      "referenceTypeHelp": "Choose between distance to a reference point or perpendicular distance to a reference plane.",
+      "referenceTypePoint": "Point",
+      "referenceTypePlane": "Plane",
+      "referencePoint": "Reference Point",
+      "referencePointHelp": "Coordinates [x, y, z] of the reference point (or plane origin).",
+      "planeNormal": "Plane Normal",
+      "planeNormalHelp": "Normal vector of the reference plane. Default [0,0,1] is the XY plane.",
+      "typeVolume": "Volume",
+      "typeSurfaceArea": "Surface Area",
+      "typeProjectedArea": "Projected Area",
+      "typeComponentHeight": "Component Height",
+      "typeDistanceBetween": "Minimum Distance Between Elements",
+      "typeDistanceToReference": "Distance to Reference",
+      "presetXyPlane": "XY Plane (Z)",
+      "presetYzPlane": "YZ Plane (X)",
+      "presetXzPlane": "XZ Plane (Y)",
+      "presetZAxis": "Z Axis (Height)",
+      "presetXAxis": "X Axis",
+      "presetYAxis": "Y Axis"
+    },
+    "idsChecker": {
+      "title": "IDS Checker Node",
+      "description": "Select a local development IDS file.",
+      "selectedFile": {
+        "label": "Selected IDS file",
+        "placeholder": "No file selected",
+        "clear": "Clear"
+      },
+      "search": {
+        "label": "Search files",
+        "placeholder": "Filter filenames"
+      },
+      "fileList": {
+        "loading": "Loading files...",
+        "noFiles": "No IDS files were found in web/.dev-files",
+        "noFilesHint": "Please add .ids files in the folder",
+        "noMatches": "No filenames match your search.",
+        "loadFailed": "Unable to load IDS files.",
+        "retry": "Retry"
+      },
+      "report": {
+        "detailedLabel": "Generate detailed report",
+        "detailedHelp": "Detailed report generation",
+        "detailedHint": "The combined lists (failed_express_ids, passed_express_ids) are always created.",
+        "formatLabel": "Report Format",
+        "formatPlaceholder": "Select format",
+        "formatHint": "Report saved as"
+      }
     }
   }
 }

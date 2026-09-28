@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+    <info>
+        <title>IDS for geometric representation restriction</title>
+        <copyright>TU Wien</copyright>
+        <date>2026-07-15</date>
+    </info>
+    <specifications>
+        <specification name="Wall geometric representation restriction - IfcPlate" ifcVersion="IFC4 IFC4X3_ADD2">
+            <applicability>
+                <entity>
+                    <name>
+                        <simpleValue>IFCWALL</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <entity>
+                    <name>
+                        <simpleValue>IFCWALL</simpleValue>
+                    </name>
+                </entity>
+            </requirements>
+        </specification>
+    </specifications>
+</ids>

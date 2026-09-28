@@ -9,8 +9,14 @@ interface Viewport {
   zoom: number
 }
 
+export interface ModelFile {
+  slug: string
+  path: string
+  hash: string
+}
+
 interface WorkflowData {
-  ifc_path: string
+  files: ModelFile[]
   nodes: any[]
   edges: any[]
 }
@@ -27,6 +33,8 @@ export const useFlowStore = defineStore('flow', () => {
     zoom: 1,
   })
   const workflowData = ref<WorkflowData | null>(null)
+  // The `main` slot is always present but starts unassigned; no file is implied.
+  const files = ref<ModelFile[]>([{ slug: 'main', path: '', hash: '' }])
 
   const nodes = computed(() => Object.values(nodesById.value))
 
@@ -101,6 +109,47 @@ export const useFlowStore = defineStore('flow', () => {
     return workflowData.value
   }
 
+  /**
+   * Add or replace a file slot. The reserved `main` slug is always retained;
+   * an update to `main` only changes its path/hash.
+   */
+  function addFile(file: ModelFile) {
+    const index = files.value.findIndex(entry => entry.slug === file.slug)
+    if (index >= 0) {
+      files.value = files.value.map((entry, i) => (i === index ? { ...entry, ...file } : entry))
+    }
+    else {
+      files.value = [...files.value, file]
+    }
+  }
+
+  /**
+   * Remove a model slot. The reserved `main` slot is never removed; deleting it
+   * unassigns its file and leaves the empty placeholder in place.
+   */
+  function removeFile(slug: string) {
+    if (slug === 'main') {
+      const mainEntry = files.value.find(entry => entry.slug === 'main')
+      if (mainEntry) {
+        mainEntry.path = ''
+        mainEntry.hash = ''
+      }
+      return
+    }
+    files.value = files.value.filter(entry => entry.slug !== slug)
+  }
+
+  /**
+   * Update the main slot's file (path/hash) without allowing its slug to change.
+   */
+  function setMainFile(file: Omit<ModelFile, 'slug'>) {
+    const mainEntry = files.value.find(entry => entry.slug === 'main')
+    if (mainEntry) {
+      mainEntry.path = file.path
+      mainEntry.hash = file.hash
+    }
+  }
+
   function fitView(padding?: number) {
     if (nodes.value.length === 0) {
       return
@@ -143,6 +192,7 @@ export const useFlowStore = defineStore('flow', () => {
     edges,
     viewport,
     workflowData,
+    files,
     nodes,
     hasNodes,
     nodeCount,
@@ -156,6 +206,9 @@ export const useFlowStore = defineStore('flow', () => {
     updateViewport,
     setWorkflowData,
     getWorkflowData,
+    addFile,
+    removeFile,
+    setMainFile,
     clear,
     fitView,
   }

@@ -36,7 +36,7 @@ class Generate3DCubeResult(NodeModel):
     object_ids: list[str] = Field(
         default=[],
         title="Object IDs",
-        description="1-element list with the object_id of the generated cube.",
+        description="1-element list with the qualified geometry cache key (`gen:<object_id>`) of the generated cube.",
     )
 
 
@@ -64,6 +64,10 @@ async def generate_3d_cube(
         raise ValueError("Size must be a 3D vector [width, height, depth]")
     if not settings.object_id:
         raise ValueError("object_id must be a non-empty string")
+    if ":expr:" in settings.object_id:
+        raise ValueError(
+            "object_id must not contain ':expr:' so it can never parse as an IFC element reference."
+        )
 
     box = trimesh.creation.box(extents=settings.size)
 
@@ -75,5 +79,5 @@ async def generate_3d_cube(
 
     box.apply_transform(transform_matrix)
 
-    cache_mesh(context, box, object_id=settings.object_id)
-    return Generate3DCubeResult(object_ids=[settings.object_id])
+    cache_key = cache_mesh(context, box, object_id=settings.object_id)
+    return Generate3DCubeResult(object_ids=[cache_key])

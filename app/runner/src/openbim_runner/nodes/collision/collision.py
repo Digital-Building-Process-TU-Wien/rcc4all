@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 import trimesh
@@ -14,9 +14,12 @@ from openbim_runner.util.geometry import (
     ensure_watertight,
     resolve_mesh,
     resolve_side,
+    split_expr_key,
 )
+from openbim_runner.util.references import EXPR_KIND, split_reference
 
 VOLUME_TOLERANCE = 1e-9
+AGGREGATION_REL_TYPES = ("IfcRelAggregates", "IfcRelNests")
 
 
 class CollisionSettings(NodeModel):
@@ -32,20 +35,19 @@ class CollisionSettings(NodeModel):
 
 
 class CollisionInputs(NodeModel):
-    list_a: list[int | str] = Field(
-        default=[],
+    list_a: list[str] = Field(
         title="List A",
         description=(
-            "First list of references — mix of express IDs (int → `ifc:<id>`) and object IDs "
-            "(str → `gen:<id>`), in the order to test. When empty, the whole model is used."
+            "First list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` "
+            "or `inter:<id>`), in the order to test. Bind ifc_element_filter output here."
         ),
     )
-    list_b: list[int | str] = Field(
-        default=[],
+    list_b: list[str] = Field(
         title="List B",
         description=(
-            "Second (optional) list of references — mix of express IDs (int → `ifc:<id>`) and "
-            "object IDs (str → `gen:<id>`). When empty, the whole model is used as the counterpart set."
+            "Second list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` "
+            "or `inter:<id>`) to test the first list against. Mixed-model lists are allowed; "
+            "each reference resolves against its own model."
         ),
     )
 
@@ -94,6 +96,78 @@ def _aabb_overlap(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool:
     return bool(np.all(a_min <= b_max) and np.all(b_min <= a_max))
 
 
+def _is_ancestor_pair(
+    key_a: str,
+    key_b: str,
+    exclusions_by_slug: dict[str, frozenset[tuple[int, int]]],
+) -> bool:
+    """True if two cache keys are IFC ancestor/descendant express IDs to skip.
+
+    Only `<slug>:expr:<id>` keys participate; ``gen:``/``inter:`` keys have no IFC
+    aggregation identity and are never excluded. Ancestor exclusion is intra-model:
+    keys from different model slugs are never excluded.
+    """
+    parsed_a = split_expr_key(key_a)
+    parsed_b = split_expr_key(key_b)
+    if parsed_a is None or parsed_b is None:
+        return False
+    slug_a, id_a = parsed_a
+    slug_b, id_b = parsed_b
+    if slug_a != slug_b:
+        return False
+    exclusions = exclusions_by_slug.get(slug_a)
+    if not exclusions:
+        return False
+    return (min(id_a, id_b), max(id_a, id_b)) in exclusions
+
+
+def _aggregation_exclusions(ifc_model: Any) -> frozenset[tuple[int, int]]:
+    """Ancestor/descendant express-ID pairs (normalized lo, hi) from the IFC model.
+
+    A parent element and its decomposition parts share identity: the parent's
+    geometry is the union of (or is synthesized from) its parts, so comparing a
+    parent against its own descendants in a collision check is a self-comparison
+    and always a false positive. Returns a normalized set of ``(lo, hi)`` express
+    IDs covering every ancestor↔descendant pair in the aggregation forest built
+    from ``IfcRelAggregates`` / ``IfcRelNests``. Returns empty when the model is
+    unavailable or not a real IFC model.
+    """
+    try:
+        rels = [
+            rel
+            for rel_type in AGGREGATION_REL_TYPES
+            for rel in ifc_model.by_type(rel_type)
+        ]
+    except Exception:
+        return frozenset()
+
+    parent_children: dict[int, list[int]] = {}
+    for rel in rels:
+        parent = getattr(rel, "RelatingObject", None)
+        parts = getattr(rel, "RelatedObjects", None) or []
+        pid = getattr(parent, "id", None) if parent is not None else None
+        if pid is None:
+            continue
+        children = [
+            cid() for part in parts if (cid := getattr(part, "id", None)) is not None
+        ]
+        if children:
+            parent_children.setdefault(pid(), []).extend(children)
+
+    exclusions: set[tuple[int, int]] = set()
+    for root in parent_children:
+        stack = list(parent_children[root])
+        seen: set[int] = set()
+        while stack:
+            node = stack.pop()
+            if node in seen:
+                continue
+            seen.add(node)
+            exclusions.add((min(root, node), max(root, node)))
+            stack.extend(parent_children.get(node, []))
+    return frozenset(exclusions)
+
+
 def _fcl_collision(mesh_a: trimesh.Trimesh, mesh_b: trimesh.Trimesh) -> bool | None:
     """Triangle-based collision test via FCL (no watertight requirement).
 
@@ -122,6 +196,27 @@ async def collision(
     keys_a = resolve_side(context, refs=inputs.list_a)
     keys_b = resolve_side(context, refs=inputs.list_b)
 
+    # Ancestor exclusion is intra-model: derive the model slugs actually present
+    # in the reference lists and gather aggregation exclusions for each. gen:/
+    # inter: keys carry no model slug, so they contribute nothing here.
+    slugs: set[str] = set()
+    for key in (*keys_a, *keys_b):
+        try:
+            slug, kind, _value = split_reference(key)
+        except ValueError:
+            continue
+        if kind == EXPR_KIND:
+            slugs.add(slug)
+    exclusions_by_slug: dict[str, frozenset[tuple[int, int]]] = {}
+    for slug in slugs:
+        try:
+            model = context.resolve_model(slug)
+        except ValueError:
+            model = None
+        exclusions_by_slug[slug] = (
+            _aggregation_exclusions(model) if model is not None else frozenset()
+        )
+
     collisions: dict[str, list[str]] = {}
     errors: list[CollisionError] = []
     intersection_meshes: dict[str, str | None] = {}
@@ -129,6 +224,8 @@ async def collision(
     for key_a in keys_a:
         for key_b in keys_b:
             if key_a == key_b:
+                continue
+            if _is_ancestor_pair(key_a, key_b, exclusions_by_slug):
                 continue
 
             mesh_a = resolve_mesh(context, key_a)

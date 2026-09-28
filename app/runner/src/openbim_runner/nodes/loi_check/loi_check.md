@@ -18,9 +18,9 @@ before starting any session on this node.
 - Comparison node = pure logic, emits slim structured result (no messages).
 - BCF generation = separate downstream `bcf_output` node (built; see
   `../bcf_output/bcf_output.md`).
-- The BCF node resolves the GlobalId from the `express_id` via the model
-  (`ExecutionContext.ifc_model.by_id(express_id).GlobalId`); comparisons therefore
-  do NOT emit a `ifc_guid` field (kept slim).
+- The BCF node resolves the GlobalId from each qualified `express_id` via
+  `ExecutionContext.resolve_model(reference.slug).by_id(reference.express_id)`;
+  comparisons therefore do NOT emit an `ifc_guid` field (kept slim).
 - 3D BCF Viewpoints out of scope; components linked by IfcGuid only.
 
 ## Node specification
@@ -37,20 +37,21 @@ Each row is checked against every input element → supports multiple entities A
 multiple checks per element simultaneously.
 
 ### Inputs
-- `express_ids: list[int]` (same as get_property) — OPTIONAL. When empty
-  (unconnected), the node gathers all elements from the model context via
-  `context.ifc_model.by_type("IfcElement")` (consistent with the element filter's
-  default). The Component (`specified_types`) filter then narrows the set.
+- `express_ids: list[str]` — REQUIRED list of qualified element references
+  (`<slug>:expr:<id>`), typically bound to `ifc_element_filter`. Each reference
+  resolves against the model named inside it. An unbound input fails
+  validation; an empty bound list processes zero elements.
 
 ### Result (slim — NO message field)
 - `element_count`, `total_checks`, `failed_count` (failed_count = count of failed
   *checks* across all elements, confirmed via design example)
-- `passed_express_ids`, `failed_express_ids`: flat lists of express IDs of the
-  elements that were actually checked (had ≥1 applied check). An element whose
+- `passed_express_ids`, `failed_express_ids`: flat lists of qualified element
+  references (`<slug>:expr:<id>`) for the elements that were actually checked
+  (had ≥1 applied check). An element whose
   checks all passed is in `passed_express_ids`; an element with ≥1 failed check
   is in `failed_express_ids` (the two lists partition the checked elements).
-  Elements with zero applied checks (e.g. missing/invalid express IDs emitted as
-  class `unknown`) are excluded from both lists. Order follows `elements`.
+  Elements with zero applicable checks are excluded from both lists. Order follows
+  `elements`.
 - `elements`: ordered list of
   - `express_id`, `class_name`, `failed`
   - `checks`: list of `PropertyCheckResult`
@@ -82,7 +83,7 @@ multiple checks per element simultaneously.
    for all operators.
 
 ## Output filtering by Component (user decision)
-The Component (`entity_type`) column now FILTERS the elements emitted in the
+The Component (`entity_type`) column FILTERS the elements emitted in the
 output (in addition to limiting which checks apply per row):
 - If ANY row uses an "Any Element" signal — empty Component (the default / the
   `Any Element` dropdown choice) OR the literal `any` token (case-insensitive) —
@@ -90,8 +91,7 @@ output (in addition to limiting which checks apply per row):
   row's check applies to every element.
 - Otherwise, if every row specifies an explicit Component, only elements matching
   at least one of those types are emitted (union of specified types).
-  Non-matching elements are excluded entirely (they no longer appear with 0
-  checks).
+  Non-matching elements are excluded entirely from the output.
 - Missing/invalid express IDs are excluded when a filter is active (their type is
   unknown); otherwise included as class `unknown` (e.g. when an Any Element row
   disables filtering, or when no row specifies a Component).
@@ -107,8 +107,8 @@ options and per-barrier **inclusive / exclusive**. The Min/Max/incl. controls
 live in the Target value column, shown when `condition` is between/outside.
 
 ComparisonRow additions:
-- `condition` literal gains `between` and `outside` (removed the separate
-  `range_relation` field — condition is now the single source).
+- `condition` literal: `between` and `outside` (the single source for range
+  relations; there is no separate `range_relation` field).
 - `range_min: str = ""`, `range_max: str = ""`
 - `inclusive_min: bool = True`, `inclusive_max: bool = True`
 
@@ -118,7 +118,7 @@ Evaluation (numeric only; used when `condition ∈ {between, outside}`):
 - non-numeric actual → failed.
 Validation (run-time ValueError): when condition is between/outside, both
 barriers must be set and numeric; missing/non-numeric barrier → ValueError.
-Result: PropertyCheckResult gains optional `expected_min`/`expected_max`;
+Result: PropertyCheckResult has optional `expected_min`/`expected_max`;
 `condition` is `between`/`outside` for range rows (drives future BCF messages).
 
 Web: the Condition dropdown includes `between`/`outside`. When selected, the
@@ -132,7 +132,7 @@ User requirement: provide a list of accepted values (e.g. wall material in
 {concrete, wood, masonry}). New `one_of` condition (label "one of (∈)").
 
 - `ComparisonRow.allowed_values: list[str] = []`.
-- `condition` literal gains `one_of`.
+- `condition` literal includes `one_of`.
 - Matching is **case-insensitive** (trimmed, lowercased); missing actual (None)
   → failed. Empty accepted values ignored.
 - Validation: `condition == "one_of"` requires ≥ 1 non-empty value else
@@ -147,8 +147,7 @@ User requirement: provide a list of accepted values (e.g. wall material in
 
 ## Edge cases handled
 - Missing property (actual=None) → failed.
-- Missing/invalid express_id → element with class_name="unknown",
-  empty checks, failed=False.
+- Malformed or non-IFC references fail before element processing.
 - No rows → raises `ValueError`; row without property_name → raises `ValueError`.
 - Bool property values stringified as "true"/"false" (get_property convention).
 

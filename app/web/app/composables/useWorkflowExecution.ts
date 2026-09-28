@@ -1,4 +1,8 @@
 import type { Ref } from 'vue'
+import type { ModelFile } from '~/stores/flow'
+
+const LINE_BREAK_RE = /\r?\n/
+const EVENT_SEPARATOR_RE = /\r?\n\r?\n/
 
 export interface StreamOutput {
   chunk: string
@@ -23,7 +27,7 @@ export interface CompleteResult {
 }
 
 export interface WorkflowData {
-  ifc_path: string
+  files: ModelFile[]
   nodes: Array<{
     id: string
     type: string
@@ -67,7 +71,7 @@ export function useWorkflowExecution(workflow: Ref<WorkflowData | null>) {
   }
 
   function parseEvent(eventText: string): { eventType: string, data: string } | null {
-    const lines = eventText.split(/\r?\n/)
+    const lines = eventText.split(LINE_BREAK_RE)
     let eventType = 'message'
     const dataLines: string[] = []
 
@@ -133,7 +137,7 @@ export function useWorkflowExecution(workflow: Ref<WorkflowData | null>) {
             break
 
           buffer += decoder.decode(value, { stream: true })
-          const events = buffer.split(/\r?\n\r?\n/)
+          const events = buffer.split(EVENT_SEPARATOR_RE)
           buffer = events.pop() || ''
 
           for (const eventText of events) {

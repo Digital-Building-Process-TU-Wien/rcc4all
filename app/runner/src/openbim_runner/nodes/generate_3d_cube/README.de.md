@@ -4,7 +4,7 @@ description: Erstellt eine 3D-Würfelgeometrie mit anpassbarer Größe, Position
 categories: 3D operation
 ---
 
-Der `generate_3d_cube` Node erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation und speichert sie unter einer vom Benutzer vergebenen `object_id` im Geometrie-Cache. Die Objekt-ID ist die Adresse, über die der Würfel später referenziert wird, z. B. in einem `collision`-Node.
+Der `generate_3d_cube` Node erstellt eine 3D-Box-Geometrie mit konfigurierbaren Abmessungen, Position und Rotation und speichert sie unter einer vom Benutzer vergebenen `object_id` im Geometrie-Cache. Die Ausgabe enthält den voll qualifizierten Cache-Key `gen:<object_id>` — die Adresse, über die der Würfel später referenziert wird, z. B. in einem `collision`-Node.
 
 ## Einstellungen
 
@@ -19,7 +19,7 @@ Der `generate_3d_cube` Node erstellt eine 3D-Box-Geometrie mit konfigurierbaren 
 
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
-| `object_ids` | `list[string]` | 1-elementige Liste mit der `object_id` des Würfels. Geben Sie dies in den Objekt-ID-Eingang eines `collision`-Nodes. |
+| `object_ids` | `list[string]` | 1-elementige Liste mit dem voll qualifizierten Cache-Key `gen:<object_id>` des Würfels. Verbinden Sie dies mit einem Geometrie-Eingang eines `collision`-Nodes. |
 
 ## Beispiel
 
@@ -34,7 +34,7 @@ Der `generate_3d_cube` Node erstellt eine 3D-Box-Geometrie mit konfigurierbaren 
 }
 ```
 
-Dies erstellt einen 2×2×2 Würfel zentriert bei (5, 3, 0), um 45 Grad um die Z-Achse rotiert, zwischengespeichert unter der Objekt-ID `box_a`.
+Dies erstellt einen 2×2×2 Würfel zentriert bei (5, 3, 0), um 45 Grad um die Z-Achse rotiert, zwischengespeichert unter dem Cache-Key `gen:box_a`.
 
 ## Hinweise
 
@@ -42,3 +42,4 @@ Dies erstellt einen 2×2×2 Würfel zentriert bei (5, 3, 0), um 45 Grad um die Z
 - Alle Größenabmessungen müssen positiv sein (größer als 0)
 - Rotation folgt der Rechte-Hand-Regel
 - `object_id` muss nicht leer und innerhalb eines Laufs eindeutig sein; eine Wiederverwendung löst einen Fehler aus
+- `object_id` darf kein `:expr:` enthalten, da `gen:<object_id>` ansonsten nicht als generierte Geometrie erkennbar wäre

@@ -61,21 +61,28 @@ Schaltern); `outside` besteht, wenn er außerhalb liegt.
 
 ## Eingaben
 
-- **Express IDs** (optional): die Express-IDs, gegen die geprüft wird,
-  üblicherweise vom `ifc_element_filter`. Ohne Verbindung/leer → alle
-  `IfcElement`s im Modell werden geprüft.
+- **Express IDs** (erforderlich): Liste voll qualifizierter Referenzen
+  (`<slug>:expr:<id>`), gegen die geprüft wird — üblicherweise
+  `ifc_element_filter.express_ids` gebunden. Jede Referenz wird gegen das in ihr
+  genannte Modell aufgelöst; gemischte Listen aus mehreren Modellen sind erlaubt.
+  Eine leere gebundene Liste läuft ohne geprüfte Elemente (vakuum bestanden) —
+  es gibt keinen Ganzmodell-Fallback. Eine fehlende ID liefert ein
+  `unknown`-Element ohne angewandte Prüfungen, solange kein Component-Typ
+  angegeben ist.
 
 ## Ausgaben
 
 - `element_count`, `total_checks`, `failed_count`
-- `passed_express_ids`, `failed_express_ids`: flache Listen der Express-IDs der
-  geprüften Elemente – jene, deren Prüfungen alle bestanden haben, und jene mit
-  mindestens einer fehlgeschlagenen Prüfung. Elemente ohne angewandte Prüfungen
-  sind von beiden Listen ausgeschlossen.
-- `elements`: jeweils mit `express_id`, `class_name` (oder `unknown`), `failed`
-  und `checks` – jede Prüfung hat `id`/`property_key`, `property_name`,
-  `condition`, `expected`, optional `expected_min`/`expected_max`
-  (Bereichsgrenzen), `actual` (`null` bei fehlender Eigenschaft) und `passed`.
+- `passed_express_ids`, `failed_express_ids`: flache Listen der voll
+  qualifizierten Referenzen (`<slug>:expr:<id>`) der geprüften Elemente – jene,
+  deren Prüfungen alle bestanden haben, und jene mit mindestens einer
+  fehlgeschlagenen Prüfung. Elemente ohne angewandte Prüfungen sind von beiden
+  Listen ausgeschlossen.
+- `elements`: jeweils mit `express_id` (voll qualifizierte Referenz),
+  `class_name` (oder `unknown`), `failed` und `checks` – jede Prüfung hat
+  `id`/`property_key`, `property_name`, `condition`, `expected`, optional
+  `expected_min`/`expected_max` (Bereichsgrenzen), `actual` (`null` bei
+  fehlender Eigenschaft) und `passed`.
 
 ## Beispiel
 
@@ -95,7 +102,7 @@ Schaltern); `outside` besteht, wenn er außerhalb liegt.
   "failed_count": 2,
   "elements": [
     {
-      "express_id": 1235,
+      "express_id": "main:expr:1235",
       "class_name": "IFCWALL",
       "failed": false,
       "checks": [
@@ -105,7 +112,7 @@ Schaltern); `outside` besteht, wenn er außerhalb liegt.
       ]
     },
     {
-      "express_id": 1234,
+      "express_id": "main:expr:1234",
       "class_name": "IFCWALL",
       "failed": true,
       "checks": [

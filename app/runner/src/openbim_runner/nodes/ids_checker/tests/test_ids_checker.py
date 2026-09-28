@@ -1,0 +1,744 @@
+from __future__ import annotations
+
+import asyncio
+import tempfile
+from pathlib import Path
+from typing import Any, cast
+
+import ifcopenshell
+import pytest
+from ifctester import ids as ifc_ids
+
+from conftest import main_ref
+from openbim_runner.nodes.base import ExecutionContext
+from openbim_runner.nodes.ids_checker.ids_checker import (
+    IdsCheckerInputs,
+    IdsCheckerResult,
+    IdsCheckerSettings,
+    ids_checker,
+)
+
+
+class FakeIfcModel:
+    pass
+
+
+def _ref(entity_or_id: Any) -> str:
+    express_id = entity_or_id.id() if hasattr(entity_or_id, "id") else entity_or_id
+    return main_ref(express_id)
+
+
+def _all_refs(context: ExecutionContext) -> list[str]:
+    """Whole-model reference list (what an unfiltered ifc_element_filter emits)."""
+    try:
+        return [_ref(entity) for entity in context.ifc_model]
+    except TypeError:
+        return []
+
+
+def test_ids_checker_with_empty_ids_file() -> None:
+    context = ExecutionContext(
+        ifc_model=cast(Any, FakeIfcModel()),
+        node_outputs={},
+        workflow_dir=None,
+    )
+
+    with pytest.raises(ValueError, match="No IDS file specified"):
+        asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file=""),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+
+def test_ids_checker_with_missing_workflow_dir() -> None:
+    context = ExecutionContext(
+        ifc_model=cast(Any, FakeIfcModel()),
+        node_outputs={},
+        workflow_dir=None,
+    )
+
+    with pytest.raises(RuntimeError, match="Workflow directory not available"):
+        asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+
+def test_ids_checker_with_nonexistent_file() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        context = ExecutionContext(
+            ifc_model=cast(Any, FakeIfcModel()),
+            node_outputs={},
+            workflow_dir=Path(tmpdir),
+        )
+
+        with pytest.raises(FileNotFoundError, match="IDS file not found"):
+            asyncio.run(
+                ids_checker(
+                    IdsCheckerSettings(ids_file="nonexistent.ids"),
+                    IdsCheckerInputs(express_ids=_all_refs(context)),
+                    context,
+                )
+            )
+
+
+def test_ids_checker_with_invalid_ids_file() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ids_file = Path(tmpdir) / "test.ids"
+        ids_file.write_text("not valid xml", encoding="utf-8")
+
+        context = ExecutionContext(
+            ifc_model=cast(Any, FakeIfcModel()),
+            node_outputs={},
+            workflow_dir=Path(tmpdir),
+        )
+
+        with pytest.raises(ValueError, match="Failed to parse IDS file"):
+            asyncio.run(
+                ids_checker(
+                    IdsCheckerSettings(ids_file="test.ids"),
+                    IdsCheckerInputs(express_ids=["main:expr:1"]),
+                    context,
+                )
+            )
+
+
+def test_ids_checker_with_valid_ids_and_ifc() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcSite", Name="Test Site", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        my_ids = ifc_ids.Ids(title="Test IDS")
+        my_spec = ifc_ids.Specification(name="Test Specification")
+        my_spec.applicability.append(ifc_ids.Entity(name="IFCSITE"))
+        my_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Test Site"))
+        my_ids.specifications.append(my_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+        )
+
+        result = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+        assert isinstance(result, IdsCheckerResult)
+        assert len(result.failed_express_ids) == 0
+        assert len(result.passed_express_ids) == 1
+
+
+def test_ids_checker_with_entity_filtering() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall1 = ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall2 = ifc_file.create_entity(
+            "IfcWall", Name="Wall 2", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall3_none = ifc_file.create_entity(
+            "IfcWall", Name="", GlobalId="3y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        my_ids = ifc_ids.Ids(title="Wall Name Check")
+        my_spec = ifc_ids.Specification(name="Walls Must Have Name")
+        my_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        my_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
+        my_ids.specifications.append(my_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+        )
+
+        result_no_filter = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(
+                    express_ids=[_ref(wall1), _ref(wall2), _ref(wall3_none)]
+                ),
+                context,
+            )
+        )
+
+        assert len(result_no_filter.failed_express_ids) == 2
+        assert len(result_no_filter.passed_express_ids) == 1
+        assert _ref(wall1) in result_no_filter.passed_express_ids
+
+        result_filtered = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(express_ids=[_ref(wall1)]),
+                context,
+            )
+        )
+
+        assert len(result_filtered.failed_express_ids) == 0
+        assert len(result_filtered.passed_express_ids) == 1
+        assert _ref(wall1) in result_filtered.passed_express_ids
+
+        result_filtered_wall2 = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(express_ids=[_ref(wall2)]),
+                context,
+            )
+        )
+
+        assert len(result_filtered_wall2.failed_express_ids) == 1
+        assert len(result_filtered_wall2.passed_express_ids) == 0
+        assert _ref(wall2) in result_filtered_wall2.failed_express_ids
+
+
+def test_ids_checker_groups_refs_by_slug_when_refs_span_models() -> None:
+    """Refs from two models: each model is validated once, results qualified."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        def _write_model(path: Path, site_name: str, wall_name: str) -> None:
+            ifc_file = ifcopenshell.file()
+            ifc_file.create_entity(
+                "IfcProject", Name="P", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+            )
+            ifc_file.create_entity(
+                "IfcSite", Name=site_name, GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+            )
+            ifc_file.create_entity(
+                "IfcWall", Name=wall_name, GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+            )
+            ifc_file.write(str(path))
+
+        my_ids = ifc_ids.Ids(title="Wall Name Check")
+        my_spec = ifc_ids.Specification(name="Walls Must Have Name")
+        my_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        my_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
+        my_ids.specifications.append(my_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        main_path = tmpdir_path / "main.ifc"
+        arch_path = tmpdir_path / "arch.ifc"
+        _write_model(main_path, "Site Main", "Wall 1")
+        _write_model(arch_path, "Site Arch", "Nope")
+
+        context = ExecutionContext(
+            models={
+                "main": ifcopenshell.open(str(main_path)),
+                "arch": ifcopenshell.open(str(arch_path)),
+            },
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+        )
+
+        main_walls = [
+            f"main:expr:{e.id()}" for e in context.models["main"].by_type("IfcWall")
+        ]
+        arch_walls = [
+            f"arch:expr:{e.id()}" for e in context.models["arch"].by_type("IfcWall")
+        ]
+
+        result = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(express_ids=[*main_walls, *arch_walls]),
+                context,
+            )
+        )
+
+        # Main wall passes, arch wall fails: each resolved against its own model.
+        assert any(ref.startswith("arch:expr:") for ref in result.failed_express_ids)
+        assert any(ref.startswith("main:expr:") for ref in result.passed_express_ids)
+        assert not any(
+            ref.startswith("main:expr:") for ref in result.failed_express_ids
+        )
+
+
+def test_ids_checker_detailed_report() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall = ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        door = ifc_file.create_entity(
+            "IfcDoor", Name="Door 1", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        my_ids = ifc_ids.Ids(title="Multi Spec IDS")
+
+        wall_spec = ifc_ids.Specification(name="Wall Check")
+        wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        wall_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
+        my_ids.specifications.append(wall_spec)
+
+        door_spec = ifc_ids.Specification(name="Door Check")
+        door_spec.applicability.append(ifc_ids.Entity(name="IFCDOOR"))
+        door_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Door 1"))
+        my_ids.specifications.append(door_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+        )
+
+        result_without_report = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+        assert len(result_without_report.failed_express_ids) == 0
+        assert len(result_without_report.passed_express_ids) == 2
+        assert _ref(wall) in result_without_report.passed_express_ids
+        assert _ref(door) in result_without_report.passed_express_ids
+        assert result_without_report.specifications is None
+
+        result_with_report = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids", generate_detailed_report=True),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+        assert len(result_with_report.failed_express_ids) == 0
+        assert len(result_with_report.passed_express_ids) == 2
+        assert _ref(wall) in result_with_report.passed_express_ids
+        assert _ref(door) in result_with_report.passed_express_ids
+        assert len(result_with_report.specifications) == 2
+        wall_spec_result = next(
+            s for s in result_with_report.specifications if s.name == "Wall Check"
+        )
+        assert len(wall_spec_result.failed_express_ids) == 0
+        assert len(wall_spec_result.passed_express_ids) == 1
+        assert _ref(wall) in wall_spec_result.passed_express_ids
+        door_spec_result = next(
+            s for s in result_with_report.specifications if s.name == "Door Check"
+        )
+        assert len(door_spec_result.failed_express_ids) == 0
+        assert len(door_spec_result.passed_express_ids) == 1
+        assert _ref(door) in door_spec_result.passed_express_ids
+
+
+def test_ids_checker_report_generation() -> None:
+    """Test report file generation in JSON and HTML formats."""
+    import json
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # IFC file erstellen
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcDoor", Name="Door 1", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        # IDS file erstellen
+        my_ids = ifc_ids.Ids(title="Report Test IDS")
+
+        wall_spec = ifc_ids.Specification(name="Wall Check")
+        wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        wall_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
+        my_ids.specifications.append(wall_spec)
+
+        door_spec = ifc_ids.Specification(name="Door Check")
+        door_spec.applicability.append(ifc_ids.Entity(name="IFCDOOR"))
+        door_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Door 1"))
+        my_ids.specifications.append(door_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+            output_dir=tmpdir_path,
+        )
+
+        # JSON Report generieren
+        result_json = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(
+                    ids_file="test.ids",
+                    generate_detailed_report=True,
+                    report_format="json",
+                ),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+        # Überprüfen dass Resultat korrekt ist
+        assert len(result_json.failed_express_ids) == 0
+        assert len(result_json.passed_express_ids) == 2
+        assert result_json.specifications is not None
+        assert len(result_json.specifications) == 2
+        assert result_json.report_path is not None
+
+        # Überprüfen dass JSON-Datei erstellt wurde und Inhalt korrekt ist
+        json_files = list(tmpdir_path.glob("ids_report-*.json"))
+        assert len(json_files) == 1
+        assert json_files[0].exists()
+
+        json_content = json.loads(json_files[0].read_text(encoding="utf-8"))
+        assert "specifications" in json_content
+        assert len(json_content["specifications"]) == 2
+        assert json_content["total_specifications"] == 2
+        assert json_content["total_checks"] == 2
+        assert json_content["status"] is True
+
+        # HTML Report generieren
+        result_html = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(
+                    ids_file="test.ids",
+                    generate_detailed_report=True,
+                    report_format="html",
+                ),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+        # Überprüfen dass Resultat korrekt ist
+        assert len(result_html.failed_express_ids) == 0
+        assert len(result_html.passed_express_ids) == 2
+        assert result_html.specifications is not None
+        assert len(result_html.specifications) == 2
+        assert result_html.report_path is not None
+
+        # Überprüfen dass HTML-Datei erstellt wurde und Inhalt korrekt ist
+        html_files = list(tmpdir_path.glob("ids_report-*.html"))
+        assert len(html_files) == 1
+        assert html_files[0].exists()
+
+        html_content = html_files[0].read_text(encoding="utf-8")
+        assert "Report Test IDS" in html_content
+        assert "Wall Check" in html_content
+        assert "Door Check" in html_content
+        assert "IfcWall" in html_content
+
+
+def test_ids_checker_bcf_report_generation() -> None:
+    """Test BCF report file generation."""
+    import zipfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # IFC file erstellen
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        # IDS file mit failing requirement erstellen
+        my_ids = ifc_ids.Ids(title="BCF Test IDS")
+
+        wall_spec = ifc_ids.Specification(name="Wall Check")
+        wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        # Diese Requirement wird fehlschlagen (Name ist "Wall 1", nicht "Expected Name")
+        wall_spec.requirements.append(
+            ifc_ids.Attribute(name="Name", value="Expected Name")
+        )
+        my_ids.specifications.append(wall_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+            output_dir=tmpdir_path,
+        )
+
+        # BCF Report generieren
+        result_bcf = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(
+                    ids_file="test.ids",
+                    generate_detailed_report=True,
+                    report_format="bcf",
+                ),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+        # Überprüfen dass Resultat korrekt ist
+        assert len(result_bcf.failed_express_ids) == 1
+        assert len(result_bcf.passed_express_ids) == 0
+        assert result_bcf.specifications is not None
+        assert len(result_bcf.specifications) == 1
+        assert result_bcf.report_path is not None
+
+        # Überprüfen dass BCF-Datei erstellt wurde
+        bcf_files = list(tmpdir_path.glob("ids_bcf-*.bcf"))
+        assert len(bcf_files) == 1
+        assert bcf_files[0].exists()
+
+        # BCF-ZIP-Struktur validieren
+        with zipfile.ZipFile(bcf_files[0], "r") as archive:
+            names = archive.namelist()
+            assert "bcf.version" in names
+            assert "project.bcfp" in names
+            markup_names = [n for n in names if n.endswith("/markup.bcf")]
+            assert len(markup_names) == 1  # Ein Topic pro failing check
+
+            # BCF 2.1 Version prüfen (bcf-client verwendet v2.1)
+            bcf_version = archive.read("bcf.version").decode("utf-8")
+            assert 'VersionId="2.1"' in bcf_version
+
+            # Markup-Inhalt prüfen
+            markup_content = archive.read(markup_names[0]).decode("utf-8")
+            assert "Wall Check" in markup_content
+            assert "Wall 1" in markup_content
+
+
+def test_ids_checker_bcf_report_multiple_specifications() -> None:
+    """Test BCF report generation with multiple specifications and failures."""
+    import zipfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # IFC file mit mehreren Elementen erstellen
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcWall", Name="Wall 2", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.create_entity(
+            "IfcDoor", Name="Door 1", GlobalId="3y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        # IDS file mit mehreren Specifications
+        my_ids = ifc_ids.Ids(title="Multi Spec BCF Test")
+
+        # Spec 1: Walls müssen "Wall 1" heißen (wall2 wird fehlschlagen)
+        wall_spec = ifc_ids.Specification(name="Wall Name Check")
+        wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        wall_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
+        my_ids.specifications.append(wall_spec)
+
+        # Spec 2: Doors müssen "Door 1" heißen (wird bestehen)
+        door_spec = ifc_ids.Specification(name="Door Name Check")
+        door_spec.applicability.append(ifc_ids.Entity(name="IFCDOOR"))
+        door_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Door 1"))
+        my_ids.specifications.append(door_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+            output_dir=tmpdir_path,
+        )
+
+        # BCF Report generieren
+        result_bcf = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(
+                    ids_file="test.ids",
+                    generate_detailed_report=True,
+                    report_format="bcf",
+                ),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+        # Überprüfen dass Resultat korrekt ist
+        # wall1 besteht beide Specs, wall2 fällt bei Spec 1, door besteht Spec 2
+        assert len(result_bcf.failed_express_ids) == 1
+        assert len(result_bcf.passed_express_ids) == 2
+        assert result_bcf.specifications is not None
+        assert len(result_bcf.specifications) == 2
+        assert result_bcf.report_path is not None
+
+        # Überprüfen dass BCF-Datei erstellt wurde
+        bcf_files = list(tmpdir_path.glob("ids_bcf-*.bcf"))
+        assert len(bcf_files) == 1
+        assert bcf_files[0].exists()
+
+        # BCF-ZIP-Struktur validieren
+        with zipfile.ZipFile(bcf_files[0], "r") as archive:
+            names = archive.namelist()
+            assert "bcf.version" in names
+            assert "project.bcfp" in names
+            markup_names = [n for n in names if n.endswith("/markup.bcf")]
+            # Nur 1 Topic (wall2 fällt bei einer Spec)
+            assert len(markup_names) == 1
+
+            # BCF 2.1 Version prüfen (bcf-client verwendet v2.1)
+            bcf_version = archive.read("bcf.version").decode("utf-8")
+            assert 'VersionId="2.1"' in bcf_version
+
+            # Markup-Inhalt prüfen
+            markup_content = archive.read(markup_names[0]).decode("utf-8")
+            assert "Wall Name Check" in markup_content
+            assert "Wall 2" in markup_content
+
+
+def test_ids_checker_mixed_pass_fail_single_entity() -> None:
+    """Test: One entity passes Spec 1 but fails Spec 2 → should be in failed (not passed).
+
+    This tests the logic at ids_checker.py:132:
+    passed_express_ids = sorted(all_applicable_ids - all_failed_ids)
+
+    An entity that fails ANY applicable spec should be in failed, not passed.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall = ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        my_ids = ifc_ids.Ids(title="Mixed Pass Fail Single Entity")
+
+        # Spec 1: Wall passes (Name matches)
+        name_spec = ifc_ids.Specification(name="Name Check")
+        name_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        name_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
+        my_ids.specifications.append(name_spec)
+
+        # Spec 2: Wall fails (no Height attribute)
+        height_spec = ifc_ids.Specification(name="Height Check")
+        height_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        height_spec.requirements.append(ifc_ids.Attribute(name="Height", value="5"))
+        my_ids.specifications.append(height_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+        )
+
+        result = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(ids_file="test.ids"),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+        # Wall fails Spec 2, so it should be in failed (not passed)
+        assert len(result.failed_express_ids) == 1
+        assert len(result.passed_express_ids) == 0
+        assert _ref(wall) in result.failed_express_ids
+
+
+def test_ids_checker_with_real_ids_file() -> None:
+    """Test using a real IDS file and IFC model from testdata."""
+    testdata_dir = Path(__file__).parent / "testdata"
+
+    ifc_model = ifcopenshell.open(str(testdata_dir / "ifc2023_de_D0077.ifc"))
+    context = ExecutionContext(
+        ifc_model=ifc_model,
+        node_outputs={},
+        workflow_dir=testdata_dir,
+    )
+
+    result = asyncio.run(
+        ids_checker(
+            IdsCheckerSettings(ids_file="test.ids"),
+            IdsCheckerInputs(express_ids=_all_refs(context)),
+            context,
+        )
+    )
+
+    assert isinstance(result, IdsCheckerResult)
+    assert isinstance(result.failed_express_ids, list)
+    assert isinstance(result.passed_express_ids, list)
+    assert result.specifications is None

@@ -12,6 +12,7 @@ from openbim_runner.util.ifc_properties import (
     is_any_entity_type,
     stringify_value,
 )
+from openbim_runner.util.references import iter_resolved_elements
 
 ComparisonCondition = Literal[
     "equals",
@@ -94,10 +95,12 @@ class LoiCheckSettings(NodeModel):
 
 
 class LoiCheckInputs(NodeModel):
-    express_ids: list[int] = Field(
-        default=[],
+    express_ids: list[str] = Field(
         title="Express IDs",
-        description="Optional list of IFC express IDs to run property comparisons against. When empty (not connected), all IFC elements in the model are checked.",
+        description=(
+            "Qualified element references (`<slug>:expr:<id>`) to run property "
+            "comparisons against. Bind ifc_element_filter output here."
+        ),
     )
 
 
@@ -145,9 +148,9 @@ class PropertyCheckResult(NodeModel):
 
 
 class ComparisonElement(NodeModel):
-    express_id: int = Field(
+    express_id: str = Field(
         title="Express ID",
-        description="The express ID of the IFC entity.",
+        description="The qualified element reference (`<slug>:expr:<id>`).",
     )
     class_name: str = Field(
         title="Class name",
@@ -177,15 +180,15 @@ class LoiCheckResult(NodeModel):
         title="Failed count",
         description="Total number of failed checks across all elements.",
     )
-    passed_express_ids: list[int] = Field(
+    passed_express_ids: list[str] = Field(
         default=[],
         title="Passed express IDs",
-        description="Express IDs of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.",
+        description="Qualified references of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.",
     )
-    failed_express_ids: list[int] = Field(
+    failed_express_ids: list[str] = Field(
         default=[],
         title="Failed express IDs",
-        description="Express IDs of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.",
+        description="Qualified references of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.",
     )
     elements: list[ComparisonElement] = Field(
         default=[],
@@ -229,25 +232,18 @@ async def loi_check(
             if row.entity_type.strip()
         }
 
-    # Optional express_ids input: when empty (unconnected), gather all elements
-    # from the model context, consistent with the element filter's IfcElement default.
-    express_ids = inputs.express_ids
-    if not express_ids:
+    # Each qualified reference resolves against its own model slug; mixed-model
+    # lists are allowed.
+    for element, model in iter_resolved_elements(
+        inputs.express_ids, context, node="loi_check"
+    ):
         try:
-            express_ids = [
-                entity.id() for entity in context.ifc_model.by_type("IfcElement")
-            ]
-        except RuntimeError:
-            express_ids = []
-
-    for express_id in express_ids:
-        try:
-            entity = context.ifc_model.by_id(express_id)
+            entity = model.by_id(element.express_id)
         except RuntimeError:
             if not specified_types:
                 elements.append(
                     ComparisonElement(
-                        express_id=express_id,
+                        express_id=element.reference,
                         class_name="unknown",
                         failed=False,
                         checks=[],
@@ -328,7 +324,7 @@ async def loi_check(
 
         elements.append(
             ComparisonElement(
-                express_id=express_id,
+                express_id=element.reference,
                 class_name=class_name,
                 failed=element_failed,
                 checks=checks,

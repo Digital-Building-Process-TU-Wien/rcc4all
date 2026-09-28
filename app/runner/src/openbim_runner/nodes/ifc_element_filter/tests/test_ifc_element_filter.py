@@ -6,6 +6,8 @@ from typing import Any, cast
 
 import pytest
 
+from conftest import main_guid as _guid
+from conftest import main_ref as _ref
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.ifc_element_filter.ifc_element_filter import (
     FilterRow,
@@ -52,6 +54,9 @@ class FakeIfcModel:
         entity_type = entity_type.upper()
         if entity_type == "IFCUNKNOWN":
             raise RuntimeError("Unknown entity type")
+        if entity_type == "IFCELEMENT":
+            # In the fake, any entity counts as an IfcElement subtype.
+            return list(self.entities_by_id.values())
         return self.entities_by_type.get(entity_type, [])
 
     def by_id(self, express_id: int) -> FakeEntity:
@@ -112,8 +117,8 @@ def test_ifc_element_filter_include_and_exclude_rows(
         FakeIfcModel({"IFCWALL": [wall_inside, wall_outside]}),
     )
 
-    assert result.express_ids == [1]
-    assert result.guids == ["wall-inside"]
+    assert result.express_ids == [_ref(1)]
+    assert result.guids == [_guid("wall-inside")]
 
 
 def test_ifc_element_filter_matches_attribute_and_predefined_type(
@@ -142,8 +147,8 @@ def test_ifc_element_filter_matches_attribute_and_predefined_type(
         FakeIfcModel({"IFCDOOR": [door, gate]}),
     )
 
-    assert result.express_ids == [10]
-    assert result.guids == ["door-1"]
+    assert result.express_ids == [_ref(10)]
+    assert result.guids == [_guid("door-1")]
 
 
 def test_ifc_element_filter_unknown_entity_type_returns_empty() -> None:
@@ -186,8 +191,8 @@ def test_ifc_element_filter_empty_entity_type_searches_all_ifc_elements(
         FakeIfcModel({"IFCELEMENT": [internal, external]}),
     )
 
-    assert result.express_ids == [21]
-    assert result.guids == ["external-element"]
+    assert result.express_ids == [_ref(21)]
+    assert result.guids == [_guid("external-element")]
 
 
 def test_ifc_element_filter_restricts_to_input_express_ids(
@@ -201,11 +206,11 @@ def test_ifc_element_filter_restricts_to_input_express_ids(
     result = run_filter(
         IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCWALL")]),
         FakeIfcModel({"IFCWALL": [wall], "IFCDOOR": [door]}),
-        inputs=IfcElementFilterInputs(express_ids=[1, 2]),
+        inputs=IfcElementFilterInputs(express_ids=[_ref(1), _ref(2)]),
     )
 
-    assert result.express_ids == [1]
-    assert result.guids == ["wall-1"]
+    assert result.express_ids == [_ref(1)]
+    assert result.guids == [_guid("wall-1")]
 
 
 def test_ifc_element_filter_output_follows_input_order(
@@ -220,11 +225,11 @@ def test_ifc_element_filter_output_follows_input_order(
     result = run_filter(
         IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCWALL")]),
         FakeIfcModel({"IFCWALL": [wall_a, wall_b, wall_c]}),
-        inputs=IfcElementFilterInputs(express_ids=[3, 1, 2]),
+        inputs=IfcElementFilterInputs(express_ids=[_ref(3), _ref(1), _ref(2)]),
     )
 
-    assert result.express_ids == [3, 1, 2]
-    assert result.guids == ["wall-c", "wall-a", "wall-b"]
+    assert result.express_ids == [_ref(3), _ref(1), _ref(2)]
+    assert result.guids == [_guid("wall-c"), _guid("wall-a"), _guid("wall-b")]
 
 
 def test_ifc_element_filter_input_deduplicates_express_ids(
@@ -237,10 +242,10 @@ def test_ifc_element_filter_input_deduplicates_express_ids(
     result = run_filter(
         IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCWALL")]),
         FakeIfcModel({"IFCWALL": [wall]}),
-        inputs=IfcElementFilterInputs(express_ids=[1, 1, 1]),
+        inputs=IfcElementFilterInputs(express_ids=[_ref(1), _ref(1), _ref(1)]),
     )
 
-    assert result.express_ids == [1]
+    assert result.express_ids == [_ref(1)]
 
 
 def test_ifc_element_filter_unknown_input_express_id_dropped(
@@ -253,11 +258,11 @@ def test_ifc_element_filter_unknown_input_express_id_dropped(
     result = run_filter(
         IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCWALL")]),
         FakeIfcModel({"IFCWALL": [wall]}),
-        inputs=IfcElementFilterInputs(express_ids=[1, 999]),
+        inputs=IfcElementFilterInputs(express_ids=[_ref(1), _ref(999)]),
     )
 
-    assert result.express_ids == [1]
-    assert result.guids == ["wall-1"]
+    assert result.express_ids == [_ref(1)]
+    assert result.guids == [_guid("wall-1")]
 
 
 def test_ifc_element_filter_input_applies_exclude_rows(
@@ -290,11 +295,11 @@ def test_ifc_element_filter_input_applies_exclude_rows(
             ]
         ),
         FakeIfcModel({"IFCWALL": [wall_inside, wall_outside]}),
-        inputs=IfcElementFilterInputs(express_ids=[2, 1]),
+        inputs=IfcElementFilterInputs(express_ids=[_ref(2), _ref(1)]),
     )
 
-    assert result.express_ids == [1]
-    assert result.guids == ["wall-inside"]
+    assert result.express_ids == [_ref(1)]
+    assert result.guids == [_guid("wall-inside")]
 
 
 def test_ifc_element_filter_connected_empty_input_returns_empty(
@@ -332,5 +337,52 @@ def test_ifc_element_filter_unbound_input_scans_whole_model(
         FakeIfcModel({"IFCWALL": [wall], "IFCDOOR": [door]}),
     )
 
-    assert result.express_ids == [1]
-    assert result.guids == ["wall-1"]
+    assert result.express_ids == [_ref(1)]
+    assert result.guids == [_guid("wall-1")]
+
+
+def test_ifc_element_filter_no_rows_returns_all_ifc_elements(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wall = FakeEntity(1, GlobalId="wall-1")
+    door = FakeEntity(2, GlobalId="door-1")
+
+    monkeypatch.setattr(filter_module, "get_psets", _fake_get_psets)
+
+    # New behavior: scan mode with no filter rows yields every IfcElement.
+    result = run_filter(
+        IfcElementFilterSettings(filter_rows=[]),
+        FakeIfcModel({"IFCWALL": [wall], "IFCDOOR": [door]}),
+    )
+
+    assert result.express_ids == [_ref(1), _ref(2)]
+    assert result.guids == [_guid("wall-1"), _guid("door-1")]
+
+
+def test_ifc_element_filter_bound_refs_resolve_against_own_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    main_wall = FakeEntity(1, GlobalId="main-wall")
+    arch_wall = FakeEntity(1, GlobalId="arch-wall")
+
+    monkeypatch.setattr(filter_module, "get_psets", _fake_get_psets)
+
+    context = ExecutionContext(
+        models={
+            "main": cast(Any, FakeIfcModel({"IFCWALL": [main_wall]})),
+            "arch": cast(Any, FakeIfcModel({"IFCWALL": [arch_wall]})),
+        },
+        node_outputs={},
+    )
+    result = asyncio.run(
+        ifc_element_filter(
+            IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCWALL")]),
+            IfcElementFilterInputs(express_ids=["arch:expr:1"]),
+            context,
+        )
+    )
+
+    # Per-reference slugs win over the model input: arch:expr:1 resolves
+    # against arch even though the model input points at main.
+    assert result.express_ids == ["arch:expr:1"]
+    assert result.guids == ["arch:guid:arch-wall"]
