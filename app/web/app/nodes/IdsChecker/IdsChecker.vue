@@ -44,7 +44,7 @@ function selectFile(filename: string) {
 const reportFormat = computed({
   get: () => node.value.data.settings!.report_format || undefined,
   set: (val: string | undefined) => {
-    node.value.data.settings!.report_format = (val as 'json' | 'html') || null
+    node.value.data.settings!.report_format = (val as 'json' | 'html' | 'bcf') || null
   },
 })
 </script>
@@ -94,13 +94,14 @@ const reportFormat = computed({
         :items="[
           { value: 'json', label: 'JSON' },
           { value: 'html', label: 'HTML' },
+          { value: 'bcf', label: 'BCF 3.0' },
         ]"
         value-key="value"
         label-key="label"
         placeholder="Format wählen"
       />
       <p class="text-xs text-slate-500">
-        Report wird als <code class="font-mono">ids_report-{timestamp}.{{ node.data.settings?.report_format }}</code> in <code class="font-mono">web/.dev-files</code> gespeichert.
+        Report wird als <code class="font-mono">ids_report-{timestamp}.{{ node.data.settings?.report_format }}</code> (JSON/HTML) bzw. <code class="font-mono">ids_bcf-{timestamp}.bcf</code> (BCF) in <code class="font-mono">web/.dev-files</code> gespeichert.
       </p>
     </div>
 

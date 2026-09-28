@@ -480,6 +480,184 @@ def test_ids_checker_report_generation() -> None:
         assert "IfcWall" in html_content
 
 
+def test_ids_checker_bcf_report_generation() -> None:
+    """Test BCF report file generation."""
+    import zipfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # IFC file erstellen
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall = ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        # IDS file mit failing requirement erstellen
+        my_ids = ifc_ids.Ids(title="BCF Test IDS")
+
+        wall_spec = ifc_ids.Specification(name="Wall Check")
+        wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        # Diese Requirement wird fehlschlagen (Name ist "Wall 1", nicht "Expected Name")
+        wall_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Expected Name"))
+        my_ids.specifications.append(wall_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+            output_dir=tmpdir_path,
+        )
+
+        # BCF Report generieren
+        result_bcf = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(
+                    ids_file="test.ids",
+                    generate_detailed_report=True,
+                    report_format="bcf",
+                ),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+        # Überprüfen dass Resultat korrekt ist
+        assert len(result_bcf.failed_express_ids) == 1
+        assert len(result_bcf.passed_express_ids) == 0
+        assert result_bcf.specifications is not None
+        assert len(result_bcf.specifications) == 1
+        assert result_bcf.report_path is not None
+
+        # Überprüfen dass BCF-Datei erstellt wurde
+        bcf_files = list(tmpdir_path.glob("ids_bcf-*.bcf"))
+        assert len(bcf_files) == 1
+        assert bcf_files[0].exists()
+
+        # BCF-ZIP-Struktur validieren
+        with zipfile.ZipFile(bcf_files[0], "r") as archive:
+            names = archive.namelist()
+            assert "bcf.version" in names
+            assert "project.bcfp" in names
+            markup_names = [n for n in names if n.endswith("/markup.bcf")]
+            assert len(markup_names) == 1  # Ein Topic pro failing check
+
+            # BCF 2.1 Version prüfen (bcf-client verwendet v2.1)
+            bcf_version = archive.read("bcf.version").decode("utf-8")
+            assert 'VersionId="2.1"' in bcf_version
+
+            # Markup-Inhalt prüfen
+            markup_content = archive.read(markup_names[0]).decode("utf-8")
+            assert "Wall Check" in markup_content
+            assert "Wall 1" in markup_content
+
+
+def test_ids_checker_bcf_report_multiple_specifications() -> None:
+    """Test BCF report generation with multiple specifications and failures."""
+    import zipfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # IFC file mit mehreren Elementen erstellen
+        ifc_file_path = tmpdir_path / "test.ifc"
+        ifc_file = ifcopenshell.file()
+        ifc_file.create_entity(
+            "IfcProject", Name="Test Project", GlobalId="0y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall1 = ifc_file.create_entity(
+            "IfcWall", Name="Wall 1", GlobalId="1y$yN$DPH95gqWMb$mqAOV"
+        )
+        wall2 = ifc_file.create_entity(
+            "IfcWall", Name="Wall 2", GlobalId="2y$yN$DPH95gqWMb$mqAOV"
+        )
+        door = ifc_file.create_entity(
+            "IfcDoor", Name="Door 1", GlobalId="3y$yN$DPH95gqWMb$mqAOV"
+        )
+        ifc_file.write(str(ifc_file_path))
+
+        # IDS file mit mehreren Specifications
+        my_ids = ifc_ids.Ids(title="Multi Spec BCF Test")
+
+        # Spec 1: Walls müssen "Wall 1" heißen (wall2 wird fehlschlagen)
+        wall_spec = ifc_ids.Specification(name="Wall Name Check")
+        wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
+        wall_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Wall 1"))
+        my_ids.specifications.append(wall_spec)
+
+        # Spec 2: Doors müssen "Door 1" heißen (wird bestehen)
+        door_spec = ifc_ids.Specification(name="Door Name Check")
+        door_spec.applicability.append(ifc_ids.Entity(name="IFCDOOR"))
+        door_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Door 1"))
+        my_ids.specifications.append(door_spec)
+
+        ids_file = tmpdir_path / "test.ids"
+        my_ids.to_xml(str(ids_file))
+
+        ifc_model = ifcopenshell.open(str(ifc_file_path))
+        context = ExecutionContext(
+            ifc_model=ifc_model,
+            node_outputs={},
+            workflow_dir=tmpdir_path,
+            output_dir=tmpdir_path,
+        )
+
+        # BCF Report generieren
+        result_bcf = asyncio.run(
+            ids_checker(
+                IdsCheckerSettings(
+                    ids_file="test.ids",
+                    generate_detailed_report=True,
+                    report_format="bcf",
+                ),
+                IdsCheckerInputs(express_ids=_all_refs(context)),
+                context,
+            )
+        )
+
+        # Überprüfen dass Resultat korrekt ist
+        # wall1 besteht beide Specs, wall2 fällt bei Spec 1, door besteht Spec 2
+        assert len(result_bcf.failed_express_ids) == 1
+        assert len(result_bcf.passed_express_ids) == 2
+        assert result_bcf.specifications is not None
+        assert len(result_bcf.specifications) == 2
+        assert result_bcf.report_path is not None
+
+        # Überprüfen dass BCF-Datei erstellt wurde
+        bcf_files = list(tmpdir_path.glob("ids_bcf-*.bcf"))
+        assert len(bcf_files) == 1
+        assert bcf_files[0].exists()
+
+        # BCF-ZIP-Struktur validieren
+        with zipfile.ZipFile(bcf_files[0], "r") as archive:
+            names = archive.namelist()
+            assert "bcf.version" in names
+            assert "project.bcfp" in names
+            markup_names = [n for n in names if n.endswith("/markup.bcf")]
+            # Nur 1 Topic (wall2 fällt bei einer Spec)
+            assert len(markup_names) == 1
+
+            # BCF 2.1 Version prüfen (bcf-client verwendet v2.1)
+            bcf_version = archive.read("bcf.version").decode("utf-8")
+            assert 'VersionId="2.1"' in bcf_version
+
+            # Markup-Inhalt prüfen
+            markup_content = archive.read(markup_names[0]).decode("utf-8")
+            assert "Wall Name Check" in markup_content
+            assert "Wall 2" in markup_content
+
+
 def test_ids_checker_mixed_pass_fail_single_entity() -> None:
     """Test: One entity passes Spec 1 but fails Spec 2 → should be in failed (not passed).
 
