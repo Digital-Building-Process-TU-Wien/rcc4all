@@ -9,6 +9,7 @@ const props = defineProps<{
 }>()
 
 const node = useScopedNode<IdsCheckerNode>(props.node.id)
+const { t } = useI18n()
 
 if (!node.value.data.settings) {
   node.value.data.settings = { ids_file: '', generate_detailed_report: false, report_format: null }
@@ -44,7 +45,7 @@ function selectFile(filename: string) {
 const reportFormat = computed({
   get: () => node.value.data.settings!.report_format || undefined,
   set: (val: string | undefined) => {
-    node.value.data.settings!.report_format = (val as 'json' | 'html') || null
+    node.value.data.settings!.report_format = (val as 'json' | 'html' | 'bcf') || null
   },
 })
 </script>
@@ -53,73 +54,51 @@ const reportFormat = computed({
   <div class="flex flex-col gap-4">
     <div class="px-2">
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-        IDS Checker Node
+        {{ t('node.idsChecker.title') }}
       </div>
       <p class="mt-1 text-sm text-slate-500">
-        Select a local development IDS file.
+        {{ t('node.idsChecker.description') }}
       </p>
     </div>
 
     <div class="flex flex-col gap-2">
-      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Selected IDS file</label>
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
+        {{ t('node.idsChecker.selectedFile.label') }}
+      </label>
       <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
         <Icon name="i-lucide-file-check" class="size-4 text-slate-400" />
         <span class="flex-1 truncate">
-          {{ node.data?.settings?.ids_file || 'No file selected' }}
+          {{ node.data?.settings?.ids_file || t('node.idsChecker.selectedFile.placeholder') }}
         </span>
         <UButton
           v-if="node.data?.settings?.ids_file"
           color="neutral"
           variant="ghost"
           size="xs"
-          label="Clear"
+          :label="t('node.idsChecker.selectedFile.clear')"
           @click="clearSelection"
         />
       </div>
     </div>
 
     <div class="flex flex-col gap-2">
-      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Detaillierten Report generieren</label>
-      <UCheckbox
-        v-model="node.data.settings!.generate_detailed_report"
-        label="Ergebnisse nach Specification gruppieren (für Report-Generierung)"
-        help="Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt."
-      />
-    </div>
-
-    <div v-if="node.data.settings?.generate_detailed_report" class="flex flex-col gap-2">
-      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Report Format</label>
-      <USelect
-        v-model="reportFormat"
-        :items="[
-          { value: 'json', label: 'JSON' },
-          { value: 'html', label: 'HTML' },
-        ]"
-        value-key="value"
-        label-key="label"
-        placeholder="Format wählen"
-      />
-      <p class="text-xs text-slate-500">
-        Report wird als <code class="font-mono">ids_report-{timestamp}.{{ node.data.settings?.report_format }}</code> in <code class="font-mono">web/.dev-files</code> gespeichert.
-      </p>
-    </div>
-
-    <div class="flex flex-col gap-2">
-      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">Search files</label>
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
+        {{ t('node.idsChecker.search.label') }}
+      </label>
       <UInput
         v-model="search"
         icon="i-lucide-search"
-        placeholder="Filter filenames"
+        :placeholder="t('node.idsChecker.search.placeholder')"
       />
     </div>
 
     <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-      <p>{{ error.statusMessage || 'Unable to load IDS files.' }}</p>
+      <p>{{ error.statusMessage || t('node.idsChecker.fileList.loadFailed') }}</p>
       <UButton
         color="error"
         variant="ghost"
         size="sm"
-        label="Retry"
+        :label="t('node.idsChecker.fileList.retry')"
         class="mt-2"
         @click="refresh()"
       />
@@ -128,16 +107,16 @@ const reportFormat = computed({
     <div v-else class="flex flex-col gap-2">
       <div class="max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
         <div v-if="pending" class="px-2 py-3 text-sm text-slate-500">
-          Loading files...
+          {{ t('node.idsChecker.fileList.loading') }}
         </div>
 
         <div v-else-if="!idsFiles.length" class="px-2 py-3 text-sm text-slate-500">
-          No IDS files were found in web/.dev-files <br>
-          Please add .ids files in the folder <span class="font-mono text-slate-700">web/.dev-files</span> to use this node.
+          {{ t('node.idsChecker.fileList.noFiles') }}<br>
+          {{ t('node.idsChecker.fileList.noFilesHint') }} <span class="font-mono text-slate-700">web/.dev-files</span>
         </div>
 
         <div v-else-if="!filteredFiles.length" class="px-2 py-3 text-sm text-slate-500">
-          No filenames match your search.
+          {{ t('node.idsChecker.fileList.noMatches') }}
         </div>
 
         <div v-else class="flex flex-col gap-2">
@@ -154,6 +133,37 @@ const reportFormat = computed({
           </UButton>
         </div>
       </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
+        {{ t('node.idsChecker.report.detailedLabel') }}
+      </label>
+      <UCheckbox
+        v-model="node.data.settings!.generate_detailed_report"
+        :label="t('node.idsChecker.report.detailedHelp')"
+        :help="t('node.idsChecker.report.detailedHint')"
+      />
+    </div>
+
+    <div v-if="node.data.settings?.generate_detailed_report" class="flex flex-col gap-2">
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
+        {{ t('node.idsChecker.report.formatLabel') }}
+      </label>
+      <USelect
+        v-model="reportFormat"
+        :items="[
+          { value: 'json', label: 'JSON' },
+          { value: 'html', label: 'HTML' },
+          { value: 'bcf', label: 'BCF 3.0' },
+        ]"
+        value-key="value"
+        label-key="label"
+        :placeholder="t('node.idsChecker.report.formatPlaceholder')"
+      />
+      <p class="text-xs text-slate-500">
+        {{ t('node.idsChecker.report.formatHint') }} <code class="font-mono">ids_report-{timestamp}.{{ node.data.settings?.report_format }}</code> (JSON/HTML) bzw. <code class="font-mono">ids_bcf-{timestamp}.bcf</code> (BCF) <code class="font-mono">web/.dev-files</code>.
+      </p>
     </div>
   </div>
 </template>

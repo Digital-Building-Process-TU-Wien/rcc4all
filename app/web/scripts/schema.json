@@ -900,7 +900,8 @@
                 {
                   "enum": [
                     "json",
-                    "html"
+                    "html",
+                    "bcf"
                   ],
                   "type": "string"
                 },
