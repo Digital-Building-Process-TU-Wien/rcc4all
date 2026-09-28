@@ -505,7 +505,9 @@ def test_ids_checker_bcf_report_generation() -> None:
         wall_spec = ifc_ids.Specification(name="Wall Check")
         wall_spec.applicability.append(ifc_ids.Entity(name="IFCWALL"))
         # Diese Requirement wird fehlschlagen (Name ist "Wall 1", nicht "Expected Name")
-        wall_spec.requirements.append(ifc_ids.Attribute(name="Name", value="Expected Name"))
+        wall_spec.requirements.append(
+            ifc_ids.Attribute(name="Name", value="Expected Name")
+        )
         my_ids.specifications.append(wall_spec)
 
         ids_file = tmpdir_path / "test.ids"
