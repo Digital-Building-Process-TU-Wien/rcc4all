@@ -1,69 +1,84 @@
 ---
 title: BCF-Ausgabe
-description: Wandelt LOI-Check-Fehler in eine BCF-3.0-Issue-Datei um.
+description: Setzt Prüfungs-Node-Fehler in eine BCF-3.0-Issue-Datei um.
 categories: Output
 ---
 
-`bcf_output` verwandelt die fehlgeschlagenen Prüfungen von `loi_check` in eine
-**BCF-3.0**-Issue-Datei — ein **Topic pro fehlgeschlagener Prüfung**, die das
-betroffene Element referenziert, damit es in einem BCF-Viewer geprüft werden
-kann. Die Datei ist **rein Markup-basiert** (keine 3D-Viewpoint-Daten halten
-sie klein und schnell zu öffnen). Der Node ermittelt selbst keine
-Eigenschaften; er liest die strukturierte `elements`-Ausgabe von `loi_check`
-und löst GUID / Name des Elements nur zur Referenzierung auf — aus dem Modell,
-das in der voll qualifizierten Referenz (`<slug>:expr:<id>`) des Elements
-genannt ist; der Node hat keinen `model_slug`-Eingang.
+`bcf_output` verwandelt die fehlgeschlagenen Prüfungen eines vorgelagerten
+Prüfungs-Nodes (LOI-Check oder Tilt of Components) in eine **BCF-3.0**-Issue-
+Datei — ein **Topic pro Element**, das alle fehlgeschlagenen Prüfungen des
+Elements zusammenfasst und das betroffene Element referenziert, damit es in
+einem BCF-Viewer geprüft werden kann. Die Datei wird mit dem
+`bcf-client`-Paket aus dem IfcOpenShell-Ökosystem geschrieben und enthält
+einen **Viewpoint** für jedes auflösbare betroffene Element.
+
+Der Node ermittelt selbst keine Daten; er liest die **harmonisierte**
+`elements`-Ausgabe, die LOI-Check und Tilt of Components teilen, und löst
+GlobalId, Name und IFC-Entität des Elements nur zur Referenzierung auf — aus
+dem Modell, das in der voll qualifizierten Referenz (`<slug>:expr:<id>`) des
+Elements genannt ist.
 
 ## Anwendungsbeispiel
 
-Führen Sie `loi_check` aus, verbinden Sie dessen `elements`-Ausgabe mit diesem
-Node, wählen Sie eine Titel- und Beschreibungsschablone (siehe unten) und
-führen Sie den Workflow aus — neben der Workflow-Datei wird
-`bcf_output-<Zeitstempel>.bcf` gespeichert.
+Führen Sie `loi_check` oder `tilt_of_components` aus, verbinden Sie dessen
+`elements`-Ausgabe mit diesem Node, wählen Sie eine Titel- und
+Beschreibungsschablone (siehe unten) und führen Sie den Workflow aus — im
+Ausgabeverzeichnis des Workflows wird eine BCF-Datei gespeichert (Standard
+`check-results.bcf`).
 
 ## Einstellungen
-
-Beide Schablonen sind `str.format`-Strings; der erwartete Wert der Prüfung
-liefert automatisch das Limit (nichts muss von Hand eingegeben werden).
 
 | Einstellung | Beschreibung |
 |-------------|--------------|
 | **Modus** | `auto` (Standard) wendet fertige, bedingungsbewusste Schablonen an; `manual` löst Ihre eigene Schablone exakt wie geschrieben auf. |
 | **Titelschablone** | Der BCF-Topic-Titel, für jede fehlgeschlagene Prüfung ausgefüllt. |
 | **Beschreibungsschablone** | Die BCF-Topic-Nachricht, für jede fehlgeschlagene Prüfung ausgefüllt. |
+| **Projektname** | Name in den BCF-Projektinformationen (Standard `Default Project`). |
+| **Erstellungsautor** | Autor der Erstellungsdaten jedes Topics (Standard `Default Author`). |
+| **Topic-Typ** | BCF-`TopicType` (Standard `Model Check`). |
+| **Topic-Status** | BCF-`TopicStatus` (Standard `Open`). |
+| **Ausgabedatei** | Dateiname (relativ zum Ausgabeverzeichnis; Standard `check-results.bcf`). Ein `{timestamp}`-Platzhalter wird pro Lauf ersetzt. |
+| **Enthaltene Elemente** | Welche Elemente die BCF enthält: `fehlgeschlagen` (Standard) nur Elemente mit fehlgeschlagener Prüfung; `bestanden` nur vollständig bestandene Elemente (je ein Info-Topic); `alle` jedes Element (jedes Element wird ein Topic). |
 
 ## Platzhalter
 
 Auf Elementebene: `{id}`, `{guid}`, `{name}`, `{class_name}`. `{id}` rendert
-die nackte IFC-Express-ID (z. B. `63`) — BCF kennt keine qualifizierten
-Referenzen — und `{guid}` die rohe IFC-GlobalId. BCF-Ausgaben enthalten nie
-qualifizierte Referenzen.
+die nackte IFC-Express-ID — BCF kennt keine qualifizierten Referenzen — und
+`{guid}` die rohe IFC-GlobalId. BCF-Ausgaben enthalten nie qualifizierte
+Referenzen.
 
-Pro Eigenschaft (über den Property-Key der fehlgeschlagenen Prüfung, z. B.
-`Pset_WallCommon.ThermalTransmittance` oder `ThermalTransmittance`):
-`{<key>.actual}`, `{<key>.expected}`, `{<key>.condition}`,
-`{<key>.property_name}`, `{<key>.expected_min}`, `{<key>.expected_max}`.
+Die Platzhalter `{node_label}`, `{check_type}` und `{node_id}` werden
+akzeptiert, rendern aber immer leer (mit einer Warnung), da Label / Typ / ID
+eines vorgelagerten Nodes nicht auf dessen Ergebnismodell übertragen werden.
 
-Generische Aliase: `{actual}`, `{expected}`, `{condition}`, `{property_name}`,
-`{expected_min}`, `{expected_max}`.
+Pro Prüfung (generisch verfügbar):
+
+`{key}`, `{check_parameter}` (Alias `{property_name}`), `{value}`/`{actual}`/
+`{actual_value}`, `{expected}`/`{expected_value}`, `{unit}`, `{missing}`,
+`{passed}`, `{condition}`/`{expected_value_condition}`, `{expected_min}`/
+`{expected_value_min}`, `{expected_max}`/`{expected_value_max}`.
+
+Über den Key der Prüfung (z. B. `Pset_WallCommon.ThermalTransmittance` oder
+`surface_0`): derselbe Satz unter `<key>.<field>`, z. B. `{<key>.expected}`,
+`{<key>.actual}`, `{<key>.condition}`.
 
 `{condition_symbol}` — der Operator: kompakt (`=`, `!=`, `<`, `<=`, `>`, `>=`)
 oder mit Leerraum für Wort-Bedingungen (` contains `, ` ∈ `, ` is true`,
 ` is false`, ` between `, ` outside `), sodass
-`{property_name}{condition_symbol}{expected}` natürlich liest (z. B.
+`{check_parameter}{condition_symbol}{expected}` natürlich liest (z. B.
 `Material contains concrete`, `LoadBearing is true`). `between` / `outside`
 vergleichen gegen einen Bereich — verwenden Sie `{expected_min}` /
 `{expected_max}`.
 
 ### Auto-Modus-Platzhalter (bedingungsbewusst)
 
-Generisch und pro Property-Key verfügbar (z. B. `{<key>.expectation}`):
+Generisch und pro Prüfungs-Key verfügbar (z. B. `{<key>.expectation}`):
 
 | Platzhalter | Rendert |
 |-------------|---------|
 | `{expectation}` | Wie die Erwartung für diese Bedingung lauten sollte (siehe Tabelle). |
 | `{actual_display}` | Der gemessene Wert oder `missing`, wenn das Element keinen Wert hat. |
-| `{failure_reason}` | Warum die Prüfung fehlschlug, z. B. `property ThermalTransmittance is 0.5 (expected < 0.24)`. |
+| `{failure_reason}` | Warum die Prüfung fehlschlug, z. B. `value for ThermalTransmittance is 0.5 (expected < 0.24)`. |
 
 `{expectation}` pro Bedingung:
 
@@ -80,46 +95,59 @@ Generisch und pro Property-Key verfügbar (z. B. `{<key>.expectation}`):
 Auto-Modus (empfohlen):
 
 ```
-Title:        {class_name} {name} failed {property_name}
+Title:        {class_name} {name} failed {check_parameter}
 Description:  Element #{id} failed because {failure_reason}
 ```
 
 Manueller Modus:
 
 ```
-Title:        {class_name} {name} failed {property_name}
-Description:  Element {guid} ({class_name} {name}) hat {property_name}={actual}; erwartet {property_name}{condition_symbol}{expected}.
+Title:        {class_name} {name} failed {check_parameter}
+Description:  Element {guid} ({class_name} {name}) hat {check_parameter}={actual}; erwartet {check_parameter}{condition_symbol}{expected}.
 ```
 
 ## Eingaben
 
-- **Elements** (erforderlich): die Elementliste aus `loi_check`
-  (`LOI-Check.elements`); der Node meldet einen Fehler, wenn sie fehlt.
+- **Elements** (erforderlich): die harmonisierte Elementliste aus `loi_check`
+  (`LOI-Check.elements`) oder `tilt_of_components`
+  (`Tilt-of-Components.elements`); der Node meldet einen Fehler, wenn sie fehlt.
 - **Automatische Verbindung**: Wenn Sie keine Quelle wählen, verwendet der
   Node automatisch den einzelnen direkt vorgelagerten Node, der die
   erwarteten Daten liefert. Das geschieht anhand des Node-Typs (nicht seines
-  Anzeigenamens), sodass eine Umbenennung Ihres LOI-Check-Nodes keine
+  Anzeigenamens), sodass eine Umbenennung Ihres Prüfungs-Nodes keine
   Auswirkung hat. Können mehrere direkt vorgelagerte Nodes sie liefern, stoppt
   der Lauf und fordert eine Auswahl — und Sie können die automatische Wahl
   jederzeit im Eingabebindungen-Panel überschreiben.
 
 ## Ausgaben
 
-Der Node meldet `output_path` (wo die Datei gespeichert wurde),
-`topic_count` (eines pro fehlgeschlagener Prüfung), `element_count`,
-`failed_check_count` und `topics` — der aufgelöste Titel und die Nachricht pro
-fehlgeschlagener Prüfung zur Kontrolle.
+Der Node meldet `output_path` (wo die Datei gespeichert wurde), `topic_count`,
+`viewpoint_count`, `processed_result_count` (verarbeitete Prüfungen),
+`element_count`, `failure_count` (fehlgeschlagene Prüfungen), `skipped`
+(fehlgeschlagene Prüfungen, deren Element nicht aufgelöst werden konnte),
+`warnings` und `topics` — der aufgelöste Titel und die Nachricht pro Topic zur
+Kontrolle.
 
 ## Verhalten & Randfälle
 
-- **Ein Topic pro fehlgeschlagener Prüfung** (3 fehlgeschlagene Regeln →
-  3 Topics).
-- **Nicht auflösbarer Platzhalter oder fehlende GUID** → der Lauf schlägt
-  fehl und nennt die betroffene Prüfung (Element-ID + Property-Key).
+- **Ein Topic pro Element** — jedes Element mit einer fehlgeschlagenen Prüfung
+  wird ein einzelnes Topic, das alle seine fehlgeschlagenen Prüfungen
+  zusammenfasst; ein Viewpoint wird pro auflösbarem betroffenen Element
+  hinzugefügt.
+- **Enthaltene Elemente** filtert, welche Elemente ausgegeben werden:
+  `fehlgeschlagen` (Standard), `bestanden` (nur vollständig bestandene Elemente
+  → je ein Info-Topic) oder `alle`.
+- Ein **Viewpoint** wird pro auflösbarem fehlgeschlagenem Element hinzugefügt.
+- **Nicht auflösbarer Platzhalter** → der Lauf schlägt fehl und nennt die
+  betroffene Prüfung.
+- **`{node_label}` / `{check_type}` / `{node_id}`** → werden akzeptiert,
+  rendern leer, mit Warnung (Upstream-Metadaten werden nicht übertragen).
+- **Nicht auflösbares Element** (fehlende Entität oder GlobalId) → seine
+  fehlgeschlagene Prüfung wird übersprungen und eine Warnung protokolliert,
+  wodurch der Lauf robust bleibt.
 - **Kein Anzeigename** (`{name}`) → wird als leerer String gerendert.
 - **Keine fehlgeschlagenen Prüfungen** → speichert dennoch eine leere,
   gültige Issue-Datei.
-- **Rein Markup-basierte Ausgabe** — jedes Topic hat Titel, Nachricht und
-  Erstellungsdetails; es werden keine 3D-Viewpoint-Daten aufgenommen.
-- **Dateiname mit Zeitstempel** (`bcf_output-<yyyyMMdd-HHmmss>.bcf`), sodass
-  ein Lauf die vorherige Datei nie überschreibt.
+- **Dateiname** — `output_filename`, Standard `check-results.bcf`; verwenden
+  Sie einen `{timestamp}`-Platzhalter, um vorherige Dateien nicht zu
+  überschreiben.

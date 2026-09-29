@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import string
-import uuid
-import zipfile
-from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any, Literal
-from xml.etree import ElementTree as ET
+from typing import Annotated, Literal
 
 from pydantic import Field
 
@@ -17,51 +12,25 @@ from openbim_runner.nodes.base import (
     NodeModel,
     node,
 )
-from openbim_runner.nodes.loi_check.loi_check import (
-    ComparisonElement,
-    PropertyCheckResult,
+from openbim_runner.nodes.bcf_output.bcf_writer import BcfWriter
+from openbim_runner.nodes.bcf_output.harmonized import HarmonizedElement
+from openbim_runner.nodes.bcf_output.normalize import (
+    INCLUDE_FAILED,
+    FailedCheck,
+    normalize,
+)
+from openbim_runner.nodes.bcf_output.render import (
+    FILE_ONLY_PLACEHOLDERS,
+    Namespace,
+    RenderContext,
+    ResolvingFormatter,
+    build_namespace,
+    resolve_template,
 )
 from openbim_runner.util.references import parse_element_ref
 
-# Fixed identity / bookkeeping values used inside each generated markup.
-_TOPIC_TYPE = "ERROR"
-_TOPIC_STATUS = "Open"
-_CREATION_AUTHOR = "RCC4All"
-
-# Check fields exposed per property key as `<property_key>.<field>` placeholders.
-_CHECK_FIELDS = (
-    "actual",
-    "expected",
-    "condition",
-    "property_name",
-    "expected_min",
-    "expected_max",
-)
-
-# Adaptive (auto-mode) fields, computed per failed check. These dispatch on the
-# check's condition / missing value so a single template stays grammatically
-# correct across every scenario that loi_check can produce.
-_ADAPTIVE_FIELDS = ("expectation", "actual_display", "failure_reason")
-
-# Comparison condition -> compact operator symbol (for the {condition_symbol}
-# placeholder). Unknown conditions fall back to the condition token.
-_CONDITION_SYMBOLS = {
-    "equals": "=",
-    "not_equals": "!=",
-    "lt": "<",
-    "le": "<=",
-    "gt": ">",
-    "ge": ">=",
-    # Word/phrase conditions carry their own surrounding whitespace so direct
-    # concatenation like `{property_name}{condition_symbol}{expected}` reads
-    # cleanly (e.g. "Material contains concrete", "LoadBearing is true").
-    "contains": " contains ",
-    "one_of": " ∈ ",
-    "is_true": " is true",
-    "is_false": " is false",
-    "between": " between ",
-    "outside": " outside ",
-}
+DEFAULT_TOPIC_TYPE = "Model Check"
+DEFAULT_TOPIC_STATUS = "Open"
 
 
 class BcfOutputSettings(NodeModel):
@@ -69,48 +38,91 @@ class BcfOutputSettings(NodeModel):
         default="auto",
         title="Output mode",
         description=(
-            "'auto' uses condition-aware placeholders ({expectation}, {failure_reason}) so one "
-            "description template stays correct for every LOI-Check scenario. 'manual' uses the raw "
-            "placeholders ({actual}, {expected}, {condition_symbol}) exactly as written."
+            "'auto' applies the condition-aware standard templates in the editor; "
+            "'manual' resolves your own template exactly as written. The backend "
+            "resolves the same placeholders in both modes; 'mode' is a UI-only toggle."
         ),
     )
     title_template: str = Field(
         default="",
         title="Title template",
         description=(
-            "BCF topic title, resolved per failing check with Python string formatting. "
-            "Available placeholders: {id}, {guid}, {name}, {class_name} and check values keyed by "
-            "property, e.g. {Pset_WallCommon.ThermalTransmittance.actual}, "
-            "{Pset_WallCommon.ThermalTransmittance.expected}, "
-            "{Pset_WallCommon.ThermalTransmittance.condition}."
+            "BCF topic title, resolved per failing check with Python string "
+            "formatting. Placeholders: {id}, {guid}, {name}, {class_name} and check "
+            "values keyed by the check's key, e.g. {key.expected}, {key.actual}."
         ),
     )
     description_template: str = Field(
         default="",
         title="Description template",
         description=(
-            "BCF topic description (sentence) resolved per failing check, same placeholders as the "
-            "title template. The comparison row's expected value supplies the limit."
+            "BCF topic description (sentence) resolved per failing check, same "
+            "placeholders as the title template."
+        ),
+    )
+    project_name: str = Field(
+        default="Default Project",
+        title="Project name",
+        description="Name written into the BCF project information. Empty means no project name.",
+    )
+    author: str = Field(
+        default="Default Author",
+        title="Creation author",
+        description="Author recorded on every BCF topic's creation data.",
+    )
+    topic_type: str = Field(
+        default=DEFAULT_TOPIC_TYPE,
+        title="Topic type",
+        description="BCF TopicType applied to every topic.",
+    )
+    topic_status: str = Field(
+        default=DEFAULT_TOPIC_STATUS,
+        title="Topic status",
+        description="BCF TopicStatus applied to every topic.",
+    )
+    output_filename: str = Field(
+        default="check-results.bcf",
+        title="Output filename",
+        description=(
+            "Filename (relative to the output directory) to write the BCF into. "
+            "A '{timestamp}' placeholder is replaced with a per-run timestamp."
+        ),
+    )
+    included_elements: Literal["failed", "passed", "all"] = Field(
+        default=INCLUDE_FAILED,
+        title="Included elements",
+        description=(
+            "'failed' includes only elements with at least one failing check (their "
+            "failing checks become topics); 'passed' includes only fully-passed "
+            "elements (one info topic each); 'all' includes every element (failing "
+            "checks become topics, fully-passed elements get one info topic each)."
         ),
     )
 
 
 class BcfOutputInputs(NodeModel):
-    elements: Annotated[list[ComparisonElement], AutoBind()] = Field(
+    elements: Annotated[list[HarmonizedElement], AutoBind()] = Field(
         default=[],
         title="Elements",
-        description="Elements and their property check results from LOI-Check (LOI-Check.elements).",
+        description=(
+            "Harmonized check elements from an upstream checking node "
+            "(LOI-Check.elements or Tilt-of-Components.elements)."
+        ),
     )
 
 
 class BcfTopic(NodeModel):
-    guid: str = Field(
-        title="GUID",
-        description="IFC GlobalId of the failing element (resolved from the model by express ID).",
+    guids: list[str] = Field(
+        title="GUIDs",
+        description="IFC GlobalIds of the failing elements this topic references (resolved from the model by express ID).",
     )
-    property_key: str = Field(
-        title="Property key",
-        description="Property key of the failed check (e.g. 'Pset_WallCommon.ThermalTransmittance' or 'ThermalTransmittance').",
+    key: str = Field(
+        title="Key",
+        description="Key of the (first) failed check this topic reports.",
+    )
+    element_count: int = Field(
+        title="Element count",
+        description="Number of distinct failing elements this topic references.",
     )
     title: str = Field(
         title="Title",
@@ -118,7 +130,7 @@ class BcfTopic(NodeModel):
     )
     description: str = Field(
         title="Description",
-        description="Resolved topic description (sentence) from the description template.",
+        description="Resolved topic description from the description template.",
     )
 
 
@@ -129,249 +141,135 @@ class BcfOutputResult(NodeModel):
     )
     topic_count: int = Field(
         title="Topic count",
-        description="Number of BCF topics written (one per failing check).",
+        description="Number of BCF topics written.",
+    )
+    viewpoint_count: int = Field(
+        title="Viewpoint count",
+        description="Number of viewpoints written (one per resolvable failing element).",
+    )
+    processed_result_count: int = Field(
+        title="Processed result count",
+        description="Total number of checks processed across all input elements.",
     )
     element_count: int = Field(
         title="Element count",
-        description="Number of input elements consumed from LOI-Check.",
+        description="Number of input elements consumed from the upstream node.",
     )
-    failed_check_count: int = Field(
-        title="Failed check count",
-        description="Total number of failed property checks across all elements.",
+    failure_count: int = Field(
+        title="Failure count",
+        description="Total number of failed checks found.",
+    )
+    skipped: int = Field(
+        default=0,
+        title="Skipped",
+        description="Number of elements (with reported checks) skipped because they could not be resolved.",
+    )
+    warnings: list[str] = Field(
+        default=[],
+        title="Warnings",
+        description="Non-fatal notices collected while running.",
     )
     topics: list[BcfTopic] = Field(
         default=[],
         title="Topics",
-        description="Resolved topics (element GUID, property key, title, description).",
+        description="Resolved topics (element GUID, check key, title, description).",
     )
 
 
-class _Namespace:
-    """Attribute-access namespace used to resolve template placeholders.
-
-    Supports dotted placeholder paths such as ``Pset_WallCommon.ThermalTransmittance.actual``
-    via normal Python attribute traversal, so ``string.Formatter`` resolves
-    them without any custom index-formatting tricks.
-    """
-
-    def __init__(self) -> None:
-        self._values: dict[str, Any] = {}
-
-    def set(self, path: str, value: Any) -> None:
-        parts = path.split(".")
-        node = self
-        for part in parts[:-1]:
-            child = node._values.get(part)
-            if not isinstance(child, _Namespace):
-                child = _Namespace()
-                node._values[part] = child
-            node = child  # type: ignore[assignment]
-        node._values[parts[-1]] = value
-
-    def __getattr__(self, name: str) -> Any:
-        try:
-            return self._values[name]
-        except KeyError as error:
-            raise AttributeError(name) from error
-
-
-class _ResolvingFormatter(string.Formatter):
-    def get_field(
-        self,
-        field_name: str,
-        args: Sequence[Any],
-        kwargs: Mapping[str, Any],
-    ) -> tuple[Any, str]:
-        if not args:
-            raise ValueError(field_name)
-        namespace = args[0]
-        parts = field_name.split(".")
-        target: Any = namespace
-        try:
-            for part in parts:
-                target = getattr(target, part)
-        except AttributeError as error:
-            raise ValueError(field_name) from error
-        return target, parts[0]
-
-
-def _resolve_template(
-    template: str,
-    namespace: _Namespace,
-    formatter: _ResolvingFormatter,
-    *,
-    element_id: str,
-    property_key: str,
-) -> str:
-    if not template:
-        return ""
-    try:
-        return formatter.format(template, namespace)
-    except (AttributeError, KeyError, ValueError, IndexError) as error:
-        placeholder = str(error)
-        raise ValueError(
-            f"Unresolved template placeholder '{placeholder}' for element {element_id} "
-            f"(check '{property_key}')."
-        ) from error
-
-
-def _build_namespace(
-    *,
-    element_id: str,
-    element_guid: str,
-    element_name: str,
-    class_name: str,
-    check: PropertyCheckResult,
-) -> _Namespace:
-    ns = _Namespace()
-    ns.set("id", element_id)
-    ns.set("guid", element_guid)
-    ns.set("name", element_name)
-    ns.set("class_name", class_name)
-
-    field_values: dict[str, Any] = {
-        "actual": check.actual if check.actual is not None else "",
-        "expected": check.expected,
-        "condition": check.condition,
-        "property_name": check.property_name,
-        "expected_min": check.expected_min if check.expected_min is not None else "",
-        "expected_max": check.expected_max if check.expected_max is not None else "",
-        "condition_symbol": _CONDITION_SYMBOLS.get(
-            check.condition, str(check.condition)
-        ),
-    }
-    # Adaptive (auto-mode) values computed per check so one template covers every
-    # scenario loi_check can produce (per condition and for missing values).
-    field_values.update(_adaptive_values(check))
-    # Expose the check's values under its own property key(s) ...
-    for field in (*_CHECK_FIELDS, *_ADAPTIVE_FIELDS):
-        ns.set(f"{check.property_key}.{field}", field_values[field])
-    # ... and as generic top-level fields so templates can avoid hard-coding a
-    # specific property key.
-    for field, value in field_values.items():
-        ns.set(field, value)
-
-    return ns
-
-
-def _adaptive_values(check: PropertyCheckResult) -> dict[str, str]:
-    """Compute the condition-aware placeholder values for a failed check."""
-    expectation = _expectation_clause(check)
-    actual_display = check.actual if check.actual is not None else "missing"
-    if check.actual is None:
-        failure_reason = (
-            f"property {check.property_name} is missing (expected {expectation})"
-        )
-    else:
-        failure_reason = (
-            f"property {check.property_name} is {check.actual} (expected {expectation})"
-        )
-    return {
-        "expectation": expectation,
-        "actual_display": actual_display,
-        "failure_reason": failure_reason,
-    }
-
-
-def _expectation_clause(check: PropertyCheckResult) -> str:
-    """A grammatically correct 'expected ...' clause for the check's condition."""
-    condition = check.condition
-    if condition in ("between", "outside"):
-        bounds = f"{check.expected_min} and {check.expected_max}"
-        return (
-            f"between {bounds}" if condition == "between" else f"not between {bounds}"
-        )
-    if condition == "contains":
-        return f'contains "{check.expected}"'
-    if condition == "one_of":
-        return f"is one of: {check.expected}"
-    if condition == "is_true":
-        return "is true"
-    if condition == "is_false":
-        return "is false"
-    symbol = _CONDITION_SYMBOLS.get(condition, str(condition))
-    return f"{symbol} {check.expected}".strip()
-
-
-def _resolve_identity(
-    context: ExecutionContext, reference: str, property_key: str
-) -> tuple[str, str]:
-    """Resolve (guid, name) for a qualified element reference (identity lookup only)."""
-    element = parse_element_ref(reference, node="bcf_output")
+def _resolve_topic_identity(
+    context: ExecutionContext,
+    failed_check: FailedCheck,
+) -> tuple[object, str, str] | None:
+    """Resolve (entity, guid, name) for a failed check, or None if unresolvable."""
+    element = parse_element_ref(failed_check.reference, node="bcf_output")
     try:
         entity = context.resolve_model(element.slug).by_id(element.express_id)
-    except RuntimeError as error:
-        raise ValueError(
-            f"Could not resolve IFC entity for reference {reference} "
-            f"(check '{property_key}')."
-        ) from error
-
+    except RuntimeError:
+        return None
     guid = getattr(entity, "GlobalId", None)
     if not guid:
-        raise ValueError(
-            f"Element {reference} has no GlobalId (check '{property_key}'); "
-            "the element GUID is required to reference it in BCF."
-        )
-
+        return None
     name = getattr(entity, "Name", None)
-    if name is None:
-        name = ""
-    return str(guid), str(name)
+    return entity, str(guid), (str(name) if name is not None else "")
 
 
-def _now_isodate() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
-def _build_markup_xml(
-    topic_guid: str,
-    title: str,
-    description: str,
-    element_guid: str,
-) -> str:
-    """Build a markup file (one BCF Topic) with no viewpoint content."""
-    root = ET.Element("Markup")
-
-    topic = ET.SubElement(root, "Topic")
-    topic.set("Guid", topic_guid)
-    topic.set("TopicType", _TOPIC_TYPE)
-    topic.set("TopicStatus", _TOPIC_STATUS)
-
-    ET.SubElement(topic, "Title").text = title if title else element_guid
-    ET.SubElement(topic, "CreationDate").text = _now_isodate()
-    ET.SubElement(topic, "CreationAuthor").text = _CREATION_AUTHOR
-    if description:
-        ET.SubElement(topic, "Description").text = description
-
-    body = ET.tostring(root, encoding="unicode")
-    return f'<?xml version="1.0" encoding="UTF-8"?>\n{body}\n'
-
-
-def _write_bcf(
-    output_path: Path,
-    topics: list[tuple[str, str, str]],
+def _emit_topic(
+    *,
+    writer: BcfWriter,
+    context: ExecutionContext,
+    group: list[FailedCheck],
+    title_template: str,
+    description_template: str,
+    topics: list[BcfTopic],
+    warnings: list[str],
+    skipped_refs: set[str],
 ) -> None:
-    """Write a BCF 3.0 zip archive with one Topic per failing check.
+    """Resolve one BCF topic from a group of FailedChecks.
 
-    ``topics`` items are (element_guid, title, description). Each topic gets an
-    UUID key used as its archive folder, containing only a ``markup.bcf``.
+    The topic carries one viewpoint per distinct resolvable element in the
+    group. Title / description are rendered from the first resolvable check.
     """
-    with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(
-            "bcf.version",
-            '<?xml version="1.0" encoding="UTF-8"?>\n<Version VersionId="3.0"/>\n',
-        )
-        project_id = str(uuid.uuid4())
-        archive.writestr(
-            "project.bcfp",
-            f'<?xml version="1.0" encoding="UTF-8"?>\n'
-            f'<ProjectInfo><Project ProjectId="{project_id}"/></ProjectInfo>\n',
-        )
+    resolved: list[tuple[FailedCheck, object, str, str]] = []
+    seen_refs: set[str] = set()
+    for failed_check in group:
+        reference = failed_check.reference
+        if reference in skipped_refs or reference in seen_refs:
+            continue
+        identity = _resolve_topic_identity(context, failed_check)
+        if identity is None:
+            skipped_refs.add(reference)
+            warnings.append(
+                f"Skipped check '{failed_check.check.key}' for element "
+                f"{reference}: could not resolve its IFC GlobalId / entity."
+            )
+            continue
+        seen_refs.add(reference)
+        resolved.append((failed_check, *identity))
 
-        for element_guid, title, description in topics:
-            topic_guid = str(uuid.uuid4())
-            markup = _build_markup_xml(topic_guid, title, description, element_guid)
-            archive.writestr(f"{topic_guid}/markup.bcf", markup)
+    if not resolved:
+        return
+
+    first, _, guid, name = resolved[0]
+    ctx = RenderContext(
+        element_id=first.express_id,
+        element_guid=guid,
+        element_name=name,
+        class_name=first.class_name,
+        check=first.check,
+    )
+    namespace: Namespace = build_namespace(ctx)
+    formatter = ResolvingFormatter()
+    title = resolve_template(
+        title_template,
+        namespace,
+        formatter,
+        element_id=first.express_id,
+        check_key=first.check.key,
+    )
+    description = resolve_template(
+        description_template,
+        namespace,
+        formatter,
+        element_id=first.express_id,
+        check_key=first.check.key,
+    )
+    if not title:
+        title = guid
+
+    writer.add_topic(
+        title=title,
+        description=description,
+        entities=[item[1] for item in resolved],
+    )
+    topics.append(
+        BcfTopic(
+            guids=[g for _, _, g, _ in resolved],
+            key=first.check.key,
+            element_count=len(resolved),
+            title=title,
+            description=description,
+        )
+    )
 
 
 @node()
@@ -382,8 +280,9 @@ async def bcf_output(
 ) -> BcfOutputResult:
     if not inputs.elements:
         raise ValueError(
-            "bcf_output requires LOI-Check.elements as its input. "
-            "Connect the LOI-Check node's elements output."
+            "bcf_output requires harmonized check elements as its input. "
+            "Connect an upstream checking node's elements output (e.g. "
+            "LOI-Check.elements or Tilt-of-Components.elements)."
         )
 
     if context.output_dir is None:
@@ -391,67 +290,62 @@ async def bcf_output(
             "bcf_output requires an output directory on the execution context."
         )
 
-    formatter = _ResolvingFormatter()
+    warnings: list[str] = []
+
+    file_only_used = [
+        placeholder
+        for placeholder in FILE_ONLY_PLACEHOLDERS
+        if placeholder in settings.title_template
+        or placeholder in settings.description_template
+    ]
+    if file_only_used:
+        warnings.append(
+            "Placeholder(s) not available at runtime and rendered as empty: "
+            + ", ".join(f"{{{p}}}" for p in file_only_used)
+            + ". Upstream node label/type/id are not transmitted on result models."
+        )
+
+    output = normalize(inputs.elements, included=settings.included_elements)
+
+    writer = BcfWriter(
+        project_name=settings.project_name,
+        author=settings.author,
+        topic_type=settings.topic_type or DEFAULT_TOPIC_TYPE,
+        topic_status=settings.topic_status or DEFAULT_TOPIC_STATUS,
+    )
     topics: list[BcfTopic] = []
-    archive_topics: list[tuple[str, str, str]] = []
-    failed_check_count = 0
+    skipped_refs: set[str] = set()
 
-    for element in inputs.elements:
-        for check in element.checks:
-            if check.passed:
-                continue
-
-            failed_check_count += 1
-            # BCF has no notion of our qualified-reference syntax; the {id}
-            # placeholder must render the bare IFC express ID.
-            element_ref = parse_element_ref(element.express_id, node="bcf_output")
-            element_guid, element_name = _resolve_identity(
-                context, element.express_id, check.property_key
-            )
-
-            namespace = _build_namespace(
-                element_id=str(element_ref.express_id),
-                element_guid=element_guid,
-                element_name=element_name,
-                class_name=element.class_name,
-                check=check,
-            )
-
-            title = _resolve_template(
-                settings.title_template,
-                namespace,
-                formatter,
-                element_id=element.express_id,
-                property_key=check.property_key,
-            )
-            description = _resolve_template(
-                settings.description_template,
-                namespace,
-                formatter,
-                element_id=element.express_id,
-                property_key=check.property_key,
-            )
-
-            topics.append(
-                BcfTopic(
-                    guid=element_guid,
-                    property_key=check.property_key,
-                    title=title,
-                    description=description,
-                )
-            )
-            archive_topics.append((element_guid, title, description))
+    groups = [*output.failure_topics, *([info] for info in output.info_topics)]
+    for group in groups:
+        _emit_topic(
+            writer=writer,
+            context=context,
+            group=group,
+            title_template=settings.title_template,
+            description_template=settings.description_template,
+            topics=topics,
+            warnings=warnings,
+            skipped_refs=skipped_refs,
+        )
 
     output_dir = Path(context.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_path = output_dir / f"bcf_output-{timestamp}.bcf"
 
-    _write_bcf(output_path, archive_topics)
+    filename = settings.output_filename.replace(
+        "{timestamp}", datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    )
+    output_path = output_dir / filename
+
+    writer.save(output_path)
     return BcfOutputResult(
         output_path=str(output_path),
-        topic_count=len(topics),
-        element_count=len(inputs.elements),
-        failed_check_count=failed_check_count,
+        topic_count=writer.topic_count,
+        viewpoint_count=writer.viewpoint_count,
+        processed_result_count=output.processed_result_count,
+        element_count=output.element_count,
+        failure_count=output.failure_count,
+        skipped=len(skipped_refs),
+        warnings=warnings,
         topics=topics,
     )

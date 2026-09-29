@@ -115,18 +115,18 @@ def test_2d_vertical_wall_tilt_is_90_and_flagged_by_lower_limit() -> None:
         context,
     )
 
-    assert result.element_count == 1
+    assert result.summary_element_count == 1
     element = result.elements[0]
     assert element.class_name == "IFCWALL"
     assert element.failed is True
     assert len(element.checks) == 2
     for check in element.checks:
-        assert check.tilt_angle == 90.0
+        assert check.actual_value == "90.0"
         assert check.passed is False
-        assert check.expected == "less than or equal to 89"
-        assert check.geometry_key is not None
-    assert result.failed_count == 1
-    assert result.check_count == 1
+        assert check.expected_value == "less than or equal to 89"
+        assert check.key in ("surface_0", "surface_1")
+    assert result.summary_failed_count == 1
+    assert result.summary_check_count == 2
 
 
 def test_2d_horizontal_slab_tilt_is_0_and_passes_lower_limit() -> None:
@@ -147,17 +147,17 @@ def test_2d_horizontal_slab_tilt_is_0_and_passes_lower_limit() -> None:
     element = result.elements[0]
     assert len(element.checks) == 2
     for check in element.checks:
-        assert check.tilt_angle == 0.0
+        assert check.actual_value == "0.0"
         assert check.passed is True
-        assert check.expected == "less than or equal to 1"
-    assert result.failed_count == 0
+        assert check.expected_value == "less than or equal to 1"
+    assert result.summary_failed_count == 0
 
 
 def test_2d_flagged_surface_caches_helper_geometry() -> None:
     context = _context()
     _add_element(context, 3, _box([4.0, 0.2, 3.0]))
 
-    result = _run(
+    _run(
         TiltOfComponentsSettings(
             element_category="2d",
             comparison_method="greater_than_lower",
@@ -167,13 +167,7 @@ def test_2d_flagged_surface_caches_helper_geometry() -> None:
         context,
     )
 
-    keys = {
-        check.geometry_key for check in result.elements[0].checks if check.geometry_key
-    }
-    assert keys == {
-        "inter:tilt_surface_main:expr:3_0",
-        "inter:tilt_surface_main:expr:3_1",
-    }
+    keys = {"inter:tilt_surface_main:expr:3_0", "inter:tilt_surface_main:expr:3_1"}
     for key in keys:
         assert context.geometry_cache is not None
         assert key in context.geometry_cache
@@ -201,12 +195,12 @@ def test_1d_vertical_column_tilt_is_90_and_flagged_by_lower_limit() -> None:
     element = result.elements[0]
     assert len(element.checks) == 1
     check = element.checks[0]
-    assert check.tilt_angle == 90.0
+    assert check.actual_value == "90.0"
     assert check.passed is False
-    assert check.expected == "less than or equal to 89"
-    assert check.geometry_key == "inter:tilt_axis_main:expr:10"
+    assert check.expected_value == "less than or equal to 89"
+    assert check.key == "axis"
     assert context.geometry_cache is not None
-    assert check.geometry_key in context.geometry_cache
+    assert "inter:tilt_axis_main:expr:10" in context.geometry_cache
 
 
 def test_1d_horizontal_beam_tilt_is_0_and_passes_lower_limit() -> None:
@@ -226,9 +220,10 @@ def test_1d_horizontal_beam_tilt_is_0_and_passes_lower_limit() -> None:
 
     element = result.elements[0]
     check = element.checks[0]
-    assert check.tilt_angle == 0.0
+    assert check.actual_value == "0.0"
     assert check.passed is True
-    assert check.geometry_key is None
+    assert context.geometry_cache is not None
+    assert "inter:tilt_axis_main:expr:11" not in context.geometry_cache
 
 
 # --- comparison methods ------------------------------------------------------
@@ -250,7 +245,7 @@ def test_inside_interval_flags_tilt_within_interval() -> None:
     )
 
     assert result.elements[0].checks[0].passed is False
-    assert result.elements[0].checks[0].expected == "outside 89 and 91"
+    assert result.elements[0].checks[0].expected_value == "outside 89 and 91"
 
 
 def test_outside_interval_passes_tilt_within_interval() -> None:
@@ -269,7 +264,7 @@ def test_outside_interval_passes_tilt_within_interval() -> None:
     )
 
     assert result.elements[0].checks[0].passed is True
-    assert result.elements[0].checks[0].expected == "inside 89 and 91"
+    assert result.elements[0].checks[0].expected_value == "inside 89 and 91"
 
 
 def test_less_than_upper_flags_shallow_surface() -> None:
@@ -318,8 +313,8 @@ def test_bound_but_empty_runs_vacuously() -> None:
         context,
     )
 
-    assert result.element_count == 0
-    assert result.check_count == 0
+    assert result.summary_element_count == 0
+    assert result.summary_check_count == 0
     assert result.elements == []
 
 
@@ -364,8 +359,8 @@ def test_decomposed_parent_without_body_measured_from_part_meshes() -> None:
     assert element.class_name == "IFCWALL"
     assert len(element.checks) == 2
     for check in element.checks:
-        assert check.tilt_angle == 90.0
-    assert result.check_count == 1
+        assert check.actual_value == "90.0"
+    assert result.summary_check_count == 2
 
 
 def test_recursive_nested_decomposition_collects_descendant_meshes() -> None:
@@ -383,7 +378,7 @@ def test_recursive_nested_decomposition_collects_descendant_meshes() -> None:
 
     assert len(result.elements[0].checks) == 2
     for check in result.elements[0].checks:
-        assert check.tilt_angle == 90.0
+        assert check.actual_value == "90.0"
 
 
 def test_decomposed_parent_and_parts_all_measured() -> None:
@@ -400,8 +395,8 @@ def test_decomposed_parent_and_parts_all_measured() -> None:
         context,
     )
 
-    assert result.element_count == 3
-    assert result.check_count == 3
+    assert result.summary_element_count == 3
+    assert result.summary_check_count == 6
     classes = {element.class_name for element in result.elements}
     assert classes == {"IFCWALL", "IFCBUILDINGELEMENTPART"}
 
@@ -421,7 +416,7 @@ def test_parent_with_own_body_ignores_decomposition() -> None:
     )
 
     for check in result.elements[0].checks:
-        assert check.tilt_angle == 0.0
+        assert check.actual_value == "0.0"
 
 
 def test_decomposition_cycle_does_not_loop() -> None:
@@ -438,5 +433,5 @@ def test_decomposition_cycle_does_not_loop() -> None:
         context,
     )
 
-    assert result.element_count == 1
+    assert result.summary_element_count == 1
     assert result.elements[0].checks == []

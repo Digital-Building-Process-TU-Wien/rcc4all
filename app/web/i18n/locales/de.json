@@ -250,13 +250,23 @@
     },
     "bcfOutput": {
       "title": "BCF-Ausgabe",
-      "description": "Setzt LOI-Check-Fehler in eine BCF-3.0-Datei um. Verbinden Sie die {elements}-Ausgabe eines LOI-Check-Nodes.",
+      "description": "Setzt die Fehlschläge von Prüfungs-Nodes in eine BCF-3.0-Datei um. Verbinden Sie die {elements}-Ausgabe eines LOI-Check- oder Tilt-of-Components-Nodes.",
       "modeAuto": "Automatisch",
       "modeManual": "Manuell",
-      "autoModeInfo": "Die Standardvorlagen werden automatisch für jedes LOI-Check-Szenario angewendet. Wechseln Sie in den manuellen Modus, um eigene Titel- und Beschreibungsvorlagen zu schreiben.",
+      "autoModeInfo": "Die Standardvorlagen werden automatisch für jedes Prüfungsszenario angewendet. Wechseln Sie in den manuellen Modus, um eigene Titel- und Beschreibungsvorlagen zu schreiben.",
       "titleTemplate": "Titelvorlage",
       "descriptionTemplate": "Beschreibungsvorlage",
-      "suggestionPlaceholder": "Vorschlag wählen oder eigenen eingeben"
+      "suggestionPlaceholder": "Vorschlag wählen oder eigenen eingeben",
+      "projectName": "Projektname",
+      "author": "Erstellungsautor",
+      "topicType": "Topic-Typ",
+      "topicStatus": "Topic-Status",
+      "outputFilename": "Ausgabedatei",
+      "includedElements": "Enthaltene Elemente",
+      "includedAll": "Alle",
+      "includedFailed": "Fehlgeschlagen",
+      "includedPassed": "Bestanden",
+      "outputMode": "Ausgabemodus"
     },
     "ifc": {
       "loadingIndex": "IFC-4.3-Auswahlliste wird geladen...",

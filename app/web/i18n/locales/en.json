@@ -250,13 +250,23 @@
     },
     "bcfOutput": {
       "title": "BCF Output",
-      "description": "Turn LOI-Check failures into a BCF 3.0 file. Connect the {elements} output of an LOI-Check node.",
+      "description": "Turn checking-node failures into a BCF 3.0 file. Connect the {elements} output of an LOI-Check or Tilt-of-Components node.",
       "modeAuto": "Auto",
       "modeManual": "Manual",
-      "autoModeInfo": "the standard templates are applied automatically for every LOI-Check scenario. Switch to manual mode to write your own title and description templates.",
+      "autoModeInfo": "the standard templates are applied automatically for every check scenario. Switch to manual mode to write your own title and description templates.",
       "titleTemplate": "Title template",
       "descriptionTemplate": "Description template",
-      "suggestionPlaceholder": "Choose a suggestion or type your own"
+      "suggestionPlaceholder": "Choose a suggestion or type your own",
+      "projectName": "Project name",
+      "author": "Creation author",
+      "topicType": "Topic type",
+      "topicStatus": "Topic status",
+      "outputFilename": "Output filename",
+      "includedElements": "Included elements",
+      "includedAll": "All",
+      "includedFailed": "Failed",
+      "includedPassed": "Passed",
+      "outputMode": "Output Mode"
     },
     "ifc": {
       "loadingIndex": "Loading IFC 4.3 selection list...",

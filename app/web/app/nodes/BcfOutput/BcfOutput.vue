@@ -13,7 +13,7 @@ const props = defineProps<Props>()
 const node = useScopedNode<BcfOutputNode>(props.node.id)
 const { t } = useI18n()
 
-const AUTO_TITLE = '{class_name} {name} failed {property_name}'
+const AUTO_TITLE = '{class_name} {name} failed {check_parameter}'
 const AUTO_DESCRIPTION = 'Element #{id} failed because {failure_reason}'
 
 if (!node.value.data.settings) {
@@ -21,12 +21,24 @@ if (!node.value.data.settings) {
     mode: 'auto',
     title_template: AUTO_TITLE,
     description_template: AUTO_DESCRIPTION,
+    project_name: 'Default Project',
+    author: 'Default Author',
+    topic_type: '',
+    topic_status: '',
+    output_filename: 'check-results.bcf',
+    included_elements: 'failed',
   }
 }
 
 const modes = [
   { value: 'auto', labelKey: 'node.bcfOutput.modeAuto' },
   { value: 'manual', labelKey: 'node.bcfOutput.modeManual' },
+] as const
+
+const includedOptions = [
+  { value: 'all', labelKey: 'node.bcfOutput.includedAll' },
+  { value: 'failed', labelKey: 'node.bcfOutput.includedFailed' },
+  { value: 'passed', labelKey: 'node.bcfOutput.includedPassed' },
 ] as const
 
 function setMode(mode: 'auto' | 'manual') {
@@ -43,24 +55,43 @@ function setMode(mode: 'auto' | 'manual') {
 
 const manualTitleSuggestions = [
   AUTO_TITLE,
-  '{id} – {name}: {property_name} check',
-  'Guid {guid}: {property_name} failed',
-  '{name} ({class_name}) comparison on {property_name}',
+  '{id} – {name}: {check_parameter} check',
+  'Guid {guid}: {check_parameter} failed',
+  '{name} ({class_name}) comparison on {check_parameter}',
 ]
 
 const manualDescSuggestions = [
   AUTO_DESCRIPTION,
-  '{property_name}{condition_symbol}{expected}',
-  'Expected {property_name} {expectation}; found {actual_display}',
-  'Requirement {Pset_WallCommon.ThermalTransmittance.expected}; got {Pset_WallCommon.ThermalTransmittance.actual} (condition {Pset_WallCommon.ThermalTransmittance.condition})',
+  '{check_parameter}{condition_symbol}{expected}',
+  'Expected {check_parameter} {expectation}; found {actual_display}',
+  'Requirement {key.expected}; got {key.actual} (condition {key.condition})',
   'Length expected between {expected_min} and {expected_max}',
   '{name} ({class_name}, id {id}, guid {guid})',
+]
+
+const topicTypeSuggestions = [
+  'Model Check',
+  'Clash',
+  'Coordination Issue',
+  'Information',
+  'Quality',
+  'Safety',
+  'Change Request',
+]
+
+const topicStatusSuggestions = [
+  'Open',
+  'In Progress',
+  'Question',
+  'Answered',
+  'Done',
+  'Closed',
 ]
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <div class="px-2">
+  <div class="flex flex-col gap-3 px-2">
+    <div>
       <div class="text-sm font-bold text-slate-800 uppercase tracking-wide">
         {{ t('node.bcfOutput.title') }}
       </div>
@@ -69,19 +100,113 @@ const manualDescSuggestions = [
       </p>
     </div>
 
-    <div class="flex items-center gap-1 bg-slate-100 p-1 rounded">
-      <button
-        v-for="m in modes"
-        :key="m.value"
-        type="button"
-        class="flex-1 rounded px-2 py-1 text-xs font-semibold transition-all"
-        :class="node.data.settings!.mode === m.value
-          ? 'bg-white text-slate-800 shadow-sm'
-          : 'text-slate-500 hover:text-slate-700'"
-        @click="setMode(m.value)"
+    <div class="flex flex-col gap-2">
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
+        {{ t('node.bcfOutput.projectName') }}
+      </label>
+      <input
+        v-model="node.data.settings!.project_name"
+        class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
       >
-        {{ t(m.labelKey) }}
-      </button>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
+        {{ t('node.bcfOutput.author') }}
+      </label>
+      <input
+        v-model="node.data.settings!.author"
+        class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+      >
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <div class="flex flex-col gap-2">
+        <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
+          {{ t('node.bcfOutput.topicType') }}
+        </label>
+        <input
+          v-model="node.data.settings!.topic_type"
+          :list="`bcf-output-types-${node.id}`"
+          :placeholder="t('node.bcfOutput.suggestionPlaceholder')"
+          class="w-full rounded border border-slate-200 px-2 py-1 text-xs text-slate-800 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-sm"
+        >
+        <datalist :id="`bcf-output-types-${node.id}`">
+          <option
+            v-for="suggestion in topicTypeSuggestions"
+            :key="suggestion"
+            :value="suggestion"
+          />
+        </datalist>
+      </div>
+      <div class="flex flex-col gap-2">
+        <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
+          {{ t('node.bcfOutput.topicStatus') }}
+        </label>
+        <input
+          v-model="node.data.settings!.topic_status"
+          :list="`bcf-output-statuses-${node.id}`"
+          :placeholder="t('node.bcfOutput.suggestionPlaceholder')"
+          class="w-full rounded border border-slate-200 px-2 py-1 text-xs text-slate-800 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-sm"
+        >
+        <datalist :id="`bcf-output-statuses-${node.id}`">
+          <option
+            v-for="suggestion in topicStatusSuggestions"
+            :key="suggestion"
+            :value="suggestion"
+          />
+        </datalist>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
+        {{ t('node.bcfOutput.outputFilename') }}
+      </label>
+      <input
+        v-model="node.data.settings!.output_filename"
+        class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
+      >
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
+        {{ t('node.bcfOutput.includedElements') }}
+      </label>
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded">
+        <button
+          v-for="opt in includedOptions"
+          :key="opt.value"
+          type="button"
+          class="flex-1 rounded px-2 py-1 text-xs font-semibold transition-all"
+          :class="node.data.settings!.included_elements === opt.value
+            ? 'bg-white text-slate-800 shadow-sm'
+            : 'text-slate-500 hover:text-slate-700'"
+          @click="node.data.settings!.included_elements = opt.value"
+        >
+          {{ t(opt.labelKey) }}
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
+        {{ t('node.bcfOutput.outputMode') }}
+      </label>
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded">
+        <button
+          v-for="m in modes"
+          :key="m.value"
+          type="button"
+          class="flex-1 rounded px-2 py-1 text-xs font-semibold transition-all"
+          :class="node.data.settings!.mode === m.value
+            ? 'bg-white text-slate-800 shadow-sm'
+            : 'text-slate-500 hover:text-slate-700'"
+          @click="setMode(m.value)"
+        >
+          {{ t(m.labelKey) }}
+        </button>
+      </div>
     </div>
 
     <div v-if="node.data.settings!.mode === 'auto'" class="px-2">

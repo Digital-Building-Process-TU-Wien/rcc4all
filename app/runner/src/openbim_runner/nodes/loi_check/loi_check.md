@@ -43,8 +43,13 @@ multiple checks per element simultaneously.
   validation; an empty bound list processes zero elements.
 
 ### Result (slim — NO message field)
-- `element_count`, `total_checks`, `failed_count` (failed_count = count of failed
-  *checks* across all elements, confirmed via design example)
+- The executor wraps every node result in an outer envelope `{ label, type,
+  result }`; `label` (runtime name) and `type` (`"loi_check"`) are supplied there
+  and are NOT part of the node's `result` object.
+- `summary_element_count`, `summary_passed_count` (element-level),
+  `summary_failed_count` (element-level count of failed elements, UNLIKE the old
+  check-level count), `summary_check_count` (total number of checks across all
+  elements)
 - `passed_express_ids`, `failed_express_ids`: flat lists of qualified element
   references (`<slug>:expr:<id>`) for the elements that were actually checked
   (had ≥1 applied check). An element whose
@@ -53,13 +58,17 @@ multiple checks per element simultaneously.
   Elements with zero applicable checks are excluded from both lists. Order follows
   `elements`.
 - `elements`: ordered list of
-  - `express_id`, `class_name`, `failed`
-  - `checks`: list of `PropertyCheckResult`
-    - `id` (= `property_key`, per user decision — note: can collide if two rows
-      share the same property)
-    - `property_key` ("Pset.X" or "X"), `property_name`, `condition`, `expected`,
-      `actual` (str | None; None = missing), `passed`
-    - optional `expected_min` / `expected_max` (set for between/outside range rows)
+  - `express_ids` (list, normally a single qualified reference), `class_name`,
+    `failed`
+  - `checks`: list of `PropertyCheckResult` (harmonized check schema)
+    - `key` (= `property_key`), `check_parameter` (= property name),
+      `expected_value` (string; for one_of the accepted values joined by ", ";
+      "" for is_true/is_false and range rows), `actual_value` (string; "" when
+      missing), `unit` ("" when unknown), `missing` (true when property absent),
+      `passed`
+    - `expected_value_condition` (the comparison operator)
+    - `expected_value_min` / `expected_value_max` (set for between/outside range
+      rows, "" otherwise)
 - Values are strings (get_property convention); coercion to float happens only
   when applying numeric operators.
 
@@ -73,13 +82,14 @@ multiple checks per element simultaneously.
    produces no check for that element (see Output filtering below for how the
    Component column changes which elements are emitted). A row that DOES apply but
    whose property is missing on the element still emits a check with
-   `actual=None, passed=False` (missing property → failed). Element with zero
+   `actual_value="", missing=True, passed=False` (missing property → failed).
+   Element with zero
    applicable checks → `failed=False`.
-4. **Check `id`:** equals `property_key` (user chose over row-based).
+4. **Check `key`:** equals `property_key` (user chose over row-based).
 5. **equals / not_equals / contains / one_of:** all string conditions compare
    **case-insensitively AND whitespace-insensitively** (user decision — both
    discarded entirely; leading/trailing whitespace trimmed, then lowercased on
-   both sides). `contains` is a substring check; missing actual (None) → failed
+   both sides). `contains` is a substring check; missing actual → failed
    for all operators.
 
 ## Output filtering by Component (user decision)
@@ -118,8 +128,9 @@ Evaluation (numeric only; used when `condition ∈ {between, outside}`):
 - non-numeric actual → failed.
 Validation (run-time ValueError): when condition is between/outside, both
 barriers must be set and numeric; missing/non-numeric barrier → ValueError.
-Result: PropertyCheckResult has optional `expected_min`/`expected_max`;
-`condition` is `between`/`outside` for range rows (drives future BCF messages).
+Result: PropertyCheckResult carries `expected_value_min`/`expected_value_max`
+and `expected_value_condition` `between`/`outside` for range rows (drives future
+BCF messages).
 
 Web: the Condition dropdown includes `between`/`outside`. When selected, the
 Target value cell shows Min + Max number inputs + incl. Min / incl. Max
@@ -137,7 +148,8 @@ User requirement: provide a list of accepted values (e.g. wall material in
   → failed. Empty accepted values ignored.
 - Validation: `condition == "one_of"` requires ≥ 1 non-empty value else
   ValueError.
-- Result: `condition="one_of"`, `expected` = accepted values joined by ", ".
+- Result: `expected_value_condition="one_of"`, `expected_value` = accepted values
+  joined by ", ".
 - Web: Target value cell becomes a dynamic value-list editor when one_of
   selected — auto-adds an empty input as soon as the last is filled (trailing
   empty edit slot), per-item ✕ remove, Enter adds; datalist suggestions when the
@@ -146,7 +158,7 @@ User requirement: provide a list of accepted values (e.g. wall material in
   split on import.
 
 ## Edge cases handled
-- Missing property (actual=None) → failed.
+- Missing property (actual_value="", missing=True) → failed.
 - Malformed or non-IFC references fail before element processing.
 - No rows → raises `ValueError`; row without property_name → raises `ValueError`.
 - Bool property values stringified as "true"/"false" (get_property convention).
