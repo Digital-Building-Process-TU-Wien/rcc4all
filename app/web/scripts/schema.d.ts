@@ -254,62 +254,60 @@ export interface Generate3DCube {
   }
 }
 /**
- * Retrieves center points (P7) of IFC door openings at bottom elevation.
+ * Retrieves footprint points (P1-P7) of IFC door openings at bottom elevation. Automatically handles edge case when openings are thicker than the wall.
  */
 export interface GetElementCreationPositionDoor {
   settings: {
     /**
-     * Which of the 7 footprint points to return. Currently only P7 (center) is available.
+     * Which footprint point to return: 1-4 = corners (clockwise from closest to placement), 5-6 = midpoints, 7 = centroid.
      */
-    point_index?: 7
+    point_index?: (1 | 2 | 3 | 4 | 5 | 6 | 7)
   }
   result: {
     /**
-     * List of door center positions (P7) for all processed doors.
+     * List of element positions (P7) for all processed doors and walls.
      */
     elements?: {
       /**
-       * The express ID of the IFC door.
+       * IFC entity type (IfcDoor or IfcWall).
        */
-      express_id: number
+      element_type: string
       /**
-       * Which point was returned (currently always 7).
+       * The qualified element reference (`<slug>:expr:<id>`).
+       */
+      express_id: string
+      /**
+       * Which point was returned (1-4 for corners, 5-6 for midpoints, 7 for centroid). P1-P6 require at least 4 bottom vertices.
        */
       point_index: number
       /**
-       * World coordinates [x, y, z] in meters at bottom elevation (P7 = center point).
+       * World coordinates [x, y, z] in meters (rounded to 3 decimals / millimeter precision).
        */
       position: number[]
+      /**
+       * Euler-Rotationswinkel (X, Y, Z) in Grad (0-360). None wenn Placement nicht verfügbar.
+       */
+      rotation?: ({
+        /**
+         * Rotation um globale X-Achse in Grad (0-360).
+         */
+        rotation_x: number
+        /**
+         * Rotation um globale Y-Achse in Grad (0-360).
+         */
+        rotation_y: number
+        /**
+         * Rotation um globale Z-Achse in Grad (0-360).
+         */
+        rotation_z: number
+      } | null)
     }[]
   }
   inputs: {
     /**
-     * List of IFC door express IDs to get positions from. All IDs in the list are processed.
+     * Qualified element references (`<slug>:expr:<id>`) to get positions from. Bind ifc_element_filter output here.
      */
-    express_ids?: number[]
-  }
-}
-/**
- * Look up IFC object names by express ID from workflow input.
- */
-export interface ResolveObjectNames {
-  settings: {
-    /**
-     * When enabled, raises an error if an express ID does not exist in the model.
-     */
-    fail_on_missing?: boolean
-  }
-  result: {
-    /**
-     * Ordered list of IFC object names aligned with the input express IDs.
-     */
-    object_names?: (string | null)[]
-  }
-  inputs: {
-    /**
-     * Ordered list of IFC express IDs whose object names should be resolved.
-     */
-    express_ids?: number[]
+    express_ids?: string[]
   }
 }
 /**

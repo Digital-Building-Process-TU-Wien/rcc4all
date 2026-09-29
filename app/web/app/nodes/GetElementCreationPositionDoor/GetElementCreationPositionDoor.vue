@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SchemaNodeType } from '~/utils/schema-helpers'
 import { useScopedNode } from '~/composables/useScopedNode'
+import FootprintDiagram from './FootprintDiagram.vue'
 
 type GetElementCreationPositionDoorNode = SchemaNodeType<'get_element_creation_position_door'>
 
@@ -16,13 +17,13 @@ if (!node.value.data.settings) {
 }
 
 const pointOptions = [
-  { value: 7, label: t('node.getElementCreationPositionDoor.p7Center'), available: true },
-  { value: 1, label: t('node.getElementCreationPositionDoor.p1Corner'), available: true },
-  { value: 2, label: t('node.getElementCreationPositionDoor.p2Corner'), available: true },
-  { value: 3, label: t('node.getElementCreationPositionDoor.p3Corner'), available: true },
-  { value: 4, label: t('node.getElementCreationPositionDoor.p4Corner'), available: true },
-  { value: 5, label: t('node.getElementCreationPositionDoor.p5Midpoint'), available: true },
-  { value: 6, label: t('node.getElementCreationPositionDoor.p6Midpoint'), available: true },
+  { value: 7, label: t('node.getElementCreationPositionDoor.p7Center') },
+  { value: 1, label: t('node.getElementCreationPositionDoor.p1Corner') },
+  { value: 2, label: t('node.getElementCreationPositionDoor.p2Corner') },
+  { value: 3, label: t('node.getElementCreationPositionDoor.p3Corner') },
+  { value: 4, label: t('node.getElementCreationPositionDoor.p4Corner') },
+  { value: 5, label: t('node.getElementCreationPositionDoor.p5Midpoint') },
+  { value: 6, label: t('node.getElementCreationPositionDoor.p6Midpoint') },
 ]
 </script>
 
@@ -39,7 +40,7 @@ const pointOptions = [
   <div class="flex flex-col gap-3 px-2 pb-2">
     <div class="flex flex-col gap-1">
       <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
-        {{ t('node.getElementCreationPositionDoor.pointIndex') }}
+        {{ t('node.getElementCreationPositionDoor.choosePoint') }}
       </label>
       <select
         v-model.number="node.data.settings!.point_index"
@@ -49,33 +50,11 @@ const pointOptions = [
           v-for="option in pointOptions"
           :key="option.value"
           :value="option.value"
-          :disabled="!option.available"
         >
-          {{ option.label }}{{ !option.available ? ' (coming soon)' : '' }}
+          {{ option.label }}
         </option>
       </select>
-      <p class="text-xs text-slate-400">
-        {{ t('node.getElementCreationPositionDoor.phase1Hint') }}
-      </p>
-    </div>
-
-    <div class="border-t border-slate-200 pt-3 flex flex-col gap-1">
-      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">
-        {{ t('node.getElementCreationPositionDoor.elementsOutput') }}
-      </label>
-      <div v-if="!node.data.result?.elements?.length" class="text-xs text-slate-400">
-        {{ t('node.getElementCreationPositionDoor.noOutputYet') }}
-      </div>
-      <div v-else class="space-y-1">
-        <div
-          v-for="element in node.data.result.elements"
-          :key="element.express_id"
-          class="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
-        >
-          <div>Door ID: {{ element.express_id }}</div>
-          <div>Position: [{{ element.position.join(', ') }}]</div>
-        </div>
-      </div>
+      <FootprintDiagram :selected-point-index="node.data.settings!.point_index" />
     </div>
   </div>
 </template>

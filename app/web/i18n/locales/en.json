@@ -194,13 +194,10 @@
       "description": "Points to an IFC model assigned in the editor's model bar.",
       "selectModel": "Select a model..."
     },
-    "GetElementCreationPositionDoor": {
+    "getElementCreationPositionDoor": {
       "title": "Get Element Creation Position Door",
       "description": "Extract footprint points (P1-P7) from IFC door openings and walls at bottom elevation.",
-      "pointIndex": "Point index",
-      "elementsOutput": "Element positions (output)",
-      "noOutputYet": "No output yet. Run the workflow.",
-      "phase1Hint": "P1-P4: Corners (clockwise), P5-P6: Midpoints, P7: Centroid",
+      "choosePoint": "Choose point",
       "doorCount": "{count} door | {count} doors",
       "p7Center": "P7 - Center (Centroid)",
       "p1Corner": "P1 - Corner (closest to placement)",
@@ -208,7 +205,14 @@
       "p3Corner": "P3 - Corner (clockwise)",
       "p4Corner": "P4 - Corner (clockwise)",
       "p5Midpoint": "P5 - Midpoint (P1-P2)",
-      "p6Midpoint": "P6 - Midpoint (P3-P4)"
+      "p6Midpoint": "P6 - Midpoint (P3-P4)",
+      "rotationOutput": "Rotation (X°, Y°, Z°)",
+      "noRotation": "No rotation data",
+      "diagram": {
+        "front": "Front",
+        "back": "Back",
+        "label": "Footprint Overview"
+      }
     },
     "generate3dCube": {
       "title": "Generate 3D Cube",
@@ -404,5 +408,3 @@
     }
   }
 }
-
-

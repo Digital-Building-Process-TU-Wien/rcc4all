@@ -1,16 +1,24 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Literal
 
+import ifcopenshell
 import ifcopenshell.geom
 import numpy as np
 import trimesh
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
+from openbim_runner.util.references import ElementRef, parse_element_refs
 
 FOOTPRINT_Z_TOLERANCE = 0.001  # 1mm tolerance for floating-point comparison (bottom vertices, in meters)
+
+
+def _round_position(position: list[float]) -> list[float]:
+    """Rundet Positionskoordinaten auf 3 Dezimalstellen (Millimeter-Genauigkeit)."""
+    return [round(coord, 3) for coord in position]
 
 
 class GetElementCreationPositionDoorSettings(NodeModel):
@@ -22,10 +30,25 @@ class GetElementCreationPositionDoorSettings(NodeModel):
 
 
 class GetElementCreationPositionDoorInputs(NodeModel):
-    express_ids: list[int] = Field(
+    express_ids: list[str] = Field(
         default=[],
         title="Express IDs",
-        description="List of IFC element express IDs (IfcDoor or IfcWall). All IDs in the list are processed.",
+        description="Qualified element references (`<slug>:expr:<id>`) to get positions from. Bind ifc_element_filter output here.",
+    )
+
+
+class ElementRotation(NodeModel):
+    rotation_x: float = Field(
+        title="Rotation X",
+        description="Rotation um globale X-Achse in Grad (0-360).",
+    )
+    rotation_y: float = Field(
+        title="Rotation Y",
+        description="Rotation um globale Y-Achse in Grad (0-360).",
+    )
+    rotation_z: float = Field(
+        title="Rotation Z",
+        description="Rotation um globale Z-Achse in Grad (0-360).",
     )
 
 
@@ -34,9 +57,9 @@ class ElementPositionResult(NodeModel):
         title="Element Type",
         description="IFC entity type (IfcDoor or IfcWall).",
     )
-    express_id: int = Field(
+    express_id: str = Field(
         title="Express ID",
-        description="The express ID of the IFC element.",
+        description="The qualified element reference (`<slug>:expr:<id>`).",
     )
     point_index: int = Field(
         title="Point index",
@@ -44,7 +67,12 @@ class ElementPositionResult(NodeModel):
     )
     position: list[float] = Field(
         title="Position",
-        description="World coordinates [x, y, z] in meters at footprint point.",
+        description="World coordinates [x, y, z] in meters (rounded to 3 decimals / millimeter precision).",
+    )
+    rotation: ElementRotation | None = Field(
+        default=None,
+        title="Rotation",
+        description="Euler-Rotationswinkel (X, Y, Z) in Grad (0-360). None wenn Placement nicht verfügbar.",
     )
 
 
@@ -100,6 +128,50 @@ def _get_placement_matrix(placement: Any) -> np.ndarray:
             return parent_matrix @ rotation
     
     return np.identity(4)
+
+
+def _get_rotation_angles(placement: Any) -> dict[str, float]:
+    """
+    Extrahiert die 3 Euler-Rotationswinkel (X-Y-Z Reihenfolge) aus einer Placement-Hierarchie.
+    
+    Berechnet die Rotation der lokalen Achsen relativ zu den globalen Achsen.
+    Winkel werden im Bereich 0° bis 360° zurückgegeben.
+    
+    Args:
+        placement: IfcLocalPlacement oder None
+        
+    Returns:
+        Dictionary mit Winkeln in Grad:
+        {
+            "rotation_x": 0.0,  # Rotation um globale X-Achse
+            "rotation_y": 0.0,  # Rotation um globale Y-Achse
+            "rotation_z": 0.0,  # Rotation um globale Z-Achse
+        }
+        Bei fehlendem Placement werden alle Winkel als 0.0 zurückgegeben.
+    """
+    if not placement or not placement.is_a("IfcLocalPlacement"):
+        return {"rotation_x": 0.0, "rotation_y": 0.0, "rotation_z": 0.0}
+    
+    full_matrix = _get_placement_matrix(placement)
+    
+    R = full_matrix[:3, :3]
+    
+    rotation_x = math.atan2(R[2, 1], R[2, 2])
+    rotation_y = math.atan2(-R[2, 0], math.sqrt(R[1, 0]**2 + R[0, 0]**2))
+    rotation_z = math.atan2(R[1, 0], R[0, 0])
+    
+    rotation_x_deg = math.degrees(rotation_x)
+    rotation_y_deg = math.degrees(rotation_y)
+    rotation_z_deg = math.degrees(rotation_z)
+    
+    def normalize_angle(angle: float) -> float:
+        return angle % 360.0
+    
+    return {
+        "rotation_x": round(normalize_angle(rotation_x_deg), 3),
+        "rotation_y": round(normalize_angle(rotation_y_deg), 3),
+        "rotation_z": round(normalize_angle(rotation_z_deg), 3),
+    }
 
 
 def _extract_4_corners(bottom_vertices: np.ndarray) -> np.ndarray:
@@ -280,8 +352,6 @@ def _get_footprint_points(
         - P6: midpoint between P3 and P4
         - P7: centroid (center point)
     """
-    import math
-    
     if len(bottom_vertices) < 4:
         # Fallback: only centroid (P7) for openings with <4 vertices (e.g., triangular)
         centroid = [
@@ -393,27 +463,34 @@ async def get_element_creation_position_door(
     if not inputs.express_ids:
         return GetElementCreationPositionDoorResult(elements=[])
 
-    # Pre-build Door-to-Opening mapping (O(n) instead of O(n²))
+    # Build mappings once before the loop (O(n) instead of O(n²))
     door_to_opening_map: dict[int, Any] = {}
     for rel in context.ifc_model.by_type("IfcRelFillsElement"):
         door = rel.RelatedBuildingElement
-        if door and door.is_a("IfcDoor"):
-            door_to_opening_map[door.id()] = rel.RelatingOpeningElement
-    
-    # Pre-build Opening-to-Wall mapping (for thickness detection)
-    opening_to_wall_map: dict[int, Any] = _build_opening_to_wall_map(context.ifc_model)
+        opening = rel.RelatingOpeningElement
+        if door and door.is_a("IfcDoor") and opening:
+            door_to_opening_map[door.id()] = opening
+
+    opening_to_wall_map: dict[int, Any] = {}
+    for rel in context.ifc_model.by_type("IfcRelVoidsElement"):
+        opening = rel.RelatedOpeningElement
+        wall = rel.RelatingBuildingElement
+        if opening and wall:
+            opening_to_wall_map[opening.id()] = wall
 
     elements = []
-    for express_id in inputs.express_ids:
+    for element_ref in parse_element_refs(inputs.express_ids, node="get_element_creation_position_door"):
         try:
-            entity = context.ifc_model.by_id(express_id)
-        except RuntimeError:
-            # Skip invalid IDs silently
+            model = context.resolve_model(element_ref.slug)
+            entity = model.by_id(element_ref.express_id)
+        except (RuntimeError, ValueError):
             continue
 
         if entity.is_a("IfcDoor"):
             element_type = "IfcDoor"
-            opening = door_to_opening_map.get(express_id)
+            
+            # Get opening from pre-built map (O(1) lookup)
+            opening = door_to_opening_map.get(entity.id())
             if opening is None:
                 continue
 
@@ -425,22 +502,17 @@ async def get_element_creation_position_door(
             if len(bottom_vertices) >= 4 and opening.ObjectPlacement:
                 # === Thickness detection & clipping ===
                 wall = opening_to_wall_map.get(opening.id())
-                
-                # Get wall bottom vertices for thickness comparison
                 wall_bottom_vertices = None
                 if wall is not None:
                     _, wall_bottom_vertices, _ = _get_element_centroid(wall, return_bottom_vertices=True)
                 
-                # Analyze thickness (directly from bottom vertices, no placement matrix)
                 thickness_info = _get_thickness_info(
                     bottom_vertices,
                     wall_bottom_vertices,
-                    tolerance=0.01,  # 1% tolerance
+                    tolerance=0.01,
                 )
                 
-                # Clip vertices if opening is thicker than wall
                 if thickness_info.needs_clipping and wall_bottom_vertices is not None:
-                    # Clip opening vertices to wall thickness (OBB-based, world-space)
                     bottom_vertices = _clip_opening_to_wall_polygon(
                         bottom_vertices,
                         wall_bottom_vertices,
@@ -455,31 +527,37 @@ async def get_element_creation_position_door(
 
         elif entity.is_a("IfcWall"):
             element_type = "IfcWall"
-            # Use wall geometry directly
             centroid, bottom_vertices, min_z = _get_element_centroid(entity, return_bottom_vertices=True)
             if centroid is None or bottom_vertices is None or min_z is None:
                 continue
             
-            # For walls with 4+ bottom vertices, support all 7 points (P1-P7)
             if len(bottom_vertices) >= 4 and entity.ObjectPlacement:
                 all_points = _get_footprint_points(bottom_vertices, entity.ObjectPlacement, min_z)
                 position = all_points.get(settings.point_index, centroid)
             else:
-                # Fallback: only centroid (P7) for complex walls
                 position = centroid
 
         else:
-            # Skip unsupported entity types
             continue
 
-        elements.append(  # pyright: ignore[reportUnknownMemberType]
+        rotation: ElementRotation | None = None
+        if entity.ObjectPlacement:
+            rotation_angles = _get_rotation_angles(entity.ObjectPlacement)
+            rotation = ElementRotation(
+                rotation_x=rotation_angles["rotation_x"],
+                rotation_y=rotation_angles["rotation_y"],
+                rotation_z=rotation_angles["rotation_z"],
+            )
+
+        elements.append(
             ElementPositionResult(
                 element_type=element_type,
-                express_id=express_id,
+                express_id=element_ref.reference,
                 point_index=settings.point_index,
-                position=position,
+                position=_round_position(position),
+                rotation=rotation,
             )
-        )  # pyright: ignore[reportUnknownArgumentType]  # pyright: ignore[reportUnknownArgumentType]
+        )
 
     return GetElementCreationPositionDoorResult(elements=elements)
 

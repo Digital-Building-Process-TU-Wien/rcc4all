@@ -195,12 +195,9 @@
       "selectModel": "Modell auswählen..."
     },
     "getElementCreationPositionDoor": {
-      "title": "Erstelle Elementposition Tür",
+      "title": "Ermittle Einfügepunkt Tür",
       "description": "Extrahiert Fußpunktpunkte (P1-P7) von IFC-Türöffnungen und Wänden auf Bodenhöhe.",
-      "pointIndex": "Punkt-Index",
-      "elementsOutput": "Element-Positionen (Ausgabe)",
-      "noOutputYet": "Noch keine Ausgabe. Workflow ausführen.",
-      "phase1Hint": "P1-P4: Eckpunkte (clockwise), P5-P6: Mittelpunkte, P7: Zentrum",
+      "choosePoint": "Punkt wählen",
       "doorCount": "{count} Tür | {count} Türen",
       "p7Center": "P7 - Zentrum (Centroid)",
       "p1Corner": "P1 - Ecke (nächste zu Placement)",
@@ -208,7 +205,14 @@
       "p3Corner": "P3 - Ecke (clockwise)",
       "p4Corner": "P4 - Ecke (clockwise)",
       "p5Midpoint": "P5 - Mittelpunkt (P1-P2)",
-      "p6Midpoint": "P6 - Mittelpunkt (P3-P4)"
+      "p6Midpoint": "P6 - Mittelpunkt (P3-P4)",
+      "rotationOutput": "Rotation (X°, Y°, Z°)",
+      "noRotation": "Keine Rotationsdaten",
+      "diagram": {
+        "front": "Vorne",
+        "back": "Hinten",
+        "label": "Fußpunkt-Übersicht"
+      }
     },
     "generate3dCube": {
       "title": "3D-Würfel erzeugen",

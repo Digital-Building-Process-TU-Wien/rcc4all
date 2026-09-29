@@ -1,25 +1,30 @@
 ---
-title: Erstelle Elementposition Tür
-description: Ruft Fußpunktpunkte (P1-P7) von IFC-Türöffnungen auf Bodenhöhe ab. Behandelt automatisch den Edge-Case wenn Öffnungen dicker als die Wand sind.
+title: Ermittle Einfügepunkt Tür
+description: Ermittelt Fußpunktpunkte (P1-P7) von IFC-Türöffnungen für die Elementerstellung.
 categories: IFC, Geometrie
 ---
 
 Der `get_element_creation_position_door` Node extrahiert Fußpunktpunkte aus der Grundfläche von IFC-Türöffnungen. Er verwendet das `ObjectPlacement` jeder Öffnung, um die Weltkoordinaten auf Bodenhöhe zu berechnen.
 
-**Neu in v2.0:** Automatische Erkennung und Korrektur wenn Türöffnungen dicker modelliert sind als die angrenzende Wand (via `IfcRelVoidsElement`).
-
 ## Die 7 Punkte
 
 ```
      Vorne
-     ┌───────┬───────┐
-    P1      P2      P3
-     │   P6  │  P5   │
-     │       P7      │
-     │       ●       │  ← Zentrum (Centroid)
-     │       │       │
-    P4      P5      P6
-     └───────┴───────┘
+     ┌───────────┬───────────┐
+    P1           P5          P2
+     │           │           │
+     │   ╲       │       ╱   │
+     │     ╲     │     ╱     │
+     │       ╲   │   ╱       │
+     │         ╲ │ ╱         │
+     │     P7  ● │           │  ← Zentrum (Centroid)
+     │         ╱ │ ╲         │
+     │       ╱   │   ╲       │
+     │     ╱     │     ╲     │
+     │   ╱       │       ╲   │
+     │           │           │
+    P4           P6          P3
+     └───────────┴───────────┘
      Hinten
 ```
 
@@ -42,7 +47,7 @@ Der `get_element_creation_position_door` Node extrahiert Fußpunktpunkte aus der
 
 | Name | Typ | Beschreibung |
 |------|-----|-------------|
-| `express_ids` | `list[int]` | Liste von IFC-Tür-Express-IDs (IfcDoor). Alle IDs in der Liste werden verarbeitet. |
+| `express_ids` | `list[str]` | Liste von IFC-Tür-Referenzen im Format `<slug>:expr:<id>` (z.B. `main:expr:18334`). Alle IDs in der Liste werden verarbeitet. |
 
 ## Ausgänge
 
@@ -55,9 +60,18 @@ Der `get_element_creation_position_door` Node extrahiert Fußpunktpunkte aus der
 | Name | Typ | Beschreibung |
 |------|-----|-------------|
 | `element_type` | `str` | Der IFC-Entitätstyp (IfcDoor). |
-| `express_id` | `int` | Die Express-ID der verarbeiteten Tür. |
+| `express_id` | `str` | Die qualifizierte Referenz (`<slug>:expr:<id>`). |
 | `point_index` | `int` | Welcher Punkt zurückgegeben wurde (1-7). P1-P6 erfordern mindestens 4 Bottom-Vertices. |
-| `position` | `list[float]` | Weltkoordinaten `[x, y, z]` in Metern auf Bodenhöhe. |
+| `position` | `list[float]` | Weltkoordinaten `[x, y, z]` in Metern auf Bodenhöhe (auf 3 Dezimalstellen gerundet). |
+| `rotation` | `ElementRotation \| None` | Euler-Rotationswinkel (X°, Y°, Z°) in Grad (0-360). None wenn Placement nicht verfügbar. |
+
+## ElementRotation-Struktur
+
+| Name | Typ | Beschreibung |
+|------|-----|-------------|
+| `rotation_x` | `float` | Rotation um globale X-Achse in Grad (0-360). |
+| `rotation_y` | `float` | Rotation um globale Y-Achse in Grad (0-360). |
+| `rotation_z` | `float` | Rotation um globale Z-Achse in Grad (0-360). |
 
 ## Beispiel
 
@@ -70,7 +84,7 @@ Eingabe:
     "point_index": 7
   },
   "inputs": {
-    "express_ids": [18334]
+    "express_ids": ["main:expr:18334"]
   }
 }
 ```
@@ -81,9 +95,14 @@ Ausgabe:
   "elements": [
     {
       "element_type": "IfcDoor",
-      "express_id": 18334,
+      "express_id": "main:expr:18334",
       "point_index": 7,
-      "position": [0.906, 0.0, 0.0]
+      "position": [0.906, 0.0, 0.0],
+      "rotation": {
+        "rotation_x": 0.0,
+        "rotation_y": 0.0,
+        "rotation_z": 90.0
+      }
     }
   ]
 }
@@ -106,7 +125,7 @@ Ausgabe:
    - OBB (Oriented Bounding Box) im lokalen Koordinatensystem berechnen
    - 4 äußerste Eckpunkte via Min/Max auf lokalen Achsen bestimmen
    - P1-P4 = OBB-Eckpunkte, P5-P6 = Mittelpunkte, P7 = Centroid aller Vertices
-8. **Thickness Detection (neu in v2.0):**
+8. **Thickness Detection:**
    - Opening-Dicke berechnen (Ausdehnung auf lokaler Y-Achse)
    - Wand-Dicke berechnen (via `IfcRelVoidsElement`)
    - Wenn `opening_thickness > wall_thickness * 1.01` (>1% Toleranz):
@@ -114,7 +133,11 @@ Ausgabe:
      - Geclippte Vertices für Footprint-Berechnung verwenden
 9. Bei <4 Bottom-Vertices:
    - Nur P7 (Centroid) wird berechnet
-10. Angeforderten Punkt zurückgeben
+10. **Rotation berechnen:**
+    - Vollständige Placement-Matrix aus `ObjectPlacement` berechnen
+    - Euler-Winkel (X, Y, Z) in Grad extrahieren
+    - Als `rotation` Feld im Ergebnis speichern
+11. Angeforderten Punkt zurückgeben
 
 ## Hinweise
 
@@ -129,3 +152,6 @@ Ausgabe:
 - Eckpunkte sind clockwise sortiert (Startpunkt: nächste Ecke zur Placement Location)
 - **Thickness Detection:** Öffnungen die dicker als die Wand sind (>1% Toleranz) werden automatisch auf Wanddicke geclippt
 - **Clipping-Methode:** Placement-aligned (orientiert sich an Wand-Placement, nicht symmetrisch)
+- Rotation wird nur berechnet wenn `ObjectPlacement` verfügbar ist
+- `express_id` Format: `<slug>:expr:<id>` (z.B. `main:expr:18334`)
+- Positionskoordinaten sind auf 3 Dezimalstellen gerundet (Millimeter-Genauigkeit)
