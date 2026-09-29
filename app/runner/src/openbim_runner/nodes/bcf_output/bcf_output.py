@@ -316,7 +316,7 @@ async def bcf_output(
     topics: list[BcfTopic] = []
     skipped_refs: set[str] = set()
 
-    groups = [*output.failure_topics, *([info] for info in output.info_topics)]
+    groups = [*output.failure_topics, *output.info_topics]
     for group in groups:
         _emit_topic(
             writer=writer,

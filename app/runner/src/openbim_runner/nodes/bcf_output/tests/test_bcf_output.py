@@ -456,3 +456,34 @@ def test_included_all_viewpoints_for_both_types(tmp_path: Path) -> None:
     )
     assert result.viewpoint_count == 2
     assert writer.viewpoint_count == 2
+
+
+def test_multi_id_element_one_topic_both_viewpoints(tmp_path: Path) -> None:
+    """Element with multiple express_ids → one topic with viewpoints for all."""
+    writer = FakeWriter()
+    elements = [
+        HarmonizedElement(
+            express_ids=[_REF_101, _REF_102],
+            class_name="IFCWALL",
+            failed=True,
+            checks=[_failing_check()],
+        )
+    ]
+    result = _run(
+        _model(),
+        BcfOutputSettings(
+            title_template="{name} failed",
+            description_template="desc",
+        ),
+        elements,
+        tmp_path,
+        writer,
+    )
+
+    # One topic for the pair, with both viewpoints
+    assert result.topic_count == 1
+    assert result.viewpoint_count == 2
+    assert writer.viewpoint_count == 2
+    assert set(result.topics[0].guids) == {"guid-111", "guid-222"}
+    # Both entities should have viewpoints
+    assert len(writer.added[0]["entities"]) == 2

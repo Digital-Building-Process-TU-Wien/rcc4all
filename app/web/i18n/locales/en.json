@@ -395,6 +395,18 @@
         "formatPlaceholder": "Select format",
         "formatHint": "Report saved as"
       }
+    },
+    "comparison": {
+      "title": "Comparison",
+      "description": "Compare measured numeric values against a target value or range and produce harmonized check elements for BCF output.",
+      "condition": "Condition",
+      "targetValue": "Target value",
+      "range": "Range",
+      "minPlaceholder": "Min",
+      "maxPlaceholder": "Max",
+      "inclusion": "Inclusion",
+      "inclusiveMin": "Incl. min",
+      "inclusiveMax": "Incl. max"
     }
   }
 }

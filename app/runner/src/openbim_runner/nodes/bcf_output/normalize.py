@@ -45,17 +45,19 @@ class NormalizedOutput:
     failure_count: int
     check_keys: list[str]
     failure_topics: list[list[FailedCheck]] = field(default_factory=list)
-    info_topics: list[FailedCheck] = field(default_factory=list)
+    info_topics: list[list[FailedCheck]] = field(default_factory=list)
 
 
-def _element_identity(
+def _element_identities(
     element: HarmonizedElement,
-) -> tuple[str, str, int]:
-    reference = element.express_ids[0] if element.express_ids else ""
-    if reference:
-        parsed = parse_element_ref(reference, node="bcf_output")
-        return reference, parsed.slug, parsed.express_id
-    return reference, "", 0
+) -> list[tuple[str, str, int]]:
+    """Return one (reference, slug, express_id) identity per express_id in the element."""
+    identities = []
+    for reference in element.express_ids:
+        if reference:
+            parsed = parse_element_ref(reference, node="bcf_output")
+            identities.append((reference, parsed.slug, parsed.express_id))
+    return identities
 
 
 def _is_included(element_failed: bool, included: str) -> bool:
@@ -73,15 +75,21 @@ def normalize(
     included: str = INCLUDE_FAILED,
 ) -> NormalizedOutput:
     processed = 0
-    failed: list[FailedCheck] = []
-    info: list[FailedCheck] = []
+    failed_groups: dict[tuple[str, ...], list[FailedCheck]] = {}
+    info_groups: list[list[FailedCheck]] = []
     check_keys: list[str] = []
     seen_keys: set[str] = set()
 
     for element in elements:
-        reference, slug, express_id = _element_identity(element)
         if not _is_included(element.failed, included):
             continue
+
+        identities = _element_identities(element)
+        if not identities:
+            continue
+
+        # Group key = tuple of all express_ids (preserves order for consistency)
+        group_key = tuple(element.express_ids)
 
         for check in element.checks:
             processed += 1
@@ -91,40 +99,50 @@ def normalize(
 
         failing = [check for check in element.checks if not check.passed]
         if failing:
-            for check in failing:
-                failed.append(
-                    FailedCheck(
-                        reference=reference,
-                        slug=slug,
-                        express_id=express_id,
-                        class_name=element.class_name,
-                        check=check,
+            # One topic per element, merging all failing checks.
+            # Emit one FailedCheck per express_id so each gets a viewpoint.
+            group = failed_groups.setdefault(group_key, [])
+            for ref, slug, express_id in identities:
+                for check in failing:
+                    group.append(
+                        FailedCheck(
+                            reference=ref,
+                            slug=slug,
+                            express_id=express_id,
+                            class_name=element.class_name,
+                            check=check,
+                        )
                     )
-                )
         elif element.checks:
             # A selected element with no failing checks (all passed) emits one
             # informational topic, rendered from its first check.
-            info.append(
-                FailedCheck(
-                    reference=reference,
-                    slug=slug,
-                    express_id=express_id,
-                    class_name=element.class_name,
-                    check=element.checks[0],
+            info_group: list[FailedCheck] = []
+            for ref, slug, express_id in identities:
+                info_group.append(
+                    FailedCheck(
+                        reference=ref,
+                        slug=slug,
+                        express_id=express_id,
+                        class_name=element.class_name,
+                        check=element.checks[0],
+                    )
                 )
-            )
+            info_groups.append(info_group)
 
-    # One BCF topic per element, merging all of its failing checks.
-    grouped: dict[str, list[FailedCheck]] = {}
-    for failed_check in failed:
-        grouped.setdefault(failed_check.reference, []).append(failed_check)
-    failure_topics = list(grouped.values())
+    failure_topics = list(failed_groups.values())
+    # failure_count = number of failed checks (element-level, not expanded by id)
+    failure_count = 0
+    for element in elements:
+        if not _is_included(element.failed, included):
+            continue
+        failing = [c for c in element.checks if not c.passed]
+        failure_count += len(failing)
 
     return NormalizedOutput(
         element_count=len(elements),
         processed_result_count=processed,
-        failure_count=len(failed),
+        failure_count=failure_count,
         check_keys=check_keys,
         failure_topics=failure_topics,
-        info_topics=info,
+        info_topics=info_groups,
     )

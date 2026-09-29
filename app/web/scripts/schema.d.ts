@@ -3,6 +3,7 @@
 export interface NodeRegistrySchema {
   bcf_output?: BCFOutput
   collision?: CollisionDetection
+  comparison?: Comparison
   concat_string?: ConcatenateStrings
   file_input?: FileInput
   generate_3d_cube?: Generate3DCube
@@ -229,6 +230,152 @@ export interface CollisionDetection {
      * Second list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`) to test the first list against. Mixed-model lists are allowed; each reference resolves against its own model.
      */
     list_b: string[]
+  }
+}
+/**
+ * Compares measured numeric values against a target value or range and produces harmonized check elements for BCF output.
+ */
+export interface Comparison {
+  settings: {
+    /**
+     * Comparison operator applied to the measured value.
+     */
+    condition?: ('equals' | 'not_equals' | 'lt' | 'le' | 'gt' | 'ge' | 'between' | 'outside')
+    /**
+     * Target value for single-value operators (equals, not_equals, lt, le, gt, ge).
+     */
+    target_value?: number
+    /**
+     * Lower barrier for between / outside operators.
+     */
+    target_min?: number
+    /**
+     * Upper barrier for between / outside operators.
+     */
+    target_max?: number
+    /**
+     * If True, the range includes values equal to the lower barrier (>=); otherwise strictly greater (>).
+     */
+    inclusive_min?: boolean
+    /**
+     * If True, the range includes values equal to the upper barrier (<=); otherwise strictly less (<).
+     */
+    inclusive_max?: boolean
+  }
+  result: {
+    /**
+     * Number of elements processed.
+     */
+    summary_element_count: number
+    /**
+     * Number of elements whose check passed.
+     */
+    summary_passed_count: number
+    /**
+     * Number of elements with a failed check.
+     */
+    summary_failed_count: number
+    /**
+     * Total number of checks (equals element count, one check per element).
+     */
+    summary_check_count: number
+    /**
+     * Qualified references of elements whose check passed.
+     */
+    passed_express_ids?: string[]
+    /**
+     * Qualified references of elements with a failed check.
+     */
+    failed_express_ids?: string[]
+    /**
+     * Ordered list of elements with their comparison check results.
+     */
+    elements?: {
+      /**
+       * The qualified element reference(s) (`<slug>:expr:<id>`) this element carries. Usually a single reference.
+       */
+      express_ids: string[]
+      /**
+       * IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.
+       */
+      class_name: string
+      /**
+       * True if at least one check on this element failed.
+       */
+      failed: boolean
+      /**
+       * List of check results for this element.
+       */
+      checks?: {
+        /**
+         * Stable identifier for this check (e.g. a property key or 'surface_0').
+         */
+        key: string
+        /**
+         * The parameter being checked (e.g. the property name, or 'angle').
+         */
+        check_parameter: string
+        /**
+         * Expected value as a string (empty for is_true / is_false and range checks).
+         */
+        expected_value?: string
+        /**
+         * Measured/read value as a string, or empty if the value is missing.
+         */
+        actual_value?: string
+        /**
+         * Measurement unit of the compared value, or empty when unknown.
+         */
+        unit?: string
+        /**
+         * True when the value is not present / could not be measured.
+         */
+        missing?: boolean
+        /**
+         * Whether the check passed.
+         */
+        passed: boolean
+        /**
+         * The comparison operator that was applied (empty for checks with none).
+         */
+        expected_value_condition?: string
+        /**
+         * Lower barrier used for numeric range checks, or empty for single-value checks.
+         */
+        expected_value_min?: string
+        /**
+         * Upper barrier used for numeric range checks, or empty for single-value checks.
+         */
+        expected_value_max?: string
+      }[]
+    }[]
+  }
+  inputs: {
+    /**
+     * List of measured values with references (bound from measurement.measurements).
+     */
+    values?: {
+      /**
+       * The geometry cache key (e.g., `main:expr:63`, `gen:mycube`, `inter:...`) of the measured element, or the raw input when no geometry was found.
+       */
+      reference: string
+      /**
+       * The measured value. Null if geometry is missing or measurement failed.
+       */
+      value?: (number | null)
+      /**
+       * Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight').
+       */
+      error?: (string | null)
+    }[]
+    /**
+     * Unit of measurement (bound from measurement.unit).
+     */
+    unit?: string
+    /**
+     * Label for the check (bound from measurement.type); becomes the check key.
+     */
+    check_parameter?: string
   }
 }
 /**

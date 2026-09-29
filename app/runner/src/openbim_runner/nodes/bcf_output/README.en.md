@@ -125,7 +125,15 @@ per topic for review.
 
 - **One topic per element** — each element with a failing check becomes a
   single topic merging all of its failing checks; a viewpoint is added per
-  resolvable affected element.
+  resolvable affected element. For elements with multiple `express_ids` (e.g.,
+  from the `comparison` node's pair output), one topic is created with
+  viewpoints for **all** listed elements.
+- **Multi-id elements** — upstream nodes may emit elements with multiple
+  `express_ids` (e.g., a collision pair `[main:expr:170, main:expr:766]`).
+  The BCF output creates **one topic** referencing all members, with one
+  viewpoint per resolvable element. This enables proper documentation of
+  pair-based checks (intersection volume, distance between) where the check
+  pertains to multiple elements jointly.
 - **Included elements** filters which elements are emitted: `failed` (default),
   `passed` (only fully-passed elements → one info topic each), or `all`.
 - A **viewpoint** is added per resolvable failing element.

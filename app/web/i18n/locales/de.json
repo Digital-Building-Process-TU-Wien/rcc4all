@@ -395,6 +395,18 @@
         "formatPlaceholder": "Format wählen",
         "formatHint": "Report wird gespeichert als"
       }
+    },
+    "comparison": {
+      "title": "Vergleich",
+      "description": "Vergleicht gemessene numerische Werte mit einem Zielwert oder Bereich und erzeugt harmonisierte Prüfelemente für die BCF-Ausgabe.",
+      "condition": "Bedingung",
+      "targetValue": "Zielwert",
+      "range": "Bereich",
+      "minPlaceholder": "Min",
+      "maxPlaceholder": "Max",
+      "inclusion": "Einschluss",
+      "inclusiveMin": "Inkl. Min",
+      "inclusiveMax": "Inkl. Max"
     }
   }
 }
