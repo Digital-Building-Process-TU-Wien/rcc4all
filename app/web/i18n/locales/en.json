@@ -366,6 +366,35 @@
       "presetZAxis": "Z Axis (Height)",
       "presetXAxis": "X Axis",
       "presetYAxis": "Y Axis"
+    },
+    "idsChecker": {
+      "title": "IDS Checker Node",
+      "description": "Select a local development IDS file.",
+      "selectedFile": {
+        "label": "Selected IDS file",
+        "placeholder": "No file selected",
+        "clear": "Clear"
+      },
+      "search": {
+        "label": "Search files",
+        "placeholder": "Filter filenames"
+      },
+      "fileList": {
+        "loading": "Loading files...",
+        "noFiles": "No IDS files were found in web/.dev-files",
+        "noFilesHint": "Please add .ids files in the folder",
+        "noMatches": "No filenames match your search.",
+        "loadFailed": "Unable to load IDS files.",
+        "retry": "Retry"
+      },
+      "report": {
+        "detailedLabel": "Generate detailed report",
+        "detailedHelp": "Detailed report generation",
+        "detailedHint": "The combined lists (failed_express_ids, passed_express_ids) are always created.",
+        "formatLabel": "Report Format",
+        "formatPlaceholder": "Select format",
+        "formatHint": "Report saved as"
+      }
     }
   }
 }

@@ -22,7 +22,7 @@ class IdsCheckerSettings(NodeModel):
         title="Detaillierten Report generieren",
         description="Wenn aktiviert, werden die Ergebnisse zusätzlich nach Specification gruppiert ausgegeben (für Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.",
     )
-    report_format: Literal["json", "html"] | None = Field(
+    report_format: Literal["json", "html", "bcf"] | None = Field(
         default=None,
         title="Report Format",
         description="Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.",
@@ -201,11 +201,16 @@ async def ids_checker(
         else:
             output_dir = context.output_dir
 
-        reporter_class = getattr(reporter, settings.report_format.capitalize())
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        filename = f"ids_report-{timestamp}.{settings.report_format}"
+        # BCF verwendet eigene Dateinamenskonvention
+        if settings.report_format == "bcf":
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            filename = f"ids_bcf-{timestamp}.bcf"
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            filename = f"ids_report-{timestamp}.{settings.report_format}"
         output_path = output_dir / filename
 
+        reporter_class = getattr(reporter, settings.report_format.capitalize())
         reporter_instance = reporter_class(ids_file)
         reporter_instance.report()
         reporter_instance.to_file(str(output_path))

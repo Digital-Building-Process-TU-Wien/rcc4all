@@ -410,7 +410,7 @@ export interface IDSChecker {
     /**
      * Format für den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.
      */
-    report_format?: (('json' | 'html') | null)
+    report_format?: (('json' | 'html' | 'bcf') | null)
   }
   result: {
     /**
