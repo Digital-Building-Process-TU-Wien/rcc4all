@@ -1,10 +1,10 @@
 ---
 title: Vergleich
-description: Vergleicht gemessene numerische Werte mit einem Zielwert oder Bereich und erzeugt harmonisierte Prüfelemente für die BCF-Ausgabe.
+description: Vergleicht numerische Werte mit einem Zielwert oder Bereich und erzeugt harmonisierte Prüfelemente für die BCF-Ausgabe.
 categories: validation
 ---
 
-Der `comparison`-Node vergleicht berechnete Messwerte (Ist-Werte) mit einem Zielwert
+Der `comparison`-Node vergleicht numerische Werte (Ist-Werte) mit einem Zielwert
 und erzeugt harmonisierte Prüfelemente, die mit dem `bcf_output`-Node kompatibel sind.
 Er ist rein numerisch und IFC-agnostisch: Jede rohe Referenz (`inter:intersection_...`,
 ein `<k1>_<k2>`-Abstands-Paar oder `<slug>:expr:<id>`) wird unverändert durchgereicht,
@@ -26,7 +26,7 @@ collision → measurement → comparison → bcf_output
 
 | Einstellung | Typ | Standard | Beschreibung |
 |-------------|-----|----------|--------------|
-| `condition` | `Literal["equals","not_equals","lt","le","gt","ge","between","outside"]` | `"lt"` | Vergleichsoperator, der auf den Messwert angewendet wird |
+| `condition` | `Literal["equals","not_equals","lt","le","gt","ge","between","outside"]` | `"lt"` | Vergleichsoperator, der auf den Wert angewendet wird |
 | `target_value` | `float` | `0.0` | Zielwert für Einzelwert-Operatoren (`equals`, `not_equals`, `lt`, `le`, `gt`, `ge`) |
 | `target_min` | `float` | `0.0` | Untere Schranke für `between` / `outside`-Operatoren |
 | `target_max` | `float` | `0.0` | Obere Schranke für `between` / `outside`-Operatoren |
@@ -38,7 +38,7 @@ collision → measurement → comparison → bcf_output
 
 | Eingabe | Typ | Gebunden von | Beschreibung |
 |---------|-----|--------------|--------------|
-| `values` | `list[MeasurementItem]` | upstream node | Liste von Werten zum Vergleichen. An ein Listen-Ausgangssignal eines upstream Nodes binden. |
+| `values` | `list[ComparisonValueItem]` | upstream node | Liste von Werten zum Vergleichen. Jeder Eintrag hat eine `reference` auf sein Quellelement und einen `value`. An ein Listen-Ausgangssignal eines upstream Nodes binden. |
 | `unit` | `str` | upstream node | Maßeinheit der verglichenen Werte. An ein Einheiten-Ausgangssignal eines upstream Nodes binden, z. B. `measurement.unit`. |
 | `check_parameter` | `str` | upstream node | Bezeichnung für die Prüfung (wird zum BCF-Prüfschlüssel). An ein Typ-/Prüfparameter-Ausgangssignal eines upstream Nodes binden, z. B. `measurement.type`. |
 
@@ -75,10 +75,10 @@ folgenden Felder:
 
 ## Verhalten
 
-Für jedes `MeasurementItem` in `values`:
+Für jedes `ComparisonValueItem` in `values`:
 
 1. **Ein Element pro Eintrag emittieren (keine Auflösung, kein Dedup):** jedes
-   `MeasurementItem` wird **ein Element**, das seine rohe `reference` unverändert
+   `ComparisonValueItem` wird **ein Element**, das seine rohe `reference` unverändert
    trägt: `express_ids=[item.reference]`, `class_name=""`. Der Vergleich-Node löst
    nie Referenzen auf und überspringt nie — `bcf_output` erweitert die rohe Referenz
    zu Mitgliedsobjekten und verwirft, was es nicht erweitern kann.

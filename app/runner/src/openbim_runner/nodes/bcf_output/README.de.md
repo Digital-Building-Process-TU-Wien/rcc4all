@@ -5,23 +5,24 @@ categories: Output
 ---
 
 `bcf_output` verwandelt die fehlgeschlagenen Prüfungen eines vorgelagerten
-Prüfungs-Nodes (LOI-Check oder Tilt of Components) in eine **BCF-3.0**-Issue-
-Datei — ein **Topic pro Element**, das alle fehlgeschlagenen Prüfungen des
-Elements zusammenfasst und das betroffene Element referenziert, damit es in
-einem BCF-Viewer geprüft werden kann. Die Datei wird mit dem
-`bcf-client`-Paket aus dem IfcOpenShell-Ökosystem geschrieben und enthält
-einen **Viewpoint** für jedes auflösbare betroffene Element.
+Prüfungs-Nodes (LOI-Check, Tilt of Components oder Comparison) in eine
+**BCF-3.0**-Issue-Datei — ein **Topic pro Element**, das alle
+fehlgeschlagenen Prüfungen des Elements zusammenfasst und das betroffene
+Element referenziert, damit es in einem BCF-Viewer geprüft werden kann. Die
+Datei wird mit dem `bcf-client`-Paket aus dem IfcOpenShell-Ökosystem
+geschrieben und enthält einen **Viewpoint** für jedes auflösbare betroffene
+Element.
 
 Der Node ermittelt selbst keine Daten; er liest die **harmonisierte**
-`elements`-Ausgabe, die LOI-Check und Tilt of Components teilen, und löst
-GlobalId, Name und IFC-Entität des Elements nur zur Referenzierung auf — aus
-dem Modell, das in der voll qualifizierten Referenz (`<slug>:expr:<id>`) des
-Elements genannt ist.
+`elements`-Ausgabe, die LOI-Check, Tilt of Components und Comparison teilen,
+und löst GlobalId, Name und IFC-Entität des Elements nur zur Referenzierung
+auf — aus dem Modell, das in der Referenz (bzw. den Referenzen) des Elements
+genannt ist.
 
 ## Anwendungsbeispiel
 
-Führen Sie `loi_check` oder `tilt_of_components` aus, verbinden Sie dessen
-`elements`-Ausgabe mit diesem Node, wählen Sie eine Titel- und
+Führen Sie `loi_check`, `tilt_of_components` oder `comparison` aus, verbinden
+Sie dessen `elements`-Ausgabe mit diesem Node, wählen Sie eine Titel- und
 Beschreibungsschablone (siehe unten) und führen Sie den Workflow aus — im
 Ausgabeverzeichnis des Workflows wird eine BCF-Datei gespeichert (Standard
 `check-results.bcf`).
@@ -57,6 +58,12 @@ Pro Prüfung (generisch verfügbar):
 `{actual_value}`, `{expected}`/`{expected_value}`, `{unit}`, `{missing}`,
 `{passed}`, `{condition}`/`{expected_value_condition}`, `{expected_min}`/
 `{expected_value_min}`, `{expected_max}`/`{expected_value_max}`.
+
+`{name_a}` / `{name_b}` — die aufgelösten Elementnamen des Elements, für
+Überschneidungs-/Abstands-Paarelemente, deren rohe Referenz zu zwei
+IFC-Elementen erweitert wird (z. B. `The volume of the intersection between
+{name_a} and {name_b}`). Bei Einzelelement-Prüfungen rendern beide als leere
+Strings.
 
 Über den Key der Prüfung (z. B. `Pset_WallCommon.ThermalTransmittance` oder
 `surface_0`): derselbe Satz unter `<key>.<field>`, z. B. `{<key>.expected}`,
@@ -109,8 +116,9 @@ Description:  Element {guid} ({class_name} {name}) hat {check_parameter}={actual
 ## Eingaben
 
 - **Elements** (erforderlich): die harmonisierte Elementliste aus `loi_check`
-  (`LOI-Check.elements`) oder `tilt_of_components`
-  (`Tilt-of-Components.elements`); der Node meldet einen Fehler, wenn sie fehlt.
+  (`LOI-Check.elements`), `tilt_of_components`
+  (`Tilt-of-Components.elements`) oder `comparison`
+  (`Comparison.elements`); der Node meldet einen Fehler, wenn sie fehlt.
 - **Automatische Verbindung**: Wenn Sie keine Quelle wählen, verwendet der
   Node automatisch den einzelnen direkt vorgelagerten Node, der die
   erwarteten Daten liefert. Das geschieht anhand des Node-Typs (nicht seines

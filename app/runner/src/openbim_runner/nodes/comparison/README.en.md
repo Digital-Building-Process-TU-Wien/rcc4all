@@ -1,10 +1,10 @@
 ---
 title: Comparison
-description: Compares measured numeric values against a target value or range and produces harmonized check elements for BCF output.
+description: Compares numeric values against a target value or range and produces harmonized check elements for BCF output.
 categories: validation
 ---
 
-The `comparison` node compares computed measurement values (actual values) against
+The `comparison` node compares numeric values (actual values) against
 a target value and produces harmonized check elements compatible with the `bcf_output`
 node. It is purely numeric and IFC-agnostic: each raw reference (`inter:intersection_...`,
 a `<k1>_<k2>` distance pair, or `<slug>:expr:<id>`) is carried through unchanged, and
@@ -26,7 +26,7 @@ collision → measurement → comparison → bcf_output
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `condition` | `Literal["equals","not_equals","lt","le","gt","ge","between","outside"]` | `"lt"` | Comparison operator applied to the measured value |
+| `condition` | `Literal["equals","not_equals","lt","le","gt","ge","between","outside"]` | `"lt"` | Comparison operator applied to the value |
 | `target_value` | `float` | `0.0` | Target value for single-value operators (`equals`, `not_equals`, `lt`, `le`, `gt`, `ge`) |
 | `target_min` | `float` | `0.0` | Lower barrier for `between` / `outside` operators |
 | `target_max` | `float` | `0.0` | Upper barrier for `between` / `outside` operators |
@@ -38,7 +38,7 @@ collision → measurement → comparison → bcf_output
 
 | Input | Type | Bound from | Description |
 |-------|------|------------|-------------|
-| `values` | `list[MeasurementItem]` | upstream node | List of values to compare. Bind to a list output of an upstream node. |
+| `values` | `list[ComparisonValueItem]` | upstream node | List of values to compare. Each item has a `reference` to its source element and a `value`. Bind to a list output of an upstream node. |
 | `unit` | `str` | upstream node | Unit of the compared values. Bind to a unit output of an upstream node, e.g. `measurement.unit`. |
 | `check_parameter` | `str` | upstream node | Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. `measurement.type`. |
 
@@ -73,9 +73,9 @@ object itself carries only the fields below:
 
 ## Behavior
 
-For each `MeasurementItem` in `values`:
+For each `ComparisonValueItem` in `values`:
 
-1. **Emit one element per item (no resolution, no dedup):** every `MeasurementItem`
+1. **Emit one element per item (no resolution, no dedup):** every `ComparisonValueItem`
    becomes **one element** carrying its raw `reference` unchanged:
    `express_ids=[item.reference]`, `class_name=""`. The comparison node never resolves
    references and never skips — `bcf_output` expands the raw ref into member objects

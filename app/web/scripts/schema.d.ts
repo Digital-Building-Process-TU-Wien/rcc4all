@@ -117,7 +117,7 @@ export interface BCFOutput {
   }
   inputs: {
     /**
-     * Harmonized check elements from an upstream checking node (LOI-Check.elements or Tilt-of-Components.elements).
+     * Harmonized check elements from an upstream checking node (LOI-Check.elements, Tilt-of-Components.elements or Comparison.elements).
      */
     elements?: {
       /**
@@ -233,12 +233,12 @@ export interface CollisionDetection {
   }
 }
 /**
- * Compares measured numeric values against a target value or range and produces harmonized check elements for BCF output.
+ * Compares numeric values against a target value or range and produces harmonized check elements for BCF output.
  */
 export interface Comparison {
   settings: {
     /**
-     * Comparison operator applied to the measured value.
+     * Comparison operator applied to the value.
      */
     condition?: ('equals' | 'not_equals' | 'lt' | 'le' | 'gt' | 'ge' | 'between' | 'outside')
     /**
@@ -356,19 +356,19 @@ export interface Comparison {
   }
   inputs: {
     /**
-     * List of values to compare. Bind to a list output of an upstream node.
+     * List of values to compare. Each item has a `reference` to its source element and a `value`. Bind to a list output of an upstream node.
      */
     values?: {
       /**
-       * The geometry cache key (e.g., `main:expr:63`, `gen:mycube`, `inter:...`) of the measured element, or the raw input when no geometry was found.
+       * Reference of the value's source element (e.g. `main:expr:1`, an `inter:intersection_...` helper key, or a `_`-joined distance pair).
        */
       reference: string
       /**
-       * The measured value. Null if geometry is missing or measurement failed.
+       * The numeric value to compare. Null if the value is missing or could not be computed.
        */
       value?: (number | null)
       /**
-       * Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight').
+       * Error reason when the value could not be computed (e.g. 'no cached geometry').
        */
       error?: (string | null)
     }[]

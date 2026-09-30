@@ -106,7 +106,8 @@ class BcfOutputInputs(NodeModel):
         title="Elements",
         description=(
             "Harmonized check elements from an upstream checking node "
-            "(LOI-Check.elements or Tilt-of-Components.elements)."
+            "(LOI-Check.elements, Tilt-of-Components.elements or "
+            "Comparison.elements)."
         ),
     )
 
@@ -312,7 +313,8 @@ async def bcf_output(
         raise ValueError(
             "bcf_output requires harmonized check elements as its input. "
             "Connect an upstream checking node's elements output (e.g. "
-            "LOI-Check.elements or Tilt-of-Components.elements)."
+            "LOI-Check.elements, Tilt-of-Components.elements or "
+            "Comparison.elements)."
         )
 
     if context.output_dir is None:

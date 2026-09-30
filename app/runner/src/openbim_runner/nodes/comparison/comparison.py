@@ -3,14 +3,13 @@ from __future__ import annotations
 import math
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from openbim_runner.nodes.base import NodeModel, node
 from openbim_runner.nodes.bcf_output.harmonized import (
     HarmonizedCheckResult,
     HarmonizedElement,
 )
-from openbim_runner.nodes.measurement.measurement import MeasurementItem
 
 ComparisonCondition = Literal[
     "equals",
@@ -28,7 +27,7 @@ class ComparisonSettings(NodeModel):
     condition: ComparisonCondition = Field(
         default="lt",
         title="Condition",
-        description="Comparison operator applied to the measured value.",
+        description="Comparison operator applied to the value.",
     )
     target_value: float = Field(
         default=0.0,
@@ -67,11 +66,36 @@ class ComparisonSettings(NodeModel):
         return abs(v) if v is not None else 0.001
 
 
+class ComparisonValueItem(NodeModel):
+    reference: str = Field(
+        title="Reference",
+        description="Reference of the value's source element (e.g. `main:expr:1`, an `inter:intersection_...` helper key, or a `_`-joined distance pair).",
+    )
+    value: float | None = Field(
+        default=None,
+        title="Value",
+        description="The numeric value to compare. Null if the value is missing or could not be computed.",
+    )
+    error: str | None = Field(
+        default=None,
+        title="Error",
+        description="Error reason when the value could not be computed (e.g. 'no cached geometry').",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_model_instance(cls, data: object) -> object:
+        """Coerce any pydantic model instance (e.g. ``measurement.MeasurementItem``)
+        to a dict so it validates structurally without coupling this node to its
+        producer's type."""
+        return data.model_dump() if isinstance(data, BaseModel) else data
+
+
 class ComparisonInputs(NodeModel):
-    values: list[MeasurementItem] = Field(
+    values: list[ComparisonValueItem] = Field(
         default=[],
         title="Values",
-        description="List of values to compare. Bind to a list output of an upstream node.",
+        description="List of values to compare. Each item has a `reference` to its source element and a `value`. Bind to a list output of an upstream node.",
     )
     unit: str = Field(
         default="",
@@ -124,7 +148,7 @@ class ComparisonResult(NodeModel):
 
 
 def _is_missing(value: float | None, error: str | None) -> bool:
-    """Check if a measurement value is missing or non-finite."""
+    """Check if a value is missing or non-finite."""
     if value is None:
         return True
     if error is not None:
@@ -226,7 +250,7 @@ async def comparison(
             else "",
         )
 
-        # One element per MeasurementItem (no dedup), carrying the raw reference
+        # One element per ComparisonValueItem (no dedup), carrying the raw reference
         # unchanged. The comparison node is IFC-agnostic: bcf_output expands the
         # raw ref (inter:intersection_... / distance pair / <slug>:expr:<id>)
         # into member objects and derives the class_name per member.

@@ -4,23 +4,23 @@ description: Turn checking-node failures into a BCF 3.0 issue file.
 categories: Output
 ---
 
-`bcf_output` turns failed checks from an upstream checking node (LOI-Check or
-Tilt of Components) into a **BCF 3.0** issue file — one topic per element,
-merging all of the element's failing checks, each referencing the affected
-element so it can be reviewed in a BCF viewer. The BCF is written with the
-IfcOpenShell ecosystem `bcf-client` package and includes a viewpoint for each
-resolvable affected element.
+`bcf_output` turns failed checks from an upstream checking node (LOI-Check,
+Tilt of Components or Comparison) into a **BCF 3.0** issue file — one topic
+per element, merging all of the element's failing checks, each referencing the
+affected element so it can be reviewed in a BCF viewer. The BCF is written with
+the IfcOpenShell ecosystem `bcf-client` package and includes a viewpoint for
+each resolvable affected element.
 
 The node never queries data itself; it reads the harmonized `elements` output
-shared by LOI-Check and Tilt of Components, and resolves each element's
-GlobalId, Name and IFC entity from the model named inside the element's
-qualified reference — only to reference it.
+shared by LOI-Check, Tilt of Components and Comparison, and resolves each
+element's GlobalId, Name and IFC entity from the model named inside the
+element's reference(s) — only to reference it.
 
 ## Use-case example
 
-Run `loi_check` or `tilt_of_components`, connect its `elements` output here,
-pick a title and description template (below), then run — a BCF file is saved
-into the workflow's output directory (default `check-results.bcf`).
+Run `loi_check`, `tilt_of_components` or `comparison`, connect its `elements`
+output here, pick a title and description template (below), then run — a BCF
+file is saved into the workflow's output directory (default `check-results.bcf`).
 
 ## Settings
 
@@ -53,6 +53,11 @@ Per-check placeholders (available generically):
 `{actual_value}`, `{expected}`/`{expected_value}`, `{unit}`, `{missing}`,
 `{passed}`, `{condition}`/`{expected_value_condition}`, `{expected_min}`/
 `{expected_value_min}`, `{expected_max}`/`{expected_value_max}`.
+
+`{name_a}` / `{name_b}` — the resolved member names of the element, for
+intersection / distance-pair elements whose raw reference expands to two IFC
+members (e.g. `The volume of the intersection between {name_a} and {name_b}`).
+For single-element checks both render as empty strings.
 
 Keyed by the check's key (e.g. `Pset_WallCommon.ThermalTransmittance` or
 `surface_0`): the same set under `<key>.<field>`, e.g. `{<key>.expected}`,
@@ -104,8 +109,9 @@ Description:  Element {guid} ({class_name} {name}) has {check_parameter}={actual
 ## Inputs
 
 - **Elements** (required): the harmonized element list from `loi_check`
-  (`LOI-Check.elements`) or `tilt_of_components`
-  (`Tilt-of-Components.elements`); the node reports an error if it is missing.
+  (`LOI-Check.elements`), `tilt_of_components`
+  (`Tilt-of-Components.elements`) or `comparison`
+  (`Comparison.elements`); the node reports an error if it is missing.
 - **Auto-connect**: if you don't pick a source, the node automatically uses the
   single directly-upstream node that provides the expected data. This matches
   by node type (not its display name), so renaming your checking node has no
@@ -126,15 +132,16 @@ be resolved, or its raw references expand to no IFC members), `warnings`, and
 
 - **One topic per element** — each element with a failing check becomes a
   single topic merging all of its failing checks; a viewpoint is added per
-  resolvable affected element. For elements with multiple `express_ids` (e.g.,
-  from the `comparison` node's pair output), one topic is created with
-  viewpoints for **all** listed elements.
-- **Multi-id elements** — upstream nodes may emit elements with multiple
-  `express_ids` (e.g., a collision pair `[main:expr:170, main:expr:766]`).
-  The BCF output creates **one topic** referencing all members, with one
-  viewpoint per resolvable element. This enables proper documentation of
-  pair-based checks (intersection volume, distance between) where the check
-  pertains to multiple elements jointly.
+  resolvable affected element. Elements whose reference(s) expand to multiple
+  IFC members get one topic with viewpoints for **all** of those members.
+- **Raw references expand to multiple members** — a producer (e.g. the
+  `comparison` node) may emit an element carrying a single raw reference —
+  an `inter:intersection_...` helper key or a `<k1>_<k2>` distance pair — that
+  expands to two IFC members. The BCF output creates **one topic** referencing
+  both members via the shared `expand_reference` helper, with one viewpoint per
+  resolvable element. This enables proper documentation of pair-based checks
+  (intersection volume, distance between) where the check pertains to multiple
+  elements jointly.
 - **Included elements** filters which elements are emitted: `failed` (default),
   `passed` (only fully-passed elements → one info topic each), or `all`.
 - A **viewpoint** is added per resolvable failing element.

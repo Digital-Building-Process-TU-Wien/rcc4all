@@ -5,13 +5,16 @@ structured output: ``HarmonizedCheckResult`` (one property/tilt check outcome)
 and ``HarmonizedElement`` (one checked element with its list of checks).
 
 Consuming checking nodes alias them so their result carries the exact same
-shape, allowing ``bcf_output`` to turn failures from either LOI-Check or
-Tilt-of-Components into BCF topics without caring which node produced the data:
+shape, allowing ``bcf_output`` to turn failures from LOI-Check,
+Tilt-of-Components or Comparison into BCF topics without caring which node
+produced the data:
 
 - ``loi_check``: ``PropertyCheckResult = HarmonizedCheckResult``,
   ``ComparisonElement = HarmonizedElement``.
 - ``tilt_of_components``: ``TiltCheck = HarmonizedCheckResult``,
   ``TiltsElement = HarmonizedElement``.
+- ``comparison``: ``ComparisonCheckResult = HarmonizedCheckResult``,
+  ``ComparisonElement = HarmonizedElement``.
 
 Owned by the BCF-output feature and therefore kept in this folder. It depends
 only on ``base`` / ``pydantic`` (no ``bcf-client``), so the producer nodes that
