@@ -65,26 +65,34 @@ nur eine Vergleichsmethode aktiv ist.
 
 ## Ausgaben
 
-Das Ergebnis ist eine schlanke, strukturierte Prüfung pro Element:
+Das Ergebnis ist eine schlanke, strukturierte Prüfung pro Element. Der Executor
+umhüllt jede Node-Ausgabe mit `{ label, type, result }`, wobei `label`
+(Laufzeitname) und `type` (`"tilt_of_components"`) im äußeren Envelope liegen —
+das `result`-Objekt der Node selbst enthält nur die folgenden Felder:
 
-- `element_count`: Anzahl der verarbeiteten Elemente
-- `check_count`: Anzahl der Elemente mit mindestens einer Flächen-/Achsenprüfung
-  (Elemente ohne Geometrie werden übersprungen und nicht gezählt)
-- `failed_count`: Anzahl der Elemente mit mindestens einer gekennzeichneten
-  Fläche/Achse
+- `summary_element_count` (verarbeitete Elemente), `summary_passed_count` /
+  `summary_failed_count` (auf Elementebene: Elemente mit mindestens
+  einer gekennzeichneten Fläche/Achse bzw. ohne) und `summary_check_count`
+  (Gesamtzahl der Flächen-/Achsenprüfungen über alle Elemente).
+- `passed_express_ids`, `failed_express_ids`: flache Listen der voll
+  qualifizierten Referenzen, die die gemessenen Elemente partitionieren.
 - `elements`: geordnete Liste aus
-  - `express_id` (voll qualifizierte Referenz `<slug>:expr:<id>`), `class_name`
-    (IFC-Klasse oder `unknown`), `element_category`
+  - `express_ids` (Liste, meist eine einzelne voll qualifizierte Referenz
+    `<slug>:expr:<id>`), `class_name` (IFC-Klasse oder `unknown`)
   - `failed`: true, wenn mindestens eine Prüfung gekennzeichnet wurde
-  - `checks`: Liste von `TiltSurfaceCheck`:
-    - `expected`: lesbare Soll-Bedingung, aus Vergleichsmethode und Grenzwerten
-      kombiniert (z. B. „kleiner oder gleich X")
-    - `tilt_angle` (°), `passed`
-    - `geometry_key`: Geometrie-Cache-Schlüssel der Hilfsgeometrie für gekennzeichnete Prüfungen
+  - `checks`: Liste von `TiltCheck`:
+    - `key`: `"surface_0"` / `"surface_1"` (2D) oder `"axis"` (1D)
+    - `check_parameter`: `"angle"`
+    - `expected_value`: lesbare Soll-Bedingung, aus Vergleichsmethode und
+      Grenzwerten kombiniert (z. B. „kleiner oder gleich X")
+    - `actual_value` (°, als String), `unit` (`"deg"`), `missing` (immer
+      `false`), `passed`
+    - `expected_value_condition`, `expected_value_min`, `expected_value_max`:
+      immer `""` (die gesamte Erwartung steckt in `expected_value`)
 
 Ein 2D-Element liefert bis zu zwei Prüfungen (Vorder-/Rückseite); ein
-1D-Element eine Prüfung (seine Achse). `check_count` und `failed_count` zählen
-Elemente, nicht einzelne Prüfungen.
+1D-Element eine Prüfung (seine Achse). `summary_check_count` zählt einzelne
+Prüfungen, nicht Elemente.
 
 ## Hilfsgeometrie
 

@@ -250,13 +250,23 @@
     },
     "bcfOutput": {
       "title": "BCF Output",
-      "description": "Turn LOI-Check failures into a BCF 3.0 file. Connect the {elements} output of an LOI-Check node.",
+      "description": "Turn checking-node failures into a BCF 3.0 file. Connect the {elements} output of an LOI-Check or Tilt-of-Components node.",
       "modeAuto": "Auto",
       "modeManual": "Manual",
-      "autoModeInfo": "the standard templates are applied automatically for every LOI-Check scenario. Switch to manual mode to write your own title and description templates.",
+      "autoModeInfo": "the standard templates are applied automatically for every check scenario. Switch to manual mode to write your own title and description templates.",
       "titleTemplate": "Title template",
       "descriptionTemplate": "Description template",
-      "suggestionPlaceholder": "Choose a suggestion or type your own"
+      "suggestionPlaceholder": "Choose a suggestion or type your own",
+      "projectName": "Project name",
+      "author": "Creation author",
+      "topicType": "Topic type",
+      "topicStatus": "Topic status",
+      "outputFilename": "Output filename",
+      "includedElements": "Included elements",
+      "includedAll": "All",
+      "includedFailed": "Failed",
+      "includedPassed": "Passed",
+      "outputMode": "Output Mode"
     },
     "ifc": {
       "loadingIndex": "Loading IFC 4.3 selection list...",
@@ -385,6 +395,31 @@
         "formatPlaceholder": "Select format",
         "formatHint": "Report saved as"
       }
+    },
+    "comparison": {
+      "title": "Comparison",
+      "description": "Compare measured numeric values against a target value or range and produce harmonized check elements for BCF output.",
+      "conditionHeader": "Condition",
+      "condition": {
+        "equals": "equals (=)",
+        "not_equals": "not equals (≠)",
+        "lt": "less than (<)",
+        "le": "less or equal (≤)",
+        "gt": "greater than (>)",
+        "ge": "greater or equal (≥)",
+        "between": "between",
+        "outside": "outside"
+      },
+      "targetValue": "Target value",
+      "range": "Range",
+      "minPlaceholder": "Min",
+      "maxPlaceholder": "Max",
+      "inclusion": "Inclusion",
+      "inclusiveMin": "Incl. min",
+      "inclusiveMax": "Incl. max",
+      "tolerance": "Absolute tolerance",
+      "toleranceHint": "Negative values are treated as their absolute value.",
+      "decimalTooltip": "Decimal values: the separator follows your browser locale (e.g. 0.25 or 0,25)."
     }
   }
 }

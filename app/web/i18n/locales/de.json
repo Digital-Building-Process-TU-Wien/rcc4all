@@ -250,13 +250,23 @@
     },
     "bcfOutput": {
       "title": "BCF-Ausgabe",
-      "description": "Setzt LOI-Check-Fehler in eine BCF-3.0-Datei um. Verbinden Sie die {elements}-Ausgabe eines LOI-Check-Nodes.",
+      "description": "Setzt die Fehlschläge von Prüfungs-Nodes in eine BCF-3.0-Datei um. Verbinden Sie die {elements}-Ausgabe eines LOI-Check- oder Tilt-of-Components-Nodes.",
       "modeAuto": "Automatisch",
       "modeManual": "Manuell",
-      "autoModeInfo": "Die Standardvorlagen werden automatisch für jedes LOI-Check-Szenario angewendet. Wechseln Sie in den manuellen Modus, um eigene Titel- und Beschreibungsvorlagen zu schreiben.",
+      "autoModeInfo": "Die Standardvorlagen werden automatisch für jedes Prüfungsszenario angewendet. Wechseln Sie in den manuellen Modus, um eigene Titel- und Beschreibungsvorlagen zu schreiben.",
       "titleTemplate": "Titelvorlage",
       "descriptionTemplate": "Beschreibungsvorlage",
-      "suggestionPlaceholder": "Vorschlag wählen oder eigenen eingeben"
+      "suggestionPlaceholder": "Vorschlag wählen oder eigenen eingeben",
+      "projectName": "Projektname",
+      "author": "Erstellungsautor",
+      "topicType": "Topic-Typ",
+      "topicStatus": "Topic-Status",
+      "outputFilename": "Ausgabedatei",
+      "includedElements": "Enthaltene Elemente",
+      "includedAll": "Alle",
+      "includedFailed": "Fehlgeschlagen",
+      "includedPassed": "Bestanden",
+      "outputMode": "Ausgabemodus"
     },
     "ifc": {
       "loadingIndex": "IFC-4.3-Auswahlliste wird geladen...",
@@ -385,6 +395,31 @@
         "formatPlaceholder": "Format wählen",
         "formatHint": "Report wird gespeichert als"
       }
+    },
+    "comparison": {
+      "title": "Vergleich",
+      "description": "Vergleicht gemessene numerische Werte mit einem Zielwert oder Bereich und erzeugt harmonisierte Prüfelemente für die BCF-Ausgabe.",
+      "conditionHeader": "Bedingung",
+      "condition": {
+        "equals": "gleich (=)",
+        "not_equals": "ungleich (≠)",
+        "lt": "kleiner als (<)",
+        "le": "kleiner oder gleich (≤)",
+        "gt": "größer als (>)",
+        "ge": "größer oder gleich (≥)",
+        "between": "zwischen",
+        "outside": "außerhalb"
+      },
+      "targetValue": "Zielwert",
+      "range": "Bereich",
+      "minPlaceholder": "Min",
+      "maxPlaceholder": "Max",
+      "inclusion": "Einschluss",
+      "inclusiveMin": "Inkl. Min",
+      "inclusiveMax": "Inkl. Max",
+      "tolerance": "Absolute Toleranz",
+      "toleranceHint": "Negative Werte werden als ihr absoluter Wert behandelt.",
+      "decimalTooltip": "Dezimalwerte: Das Dezimaltrennzeichen folgt Ihrer Browser-Sprache (z. B. 0,25 oder 0.25)."
     }
   }
 }

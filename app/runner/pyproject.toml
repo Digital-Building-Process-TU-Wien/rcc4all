@@ -9,6 +9,7 @@ description = "Ifc checking engine"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "bcf-client>=0.8.4",
     "ifcopenshell>=0.8.3",
     "ifctester>=0.8.0",
     "manifold3d",
