@@ -4,6 +4,26 @@ RCC4All is an open-source platform for checking IFC-based BIM models against reg
 
 It is built for both project stakeholders and developers: stakeholders get a clear process for defining and reviewing checks, and developers get a modular system that can be extended and integrated. The prototype is maintained by the Center of Digital Building Processes at TU Wien and is being developed as part of the research project "Regulatory Criteria Check für öffentliche Auftraggeber" (RCC4ÖAG), funded by the FFG COLLECTIVE RESEARCH grant.
 
+## Partners
+
+### Project Partners
+
+- ÖIAV (Konsortialführer)
+- ASFINAG
+- BIG
+- ÖBB Infrastruktur
+- Land Niederösterreich
+- Land Steiermark
+- Stadt Wien
+- Wiener Linien
+- TU Wien – Digitaler Bauprozess
+
+### Supporting Partners
+
+- ODE
+
+The project is open for more supporting partners. If you are interested, contact [harald.urban@tuwien.ac.at](mailto:harald.urban@tuwien.ac.at).
+
 ## Project Context
 
 Many approval-relevant requirements in construction are still written as natural-language text. BIM models, on the other hand, are digital and machine-readable. This mismatch makes repeatable, transparent validation difficult and often leads to manual or proprietary workflows.
