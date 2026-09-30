@@ -140,6 +140,13 @@ aufgelöste Titel und die Nachricht pro Topic zur Kontrolle.
   `fehlgeschlagen` (Standard), `bestanden` (nur vollständig bestandene Elemente
   → je ein Info-Topic) oder `alle`.
 - Ein **Viewpoint** wird pro auflösbarem fehlgeschlagenem Element hinzugefügt.
+- **Viewpoint-Einfärbung** — jeder Viewpoint hebt **jedes Mitglied des Topics**
+  hervor, indem ein einzelner `Components.Coloring`-Eintrag (deckendes Rot
+  `FF0000FF`) hinzugefügt wird, der alle aufgelösten IFC-GlobalIds auflistet.
+  Mehrmitglied-Topics (Kollisionsüberschneidungen, Abstandspaare) zeigen daher
+  in jedem Viewpoint alle ihre Elemente hervorgehoben, während die Kamera
+  weiterhin nur eines fokussiert. Der Rest des Modells bleibt sichtbar und
+  ungefärbt.
 - **Nicht auflösbarer Platzhalter** → der Lauf schlägt fehl und nennt die
   betroffene Prüfung.
 - **`{node_label}` / `{check_type}` / `{node_id}`** → werden akzeptiert,

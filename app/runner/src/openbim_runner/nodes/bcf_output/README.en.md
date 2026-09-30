@@ -138,6 +138,12 @@ be resolved, or its raw references expand to no IFC members), `warnings`, and
 - **Included elements** filters which elements are emitted: `failed` (default),
   `passed` (only fully-passed elements → one info topic each), or `all`.
 - A **viewpoint** is added per resolvable failing element.
+- **Viewpoint element coloring** — each viewpoint highlights **every member of
+  the topic** by adding a single `Components.Coloring` entry (opaque red
+  `FF0000FF`) listing all resolved IFC GlobalIds. Multi-member topics (collision
+  intersections, distance pairs) therefore show all their elements highlighted in
+  every viewpoint, while the frame camera still focuses on one. The rest of the
+  model stays visible and uncolored.
 - **Unknown placeholder** → the run fails, naming the offending check.
 - **`{node_label}` / `{check_type}` / `{node_id}`** → accepted, render empty,
   with a warning (upstream metadata is not transmitted).

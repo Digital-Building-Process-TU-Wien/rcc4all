@@ -4,7 +4,9 @@ import asyncio
 from pathlib import Path
 from typing import Any, cast
 
+import bcf.v3.model as mdl
 import pytest
+from bcf.v3.visinfo import VisualizationInfoHandler
 
 from conftest import main_ref as _ref
 from openbim_runner.nodes.base import ExecutionContext
@@ -13,6 +15,7 @@ from openbim_runner.nodes.bcf_output.bcf_output import (
     BcfOutputSettings,
     bcf_output,
 )
+from openbim_runner.nodes.bcf_output.bcf_writer import HIGHLIGHT_COLOR, apply_highlight
 from openbim_runner.nodes.bcf_output.harmonized import (
     HarmonizedCheckResult,
     HarmonizedElement,
@@ -139,6 +142,65 @@ def _run(
         )
     finally:
         mod.BcfWriter = original  # type: ignore[assignment]
+
+
+def test_apply_highlight_colors_viewport_element(tmp_path: Path) -> None:
+    """apply_highlight colors the topic elements red and leaves others visible."""
+    vi = mdl.VisualizationInfo(
+        guid="00000000-0000-0000-0000-000000000000",
+        components=mdl.Components(
+            selection=mdl.ComponentSelection(
+                component=[mdl.Component(ifc_guid="guid-111")]
+            ),
+            visibility=mdl.ComponentVisibility(default_visibility=True),
+        ),
+    )
+    handler = VisualizationInfoHandler(visualization_info=vi)
+    apply_highlight(handler, ["guid-111"])
+
+    coloring = vi.components.coloring  # type: ignore[union-attr]
+    assert coloring is not None
+    assert len(coloring.color) == 1
+    assert coloring.color[0].color == HIGHLIGHT_COLOR == "FF0000FF"
+    assert [c.ifc_guid for c in coloring.color[0].components.component] == ["guid-111"]
+    # Selection and visibility are preserved: the rest of the model stays visible.
+    assert vi.components.visibility is not None  # type: ignore[union-attr]
+    assert vi.components.visibility.default_visibility is True  # type: ignore[union-attr]
+    assert [
+        c.ifc_guid
+        for c in vi.components.selection.component  # type: ignore[union-attr]
+    ] == ["guid-111"]
+
+
+def test_apply_highlight_colors_all_members(tmp_path: Path) -> None:
+    """apply_highlight groups all topic members into one red coloring block."""
+    vi = mdl.VisualizationInfo(
+        guid="00000000-0000-0000-0000-000000000000",
+        components=mdl.Components(
+            selection=mdl.ComponentSelection(
+                component=[mdl.Component(ifc_guid="guid-a")]
+            ),
+            visibility=mdl.ComponentVisibility(default_visibility=True),
+        ),
+    )
+    handler = VisualizationInfoHandler(visualization_info=vi)
+    apply_highlight(handler, ["guid-a", "guid-b"])
+
+    coloring = vi.components.coloring  # type: ignore[union-attr]
+    assert coloring is not None
+    assert len(coloring.color) == 1
+    assert coloring.color[0].color == HIGHLIGHT_COLOR
+    assert [c.ifc_guid for c in coloring.color[0].components.component] == [
+        "guid-a",
+        "guid-b",
+    ]
+    # Visibility (rest of model) is untouched; selection keeps the frame focus.
+    assert vi.components.visibility is not None  # type: ignore[union-attr]
+    assert vi.components.visibility.default_visibility is True  # type: ignore[union-attr]
+    assert [
+        c.ifc_guid
+        for c in vi.components.selection.component  # type: ignore[union-attr]
+    ] == ["guid-a"]
 
 
 def test_one_topic_per_element_merges_checks(tmp_path: Path) -> None:
