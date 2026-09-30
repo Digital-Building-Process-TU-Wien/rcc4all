@@ -31,14 +31,15 @@ collision → measurement → comparison → bcf_output
 | `target_max` | `float` | `0.0` | Upper barrier for `between` / `outside` operators |
 | `inclusive_min` | `bool` | `True` | If `True`, the range includes values equal to `target_min` (≥); otherwise strictly greater (>) |
 | `inclusive_max` | `bool` | `True` | If `True`, the range includes values equal to `target_max` (≤); otherwise strictly less (<) |
+| `abs_tol` | `float` | `0.001` | Absolute tolerance to absorb float noise near boundaries. Applied to `equals`/`not_equals`, `le`/`ge`, and `between`/`outside` (inclusive sides only); `lt`/`gt` remain strict. Negative values are normalized to their absolute value. |
 
 ## Inputs
 
 | Input | Type | Bound from | Description |
 |-------|------|------------|-------------|
-| `values` | `list[MeasurementItem]` | `measurement.measurements` | List of measured values with references (reuses existing `MeasurementItem` type: `reference`, `value`, `error`) |
-| `unit` | `str` | `measurement.unit` | Unit of measurement (e.g., `volume_unit`, `area_unit`, `length_unit`) |
-| `check_parameter` | `str` | `measurement.type` | Label for the check (e.g., `volume`, `surface_area`, `distance_between`); becomes `HarmonizedCheckResult.key` |
+| `values` | `list[MeasurementItem]` | upstream node | List of values to compare. Bind to a list output of an upstream node. |
+| `unit` | `str` | upstream node | Unit of the compared values. Bind to a unit output of an upstream node, e.g. `measurement.unit`. |
+| `check_parameter` | `str` | upstream node | Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. `measurement.type`. |
 
 ## Outputs
 
@@ -54,7 +55,8 @@ object itself carries only the fields below:
   partitioning the checked elements.
 - `elements`: ordered list of
   - `express_ids` (list, normally a single qualified reference), `class_name`
-    (IFC class or `unknown`)
+    (IFC class or `unknown`), `intersection` (original `inter:intersection_...`
+    reference for collision intersections; `""` otherwise)
   - `failed`: true when the check failed
   - `checks`: list of `HarmonizedCheckResult` (one per element):
     - `key`: the bound `check_parameter` (e.g., `volume`)
@@ -73,20 +75,18 @@ object itself carries only the fields below:
 For each `MeasurementItem` in `values`:
 
 1. **Resolve reference → IFC element(s):**
-   - `<slug>:expr:<id>` → single element
-   - `inter:intersection_<k1>_<k2>` (collision intersection) → parse both underlying keys; if both are `:expr:` refs, emit one element per ref; otherwise skip
-   - `<expr1>_<expr2>` (distance pair ref, e.g., `main:expr:17_main:expr:45`) → parse both keys; if both are `:expr:` refs, emit one element per ref; otherwise skip
+   - `<slug>:expr:<id>` → single element with `express_ids=[ref]`
+   - `inter:intersection_<k1>_<k2>` (collision intersection) → parse both underlying keys; if both are `:expr:` refs, emit **one element** with `express_ids=[refA, refB]` (both members); otherwise skip
+   - `<expr1>_<expr2>` (distance pair ref, e.g., `main:expr:17_main:expr:45`) → parse both keys; if both are `:expr:` refs, emit **one element** with `express_ids=[refA, refB]`; otherwise skip
    - `gen:...`, `inter:` (non-intersection), or malformed → skip (no element emitted)
 
 2. **Determine pass/fail:**
    - `missing = value is None or error is set or value is non-finite (NaN, +/-inf)` → `check.missing=True`, `failed=True`
-   - Otherwise evaluate numeric comparison based on `condition`
+   - Otherwise evaluate numeric comparison based on `condition` using `abs_tol`
 
-3. **Deduplicate:** Track emitted `(express_ids[0], key)` pairs; skip if already emitted (first-wins).
+3. **Emit `HarmonizedElement`** per `MeasurementItem` (no dedup) with the single check.
 
-4. **Emit `HarmonizedElement`** per resolved IFC element with the single check.
-
-5. **Summary counts:** aggregate passed/failed (unique elements only).
+4. **Summary counts:** aggregate passed/failed from all elements.
 
 ## Validations
 
@@ -95,6 +95,6 @@ For each `MeasurementItem` in `values`:
 
 ## Notes
 
-- **Float-noise tolerance:** `equals` / `not_equals` use `math.isclose()` to handle floating-point representation errors (e.g., `0.30000000000000004` vs `0.3`).
+- **Configurable tolerance:** `abs_tol` (default `0.001`) is applied to `equals`/`not_equals` (`math.isclose`), `le`/`ge` (boundary expansion), and `between`/`outside` (inclusive sides only); `lt`/`gt` remain strict. Negative values are normalized to their absolute value.
 - **Non-finite values:** `NaN`, `+inf`, `-inf` are classified as `missing=True, failed=True` to surface in BCF.
 - **class_name resolution:** resolved from the IFC model by slug; falls back to `"unknown"` if the element is not found.

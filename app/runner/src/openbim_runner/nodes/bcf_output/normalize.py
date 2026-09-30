@@ -36,6 +36,7 @@ class FailedCheck:
     express_id: int
     class_name: str
     check: HarmonizedCheckResult
+    intersection: str
 
 
 @dataclass
@@ -111,6 +112,7 @@ def normalize(
                             express_id=express_id,
                             class_name=element.class_name,
                             check=check,
+                            intersection=element.intersection,
                         )
                     )
         elif element.checks:
@@ -125,6 +127,7 @@ def normalize(
                         express_id=express_id,
                         class_name=element.class_name,
                         check=element.checks[0],
+                        intersection=element.intersection,
                     )
                 )
             info_groups.append(info_group)

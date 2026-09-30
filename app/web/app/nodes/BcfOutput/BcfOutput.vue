@@ -58,6 +58,7 @@ const manualTitleSuggestions = [
   '{id} – {name}: {check_parameter} check',
   'Guid {guid}: {check_parameter} failed',
   '{name} ({class_name}) comparison on {check_parameter}',
+  '{name_a} ↔ {name_b}: {check_parameter}',
 ]
 
 const manualDescSuggestions = [
@@ -67,6 +68,8 @@ const manualDescSuggestions = [
   'Requirement {key.expected}; got {key.actual} (condition {key.condition})',
   'Length expected between {expected_min} and {expected_max}',
   '{name} ({class_name}, id {id}, guid {guid})',
+  'The {check_parameter} of the intersection between {name_a} and {name_b} is {actual_value} {unit} (expected {expectation})',
+  'The minimum distance between {name_a} and {name_b} is {actual_value} {unit} (expected {expectation})',
 ]
 
 const topicTypeSuggestions = [

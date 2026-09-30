@@ -96,6 +96,15 @@ class HarmonizedElement(NodeModel):
         title="Checks",
         description="List of check results for this element.",
     )
+    intersection: str = Field(
+        default="",
+        title="Intersection",
+        description=(
+            "Original intersection reference (e.g. 'inter:intersection_...') for collision "
+            "intersections; empty string otherwise. Used by bcf_output to render intersection "
+            "context in topic descriptions."
+        ),
+    )
 
 
 __all__ = ["HarmonizedCheckResult", "HarmonizedElement"]

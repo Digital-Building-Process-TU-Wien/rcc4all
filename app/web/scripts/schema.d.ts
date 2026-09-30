@@ -177,6 +177,10 @@ export interface BCFOutput {
          */
         expected_value_max?: string
       }[]
+      /**
+       * Original intersection reference (e.g. 'inter:intersection_...') for collision intersections; empty string otherwise. Used by bcf_output to render intersection context in topic descriptions.
+       */
+      intersection?: string
     }[]
   }
 }
@@ -261,6 +265,10 @@ export interface Comparison {
      * If True, the range includes values equal to the upper barrier (<=); otherwise strictly less (<).
      */
     inclusive_max?: boolean
+    /**
+     * Absolute tolerance for float comparisons. Negative values are treated as their absolute value.
+     */
+    abs_tol?: number
   }
   result: {
     /**
@@ -348,11 +356,15 @@ export interface Comparison {
          */
         expected_value_max?: string
       }[]
+      /**
+       * Original intersection reference (e.g. 'inter:intersection_...') for collision intersections; empty string otherwise. Used by bcf_output to render intersection context in topic descriptions.
+       */
+      intersection?: string
     }[]
   }
   inputs: {
     /**
-     * List of measured values with references (bound from measurement.measurements).
+     * List of values to compare. Bind to a list output of an upstream node.
      */
     values?: {
       /**
@@ -369,11 +381,11 @@ export interface Comparison {
       error?: (string | null)
     }[]
     /**
-     * Unit of measurement (bound from measurement.unit).
+     * Unit of the compared values. Bind to a unit output of an upstream node, e.g. measurement.unit.
      */
     unit?: string
     /**
-     * Label for the check (bound from measurement.type); becomes the check key.
+     * Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. measurement.type.
      */
     check_parameter?: string
   }
@@ -794,6 +806,10 @@ export interface LOICheck {
          */
         expected_value_max?: string
       }[]
+      /**
+       * Original intersection reference (e.g. 'inter:intersection_...') for collision intersections; empty string otherwise. Used by bcf_output to render intersection context in topic descriptions.
+       */
+      intersection?: string
     }[]
   }
   inputs: {
@@ -999,6 +1015,10 @@ export interface TiltOfComponents {
          */
         expected_value_max?: string
       }[]
+      /**
+       * Original intersection reference (e.g. 'inter:intersection_...') for collision intersections; empty string otherwise. Used by bcf_output to render intersection context in topic descriptions.
+       */
+      intersection?: string
     }[]
   }
   inputs: {

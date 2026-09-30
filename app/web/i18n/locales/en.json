@@ -399,14 +399,27 @@
     "comparison": {
       "title": "Comparison",
       "description": "Compare measured numeric values against a target value or range and produce harmonized check elements for BCF output.",
-      "condition": "Condition",
+      "conditionHeader": "Condition",
+      "condition": {
+        "equals": "equals (=)",
+        "not_equals": "not equals (≠)",
+        "lt": "less than (<)",
+        "le": "less or equal (≤)",
+        "gt": "greater than (>)",
+        "ge": "greater or equal (≥)",
+        "between": "between",
+        "outside": "outside"
+      },
       "targetValue": "Target value",
       "range": "Range",
       "minPlaceholder": "Min",
       "maxPlaceholder": "Max",
       "inclusion": "Inclusion",
       "inclusiveMin": "Incl. min",
-      "inclusiveMax": "Incl. max"
+      "inclusiveMax": "Incl. max",
+      "tolerance": "Absolute tolerance",
+      "toleranceHint": "Negative values are treated as their absolute value.",
+      "decimalTooltip": "Decimal values: the separator follows your browser locale (e.g. 0.25 or 0,25)."
     }
   }
 }

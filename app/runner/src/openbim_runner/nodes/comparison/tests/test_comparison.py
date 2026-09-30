@@ -210,7 +210,7 @@ class TestReferenceResolution:
         assert result.elements[0].express_ids == ["generated:expr:17"]
 
     def test_collision_reverse_pair_dedup(self) -> None:
-        """Collision pairs in both orders (170↔766 and 766↔170) → dedup to 1 element."""
+        """Collision pairs in both orders (170↔766 and 766↔170) → no dedup, 2 elements."""
         context = _context()
         # Simulate collision output: both directions of the same pair
         item1 = MeasurementItem(
@@ -230,10 +230,20 @@ class TestReferenceResolution:
             ),
             context,
         )
-        # Should dedup to a single element with both ids
-        assert len(result.elements) == 1
+        # No dedup: each measurement becomes its own element
+        assert len(result.elements) == 2
         assert set(result.elements[0].express_ids) == {"main:expr:170", "main:expr:766"}
-        assert result.summary_element_count == 1
+        assert set(result.elements[1].express_ids) == {"main:expr:766", "main:expr:170"}
+        # Both should have intersection field set
+        assert (
+            result.elements[0].intersection
+            == "inter:intersection_main:expr:170_main:expr:766"
+        )
+        assert (
+            result.elements[1].intersection
+            == "inter:intersection_main:expr:766_main:expr:170"
+        )
+        assert result.summary_element_count == 2
 
 
 class TestMissingAndNonFinite:
@@ -507,6 +517,61 @@ class TestConditionsAndInclusivity:
         )
         assert result.elements[0].checks[0].passed is True
 
+    def test_float_noise_equals_live_workflow(self) -> None:
+        """Live workflow float noise: 0.3199999928 vs 0.32 should pass equals."""
+        context = _context()
+        item = MeasurementItem(
+            reference="main:expr:1", value=0.3199999928474426, error=None
+        )
+        result = _run(
+            ComparisonSettings(condition="equals", target_value=0.32),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # With abs_tol=0.001, this should pass (difference ~7e-9)
+        assert result.elements[0].checks[0].passed is True
+
+    def test_intersection_field_set(self) -> None:
+        """Intersection field is set for collision intersections."""
+        context = _context()
+        item = MeasurementItem(
+            reference="inter:intersection_main:expr:170_main:expr:766",
+            value=0.32,
+            error=None,
+        )
+        result = _run(
+            ComparisonSettings(condition="gt", target_value=0.0),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        assert len(result.elements) == 1
+        assert (
+            result.elements[0].intersection
+            == "inter:intersection_main:expr:170_main:expr:766"
+        )
+
+    def test_intersection_field_empty_for_direct_ref(self) -> None:
+        """Intersection field is empty for direct expr refs."""
+        context = _context()
+        item = MeasurementItem(
+            reference="main:expr:42",
+            value=1.5,
+            error=None,
+        )
+        result = _run(
+            ComparisonSettings(condition="gt", target_value=0.0),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        assert len(result.elements) == 1
+        assert result.elements[0].intersection == ""
+
 
 class TestStructureAndSummary:
     """Test result structure, summaries, and dedup."""
@@ -526,7 +591,7 @@ class TestStructureAndSummary:
         assert result.summary_check_count == 0
 
     def test_dedup_duplicates(self) -> None:
-        """**Dedup duplicates** → single element per unique `(ref, check)`."""
+        """**No dedup** → every MeasurementItem becomes its own element."""
         context = _context()
         # Same reference twice
         item1 = MeasurementItem(reference="main:expr:1", value=1.0, error=None)
@@ -538,8 +603,9 @@ class TestStructureAndSummary:
             ),
             context,
         )
-        assert len(result.elements) == 1
-        assert result.summary_element_count == 1
+        # No dedup: both items become separate elements
+        assert len(result.elements) == 2
+        assert result.summary_element_count == 2
 
     def test_all_pass(self) -> None:
         """All-pass → `failed_express_ids` empty."""
@@ -624,3 +690,213 @@ class TestValidations:
                 ),
                 context,
             )
+
+
+class TestTolerance:
+    """Test configurable absolute tolerance (abs_tol)."""
+
+    def test_le_near_boundary_absorbed_by_tolerance(self) -> None:
+        """`le` with value slightly above target (within tolerance) should pass."""
+        context = _context()
+        item = MeasurementItem(reference="main:expr:1", value=5.0008, error=None)
+        result = _run(
+            ComparisonSettings(condition="le", target_value=5.0, abs_tol=0.001),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 5.0008 <= 5.0 + 0.001 = 5.001 → passes
+        assert result.elements[0].checks[0].passed is True
+
+    def test_le_beyond_tolerance_fails(self) -> None:
+        """`le` with value above target beyond tolerance should fail."""
+        context = _context()
+        item = MeasurementItem(reference="main:expr:1", value=5.002, error=None)
+        result = _run(
+            ComparisonSettings(condition="le", target_value=5.0, abs_tol=0.001),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 5.002 > 5.0 + 0.001 = 5.001 → fails
+        assert result.elements[0].checks[0].passed is False
+
+    def test_ge_near_boundary_absorbed_by_tolerance(self) -> None:
+        """`ge` with value slightly below target (within tolerance) should pass."""
+        context = _context()
+        item = MeasurementItem(reference="main:expr:1", value=4.9992, error=None)
+        result = _run(
+            ComparisonSettings(condition="ge", target_value=5.0, abs_tol=0.001),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 4.9992 >= 5.0 - 0.001 = 4.999 → passes
+        assert result.elements[0].checks[0].passed is True
+
+    def test_ge_beyond_tolerance_fails(self) -> None:
+        """`ge` with value below target beyond tolerance should fail."""
+        context = _context()
+        item = MeasurementItem(reference="main:expr:1", value=4.998, error=None)
+        result = _run(
+            ComparisonSettings(condition="ge", target_value=5.0, abs_tol=0.001),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 4.998 < 5.0 - 0.001 = 4.999 → fails
+        assert result.elements[0].checks[0].passed is False
+
+    def test_between_inclusive_absorbed_by_tolerance(self) -> None:
+        """`between` with inclusive boundaries: values just outside are absorbed."""
+        context = _context()
+        # Value just below min (within tolerance)
+        item = MeasurementItem(reference="main:expr:1", value=4.9992, error=None)
+        result = _run(
+            ComparisonSettings(
+                condition="between",
+                target_min=5.0,
+                target_max=10.0,
+                inclusive_min=True,
+                inclusive_max=True,
+                abs_tol=0.001,
+            ),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 4.9992 >= 5.0 - 0.001 = 4.999 → passes min check
+        assert result.elements[0].checks[0].passed is True
+
+    def test_between_exclusive_stays_exact(self) -> None:
+        """`between` with exclusive boundaries: tolerance does not absorb."""
+        context = _context()
+        # Value exactly at min with exclusive_min=False
+        item = MeasurementItem(reference="main:expr:1", value=5.0, error=None)
+        result = _run(
+            ComparisonSettings(
+                condition="between",
+                target_min=5.0,
+                target_max=10.0,
+                inclusive_min=False,
+                inclusive_max=True,
+                abs_tol=0.001,
+            ),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 5.0 > 5.0 is False → fails (exclusive stays exact)
+        assert result.elements[0].checks[0].passed is False
+
+    def test_outside_inclusive_absorbed_by_tolerance(self) -> None:
+        """`outside` with inclusive boundaries: tolerance expands the range."""
+        context = _context()
+        # Value just inside min boundary (within tolerance)
+        item = MeasurementItem(reference="main:expr:1", value=5.0005, error=None)
+        result = _run(
+            ComparisonSettings(
+                condition="outside",
+                target_min=5.0,
+                target_max=10.0,
+                inclusive_min=True,
+                inclusive_max=True,
+                abs_tol=0.001,
+            ),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 5.0005 is within [4.999, 10.001] → inside range → outside check fails
+        assert result.elements[0].checks[0].passed is False
+
+    def test_lt_unaffected_by_tolerance(self) -> None:
+        """`lt` is strict: tolerance does not apply."""
+        context = _context()
+        # Value exactly at boundary
+        item = MeasurementItem(reference="main:expr:1", value=5.0, error=None)
+        result = _run(
+            ComparisonSettings(condition="lt", target_value=5.0, abs_tol=0.001),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 5.0 < 5.0 is False → fails (strict)
+        assert result.elements[0].checks[0].passed is False
+
+    def test_gt_unaffected_by_tolerance(self) -> None:
+        """`gt` is strict: tolerance does not apply."""
+        context = _context()
+        # Value exactly at boundary
+        item = MeasurementItem(reference="main:expr:1", value=5.0, error=None)
+        result = _run(
+            ComparisonSettings(condition="gt", target_value=5.0, abs_tol=0.001),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 5.0 > 5.0 is False → fails (strict)
+        assert result.elements[0].checks[0].passed is False
+
+    def test_negative_abs_tol_normalized(self) -> None:
+        """Negative abs_tol is normalized to absolute value."""
+        context = _context()
+        # Value that would fail with abs_tol=0.0005 but pass with abs_tol=0.001
+        item = MeasurementItem(reference="main:expr:1", value=5.0008, error=None)
+        result = _run(
+            ComparisonSettings(condition="le", target_value=5.0, abs_tol=-0.001),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # -0.001 normalized to 0.001; 5.0008 <= 5.0 + 0.001 = 5.001 → passes
+        assert result.elements[0].checks[0].passed is True
+
+    def test_custom_abs_tol(self) -> None:
+        """Custom abs_tol value is respected."""
+        context = _context()
+        # Value that passes with abs_tol=0.01 but would fail with 0.001
+        item = MeasurementItem(reference="main:expr:1", value=5.005, error=None)
+        result = _run(
+            ComparisonSettings(condition="le", target_value=5.0, abs_tol=0.01),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        # 5.005 <= 5.0 + 0.01 = 5.01 → passes
+        assert result.elements[0].checks[0].passed is True
+
+    def test_equals_with_custom_abs_tol(self) -> None:
+        """equals uses math.isclose with custom abs_tol."""
+        context = _context()
+        # Value differs by 0.005
+        item = MeasurementItem(reference="main:expr:1", value=5.005, error=None)
+        # With default 0.001, this would fail
+        result_default = _run(
+            ComparisonSettings(condition="equals", target_value=5.0, abs_tol=0.001),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        assert result_default.elements[0].checks[0].passed is False
+        # With 0.01, this passes
+        result_custom = _run(
+            ComparisonSettings(condition="equals", target_value=5.0, abs_tol=0.01),
+            ComparisonInputs(
+                values=[item], unit="volume_unit", check_parameter="volume"
+            ),
+            context,
+        )
+        assert result_custom.elements[0].checks[0].passed is True

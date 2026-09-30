@@ -16,7 +16,7 @@ const node = useScopedNode<ComparisonNode>(props.node.id)
 
 const { t } = useI18n()
 
-const decimalTooltip = 'Decimal values use a point: e.g. 0.25. A comma is not accepted.'
+const decimalTooltip = computed(() => t('node.comparison.decimalTooltip'))
 
 if (!node.value.data.settings) {
   node.value.data.settings = {
@@ -47,9 +47,26 @@ if (node.value.data.settings.inclusive_min === undefined)
 if (node.value.data.settings.inclusive_max === undefined)
   node.value.data.settings.inclusive_max = true
 
+if (node.value.data.settings.abs_tol === undefined)
+  node.value.data.settings.abs_tol = 0.001
+
 const condition = computed<ComparisonCondition | undefined>(
   () => node.value.data.settings?.condition,
 )
+
+const requiresTolerance = computed<boolean>(() => {
+  const settings = node.value.data.settings
+  if (!settings)
+    return false
+  const cond = settings.condition
+  if (!cond)
+    return false
+  if (['equals', 'not_equals', 'le', 'ge'].includes(cond))
+    return true
+  if (cond === 'between' || cond === 'outside')
+    return !!(settings.inclusive_min || settings.inclusive_max)
+  return false
+})
 </script>
 
 <template>
@@ -65,7 +82,7 @@ const condition = computed<ComparisonCondition | undefined>(
 
     <div class="flex flex-col gap-2">
       <label class="text-xs font-semibold uppercase tracking-tight text-slate-600">
-        {{ t('node.comparison.condition') }}
+        {{ t('node.comparison.conditionHeader') }}
       </label>
       <select
         v-model="node.data.settings!.condition"
@@ -76,7 +93,7 @@ const condition = computed<ComparisonCondition | undefined>(
           :key="opt.value"
           :value="opt.value"
         >
-          {{ opt.label }}
+          {{ t(`node.comparison.condition.${opt.value}`) }}
         </option>
       </select>
     </div>
@@ -143,6 +160,20 @@ const condition = computed<ComparisonCondition | undefined>(
           {{ t('node.comparison.inclusiveMax') }}
         </label>
       </div>
+    </div>
+
+    <div v-if="requiresTolerance" class="flex flex-col gap-2">
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-600">
+        {{ t('node.comparison.tolerance') }}
+      </label>
+      <UTooltip :text="t('node.comparison.toleranceHint')" class="w-full">
+        <input
+          v-model.number="node.data.settings!.abs_tol"
+          type="number"
+          step="any"
+          class="w-full rounded border border-slate-200 px-2 py-1 text-sm text-slate-800"
+        >
+      </UTooltip>
     </div>
   </div>
 </template>

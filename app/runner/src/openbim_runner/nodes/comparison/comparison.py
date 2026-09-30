@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 from openbim_runner.nodes.bcf_output.harmonized import (
@@ -56,23 +56,33 @@ class ComparisonSettings(NodeModel):
         title="Inclusive max",
         description="If True, the range includes values equal to the upper barrier (<=); otherwise strictly less (<).",
     )
+    abs_tol: float = Field(
+        default=0.001,
+        title="Absolute tolerance",
+        description="Absolute tolerance for float comparisons. Negative values are treated as their absolute value.",
+    )
+
+    @field_validator("abs_tol", mode="before")
+    @classmethod
+    def normalize_abs_tol(cls, v: float | None) -> float:
+        return abs(v) if v is not None else 0.001
 
 
 class ComparisonInputs(NodeModel):
     values: list[MeasurementItem] = Field(
         default=[],
         title="Values",
-        description="List of measured values with references (bound from measurement.measurements).",
+        description="List of values to compare. Bind to a list output of an upstream node.",
     )
     unit: str = Field(
         default="",
         title="Unit",
-        description="Unit of measurement (bound from measurement.unit).",
+        description="Unit of the compared values. Bind to a unit output of an upstream node, e.g. measurement.unit.",
     )
     check_parameter: str = Field(
         default="",
         title="Check parameter",
-        description="Label for the check (bound from measurement.type); becomes the check key.",
+        description="Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. measurement.type.",
     )
 
 
@@ -185,27 +195,28 @@ def _check_passes(
     target_max: float,
     inclusive_min: bool,
     inclusive_max: bool,
+    abs_tol: float,
 ) -> bool:
     """Evaluate a numeric comparison."""
     if condition == "equals":
-        return math.isclose(value, target_value)
+        return math.isclose(value, target_value, abs_tol=abs_tol)
     if condition == "not_equals":
-        return not math.isclose(value, target_value)
+        return not math.isclose(value, target_value, abs_tol=abs_tol)
     if condition == "lt":
         return value < target_value
     if condition == "le":
-        return value <= target_value
+        return value <= target_value + abs_tol
     if condition == "gt":
         return value > target_value
     if condition == "ge":
-        return value >= target_value
+        return value >= target_value - abs_tol
     if condition == "between":
-        min_ok = value >= target_min if inclusive_min else value > target_min
-        max_ok = value <= target_max if inclusive_max else value < target_max
+        min_ok = value >= target_min - abs_tol if inclusive_min else value > target_min
+        max_ok = value <= target_max + abs_tol if inclusive_max else value < target_max
         return min_ok and max_ok
     if condition == "outside":
-        min_ok = value >= target_min if inclusive_min else value > target_min
-        max_ok = value <= target_max if inclusive_max else value < target_max
+        min_ok = value >= target_min - abs_tol if inclusive_min else value > target_min
+        max_ok = value <= target_max + abs_tol if inclusive_max else value < target_max
         return not (min_ok and max_ok)
     return False
 
@@ -233,7 +244,6 @@ async def comparison(
     _validate_settings(settings)
 
     elements: list[ComparisonElement] = []
-    emitted_keys: set[tuple[tuple[str, ...], str]] = set()
 
     for item in inputs.values:
         resolved_refs = _resolve_reference(item.reference)
@@ -254,6 +264,7 @@ async def comparison(
                 settings.target_max,
                 settings.inclusive_min,
                 settings.inclusive_max,
+                settings.abs_tol,
             )
 
         check = ComparisonCheckResult(
@@ -275,18 +286,14 @@ async def comparison(
             else "",
         )
 
-        # Build canonical dedup key: sorted tuple of all refs + check_parameter
-        # This ensures 170↔766 and 766↔170 dedup to the same pair
-        ref_tuple = tuple(sorted(ref.reference for ref in resolved_refs))
-        dedup_key = (ref_tuple, inputs.check_parameter)
-        if dedup_key in emitted_keys:
-            continue
-        emitted_keys.add(dedup_key)
-
-        # One element per pair (or single ref), with all express_ids
+        # One element per MeasurementItem (no dedup)
         express_ids = [ref.reference for ref in resolved_refs]
         class_name = _resolve_class_name(context, resolved_refs[0])
         element_failed = not passed
+        # Set intersection field for collision intersections
+        intersection = (
+            item.reference if item.reference.startswith("inter:intersection_") else ""
+        )
 
         elements.append(
             ComparisonElement(
@@ -294,6 +301,7 @@ async def comparison(
                 class_name=class_name,
                 failed=element_failed,
                 checks=[check],
+                intersection=intersection,
             )
         )
 

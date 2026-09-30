@@ -229,13 +229,26 @@ def _emit_topic(
     if not resolved:
         return
 
+    # Extract member names from all resolved entries for intersection context
+    member_names = [name for (_, _, _, name) in resolved if name]
+    name_a = member_names[0] if len(member_names) >= 1 else ""
+    name_b = member_names[1] if len(member_names) >= 2 else ""
+
+    # Build readable intersection phrase if this is an intersection element
     first, _, guid, name = resolved[0]
+    intersection_phrase = ""
+    if first.intersection and name_a and name_b:
+        intersection_phrase = f"intersection of {name_a} and {name_b}"
+
     ctx = RenderContext(
         element_id=first.express_id,
         element_guid=guid,
         element_name=name,
         class_name=first.class_name,
         check=first.check,
+        intersection=intersection_phrase,
+        name_a=name_a,
+        name_b=name_b,
     )
     namespace: Namespace = build_namespace(ctx)
     formatter = ResolvingFormatter()

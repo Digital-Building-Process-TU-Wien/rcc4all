@@ -31,14 +31,15 @@ collision → measurement → comparison → bcf_output
 | `target_max` | `float` | `0.0` | Obere Schranke für `between` / `outside`-Operatoren |
 | `inclusive_min` | `bool` | `True` | Wenn `True`, schließt der Bereich Werte ein, die gleich `target_min` sind (≥); sonst strikt größer (>) |
 | `inclusive_max` | `bool` | `True` | Wenn `True`, schließt der Bereich Werte ein, die gleich `target_max` sind (≤); sonst strikt kleiner (<) |
+| `abs_tol` | `float` | `0.001` | Absolute Toleranz zur Absorption von Gleitkomma-Rauschen nahe Grenzwerten. Angewendet auf `equals`/`not_equals`, `le`/`ge` und `between`/`outside` (nur inklusive Seiten); `lt`/`gt` bleiben strikt. Negative Werte werden als ihr absoluter Wert behandelt. |
 
 ## Eingaben
 
 | Eingabe | Typ | Gebunden von | Beschreibung |
 |---------|-----|--------------|--------------|
-| `values` | `list[MeasurementItem]` | `measurement.measurements` | Liste von Messwerten mit Referenzen (verwendet bestehenden `MeasurementItem`-Typ: `reference`, `value`, `error`) |
-| `unit` | `str` | `measurement.unit` | Maßeinheit (z. B. `volume_unit`, `area_unit`, `length_unit`) |
-| `check_parameter` | `str` | `measurement.type` | Bezeichnung für die Prüfung (z. B. `volume`, `surface_area`, `distance_between`); wird zu `HarmonizedCheckResult.key` |
+| `values` | `list[MeasurementItem]` | upstream node | Liste von Werten zum Vergleichen. An ein Listen-Ausgangssignal eines upstream Nodes binden. |
+| `unit` | `str` | upstream node | Maßeinheit der verglichenen Werte. An ein Einheiten-Ausgangssignal eines upstream Nodes binden, z. B. `measurement.unit`. |
+| `check_parameter` | `str` | upstream node | Bezeichnung für die Prüfung (wird zum BCF-Prüfschlüssel). An ein Typ-/Prüfparameter-Ausgangssignal eines upstream Nodes binden, z. B. `measurement.type`. |
 
 ## Ausgaben
 
@@ -56,7 +57,8 @@ folgenden Felder:
   Referenzen, die die geprüften Elemente partitionieren.
 - `elements`: geordnete Liste von
   - `express_ids` (Liste, normalerweise eine einzelne qualifizierte Referenz),
-    `class_name` (IFC-Klasse oder `unknown`)
+    `class_name` (IFC-Klasse oder `unknown`), `intersection` (ursprüngliche
+    `inter:intersection_...`-Referenz für Kollisionsschnittmengen; `""` sonst)
   - `failed`: wahr, wenn die Prüfung fehlgeschlagen ist
   - `checks`: Liste von `HarmonizedCheckResult` (eine pro Element):
     - `key`: der gebundene `check_parameter` (z. B. `volume`)
@@ -75,20 +77,18 @@ folgenden Felder:
 Für jedes `MeasurementItem` in `values`:
 
 1. **Referenz auflösen → IFC-Element(e):**
-   - `<slug>:expr:<id>` → einzelnes Element
-   - `inter:intersection_<k1>_<k2>` (Kollisionsschnittmenge) → beide zugrundeliegenden Schlüssel parsen; wenn beide `:expr:`-Referenzen sind, ein Element pro Referenz emittieren; sonst überspringen
-   - `<expr1>_<expr2>` (Abstands-Paar-Referenz, z. B. `main:expr:17_main:expr:45`) → beide Schlüssel parsen; wenn beide `:expr:`-Referenzen sind, ein Element pro Referenz emittieren; sonst überspringen
+   - `<slug>:expr:<id>` → einzelnes Element mit `express_ids=[ref]`
+   - `inter:intersection_<k1>_<k2>` (Kollisionsschnittmenge) → beide zugrundeliegenden Schlüssel parsen; wenn beide `:expr:`-Referenzen sind, **ein Element** mit `express_ids=[refA, refB]` (beide Mitglieder) emittieren; sonst überspringen
+   - `<expr1>_<expr2>` (Abstands-Paar-Referenz, z. B. `main:expr:17_main:expr:45`) → beide Schlüssel parsen; wenn beide `:expr:`-Referenzen sind, **ein Element** mit `express_ids=[refA, refB]` emittieren; sonst überspringen
    - `gen:...`, `inter:` (nicht-Schnittmenge) oder ungültig → überspringen (kein Element emittiert)
 
 2. **Bestanden/Nicht bestanden bestimmen:**
    - `missing = value is None or error is set or value is non-finite (NaN, +/-inf)` → `check.missing=True`, `failed=True`
-   - Sonst numerischen Vergleich basierend auf `condition` auswerten
+   - Sonst numerischen Vergleich basierend auf `condition` unter Verwendung von `abs_tol` auswerten
 
-3. **Deduplizieren:** Emittierte `(express_ids[0], key)`-Paare verfolgen; überspringen, wenn bereits emittiert (first-wins).
+3. **`HarmonizedElement` pro `MeasurementItem` emittieren** (kein Dedup) mit der einzelnen Prüfung.
 
-4. **`HarmonizedElement` pro aufgelöstem IFC-Element** mit der einzelnen Prüfung emittieren.
-
-5. **Zusammenfassungszahlen:** bestandene/gefeilte aggregieren (nur eindeutige Elemente).
+4. **Zusammenfassungszahlen:** bestandene/gefeilte aus allen Elementen aggregieren.
 
 ## Validierungen
 
@@ -97,6 +97,6 @@ Für jedes `MeasurementItem` in `values`:
 
 ## Hinweise
 
-- **Gleitkomma-Toleranz:** `equals` / `not_equals` verwenden `math.isclose()`, um Gleitkomma-Darstellungsfehler zu behandeln (z. B. `0.30000000000000004` vs `0.3`).
+- **Konfigurierbare Toleranz:** `abs_tol` (Standard `0.001`) wird auf `equals`/`not_equals` (`math.isclose`), `le`/`ge` (Grenzwert-Erweiterung) und `between`/`outside` (nur inklusive Seiten) angewendet; `lt`/`gt` bleiben strikt. Negative Werte werden als ihr absoluter Wert behandelt.
 - **Nicht-endliche Werte:** `NaN`, `+inf`, `-inf` werden als `missing=True, failed=True` klassifiziert, um in BCF sichtbar zu werden.
 - **class_name-Auflösung:** wird aus dem IFC-Modell nach Slug aufgelöst; fällt auf `"unknown"` zurück, wenn das Element nicht gefunden wird.

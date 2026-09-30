@@ -487,3 +487,48 @@ def test_multi_id_element_one_topic_both_viewpoints(tmp_path: Path) -> None:
     assert set(result.topics[0].guids) == {"guid-111", "guid-222"}
     # Both entities should have viewpoints
     assert len(writer.added[0]["entities"]) == 2
+
+
+def test_intersection_placeholders(tmp_path: Path) -> None:
+    """Intersection element renders {intersection}, {name_a}, {name_b} placeholders."""
+    writer = FakeWriter()
+    elements = [
+        HarmonizedElement(
+            express_ids=[_REF_101, _REF_102],
+            class_name="IFCWALL",
+            failed=True,
+            checks=[
+                HarmonizedCheckResult(
+                    key="volume",
+                    check_parameter="volume",
+                    expected_value="0.0",
+                    actual_value="0.32",
+                    unit="volume_unit",
+                    missing=False,
+                    passed=False,
+                    expected_value_condition="equals",
+                )
+            ],
+            intersection="inter:intersection_main:expr:101_main:expr:102",
+        )
+    ]
+    result = _run(
+        _model(),
+        BcfOutputSettings(
+            title_template="{name_a} ↔ {name_b}",
+            description_template="The {check_parameter} of {name_a} and {name_b} is {actual_value} {unit} — {intersection}",
+        ),
+        elements,
+        tmp_path,
+        writer,
+    )
+
+    assert result.topic_count == 1
+    # Title should have both member names
+    assert result.topics[0].title == "Wall A ↔ Wall B"
+    # Description should have intersection phrase
+    assert "intersection of Wall A and Wall B" in result.topics[0].description
+    assert (
+        "volume of Wall A and Wall B is 0.32 volume_unit"
+        in result.topics[0].description
+    )

@@ -399,14 +399,27 @@
     "comparison": {
       "title": "Vergleich",
       "description": "Vergleicht gemessene numerische Werte mit einem Zielwert oder Bereich und erzeugt harmonisierte Prüfelemente für die BCF-Ausgabe.",
-      "condition": "Bedingung",
+      "conditionHeader": "Bedingung",
+      "condition": {
+        "equals": "gleich (=)",
+        "not_equals": "ungleich (≠)",
+        "lt": "kleiner als (<)",
+        "le": "kleiner oder gleich (≤)",
+        "gt": "größer als (>)",
+        "ge": "größer oder gleich (≥)",
+        "between": "zwischen",
+        "outside": "außerhalb"
+      },
       "targetValue": "Zielwert",
       "range": "Bereich",
       "minPlaceholder": "Min",
       "maxPlaceholder": "Max",
       "inclusion": "Einschluss",
       "inclusiveMin": "Inkl. Min",
-      "inclusiveMax": "Inkl. Max"
+      "inclusiveMax": "Inkl. Max",
+      "tolerance": "Absolute Toleranz",
+      "toleranceHint": "Negative Werte werden als ihr absoluter Wert behandelt.",
+      "decimalTooltip": "Dezimalwerte: Das Dezimaltrennzeichen folgt Ihrer Browser-Sprache (z. B. 0,25 oder 0.25)."
     }
   }
 }

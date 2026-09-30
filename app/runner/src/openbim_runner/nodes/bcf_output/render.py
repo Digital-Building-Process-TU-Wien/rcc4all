@@ -40,6 +40,9 @@ class RenderContext:
     element_name: str
     class_name: str
     check: HarmonizedCheckResult
+    intersection: str = ""
+    name_a: str = ""
+    name_b: str = ""
 
 
 class Namespace:
@@ -161,6 +164,9 @@ def build_namespace(ctx: RenderContext) -> Namespace:
         "condition_symbol": _CONDITION_SYMBOLS.get(
             check.expected_value_condition, str(check.expected_value_condition)
         ),
+        "intersection": ctx.intersection,
+        "name_a": ctx.name_a,
+        "name_b": ctx.name_b,
     }
     field_values.update(_adaptive_values(check))
     # Expose the check's values under its own key as `<key>.<field>` and,
