@@ -82,7 +82,7 @@ export interface BCFOutput {
      */
     failure_count: number
     /**
-     * Number of elements (with reported checks) skipped because they could not be resolved.
+     * Number of elements (with reported checks) skipped because they could not be resolved to a BCF viewpoint: references whose IFC entity / GlobalId could not be resolved, plus elements whose raw references expand to no IFC members (helper/generated geometry).
      */
     skipped?: number
     /**
@@ -121,7 +121,7 @@ export interface BCFOutput {
      */
     elements?: {
       /**
-       * The qualified element reference(s) (`<slug>:expr:<id>`) this element carries. Usually a single reference.
+       * The element reference(s) this element carries. Usually a single raw reference (`<slug>:expr:<id>`, an `inter:intersection_...` helper key, or a `_`-joined distance pair) that bcf_output expands into IFC member objects for viewpoints.
        */
       express_ids: string[]
       /**
@@ -177,10 +177,6 @@ export interface BCFOutput {
          */
         expected_value_max?: string
       }[]
-      /**
-       * Original intersection reference (e.g. 'inter:intersection_...') for collision intersections; empty string otherwise. Used by bcf_output to render intersection context in topic descriptions.
-       */
-      intersection?: string
     }[]
   }
 }
@@ -300,7 +296,7 @@ export interface Comparison {
      */
     elements?: {
       /**
-       * The qualified element reference(s) (`<slug>:expr:<id>`) this element carries. Usually a single reference.
+       * The element reference(s) this element carries. Usually a single raw reference (`<slug>:expr:<id>`, an `inter:intersection_...` helper key, or a `_`-joined distance pair) that bcf_output expands into IFC member objects for viewpoints.
        */
       express_ids: string[]
       /**
@@ -356,10 +352,6 @@ export interface Comparison {
          */
         expected_value_max?: string
       }[]
-      /**
-       * Original intersection reference (e.g. 'inter:intersection_...') for collision intersections; empty string otherwise. Used by bcf_output to render intersection context in topic descriptions.
-       */
-      intersection?: string
     }[]
   }
   inputs: {
@@ -750,7 +742,7 @@ export interface LOICheck {
      */
     elements?: {
       /**
-       * The qualified element reference(s) (`<slug>:expr:<id>`) this element carries. Usually a single reference.
+       * The element reference(s) this element carries. Usually a single raw reference (`<slug>:expr:<id>`, an `inter:intersection_...` helper key, or a `_`-joined distance pair) that bcf_output expands into IFC member objects for viewpoints.
        */
       express_ids: string[]
       /**
@@ -806,10 +798,6 @@ export interface LOICheck {
          */
         expected_value_max?: string
       }[]
-      /**
-       * Original intersection reference (e.g. 'inter:intersection_...') for collision intersections; empty string otherwise. Used by bcf_output to render intersection context in topic descriptions.
-       */
-      intersection?: string
     }[]
   }
   inputs: {
@@ -959,7 +947,7 @@ export interface TiltOfComponents {
      */
     elements?: {
       /**
-       * The qualified element reference(s) (`<slug>:expr:<id>`) this element carries. Usually a single reference.
+       * The element reference(s) this element carries. Usually a single raw reference (`<slug>:expr:<id>`, an `inter:intersection_...` helper key, or a `_`-joined distance pair) that bcf_output expands into IFC member objects for viewpoints.
        */
       express_ids: string[]
       /**
@@ -1015,10 +1003,6 @@ export interface TiltOfComponents {
          */
         expected_value_max?: string
       }[]
-      /**
-       * Original intersection reference (e.g. 'inter:intersection_...') for collision intersections; empty string otherwise. Used by bcf_output to render intersection context in topic descriptions.
-       */
-      intersection?: string
     }[]
   }
   inputs: {

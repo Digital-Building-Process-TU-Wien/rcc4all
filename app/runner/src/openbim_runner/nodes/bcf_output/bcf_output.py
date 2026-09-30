@@ -162,7 +162,12 @@ class BcfOutputResult(NodeModel):
     skipped: int = Field(
         default=0,
         title="Skipped",
-        description="Number of elements (with reported checks) skipped because they could not be resolved.",
+        description=(
+            "Number of elements (with reported checks) skipped because they could "
+            "not be resolved to a BCF viewpoint: references whose IFC entity / "
+            "GlobalId could not be resolved, plus elements whose raw references "
+            "expand to no IFC members (helper/generated geometry)."
+        ),
     )
     warnings: list[str] = Field(
         default=[],
@@ -191,6 +196,24 @@ def _resolve_topic_identity(
         return None
     name = getattr(entity, "Name", None)
     return entity, str(guid), (str(name) if name is not None else "")
+
+
+def _member_class_name(failed_check: FailedCheck, entity: object) -> str:
+    """Derive the IFC class name of a resolved member entity.
+
+    Uses the entity's ``is_a()`` when available (per-member derivation for raw
+    refs whose element ``class_name`` is empty); falls back to the element's
+    own ``class_name`` otherwise (e.g. loi_check / tilt producers).
+    """
+    is_a = getattr(entity, "is_a", None)
+    if callable(is_a):
+        try:
+            value = is_a()
+        except Exception:
+            value = None
+        if value:
+            return str(value)
+    return failed_check.class_name
 
 
 def _emit_topic(
@@ -229,24 +252,18 @@ def _emit_topic(
     if not resolved:
         return
 
-    # Extract member names from all resolved entries for intersection context
+    # Extract member names from all resolved entries for pair context
     member_names = [name for (_, _, _, name) in resolved if name]
     name_a = member_names[0] if len(member_names) >= 1 else ""
     name_b = member_names[1] if len(member_names) >= 2 else ""
 
-    # Build readable intersection phrase if this is an intersection element
-    first, _, guid, name = resolved[0]
-    intersection_phrase = ""
-    if first.intersection and name_a and name_b:
-        intersection_phrase = f"intersection of {name_a} and {name_b}"
-
+    first, entity, guid, name = resolved[0]
     ctx = RenderContext(
         element_id=first.express_id,
         element_guid=guid,
         element_name=name,
-        class_name=first.class_name,
+        class_name=_member_class_name(first, entity),
         check=first.check,
-        intersection=intersection_phrase,
         name_a=name_a,
         name_b=name_b,
     )
@@ -320,6 +337,12 @@ async def bcf_output(
 
     output = normalize(inputs.elements, included=settings.included_elements)
 
+    for dropped_ref in output.dropped:
+        warnings.append(
+            f"Element '{dropped_ref}' could not be expanded to IFC members "
+            "(generated/helper geometry has no BCF viewpoint) and was skipped."
+        )
+
     writer = BcfWriter(
         project_name=settings.project_name,
         author=settings.author,
@@ -358,7 +381,7 @@ async def bcf_output(
         processed_result_count=output.processed_result_count,
         element_count=output.element_count,
         failure_count=output.failure_count,
-        skipped=len(skipped_refs),
+        skipped=len(skipped_refs) + len(output.dropped),
         warnings=warnings,
         topics=topics,
     )

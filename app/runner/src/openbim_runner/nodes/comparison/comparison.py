@@ -5,13 +5,12 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 
-from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
+from openbim_runner.nodes.base import NodeModel, node
 from openbim_runner.nodes.bcf_output.harmonized import (
     HarmonizedCheckResult,
     HarmonizedElement,
 )
 from openbim_runner.nodes.measurement.measurement import MeasurementItem
-from openbim_runner.util.references import ElementRef, split_expr_key
 
 ComparisonCondition = Literal[
     "equals",
@@ -124,60 +123,6 @@ class ComparisonResult(NodeModel):
     )
 
 
-def _resolve_reference(ref: str) -> list[ElementRef]:
-    """Resolve a measurement reference into IFC element refs.
-
-    Handles:
-    - Direct expr ref: `<slug>:expr:<id>` → single ElementRef
-    - Collision intersection: `inter:intersection_<k1>_<k2>` → both keys parsed
-    - Distance pair: `<k1>_<k2>` → both keys parsed
-    - gen:/inter:/malformed → [] (skip)
-    """
-    # Case 1: Collision intersection prefix — strip and parse as pair
-    remainder = ref
-    if ref.startswith("inter:intersection_"):
-        remainder = ref[len("inter:intersection_") :]
-        # Fall through to pair parsing
-    else:
-        # Case 2: Direct expr ref (not inter: or gen: prefixes)
-        parsed = split_expr_key(ref)
-        if parsed is not None:
-            slug, express_id = parsed
-            return [ElementRef(ref, slug, express_id)]
-        # Not a direct ref, try as distance pair
-        # remainder is still ref (no prefix stripped)
-
-    # Case 3: Pair ref (collision or distance) — split on last _ between two keys
-    # Format: <key1>_<key2> where each key should be <slug>:expr:<id>
-    # Use split_expr_key on each side for robustness
-    underscore_pos = remainder.rfind("_")
-    if underscore_pos > 0:
-        k1 = remainder[:underscore_pos]
-        k2 = remainder[underscore_pos + 1 :]
-        parsed_k1 = split_expr_key(k1)
-        parsed_k2 = split_expr_key(k2)
-        if parsed_k1 is not None and parsed_k2 is not None:
-            slug1, id1 = parsed_k1
-            slug2, id2 = parsed_k2
-            return [
-                ElementRef(k1, slug1, id1),
-                ElementRef(k2, slug2, id2),
-            ]
-
-    # Case 4: Unresolvable (gen:, inter: non-intersection, malformed)
-    return []
-
-
-def _resolve_class_name(context: ExecutionContext, element: ElementRef) -> str:
-    """Resolve the IFC class of a parsed element reference; 'unknown' if missing."""
-    try:
-        model = context.resolve_model(element.slug)
-        entity = model.by_id(element.express_id)
-        return entity.is_a()
-    except (RuntimeError, AttributeError, ValueError):
-        return "unknown"
-
-
 def _is_missing(value: float | None, error: str | None) -> bool:
     """Check if a measurement value is missing or non-finite."""
     if value is None:
@@ -236,7 +181,6 @@ def _validate_settings(settings: ComparisonSettings) -> None:
 async def comparison(
     settings: ComparisonSettings,
     inputs: ComparisonInputs,
-    context: ExecutionContext,
 ) -> ComparisonResult:
     if not inputs.check_parameter:
         raise ValueError("check_parameter must be non-empty.")
@@ -246,10 +190,6 @@ async def comparison(
     elements: list[ComparisonElement] = []
 
     for item in inputs.values:
-        resolved_refs = _resolve_reference(item.reference)
-        if not resolved_refs:
-            continue
-
         is_missing = _is_missing(item.value, item.error)
         if is_missing:
             passed = False
@@ -286,30 +226,24 @@ async def comparison(
             else "",
         )
 
-        # One element per MeasurementItem (no dedup)
-        express_ids = [ref.reference for ref in resolved_refs]
-        class_name = _resolve_class_name(context, resolved_refs[0])
-        element_failed = not passed
-        # Set intersection field for collision intersections
-        intersection = (
-            item.reference if item.reference.startswith("inter:intersection_") else ""
-        )
-
+        # One element per MeasurementItem (no dedup), carrying the raw reference
+        # unchanged. The comparison node is IFC-agnostic: bcf_output expands the
+        # raw ref (inter:intersection_... / distance pair / <slug>:expr:<id>)
+        # into member objects and derives the class_name per member.
         elements.append(
             ComparisonElement(
-                express_ids=express_ids,
-                class_name=class_name,
-                failed=element_failed,
+                express_ids=[item.reference],
+                class_name="",
+                failed=not passed,
                 checks=[check],
-                intersection=intersection,
             )
         )
 
     passed_express_ids = [
-        ref for element in elements if not element.failed for ref in element.express_ids
+        element.express_ids[0] for element in elements if not element.failed
     ]
     failed_express_ids = [
-        ref for element in elements if element.failed for ref in element.express_ids
+        element.express_ids[0] for element in elements if element.failed
     ]
 
     return ComparisonResult(

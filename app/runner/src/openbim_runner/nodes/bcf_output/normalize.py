@@ -10,6 +10,11 @@ The `included` filter selects which elements the BCF contains ("failed",
 "passed" or "all"). Each selected element with at least one failing check
 yields one BCF topic that merges all of its failing checks; selected elements
 with no failing checks yield one informational topic each.
+
+Elements whose references cannot be expanded to IFC members (helper /
+generated geometry such as raw `inter:intersection_...` over `gen:` keys, or
+malformed refs) are recorded in `dropped` so the caller can report them and
+fold them into the skipped count instead of dropping them silently.
 """
 
 from __future__ import annotations
@@ -20,7 +25,7 @@ from openbim_runner.nodes.bcf_output.harmonized import (
     HarmonizedCheckResult,
     HarmonizedElement,
 )
-from openbim_runner.util.references import parse_element_ref
+from openbim_runner.util.references import expand_reference
 
 INCLUDE_FAILED = "failed"
 INCLUDE_PASSED = "passed"
@@ -36,7 +41,6 @@ class FailedCheck:
     express_id: int
     class_name: str
     check: HarmonizedCheckResult
-    intersection: str
 
 
 @dataclass
@@ -47,17 +51,24 @@ class NormalizedOutput:
     check_keys: list[str]
     failure_topics: list[list[FailedCheck]] = field(default_factory=list)
     info_topics: list[list[FailedCheck]] = field(default_factory=list)
+    dropped: list[str] = field(default_factory=list)
 
 
 def _element_identities(
     element: HarmonizedElement,
 ) -> list[tuple[str, str, int]]:
-    """Return one (reference, slug, express_id) identity per express_id in the element."""
+    """Expand each raw reference in the element into one (reference, slug, express_id).
+
+    A raw reference may be a single `<slug>:expr:<id>` or a pair (collision
+    intersection / distance) that expands to two members. References that
+    cannot be expanded to IFC members (e.g. `gen:`, malformed) are dropped.
+    """
     identities = []
     for reference in element.express_ids:
-        if reference:
-            parsed = parse_element_ref(reference, node="bcf_output")
-            identities.append((reference, parsed.slug, parsed.express_id))
+        if not reference:
+            continue
+        for member in expand_reference(reference):
+            identities.append((member.reference, member.slug, member.express_id))
     return identities
 
 
@@ -80,13 +91,23 @@ def normalize(
     info_groups: list[list[FailedCheck]] = []
     check_keys: list[str] = []
     seen_keys: set[str] = set()
+    dropped: list[str] = []
+    failure_count = 0
 
     for element in elements:
         if not _is_included(element.failed, included):
             continue
 
+        # failure_count counts failing checks of every included element,
+        # regardless of whether its references resolve to IFC members.
+        failing = [check for check in element.checks if not check.passed]
+        failure_count += len(failing)
+
         identities = _element_identities(element)
         if not identities:
+            # No expandable IFC member -> element has no BCF viewpoint. Record it
+            # so the caller can warn and include it in the skipped count.
+            dropped.extend(element.express_ids)
             continue
 
         # Group key = tuple of all express_ids (preserves order for consistency)
@@ -98,7 +119,6 @@ def normalize(
                 seen_keys.add(check.key)
                 check_keys.append(check.key)
 
-        failing = [check for check in element.checks if not check.passed]
         if failing:
             # One topic per element, merging all failing checks.
             # Emit one FailedCheck per express_id so each gets a viewpoint.
@@ -112,7 +132,6 @@ def normalize(
                             express_id=express_id,
                             class_name=element.class_name,
                             check=check,
-                            intersection=element.intersection,
                         )
                     )
         elif element.checks:
@@ -127,19 +146,11 @@ def normalize(
                         express_id=express_id,
                         class_name=element.class_name,
                         check=element.checks[0],
-                        intersection=element.intersection,
                     )
                 )
             info_groups.append(info_group)
 
     failure_topics = list(failed_groups.values())
-    # failure_count = number of failed checks (element-level, not expanded by id)
-    failure_count = 0
-    for element in elements:
-        if not _is_included(element.failed, included):
-            continue
-        failing = [c for c in element.checks if not c.passed]
-        failure_count += len(failing)
 
     return NormalizedOutput(
         element_count=len(elements),
@@ -148,4 +159,5 @@ def normalize(
         check_keys=check_keys,
         failure_topics=failure_topics,
         info_topics=info_groups,
+        dropped=dropped,
     )

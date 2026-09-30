@@ -6,9 +6,10 @@ categories: validation
 
 Der `comparison`-Node vergleicht berechnete Messwerte (Ist-Werte) mit einem Zielwert
 und erzeugt harmonisierte Prüfelemente, die mit dem `bcf_output`-Node kompatibel sind.
-Der Vergleich-Node löst Hilfsgeometrie-Referenzen (`inter:intersection_...`,
-Abstands-Paar-Referenzen) zurück zu IFC-Elementreferenzen auf, damit BCF-Themen
-mit korrekten Ansichten erstellt werden können.
+Er ist rein numerisch und IFC-agnostisch: Jede rohe Referenz (`inter:intersection_...`,
+ein `<k1>_<k2>`-Abstands-Paar oder `<slug>:expr:<id>`) wird unverändert durchgereicht,
+und der `bcf_output`-Node erweitert sie (über den gemeinsamen Helfer `expand_reference`)
+zu IFC-Mitgliedsobjekten, damit BCF-Themen mit korrekten Ansichten erstellt werden können.
 
 ## Anwendungsbeispiel
 
@@ -53,12 +54,12 @@ folgenden Felder:
   `summary_failed_count` (auf Elementebene: Elemente mit bestandener/gefeilter
   Prüfung) und `summary_check_count` (Gesamtzahl der Prüfungen, entspricht der
   Elementanzahl).
-- `passed_express_ids`, `failed_express_ids`: flache Listen qualifizierter
-  Referenzen, die die geprüften Elemente partitionieren.
+- `passed_express_ids`, `failed_express_ids`: eine rohe Referenz pro
+  bestandenem/gefeiltem Element (die Listenlänge entspricht also der Elementanzahl).
 - `elements`: geordnete Liste von
-  - `express_ids` (Liste, normalerweise eine einzelne qualifizierte Referenz),
-    `class_name` (IFC-Klasse oder `unknown`), `intersection` (ursprüngliche
-    `inter:intersection_...`-Referenz für Kollisionsschnittmengen; `""` sonst)
+  - `express_ids` (Liste mit der einzelnen, unveränderten rohen Referenz — z. B.
+    `inter:intersection_...`, ein `<k1>_<k2>`-Paar oder `<slug>:expr:<id>`),
+    `class_name` (`""`; wird pro Mitglied von `bcf_output` abgeleitet)
   - `failed`: wahr, wenn die Prüfung fehlgeschlagen ist
   - `checks`: Liste von `HarmonizedCheckResult` (eine pro Element):
     - `key`: der gebundene `check_parameter` (z. B. `volume`)
@@ -76,19 +77,21 @@ folgenden Felder:
 
 Für jedes `MeasurementItem` in `values`:
 
-1. **Referenz auflösen → IFC-Element(e):**
-   - `<slug>:expr:<id>` → einzelnes Element mit `express_ids=[ref]`
-   - `inter:intersection_<k1>_<k2>` (Kollisionsschnittmenge) → beide zugrundeliegenden Schlüssel parsen; wenn beide `:expr:`-Referenzen sind, **ein Element** mit `express_ids=[refA, refB]` (beide Mitglieder) emittieren; sonst überspringen
-   - `<expr1>_<expr2>` (Abstands-Paar-Referenz, z. B. `main:expr:17_main:expr:45`) → beide Schlüssel parsen; wenn beide `:expr:`-Referenzen sind, **ein Element** mit `express_ids=[refA, refB]` emittieren; sonst überspringen
-   - `gen:...`, `inter:` (nicht-Schnittmenge) oder ungültig → überspringen (kein Element emittiert)
+1. **Ein Element pro Eintrag emittieren (keine Auflösung, kein Dedup):** jedes
+   `MeasurementItem` wird **ein Element**, das seine rohe `reference` unverändert
+   trägt: `express_ids=[item.reference]`, `class_name=""`. Der Vergleich-Node löst
+   nie Referenzen auf und überspringt nie — `bcf_output` erweitert die rohe Referenz
+   zu Mitgliedsobjekten und verwirft, was es nicht erweitern kann.
 
 2. **Bestanden/Nicht bestanden bestimmen:**
    - `missing = value is None or error is set or value is non-finite (NaN, +/-inf)` → `check.missing=True`, `failed=True`
    - Sonst numerischen Vergleich basierend auf `condition` unter Verwendung von `abs_tol` auswerten
 
-3. **`HarmonizedElement` pro `MeasurementItem` emittieren** (kein Dedup) mit der einzelnen Prüfung.
+Jedes Element trägt die einzelne `HarmonizedCheckResult`, die aus dem gebundenen
+`check_parameter`/`unit` und den Zieleinstellungen aufgebaut wird.
 
-4. **Zusammenfassungszahlen:** bestandene/gefeilte aus allen Elementen aggregieren.
+**Zusammenfassungszahlen:** bestandene/gefeilte über alle Elemente aggregieren;
+`passed_express_ids`/`failed_express_ids` enthalten eine rohe Referenz pro Element.
 
 ## Validierungen
 
@@ -99,4 +102,4 @@ Für jedes `MeasurementItem` in `values`:
 
 - **Konfigurierbare Toleranz:** `abs_tol` (Standard `0.001`) wird auf `equals`/`not_equals` (`math.isclose`), `le`/`ge` (Grenzwert-Erweiterung) und `between`/`outside` (nur inklusive Seiten) angewendet; `lt`/`gt` bleiben strikt. Negative Werte werden als ihr absoluter Wert behandelt.
 - **Nicht-endliche Werte:** `NaN`, `+inf`, `-inf` werden als `missing=True, failed=True` klassifiziert, um in BCF sichtbar zu werden.
-- **class_name-Auflösung:** wird aus dem IFC-Modell nach Slug aufgelöst; fällt auf `"unknown"` zurück, wenn das Element nicht gefunden wird.
+- **Referenz-/Klassen-Auflösung:** in den `bcf_output`-Node verlagert. Der Vergleich-Node reicht nur rohe Referenzen durch; `bcf_output` erweitert sie zu Mitgliedern und leitet die IFC-Klasse jedes Mitglieds über den gemeinsamen Helfer `expand_reference` in `openbim_runner.util.references` ab.

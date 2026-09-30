@@ -124,9 +124,11 @@ Description:  Element {guid} ({class_name} {name}) hat {check_parameter}={actual
 Der Node meldet `output_path` (wo die Datei gespeichert wurde), `topic_count`,
 `viewpoint_count`, `processed_result_count` (verarbeitete Prüfungen),
 `element_count`, `failure_count` (fehlgeschlagene Prüfungen), `skipped`
-(fehlgeschlagene Prüfungen, deren Element nicht aufgelöst werden konnte),
-`warnings` und `topics` — der aufgelöste Titel und die Nachricht pro Topic zur
-Kontrolle.
+(fehlgeschlagene Prüfungen, deren Element nicht zu einem BCF-Viewpoint
+aufgelöst werden konnte — entweder weil seine IFC-Entität/GlobalId nicht
+aufgelöst werden konnte oder weil seine rohen Referenzen auf keine
+IFC-Elemente erweitert werden können), `warnings` und `topics` — der
+aufgelöste Titel und die Nachricht pro Topic zur Kontrolle.
 
 ## Verhalten & Randfälle
 
@@ -143,8 +145,17 @@ Kontrolle.
 - **`{node_label}` / `{check_type}` / `{node_id}`** → werden akzeptiert,
   rendern leer, mit Warnung (Upstream-Metadaten werden nicht übertragen).
 - **Nicht auflösbares Element** (fehlende Entität oder GlobalId) → seine
-  fehlgeschlagene Prüfung wird übersprungen und eine Warnung protokolliert,
-  wodurch der Lauf robust bleibt.
+  fehlgeschlagene Prüfung wird übersprungen (in `skipped` gezählt) und eine
+  Warnung protokolliert, wodurch der Lauf robust bleibt.
+- **Hilfs-/generierte Referenzen** (rohe `inter:intersection_...` über
+  `gen:`-Schlüssel, fehlerhafte Referenzen oder Paare mit Nicht-`expr`-Elementen)
+  können nicht auf IFC-Elemente erweitert werden und haben daher keinen
+  BCF-Viewpoint. Ihre Elemente werden beim Normalisieren verworfen: als je eine
+  Warnung pro verworfener Referenz gemeldet und in den `skipped`-Zähler
+  eingerechnet. Eine auf generierter Geometrie erkannte Kollision
+  (`inter:intersection_gen:1_gen:2`) schreibt also weiterhin **kein** Topic
+  (korrekt — es gibt keine zu referenzierende IFC-Entität), meldet nun aber
+  `skipped=1` mit einer erklärenden Warnung, statt still zu verschwinden.
 - **Kein Anzeigename** (`{name}`) → wird als leerer String gerendert.
 - **Keine fehlgeschlagenen Prüfungen** → speichert dennoch eine leere,
   gültige Issue-Datei.

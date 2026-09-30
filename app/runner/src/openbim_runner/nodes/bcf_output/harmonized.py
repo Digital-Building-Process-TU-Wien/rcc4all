@@ -79,8 +79,10 @@ class HarmonizedElement(NodeModel):
     express_ids: list[str] = Field(
         title="Express IDs",
         description=(
-            "The qualified element reference(s) (`<slug>:expr:<id>`) this element "
-            "carries. Usually a single reference."
+            "The element reference(s) this element carries. Usually a single raw "
+            "reference (`<slug>:expr:<id>`, an `inter:intersection_...` helper key, "
+            "or a `_`-joined distance pair) that bcf_output expands into IFC member "
+            "objects for viewpoints."
         ),
     )
     class_name: str = Field(
@@ -95,15 +97,6 @@ class HarmonizedElement(NodeModel):
         default=[],
         title="Checks",
         description="List of check results for this element.",
-    )
-    intersection: str = Field(
-        default="",
-        title="Intersection",
-        description=(
-            "Original intersection reference (e.g. 'inter:intersection_...') for collision "
-            "intersections; empty string otherwise. Used by bcf_output to render intersection "
-            "context in topic descriptions."
-        ),
     )
 
 

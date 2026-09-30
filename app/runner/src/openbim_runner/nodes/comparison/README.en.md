@@ -6,9 +6,10 @@ categories: validation
 
 The `comparison` node compares computed measurement values (actual values) against
 a target value and produces harmonized check elements compatible with the `bcf_output`
-node. The comparison node resolves helper geometry references (`inter:intersection_...`,
-distance pair refs) back to IFC element references so BCF topics can be created with
-proper viewpoints.
+node. It is purely numeric and IFC-agnostic: each raw reference (`inter:intersection_...`,
+a `<k1>_<k2>` distance pair, or `<slug>:expr:<id>`) is carried through unchanged, and
+the `bcf_output` node expands it (via the shared `expand_reference` helper) into IFC
+member objects so BCF topics can be created with proper viewpoints.
 
 ## Use case example
 
@@ -51,12 +52,12 @@ object itself carries only the fields below:
 - `summary_element_count` (elements processed), `summary_passed_count` /
   `summary_failed_count` (element-level: elements with passed/failed check), and
   `summary_check_count` (total number of checks, equals element count).
-- `passed_express_ids`, `failed_express_ids`: flat lists of qualified references
-  partitioning the checked elements.
+- `passed_express_ids`, `failed_express_ids`: one raw reference per passing/failing
+  element (so each list length equals the element count).
 - `elements`: ordered list of
-  - `express_ids` (list, normally a single qualified reference), `class_name`
-    (IFC class or `unknown`), `intersection` (original `inter:intersection_...`
-    reference for collision intersections; `""` otherwise)
+  - `express_ids` (list with the single raw reference, unchanged — e.g.
+    `inter:intersection_...`, a `<k1>_<k2>` pair, or `<slug>:expr:<id>`), `class_name`
+    (`""`; derived per member by `bcf_output`)
   - `failed`: true when the check failed
   - `checks`: list of `HarmonizedCheckResult` (one per element):
     - `key`: the bound `check_parameter` (e.g., `volume`)
@@ -74,19 +75,21 @@ object itself carries only the fields below:
 
 For each `MeasurementItem` in `values`:
 
-1. **Resolve reference → IFC element(s):**
-   - `<slug>:expr:<id>` → single element with `express_ids=[ref]`
-   - `inter:intersection_<k1>_<k2>` (collision intersection) → parse both underlying keys; if both are `:expr:` refs, emit **one element** with `express_ids=[refA, refB]` (both members); otherwise skip
-   - `<expr1>_<expr2>` (distance pair ref, e.g., `main:expr:17_main:expr:45`) → parse both keys; if both are `:expr:` refs, emit **one element** with `express_ids=[refA, refB]`; otherwise skip
-   - `gen:...`, `inter:` (non-intersection), or malformed → skip (no element emitted)
+1. **Emit one element per item (no resolution, no dedup):** every `MeasurementItem`
+   becomes **one element** carrying its raw `reference` unchanged:
+   `express_ids=[item.reference]`, `class_name=""`. The comparison node never resolves
+   references and never skips — `bcf_output` expands the raw ref into member objects
+   and drops any it cannot expand.
 
 2. **Determine pass/fail:**
    - `missing = value is None or error is set or value is non-finite (NaN, +/-inf)` → `check.missing=True`, `failed=True`
    - Otherwise evaluate numeric comparison based on `condition` using `abs_tol`
 
-3. **Emit `HarmonizedElement`** per `MeasurementItem` (no dedup) with the single check.
+Each element carries the single `HarmonizedCheckResult` built from the bound
+`check_parameter` / `unit` and the target settings.
 
-4. **Summary counts:** aggregate passed/failed from all elements.
+**Summary counts:** aggregate passed/failed across elements; `passed_express_ids` /
+`failed_express_ids` hold one raw reference per element.
 
 ## Validations
 
@@ -97,4 +100,4 @@ For each `MeasurementItem` in `values`:
 
 - **Configurable tolerance:** `abs_tol` (default `0.001`) is applied to `equals`/`not_equals` (`math.isclose`), `le`/`ge` (boundary expansion), and `between`/`outside` (inclusive sides only); `lt`/`gt` remain strict. Negative values are normalized to their absolute value.
 - **Non-finite values:** `NaN`, `+inf`, `-inf` are classified as `missing=True, failed=True` to surface in BCF.
-- **class_name resolution:** resolved from the IFC model by slug; falls back to `"unknown"` if the element is not found.
+- **Reference/class resolution:** moved to the `bcf_output` node. The comparison node only passes raw references through; `bcf_output` expands them into members and derives each member's IFC class via the shared `expand_reference` helper in `openbim_runner.util.references`.

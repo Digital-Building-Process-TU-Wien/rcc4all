@@ -118,8 +118,9 @@ Description:  Element {guid} ({class_name} {name}) has {check_parameter}={actual
 The node reports `output_path` (where the file was saved), `topic_count`,
 `viewpoint_count`, `processed_result_count` (checks processed), `element_count`,
 `failure_count` (failed checks), `skipped` (failed checks whose element could
-not be resolved), `warnings`, and `topics` — the resolved title and description
-per topic for review.
+not be resolved to a BCF viewpoint — either its IFC entity/GlobalId could not
+be resolved, or its raw references expand to no IFC members), `warnings`, and
+`topics` — the resolved title and description per topic for review.
 
 ## Behavior & edge cases
 
@@ -141,7 +142,15 @@ per topic for review.
 - **`{node_label}` / `{check_type}` / `{node_id}`** → accepted, render empty,
   with a warning (upstream metadata is not transmitted).
 - **Unresolvable element** (missing entity or GlobalId) → its failed check is
-  skipped and a warning recorded, keeping the run robust.
+  skipped (counted in `skipped`) and a warning recorded, keeping the run robust.
+- **Helper/generated references** (raw `inter:intersection_...` over `gen:`
+  keys, malformed refs, or pairs with non-`expr` members) cannot expand to IFC
+  members, so they have no BCF viewpoint. Their elements are dropped at
+  normalize-time: reported as one warning per dropped reference and folded into
+  the `skipped` count. For example, a collision detected on generated geometry
+  (`inter:intersection_gen:1_gen:2`) still writes **no** topic (correct — there
+  is no IFC entity to reference) but now surfaces `skipped=1` with an
+  explanatory warning instead of disappearing silently.
 - **No display name** (`{name}`) → renders as an empty string.
 - **No failing checks** → still saves a valid, empty issue file.
 - **Filename** — `output_filename`, default `check-results.bcf`; use a

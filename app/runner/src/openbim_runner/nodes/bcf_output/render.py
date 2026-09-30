@@ -40,7 +40,6 @@ class RenderContext:
     element_name: str
     class_name: str
     check: HarmonizedCheckResult
-    intersection: str = ""
     name_a: str = ""
     name_b: str = ""
 
@@ -164,7 +163,6 @@ def build_namespace(ctx: RenderContext) -> Namespace:
         "condition_symbol": _CONDITION_SYMBOLS.get(
             check.expected_value_condition, str(check.expected_value_condition)
         ),
-        "intersection": ctx.intersection,
         "name_a": ctx.name_a,
         "name_b": ctx.name_b,
     }

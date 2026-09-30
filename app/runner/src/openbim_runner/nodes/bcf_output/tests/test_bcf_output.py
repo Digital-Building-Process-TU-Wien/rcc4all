@@ -30,6 +30,9 @@ class FakeEntity:
     def id(self) -> int:
         return self._express_id
 
+    def is_a(self) -> str:
+        return "IFCWALL"
+
 
 class FakeIfcModel:
     def __init__(self, entities_by_id: dict[int, FakeEntity]) -> None:
@@ -489,13 +492,14 @@ def test_multi_id_element_one_topic_both_viewpoints(tmp_path: Path) -> None:
     assert len(writer.added[0]["entities"]) == 2
 
 
-def test_intersection_placeholders(tmp_path: Path) -> None:
-    """Intersection element renders {intersection}, {name_a}, {name_b} placeholders."""
+def test_raw_pair_ref_expands_to_members(tmp_path: Path) -> None:
+    """A raw collision ref expands into two members (viewpoints, names, per-member class)."""
     writer = FakeWriter()
+    raw_ref = "inter:intersection_main:expr:101_main:expr:102"
     elements = [
         HarmonizedElement(
-            express_ids=[_REF_101, _REF_102],
-            class_name="IFCWALL",
+            express_ids=[raw_ref],
+            class_name="",
             failed=True,
             checks=[
                 HarmonizedCheckResult(
@@ -509,14 +513,13 @@ def test_intersection_placeholders(tmp_path: Path) -> None:
                     expected_value_condition="equals",
                 )
             ],
-            intersection="inter:intersection_main:expr:101_main:expr:102",
         )
     ]
     result = _run(
         _model(),
         BcfOutputSettings(
-            title_template="{name_a} ↔ {name_b}",
-            description_template="The {check_parameter} of {name_a} and {name_b} is {actual_value} {unit} — {intersection}",
+            title_template="{name_a} ↔ {name_b} [{class_name}]",
+            description_template="The {check_parameter} of {name_a} and {name_b} is {actual_value} {unit}",
         ),
         elements,
         tmp_path,
@@ -524,11 +527,78 @@ def test_intersection_placeholders(tmp_path: Path) -> None:
     )
 
     assert result.topic_count == 1
-    # Title should have both member names
-    assert result.topics[0].title == "Wall A ↔ Wall B"
-    # Description should have intersection phrase
-    assert "intersection of Wall A and Wall B" in result.topics[0].description
+    # Two members expanded from one raw ref -> both viewpoints/guids.
+    assert result.viewpoint_count == 2
+    assert set(result.topics[0].guids) == {"guid-111", "guid-222"}
+    # Name + per-member class derived from the resolved entities.
+    assert result.topics[0].title == "Wall A ↔ Wall B [IFCWALL]"
     assert (
-        "volume of Wall A and Wall B is 0.32 volume_unit"
-        in result.topics[0].description
+        result.topics[0].description
+        == "The volume of Wall A and Wall B is 0.32 volume_unit"
+    )
+
+
+def test_unresolvable_raw_ref_dropped(tmp_path: Path) -> None:
+    """A raw ref that cannot expand to IFC members yields no topic and is reported."""
+    writer = FakeWriter()
+    elements = [
+        HarmonizedElement(
+            express_ids=["gen:noentity"],
+            class_name="",
+            failed=True,
+            checks=[_failing_check()],
+        )
+    ]
+    result = _run(
+        _model(),
+        BcfOutputSettings(title_template="{guid}", description_template="d"),
+        elements,
+        tmp_path,
+        writer,
+    )
+    assert result.topic_count == 0
+    assert result.viewpoint_count == 0
+    # The element is dropped at normalize-time: folded into skipped + warned.
+    assert result.skipped == 1
+    assert result.warnings
+    assert any("gen:noentity" in warning for warning in result.warnings)
+
+
+def test_generated_intersection_dropped_with_warning(tmp_path: Path) -> None:
+    """A collision over generated geometry yields no topic but surfaces a warning."""
+    writer = FakeWriter()
+    elements = [
+        HarmonizedElement(
+            express_ids=["inter:intersection_gen:1_gen:2"],
+            class_name="",
+            failed=True,
+            checks=[
+                HarmonizedCheckResult(
+                    key="volume",
+                    check_parameter="volume",
+                    expected_value="0.0",
+                    actual_value="1.0",
+                    unit="volume_unit",
+                    missing=False,
+                    passed=False,
+                    expected_value_condition="equals",
+                )
+            ],
+        )
+    ]
+    result = _run(
+        _model(),
+        BcfOutputSettings(title_template="{guid}", description_template="d"),
+        elements,
+        tmp_path,
+        writer,
+    )
+    assert result.topic_count == 0
+    assert result.viewpoint_count == 0
+    assert result.skipped == 1
+    assert result.failure_count == 1
+    assert any(
+        "inter:intersection_gen:1_gen:2" in warning
+        and "expanded to IFC members" in warning
+        for warning in result.warnings
     )
