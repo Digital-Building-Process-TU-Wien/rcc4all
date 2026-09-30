@@ -8,7 +8,7 @@ It is built for both project stakeholders and developers: stakeholders get a cle
 
 ### Project Partners
 
-- ÖIAV (Konsortialführer)
+- TU Wien – Digitaler Bauprozess
 - ASFINAG
 - BIG
 - ÖBB Infrastruktur
@@ -16,7 +16,6 @@ It is built for both project stakeholders and developers: stakeholders get a cle
 - Land Steiermark
 - Stadt Wien
 - Wiener Linien
-- TU Wien – Digitaler Bauprozess
 
 ### Supporting Partners
 
