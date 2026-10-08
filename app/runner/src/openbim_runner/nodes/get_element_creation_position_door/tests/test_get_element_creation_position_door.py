@@ -13,12 +13,10 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     GetElementCreationPositionDoorInputs,
     GetElementCreationPositionDoorResult,
     GetElementCreationPositionDoorSettings,
-    ThicknessInfo,
     _build_opening_to_wall_map,
     _clip_edge,
     _clip_opening_to_wall_polygon,
     _extract_4_corners,
-    _get_element_centroid,
     _get_element_thickness_direct,
     _get_footprint_points,
     _get_placement_matrix,
@@ -29,7 +27,6 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     _sort_polygon_ccw,
     get_element_creation_position_door,
 )
-
 
 TEST_DATA_DIR = Path(__file__).parent
 
@@ -192,7 +189,7 @@ def test_get_element_creation_position_door_all_corners(
     """Test all corner points (P1-P4) for a door opening."""
     door = context.ifc_model.by_type("IfcDoor")[0]
     express_id = door.id()
-    
+
     # Test all 5 points (P1-P4, P7)
     all_positions = {}
     for point_index in [1, 2, 3, 4, 7]:
@@ -206,12 +203,12 @@ def test_get_element_creation_position_door_all_corners(
         assert len(result.elements) == 1
         assert result.elements[0].point_index == point_index
         all_positions[point_index] = result.elements[0].position
-    
+
     # P7 (centroid) should be approximately the average of P1-P4
     p1_p4 = np.array([all_positions[i] for i in [1, 2, 3, 4]])
     centroid_expected = p1_p4.mean(axis=0).tolist()
     p7_actual = all_positions[7]
-    
+
     # Check that centroid is close to average of corners (within 1cm)
     for i in range(3):
         assert abs(centroid_expected[i] - p7_actual[i]) < 0.01
@@ -223,7 +220,7 @@ def test_get_element_creation_position_door_p5_p6_midpoints(
     """Test P5 and P6 midpoint calculation for a door opening."""
     door = context.ifc_model.by_type("IfcDoor")[0]
     express_id = door.id()
-    
+
     # Get all corner points and midpoints
     all_positions = {}
     for point_index in [1, 2, 3, 4, 5, 6]:
@@ -234,19 +231,19 @@ def test_get_element_creation_position_door_p5_p6_midpoints(
         ))
         assert len(result.elements) == 1
         all_positions[point_index] = result.elements[0].position
-    
+
     p1 = np.array(all_positions[1])
     p2 = np.array(all_positions[2])
     p3 = np.array(all_positions[3])
     p4 = np.array(all_positions[4])
     p5 = np.array(all_positions[5])
     p6 = np.array(all_positions[6])
-    
+
     # P5 should be midpoint between P1 and P2
     p5_expected = (p1 + p2) / 2
     for i in range(3):
         assert abs(p5[i] - p5_expected[i]) < 0.01  # Within 1cm
-    
+
     # P6 should be midpoint between P3 and P4
     p6_expected = (p3 + p4) / 2
     for i in range(3):
@@ -259,52 +256,52 @@ def test_thickness_detection_equal(
     """Test thickness detection when opening thickness == wall thickness."""
     door = context.ifc_model.by_type("IfcDoor")[0]
     express_id = door.id()
-    
+
     # Find opening and wall
     opening = None
     for rel in context.ifc_model.by_type("IfcRelFillsElement"):
         if rel.RelatedBuildingElement and rel.RelatedBuildingElement.id() == express_id:
             opening = rel.RelatingOpeningElement
             break
-    
+
     assert opening is not None
-    
+
     wall = None
     for rel in context.ifc_model.by_type("IfcRelVoidsElement"):
         if rel.RelatedOpeningElement and rel.RelatedOpeningElement.id() == opening.id():
             wall = rel.RelatingBuildingElement
             break
-    
+
     assert wall is not None
-    
+
     # Get bottom vertices directly (world coordinates)
     settings = ifcopenshell.geom.settings()
     settings.set("use-world-coords", True)
     settings.set("weld-vertices", True)
     settings.set("context-types", ["Body"])
-    
+
     opening_shape = ifcopenshell.geom.create_shape(settings, opening)
     opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
-    
+
     wall_shape = ifcopenshell.geom.create_shape(settings, wall)
     wall_verts = np.array(wall_shape.geometry.verts).reshape((-1, 3))
     min_z = wall_verts[:, 2].min()
     wall_bottom = wall_verts[np.isclose(wall_verts[:, 2], min_z, atol=0.001)]
-    
+
     # Get thickness info (direct from bottom vertices)
     thickness_info = _get_thickness_info(
         opening_bottom,
         wall_bottom,
         tolerance=0.01,
     )
-    
+
     # Both thicknesses should be detected
     assert thickness_info.opening_thickness > 0.0
     assert thickness_info.wall_thickness is not None
     assert thickness_info.wall_thickness > 0.0
-    
+
     # In test model, opening and wall have similar thickness (~30cm)
     # With 1% tolerance, should not need clipping
     assert thickness_info.needs_clipping is False
@@ -316,27 +313,27 @@ def test_thickness_detection_wall_not_found(
     """Test thickness detection when wall is not found."""
     door = context.ifc_model.by_type("IfcDoor")[0]
     express_id = door.id()
-    
+
     # Find opening
     opening = None
     for rel in context.ifc_model.by_type("IfcRelFillsElement"):
         if rel.RelatedBuildingElement and rel.RelatedBuildingElement.id() == express_id:
             opening = rel.RelatingOpeningElement
             break
-    
+
     assert opening is not None
-    
+
     # Get bottom vertices directly (world coordinates)
     settings = ifcopenshell.geom.settings()
     settings.set("use-world-coords", True)
     settings.set("weld-vertices", True)
     settings.set("context-types", ["Body"])
-    
+
     opening_shape = ifcopenshell.geom.create_shape(settings, opening)
     opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
-    
+
     # Get thickness info with wall_bottom_vertices=None
     # Without a wall, we cannot compute opening thickness (no wall axis for projection)
     thickness_info = _get_thickness_info(
@@ -344,13 +341,13 @@ def test_thickness_detection_wall_not_found(
         None,  # No wall
         tolerance=0.01,
     )
-    
+
     # Opening thickness is 0.0 when no wall is available (cannot project onto wall axis)
     assert thickness_info.opening_thickness == 0.0
-    
+
     # Wall thickness should be None
     assert thickness_info.wall_thickness is None
-    
+
     # No clipping needed (no wall to clip to)
     assert thickness_info.needs_clipping is False
 
@@ -360,10 +357,10 @@ def test_build_opening_to_wall_map(
 ) -> None:
     """Test building opening-to-wall mapping."""
     mapping = _build_opening_to_wall_map(context.ifc_model)
-    
+
     # Should have at least one mapping (test model has doors)
     assert len(mapping) > 0
-    
+
     # All values should be IfcWall entities
     for opening_id, wall in mapping.items():
         assert isinstance(opening_id, int)
@@ -376,55 +373,55 @@ def test_clip_opening_to_wall_polygon(
     """Test vertex clipping using Sutherland-Hodgman polygon clipping (2D intersection-based)."""
     door = context.ifc_model.by_type("IfcDoor")[0]
     express_id = door.id()
-    
+
     # Find opening and wall
     opening = None
     for rel in context.ifc_model.by_type("IfcRelFillsElement"):
         if rel.RelatedBuildingElement and rel.RelatedBuildingElement.id() == express_id:
             opening = rel.RelatingOpeningElement
             break
-    
+
     assert opening is not None
-    
+
     wall = None
     for rel in context.ifc_model.by_type("IfcRelVoidsElement"):
         if rel.RelatedOpeningElement and rel.RelatedOpeningElement.id() == opening.id():
             wall = rel.RelatingBuildingElement
             break
-    
+
     assert wall is not None
-    
+
     # Get bottom vertices (world coordinates)
     import ifcopenshell.geom
     settings = ifcopenshell.geom.settings()
     settings.set("use-world-coords", True)
     settings.set("weld-vertices", True)
     settings.set("context-types", ["Body"])
-    
+
     opening_shape = ifcopenshell.geom.create_shape(settings, opening)
     opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
-    
+
     wall_shape = ifcopenshell.geom.create_shape(settings, wall)
     wall_verts = np.array(wall_shape.geometry.verts).reshape((-1, 3))
     min_z = wall_verts[:, 2].min()
     wall_bottom = wall_verts[np.isclose(wall_verts[:, 2], min_z, atol=0.001)]
-    
+
     # Clip vertices (Sutherland-Hodgman, no placement matrix needed)
     clipped_verts = _clip_opening_to_wall_polygon(
         opening_bottom,
         wall_bottom,
     )
-    
+
     # Clipped vertices should be valid 3D coordinates (can be fewer than input)
     assert len(clipped_verts) >= 3  # At least a triangle
-    
+
     # All vertices should be valid 3D coordinates
     assert clipped_verts.shape == (len(clipped_verts), 3)
     assert not np.any(np.isnan(clipped_verts))
     assert not np.any(np.isinf(clipped_verts))
-    
+
     # Validate: all clipped vertices should be within wall rectangle (2D point-in-polygon test)
     # Simple approach: project onto wall axes and check bounds
     wall_center = wall_bottom.mean(axis=0)
@@ -432,13 +429,13 @@ def test_clip_opening_to_wall_polygon(
     U, S, Vh = np.linalg.svd(wall_centered, full_matrices=False)
     length_axis = Vh[0]
     thickness_axis = Vh[1]
-    
+
     # Wall bounds
     wall_length_proj = wall_centered @ length_axis
     wall_thickness_proj = wall_centered @ thickness_axis
     wall_length_min, wall_length_max = float(wall_length_proj.min()), float(wall_length_proj.max())
     wall_thickness_min, wall_thickness_max = float(wall_thickness_proj.min()), float(wall_thickness_proj.max())
-    
+
     # Check all clipped vertices are within bounds (with 2mm tolerance for numerical precision)
     clipped_centered = clipped_verts - wall_center
     for i in range(len(clipped_verts)):
@@ -451,14 +448,14 @@ def test_clip_opening_to_wall_polygon(
 def test_get_rotation_angles_with_placement(context: ExecutionContext) -> None:
     """Test rotation angle extraction from element placement."""
     door = context.ifc_model.by_type("IfcDoor")[0]
-    
+
     if door.ObjectPlacement:
         rotation = _get_rotation_angles(door.ObjectPlacement)
-        
+
         assert "rotation_x" in rotation
         assert "rotation_y" in rotation
         assert "rotation_z" in rotation
-        
+
         for key, value in rotation.items():
             assert 0.0 <= value <= 360.0
             assert isinstance(value, float)
@@ -493,7 +490,7 @@ def test_get_element_creation_position_door_includes_rotation(
 def test_get_rotation_angles_no_placement() -> None:
     """Test rotation extraction with None placement returns zeros."""
     rotation = _get_rotation_angles(None)
-    
+
     assert rotation["rotation_x"] == 0.0
     assert rotation["rotation_y"] == 0.0
     assert rotation["rotation_z"] == 0.0
@@ -640,7 +637,7 @@ class TestExtract4Corners:
         ])
         rotated = (rotation @ vertices.T).T
         vertices_3d = np.column_stack([rotated, np.zeros(4)])
-        
+
         corners = _extract_4_corners(vertices_3d)
         assert corners.shape == (4, 3)
 
@@ -657,7 +654,7 @@ class TestGetFootprintPoints:
             [0, 1, 0],
         ])
         points = _get_footprint_points(vertices, None, 0.0)
-        
+
         # Should have all 7 points
         assert len(points) == 7
         for i in range(1, 8):
@@ -673,10 +670,10 @@ class TestGetFootprintPoints:
             [0, 2, 0],
         ])
         points = _get_footprint_points(vertices, None, 0.0)
-        
+
         p1, p2, p3, p4 = np.array(points[1]), np.array(points[2]), np.array(points[3]), np.array(points[4])
         p7 = np.array(points[7])
-        
+
         expected_centroid = (p1 + p2 + p3 + p4) / 4
         np.testing.assert_array_almost_equal(p7, expected_centroid, decimal=5)
 
@@ -689,11 +686,11 @@ class TestGetFootprintPoints:
             [0, 2, 0],
         ])
         points = _get_footprint_points(vertices, None, 0.0)
-        
+
         p1 = np.array(points[1])
         p2 = np.array(points[2])
         p5 = np.array(points[5])
-        
+
         expected_midpoint = (p1 + p2) / 2
         np.testing.assert_array_almost_equal(p5, expected_midpoint, decimal=5)
 
@@ -706,11 +703,11 @@ class TestGetFootprintPoints:
             [0, 2, 0],
         ])
         points = _get_footprint_points(vertices, None, 0.0)
-        
+
         p3 = np.array(points[3])
         p4 = np.array(points[4])
         p6 = np.array(points[6])
-        
+
         expected_midpoint = (p3 + p4) / 2
         np.testing.assert_array_almost_equal(p6, expected_midpoint, decimal=5)
 
@@ -722,7 +719,7 @@ class TestGetFootprintPoints:
             [0.5, 0.5, 0],
         ])
         points = _get_footprint_points(vertices, None, 0.0)
-        
+
         # Should only have P7 (centroid)
         assert len(points) == 1
         assert 7 in points
@@ -767,7 +764,7 @@ class TestGetElementThicknessDirect:
         ])
         rotated = (rotation @ vertices.T).T
         vertices_3d = np.column_stack([rotated, np.zeros(4)])
-        
+
         thickness = _get_element_thickness_direct(vertices_3d)
         assert thickness > 0.0
         assert abs(thickness - 0.24) < 0.01
@@ -780,9 +777,9 @@ class TestLineIntersection2d:
         """Test intersection of two crossing lines."""
         p1, p2 = np.array([0, 0]), np.array([2, 2])
         a1, a2 = np.array([0, 2]), np.array([2, 0])
-        
+
         intersection = _line_intersection_2d(p1, p2, a1, a2)
-        
+
         assert len(intersection) == 2
         np.testing.assert_array_almost_equal(intersection, [1, 1], decimal=5)
 
@@ -790,18 +787,18 @@ class TestLineIntersection2d:
         """Test parallel lines (should return p1 as fallback)."""
         p1, p2 = np.array([0, 0]), np.array([2, 0])
         a1, a2 = np.array([0, 1]), np.array([2, 1])
-        
+
         intersection = _line_intersection_2d(p1, p2, a1, a2)
-        
+
         np.testing.assert_array_almost_equal(intersection, p1, decimal=5)
 
     def test_line_intersection_2d_perpendicular_lines(self) -> None:
         """Test perpendicular lines intersecting at origin."""
         p1, p2 = np.array([-1, 0]), np.array([1, 0])
         a1, a2 = np.array([0, -1]), np.array([0, 1])
-        
+
         intersection = _line_intersection_2d(p1, p2, a1, a2)
-        
+
         np.testing.assert_array_almost_equal(intersection, [0, 0], decimal=5)
 
 
@@ -815,9 +812,9 @@ class TestClipEdge:
         subject = [np.array([-1.0, 0.0]), np.array([-2.0, 0.0]), np.array([-2.0, 1.0]), np.array([-1.0, 1.0])]
         edge_start = np.array([0.0, 0.0])
         edge_end = np.array([0.0, 3.0])
-        
+
         result = _clip_edge(subject, edge_start, edge_end)
-        
+
         assert len(result) == 4
 
     def test_clip_edge_point_outside(self) -> None:
@@ -827,9 +824,9 @@ class TestClipEdge:
         subject = [np.array([1.0, 0.0]), np.array([2.0, 0.0]), np.array([2.0, 1.0]), np.array([1.0, 1.0])]
         edge_start = np.array([0.0, 0.0])
         edge_end = np.array([0.0, 2.0])
-        
+
         result = _clip_edge(subject, edge_start, edge_end)
-        
+
         assert len(result) == 0  # All points outside, empty result
 
     def test_clip_edge_empty_input(self) -> None:

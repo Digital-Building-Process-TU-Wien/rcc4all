@@ -194,6 +194,15 @@
       "description": "Verweist auf ein IFC-Modell, das in der Modellleiste des Editors zugewiesen wurde.",
       "selectModel": "Modell auswählen..."
     },
+    "set3DPositionRotation": {
+      "title": "3D-Position & Rotation setzen",
+      "description": "Definiert eine 3D-Position und Euler-Rotation über UI-Einstellungen. Ausgabe kann für nachgelagerte geometrische Operationen verwendet werden.",
+      "position": "Position (X, Y, Z)",
+      "rotation": "Rotation (X°, Y°, Z°)",
+      "rotationHint": "Folgt der Rechte-Hand-Regel: Positive Rotation ist gegen den Uhrzeigersinn, wenn man entlang der Achse blickt.",
+      "outputPosition": "Ausgabe",
+      "noOutputYet": "Noch keine Ausgabe. Führen Sie den Workflow aus."
+    },
     "getElementCreationPositionDoor": {
       "title": "Ermittle Einfügepunkt Tür",
       "description": "Extrahiert Fußpunktpunkte (P1-P7) von IFC-Türöffnungen und Wänden auf Bodenhöhe.",
@@ -216,15 +225,17 @@
     },
     "generate3dCube": {
       "title": "3D-Würfel erzeugen",
-      "description": "Erzeugt eine Quader-Geometrie im Cache unter einer eindeutigen object_id, für die Verwendung in einem Kollisionsnode.",
-      "position": "Position (X, Y, Z)",
-      "rotation": "Rotation (X°, Y°, Z°)",
+      "description": "Erzeugt eine Quader-Geometrie mit konfigurierbaren Abmessungen. Position und Rotation können als Offset zu einer upstream Node definiert werden.",
+      "positionOffset": "Position-Offset (+X, +Y, +Z)",
+      "rotationOffset": "Rotations-Offset (+X°, +Y°, +Z°)",
+      "deltaHint": "Diese Werte werden zur Position/Rotation aus dem Input-Binding addiert. Bei 0 werden die Input-Werte direkt verwendet.",
       "size": "Abmessungen (B, H, T)",
       "objectId": "Objekt-ID",
       "uniqueObjectId": "eindeutige Objekt-ID",
       "objectIdHint": "Eindeutige Referenz für den Würfel. Speisen Sie die object_ids-Ausgabe in einen Kollisionsnode ein.",
       "objectIdsOutput": "Objekt-IDs (Ausgabe)",
-      "noOutputYet": "Noch keine Ausgabe. Führen Sie den Workflow aus."
+      "noOutputYet": "Noch keine Ausgabe. Führen Sie den Workflow aus.",
+      "rotationHint": "Folgt der Rechte-Hand-Regel: Positive Rotation ist gegen den Uhrzeigersinn, wenn man entlang der Achse blickt."
     },
     "jsonOutput": {
       "title": "JSON-Ausgabe",

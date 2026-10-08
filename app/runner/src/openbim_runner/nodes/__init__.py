@@ -20,6 +20,7 @@ from .ids_checker.ids_checker import ids_checker
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
 from .loi_check.loi_check import loi_check
 from .measurement.measurement import measurement
+from .set_3d_position_rotation.set_3d_position_rotation import set_3d_position_rotation
 from .tilt_of_components.tilt_of_components import tilt_of_components
 
 __all__ = [
@@ -41,5 +42,6 @@ __all__ = [
     "loi_check",
     "measurement",
     "node",
+    "set_3d_position_rotation",
     "tilt_of_components",
 ]

@@ -7,6 +7,7 @@ import pytest
 
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.generate_3d_cube.generate_3d_cube import (
+    Generate3DCubeInputs,
     Generate3DCubeResult,
     Generate3DCubeSettings,
     generate_3d_cube,
@@ -22,9 +23,13 @@ def _context() -> ExecutionContext:
 
 
 def _run(
-    settings: Generate3DCubeSettings, context: ExecutionContext
+    settings: Generate3DCubeSettings,
+    context: ExecutionContext,
+    inputs: Generate3DCubeInputs | None = None,
 ) -> Generate3DCubeResult:
-    return asyncio.run(generate_3d_cube(settings, context))
+    if inputs is None:
+        inputs = Generate3DCubeInputs()
+    return asyncio.run(generate_3d_cube(settings, inputs, context))
 
 
 def _mesh_from_result(result: Generate3DCubeResult, context: ExecutionContext):
@@ -107,6 +112,120 @@ def test_generate_3d_cube_with_combined_transformations() -> None:
     mesh = _mesh_from_result(result, context)
     assert mesh.vertices.shape == (8, 3)
     assert mesh.faces.shape == (12, 3)
+
+
+def test_generate_3d_cube_with_input_binding_position() -> None:
+    context = _context()
+
+    inputs = Generate3DCubeInputs(
+        elements=[
+            {
+                "position": [5.0, 3.0, 0.0],
+                "rotation": {"rotation_x": 0.0, "rotation_y": 0.0, "rotation_z": 45.0},
+            }
+        ]
+    )
+
+    # Offset von [0.5, 0, 0] sollte zu [5.5, 3.0, 0.0] führen
+    result = _run(
+        Generate3DCubeSettings(
+            position=[0.5, 0.0, 0.0],
+            rotation=[0.0, 0.0, 0.0],
+            size=[1.0, 1.0, 1.0],
+            object_id="cube_offset",
+        ),
+        context,
+        inputs,
+    )
+
+    mesh = _mesh_from_result(result, context)
+    assert mesh.vertices.shape == (8, 3)
+    assert mesh.centroid[0] == pytest.approx(5.5)
+    assert mesh.centroid[1] == pytest.approx(3.0)
+    assert mesh.centroid[2] == pytest.approx(0.0)
+
+
+def test_generate_3d_cube_with_input_binding_rotation() -> None:
+    context = _context()
+
+    inputs = Generate3DCubeInputs(
+        elements=[
+            {
+                "position": [0.0, 0.0, 0.0],
+                "rotation": {"rotation_x": 0.0, "rotation_y": 0.0, "rotation_z": 45.0},
+            }
+        ]
+    )
+
+    # Rotation-Offset von [0, 0, 15] sollte zu [0, 0, 60] führen
+    result = _run(
+        Generate3DCubeSettings(
+            position=[0.0, 0.0, 0.0],
+            rotation=[0.0, 0.0, 15.0],
+            size=[1.0, 1.0, 1.0],
+            object_id="cube_rot_offset",
+        ),
+        context,
+        inputs,
+    )
+
+    mesh = _mesh_from_result(result, context)
+    assert mesh.vertices.shape == (8, 3)
+    assert mesh.faces.shape == (12, 3)
+
+
+def test_generate_3d_cube_with_input_binding_combined() -> None:
+    context = _context()
+
+    inputs = Generate3DCubeInputs(
+        elements=[
+            {
+                "position": [10.0, 5.0, 2.0],
+                "rotation": {"rotation_x": 10.0, "rotation_y": 20.0, "rotation_z": 30.0},
+            }
+        ]
+    )
+
+    # Position: [10, 5, 2] + [1, 1, 1] = [11, 6, 3]
+    # Rotation: [10, 20, 30] + [5, 5, 5] = [15, 25, 35]
+    result = _run(
+        Generate3DCubeSettings(
+            position=[1.0, 1.0, 1.0],
+            rotation=[5.0, 5.0, 5.0],
+            size=[1.0, 1.0, 1.0],
+            object_id="cube_combined",
+        ),
+        context,
+        inputs,
+    )
+
+    mesh = _mesh_from_result(result, context)
+    assert mesh.vertices.shape == (8, 3)
+    assert mesh.centroid[0] == pytest.approx(11.0)
+    assert mesh.centroid[1] == pytest.approx(6.0)
+    assert mesh.centroid[2] == pytest.approx(3.0)
+
+
+def test_generate_3d_cube_without_input_uses_origin() -> None:
+    context = _context()
+
+    # Kein Input-Binding, nur Offset [5, 0, 0]
+    result = _run(
+        Generate3DCubeSettings(
+            position=[5.0, 0.0, 0.0],
+            rotation=[0.0, 0.0, 0.0],
+            size=[1.0, 1.0, 1.0],
+            object_id="cube_no_input",
+        ),
+        context,
+        Generate3DCubeInputs(),  # Leere Inputs
+    )
+
+    mesh = _mesh_from_result(result, context)
+    assert mesh.vertices.shape == (8, 3)
+    assert mesh.centroid[0] == pytest.approx(5.0)
+    assert mesh.centroid[1] == pytest.approx(0.0)
+    assert mesh.centroid[2] == pytest.approx(0.0)
 
 
 def test_generate_3d_cube_with_zero_size_raises_error() -> None:

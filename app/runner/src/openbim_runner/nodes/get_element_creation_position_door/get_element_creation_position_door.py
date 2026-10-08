@@ -11,7 +11,7 @@ import trimesh
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
-from openbim_runner.util.references import ElementRef, parse_element_refs
+from openbim_runner.util.references import parse_element_refs
 
 FOOTPRINT_Z_TOLERANCE = 0.001  # 1mm tolerance for floating-point comparison (bottom vertices, in meters)
 
@@ -101,32 +101,32 @@ def _get_placement_matrix(placement: Any) -> np.ndarray:
     """
     if not placement:
         return np.identity(4)
-    
+
     if placement.is_a("IfcLocalPlacement"):
         parent_matrix = _get_placement_matrix(placement.PlacementRelTo)
-        
+
         relative = placement.RelativePlacement
         if not relative:
             return parent_matrix
-        
+
         if relative.is_a("IfcAxis2Placement3D"):
             coords = list(relative.Location.Coordinates)
             ref_dir = np.array(list(relative.RefDirection.DirectionRatios))
             axis = np.array(list(relative.Axis.DirectionRatios))
-            
+
             x_axis = ref_dir / np.linalg.norm(ref_dir)
             z_axis = axis / np.linalg.norm(axis)
             y_axis = np.cross(z_axis, x_axis)
-            
+
             rotation = np.array([
                 [x_axis[0], y_axis[0], z_axis[0], coords[0]],
                 [x_axis[1], y_axis[1], z_axis[1], coords[1]],
                 [x_axis[2], y_axis[2], z_axis[2], coords[2]],
                 [0, 0, 0, 1],
             ])
-            
+
             return parent_matrix @ rotation
-    
+
     return np.identity(4)
 
 
@@ -151,22 +151,22 @@ def _get_rotation_angles(placement: Any) -> dict[str, float]:
     """
     if not placement or not placement.is_a("IfcLocalPlacement"):
         return {"rotation_x": 0.0, "rotation_y": 0.0, "rotation_z": 0.0}
-    
+
     full_matrix = _get_placement_matrix(placement)
-    
+
     R = full_matrix[:3, :3]
-    
+
     rotation_x = math.atan2(R[2, 1], R[2, 2])
     rotation_y = math.atan2(-R[2, 0], math.sqrt(R[1, 0]**2 + R[0, 0]**2))
     rotation_z = math.atan2(R[1, 0], R[0, 0])
-    
+
     rotation_x_deg = math.degrees(rotation_x)
     rotation_y_deg = math.degrees(rotation_y)
     rotation_z_deg = math.degrees(rotation_z)
-    
+
     def normalize_angle(angle: float) -> float:
         return angle % 360.0
-    
+
     return {
         "rotation_x": round(normalize_angle(rotation_x_deg), 3),
         "rotation_y": round(normalize_angle(rotation_y_deg), 3),
@@ -191,21 +191,21 @@ def _extract_4_corners(bottom_vertices: np.ndarray) -> np.ndarray:
     center = bottom_vertices.mean(axis=0)
     centered = bottom_vertices - center
     U, S, Vh = np.linalg.svd(centered, full_matrices=False)
-    
+
     x_axis = Vh[0]  # Hauptachse (Länge)
     y_axis = Vh[1]  # Zweitachse (Dicke)
-    
+
     # Projektion auf Achsen → Min/Max → 4 Ecken (zentrierte Koordinaten!)
     x_proj = centered @ x_axis
     y_proj = centered @ y_axis
-    
+
     local_corners = np.array([
         [x_proj.min(), y_proj.min()],
         [x_proj.max(), y_proj.min()],
         [x_proj.max(), y_proj.max()],
         [x_proj.min(), y_proj.max()],
     ])
-    
+
     # Rücktransformation ins Welt-Koordinatensystem
     corners_3d = np.zeros((4, 3))
     for i in range(4):
@@ -214,7 +214,7 @@ def _extract_4_corners(bottom_vertices: np.ndarray) -> np.ndarray:
             local_corners[i, 0] * x_axis +
             local_corners[i, 1] * y_axis
         )
-    
+
     return corners_3d
 
 
@@ -237,7 +237,7 @@ def _get_element_centroid(
     """
     # Fallback-Kette für Context-Types: "Body" (3D) → "FootPrint" (2D) → "Axis" → "SurveyPoints"
     context_types_list = [["Body"], ["FootPrint"], ["Axis"], ["SurveyPoints"]]
-    
+
     for context_types in context_types_list:
         settings = ifcopenshell.geom.settings()
         settings.set("use-world-coords", True)
@@ -253,16 +253,16 @@ def _get_element_centroid(
                 continue  # Leere Geometrie → nächster Context-Type
 
             vertices = np.array(geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-            
+
             # Finde untere Kante (Boden des Elements)
             min_z = vertices[:, 2].min()
             bottom_mask = np.isclose(vertices[:, 2], min_z, atol=FOOTPRINT_Z_TOLERANCE)
             bottom_vertices = vertices[bottom_mask]
-            
+
             # Bei >4 Vertices: OBB-basierte Eckpunktfindung (nur 4 Ecken)
             if len(bottom_vertices) > 4:
                 bottom_vertices = _extract_4_corners(bottom_vertices)
-            
+
             # Brauchen mindestens 4 Punkte für validen 2D-Centroid (rechteckige Öffnung)
             if len(bottom_vertices) >= 4:
                 # 2D-Centroid aus unteren Eckpunkten (X, Y Mittelwert)
@@ -274,9 +274,9 @@ def _get_element_centroid(
                 faces = np.array(geometry.faces).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                 mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
                 centroid_x, centroid_y, centroid_z = mesh.centroid
-            
+
             centroid = [float(centroid_x), float(centroid_y), float(centroid_z)]  # pyright: ignore[reportUnknownMemberType]
-            
+
             if return_bottom_vertices:
                 return centroid, bottom_vertices, min_z
             return centroid
@@ -284,27 +284,27 @@ def _get_element_centroid(
         except Exception:
             # Fehler bei diesem Context-Type → versuche nächsten
             continue
-    
+
     # Alle Context-Types fehlgeschlagen → Fallback: Iterator für Bounding Box
     # (funktioniert auch für Curve2D, Axis, etc. ohne 3D-Mesh)
     try:
         settings = ifcopenshell.geom.settings()
         settings.set("use-world-coords", True)
         settings.set("context-types", ["Body", "FootPrint", "Axis", "SurveyPoints"])
-        
+
         iterator = ifcopenshell.geom.iterator(settings, [element])
         iterator.initialize()
         shape = iterator.get()
-        
+
         if shape:
             bounds_min = iterator.bounds_min()  # point3 (x, y, z)
             bounds_max = iterator.bounds_max()  # point3 (x, y, z)
-            
+
             # Centroid aus BBox
             centroid_x = (bounds_min[0] + bounds_max[0]) / 2
             centroid_y = (bounds_min[1] + bounds_max[1]) / 2
             centroid_z = bounds_min[2]  # Bottom-Z
-            
+
             # 4 Bottom-Vertices aus BBox (Rechteck in X/Y, Z = min)
             bottom_vertices = np.array([
                 [bounds_min[0], bounds_min[1], bounds_min[2]],
@@ -312,16 +312,16 @@ def _get_element_centroid(
                 [bounds_max[0], bounds_max[1], bounds_min[2]],
                 [bounds_min[0], bounds_max[1], bounds_min[2]],
             ])
-            
+
             centroid = [float(centroid_x), float(centroid_y), float(centroid_z)]
-            
+
             if return_bottom_vertices:
                 return centroid, bottom_vertices, centroid_z
             return centroid
     except Exception:
         # Auch Iterator-Fallback fehlgeschlagen
         pass
-    
+
     # Alle Methoden fehlgeschlagen
     return (None, None, None) if return_bottom_vertices else None
 
@@ -360,19 +360,19 @@ def _get_footprint_points(
             min_z,
         ]
         return {7: centroid}
-    
+
     # 1. Vollständige Placement-Matrix berechnen
     full_matrix = _get_placement_matrix(placement)
-    
+
     # 2. Inverse Matrix für Welt → Lokal Transformation
     inv_matrix = np.linalg.inv(full_matrix)
-    
+
     # 3. Alle Vertices ins lokale System transformieren
     ones = np.ones((len(bottom_vertices), 1))
     verts_homogeneous = np.hstack([bottom_vertices, ones])
     local_verts_homogeneous = (inv_matrix @ verts_homogeneous.T).T
     local_verts_array = local_verts_homogeneous[:, :3]
-    
+
     # 4. Bei >4 Vertices: Sollte nicht mehr vorkommen (OBB in _get_element_centroid)
     # Fallback: Centroid berechnen
     if len(bottom_vertices) > 4:
@@ -382,66 +382,66 @@ def _get_footprint_points(
             min_z,
         ]
         return {7: centroid}
-    
+
     # Bei exakt 4 Vertices: direkte Verwendung mit Sortierung
     # P1 finden: Ecke mit geringstem Abstand zu Location (lokaler Ursprung 0,0)
     def distance_to_origin(p: np.ndarray) -> float:
         return math.sqrt(p[0]**2 + p[1]**2)
-    
+
     # Alle 4 Punkte nach Winkel um Centroid sortieren (clockwise)
     centroid_x = np.mean(local_verts_array[:, 0])
     centroid_y = np.mean(local_verts_array[:, 1])
-    
+
     def angle_from_centroid(p: np.ndarray) -> float:
         return math.atan2(p[1] - centroid_y, p[0] - centroid_x)
-    
+
     # Sortiere nach Winkel (counter-clockwise), dann reverse für clockwise
     local_verts_sorted = sorted(local_verts_array, key=angle_from_centroid)
     local_verts_sorted.reverse()  # Clockwise
-    
+
     # P1 finden (nächste Ecke zum Ursprung) und Liste rotieren
     p1_index = min(range(4), key=lambda i: distance_to_origin(local_verts_sorted[i]))
     local_verts_final = local_verts_sorted[p1_index:] + local_verts_sorted[:p1_index]
-    
+
     # 5. P5 und P6 berechnen (Mittelpunkte)
     p1_local = local_verts_final[0]
     p2_local = local_verts_final[1]
     p3_local = local_verts_final[2]
     p4_local = local_verts_final[3]
-    
+
     # P5 = Mittelpunkt zwischen P1 und P2
     p5_local = (
         (p1_local[0] + p2_local[0]) / 2,
         (p1_local[1] + p2_local[1]) / 2,
         p1_local[2],
     )
-    
+
     # P6 = Mittelpunkt zwischen P3 und P4
     p6_local = (
         (p3_local[0] + p4_local[0]) / 2,
         (p3_local[1] + p4_local[1]) / 2,
         p3_local[2],
     )
-    
+
     # 6. Helper-Funktion: Lokale Koordinaten zurück ins Weltkoordinatensystem
     def to_world(local_point: np.ndarray) -> list[float]:
         lx, ly, lz = local_point[0], local_point[1], local_point[2]
         world = full_matrix @ np.array([lx, ly, lz, 1])
         return [float(world[0]), float(world[1]), float(world[2])]
-    
+
     # 7. Alle Punkte zurückgeben
     p1_world = to_world(p1_local)
     p2_world = to_world(p2_local)
     p3_world = to_world(p3_local)
     p4_world = to_world(p4_local)
-    
+
     # P7 = Centroid der 4 Ecken (Weltkoordinaten)
     p7_world = [
         (p1_world[0] + p2_world[0] + p3_world[0] + p4_world[0]) / 4,
         (p1_world[1] + p2_world[1] + p3_world[1] + p4_world[1]) / 4,
         (p1_world[2] + p2_world[2] + p3_world[2] + p4_world[2]) / 4,
     ]
-    
+
     return {
         1: p1_world,  # P1: nächste Ecke zu Location
         2: p2_world,  # P2: clockwise weiter
@@ -488,7 +488,7 @@ async def get_element_creation_position_door(
 
         if entity.is_a("IfcDoor"):
             element_type = "IfcDoor"
-            
+
             # Get opening from pre-built map (O(1) lookup)
             opening = door_to_opening_map.get(entity.id())
             if opening is None:
@@ -497,7 +497,7 @@ async def get_element_creation_position_door(
             centroid, bottom_vertices, min_z = _get_element_centroid(opening, return_bottom_vertices=True)
             if centroid is None or bottom_vertices is None or min_z is None:
                 continue
-            
+
             # For openings with 4+ vertices, support all 7 points (P1-P7)
             if len(bottom_vertices) >= 4 and opening.ObjectPlacement:
                 # === Thickness detection & clipping ===
@@ -505,20 +505,20 @@ async def get_element_creation_position_door(
                 wall_bottom_vertices = None
                 if wall is not None:
                     _, wall_bottom_vertices, _ = _get_element_centroid(wall, return_bottom_vertices=True)
-                
+
                 thickness_info = _get_thickness_info(
                     bottom_vertices,
                     wall_bottom_vertices,
                     tolerance=0.01,
                 )
-                
+
                 if thickness_info.needs_clipping and wall_bottom_vertices is not None:
                     bottom_vertices = _clip_opening_to_wall_polygon(
                         bottom_vertices,
                         wall_bottom_vertices,
                     )
                 # === End thickness detection & clipping ===
-                
+
                 all_points = _get_footprint_points(bottom_vertices, opening.ObjectPlacement, min_z)
                 position = all_points.get(settings.point_index, centroid)
             else:
@@ -530,7 +530,7 @@ async def get_element_creation_position_door(
             centroid, bottom_vertices, min_z = _get_element_centroid(entity, return_bottom_vertices=True)
             if centroid is None or bottom_vertices is None or min_z is None:
                 continue
-            
+
             if len(bottom_vertices) >= 4 and entity.ObjectPlacement:
                 all_points = _get_footprint_points(bottom_vertices, entity.ObjectPlacement, min_z)
                 position = all_points.get(settings.point_index, centroid)
@@ -609,22 +609,22 @@ def _get_element_thickness_direct(bottom_vertices: np.ndarray) -> float:
     """
     if len(bottom_vertices) < 3:
         return 0.0
-    
+
     try:
         # SVD für Achsen-Bestimmung
         center = bottom_vertices.mean(axis=0)
         centered = bottom_vertices - center
         U, S, Vh = np.linalg.svd(centered, full_matrices=False)
-        
+
         # Vh[0] = Längsachse, Vh[1] = Dicke-Achse
         thickness_axis = Vh[1]
-        
+
         # Echte Dicke = Projektion aller Vertices auf Dicke-Achse
         projections = centered @ thickness_axis
         thickness = float(projections.max() - projections.min())
-        
+
         return max(0.0, thickness)
-        
+
     except Exception:
         return 0.0
 
@@ -655,24 +655,24 @@ def _get_thickness_info(
             wall_thickness=None,
             needs_clipping=False,
         )
-    
+
     # Wand-Dicke berechnen (SVD auf Wand-Bottom)
     wall_thickness = _get_element_thickness_direct(wall_bottom_vertices)
-    
+
     # Wand-Dickenachse bestimmen (SVD auf Wand-Bottom)
     wall_center = wall_bottom_vertices.mean(axis=0)
     wall_centered = wall_bottom_vertices - wall_center
     U, S, Vh = np.linalg.svd(wall_centered, full_matrices=False)
     thickness_axis = Vh[1]
-    
+
     # Opening-Ausdehnung auf der Wand-Dickenachse projizieren
     opening_centered = opening_bottom_vertices - wall_center
     opening_proj = opening_centered @ thickness_axis
     opening_extent = float(opening_proj.max() - opening_proj.min())
-    
+
     # needs_clipping = Opening geht über Wand-Dicke hinaus
     needs_clipping = opening_extent > wall_thickness * (1.0 + tolerance)
-    
+
     return ThicknessInfo(
         opening_thickness=opening_extent,
         wall_thickness=wall_thickness,
@@ -701,14 +701,14 @@ def _line_intersection_2d(p1: np.ndarray, p2: np.ndarray, a1: np.ndarray, a2: np
     x2, y2 = p2[0], p2[1]
     x3, y3 = a1[0], a1[1]
     x4, y4 = a2[0], a2[1]
-    
+
     denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
     if abs(denom) < 1e-10:
         # Parallele Linien → Rückgabe von p1
         return p1[:2].copy()
-    
+
     t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
-    
+
     return np.array([
         x1 + t * (x2 - x1),
         y1 + t * (y2 - y1),
@@ -733,26 +733,26 @@ def _clip_edge(subject_list: list[np.ndarray], edge_start: np.ndarray, edge_end:
         Liste von 2D-Vertices nach dem Clipping gegen diese Kante
     """
     output_list = []
-    
+
     if len(subject_list) == 0:
         return output_list
-    
+
     # Edge-Vektor und Normalenvektor (zeigt nach innen)
     edge_vec = edge_end - edge_start
     edge_normal = np.array([-edge_vec[1], edge_vec[0]])
-    
+
     def is_inside(point: np.ndarray) -> bool:
         # Punkt ist inside wenn er auf der "inneren" Seite der Kante liegt
         # Normalzeiger zeigt nach innen (CCW) → dot product >= 0 means inside
         return np.dot(point - edge_start, edge_normal) >= 0
-    
+
     for i in range(len(subject_list)):
         current = subject_list[i]
         previous = subject_list[(i - 1) % len(subject_list)]
-        
+
         current_inside = is_inside(current)
         previous_inside = is_inside(previous)
-        
+
         if current_inside:
             if not previous_inside:
                 # Eintritt: Schnittpunkt berechnen
@@ -763,7 +763,7 @@ def _clip_edge(subject_list: list[np.ndarray], edge_start: np.ndarray, edge_end:
             # Austritt: Schnittpunkt berechnen
             intersection = _line_intersection_2d(previous, current, edge_start, edge_end)
             output_list.append(intersection)
-    
+
     return output_list
 
 
@@ -782,7 +782,7 @@ def _sort_polygon_ccw(vertices: np.ndarray) -> np.ndarray:
     """
     if len(vertices) < 3:
         return vertices.copy()
-    
+
     center = vertices.mean(axis=0)
     angles = np.arctan2(vertices[:, 1] - center[1], vertices[:, 0] - center[0])
     sorted_indices = np.argsort(angles)
@@ -816,31 +816,31 @@ def _clip_opening_to_wall_polygon(
     # Wall < 4 → ValueError
     if len(wall_bottom_vertices) < 4:
         raise ValueError(f"Wall must have at least 4 bottom vertices, got {len(wall_bottom_vertices)}")
-    
+
     # <4 Opening-Vertices → Fallback (original)
     if len(opening_bottom_vertices) < 4:
         return opening_bottom_vertices.copy()
-    
+
     # Beide Polygone sortieren (counter-clockwise) für korrekte Kanten-Reihenfolge
     opening_sorted = _sort_polygon_ccw(opening_bottom_vertices)
     wall_sorted = _sort_polygon_ccw(wall_bottom_vertices)
-    
+
     # Wand-Corners als 2D-Rechteck (X/Y)
     wall_rect = wall_sorted[:, :2]
-    
+
     # Öffne mit sortierten Opening-Ecken (2D)
     output_vertices = [v[:2].copy() for v in opening_sorted]
-    
+
     # Sutherland-Hodgman gegen jede der 4 Wand-Kanten
     for i in range(4):
         p1 = wall_rect[i]
         p2 = wall_rect[(i + 1) % 4]
         output_vertices = _clip_edge(output_vertices, p1, p2)
-    
+
     # Check ob Ergebnis leer (kein Überlappung)
     if len(output_vertices) == 0:
         return opening_bottom_vertices.copy()  # Fallback
-    
+
     # Zurück nach 3D (Z = Bodenhöhe)
     z = min(opening_bottom_vertices[:, 2].min(), wall_bottom_vertices[:, 2].min())
     return np.column_stack([output_vertices, np.full(len(output_vertices), z)])

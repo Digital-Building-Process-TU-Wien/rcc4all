@@ -12,6 +12,7 @@ export interface NodeRegistrySchema {
   ifc_element_filter?: IfcElementFilter
   loi_check?: LOICheck
   measurement?: Measurement
+  set_3d_position_rotation?: Set3DPositionRotation
   tilt_of_components?: TiltOfComponents
 }
 /**
@@ -225,16 +226,16 @@ export interface FileInput {
   }
 }
 /**
- * Create a 3D cube geometry with customizable size, position, and rotation for clash detection.
+ * Create a 3D box geometry with configurable size, position offset, and rotation offset for clash detection.
  */
 export interface Generate3DCube {
   settings: {
     /**
-     * 3D position [x, y, z] for the cube center in meters.
+     * Position offset [x, y, z] in meters added to base position from input. Default [0,0,0] means no offset.
      */
     position?: number[]
     /**
-     * Euler angles [x, y, z] in degrees for rotation around each axis.
+     * Rotation offset [x, y, z] in degrees added to base rotation from input. Default [0,0,0] means no offset.
      */
     rotation?: number[]
     /**
@@ -252,9 +253,17 @@ export interface Generate3DCube {
      */
     object_ids?: string[]
   }
+  inputs: {
+    /**
+     * Elements from upstream node (e.g., set_3d_position_rotation or get_element_creation_position_door). First element is used for base position/rotation.
+     */
+    elements?: {
+      [k: string]: unknown
+    }[]
+  }
 }
 /**
- * Retrieves footprint points (P1-P7) of IFC door openings at bottom elevation. Automatically handles edge case when openings are thicker than the wall.
+ * Retrieves footprint points (P1-P7) of IFC door openings for element creation.
  */
 export interface GetElementCreationPositionDoor {
   settings: {
@@ -728,6 +737,50 @@ export interface Measurement {
     list_b?: (string[] | {
       [k: string]: (string | null)
     })
+  }
+}
+/**
+ * Define a 3D position and rotation via UI settings.
+ */
+export interface Set3DPositionRotation {
+  settings: {
+    /**
+     * 3D position [x, y, z] in meters.
+     */
+    position?: number[]
+    /**
+     * Euler angles [x, y, z] in degrees for rotation around each axis.
+     */
+    rotation?: number[]
+  }
+  result: {
+    /**
+     * List with one element containing position and rotation values.
+     */
+    elements?: {
+      /**
+       * Empty string (no IFC element reference).
+       */
+      express_id?: string
+      /**
+       * World coordinates [x, y, z] in meters.
+       */
+      position: number[]
+      rotation: {
+        /**
+         * Rotation around global X-axis in degrees (0-360).
+         */
+        rotation_x: number
+        /**
+         * Rotation around global Y-axis in degrees (0-360).
+         */
+        rotation_y: number
+        /**
+         * Rotation around global Z-axis in degrees (0-360).
+         */
+        rotation_z: number
+      }
+    }[]
   }
 }
 /**

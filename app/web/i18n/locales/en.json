@@ -194,6 +194,15 @@
       "description": "Points to an IFC model assigned in the editor's model bar.",
       "selectModel": "Select a model..."
     },
+    "set3DPositionRotation": {
+      "title": "Set 3D Position & Rotation",
+      "description": "Define a 3D position and Euler rotation via UI settings. Output can be used for downstream geometric operations.",
+      "position": "Position (X, Y, Z)",
+      "rotation": "Rotation (X°, Y°, Z°)",
+      "rotationHint": "Follows the right-hand rule: positive rotation is counter-clockwise when looking along the axis.",
+      "outputPosition": "Output",
+      "noOutputYet": "No output yet. Run the workflow."
+    },
     "getElementCreationPositionDoor": {
       "title": "Get Element Creation Position Door",
       "description": "Extract footprint points (P1-P7) from IFC door openings and walls at bottom elevation.",
@@ -216,15 +225,17 @@
     },
     "generate3dCube": {
       "title": "Generate 3D Cube",
-      "description": "Creates a cuboid geometry in the cache under a unique object_id, for use in a collision node.",
-      "position": "Position (X, Y, Z)",
-      "rotation": "Rotation (X°, Y°, Z°)",
+      "description": "Creates a cuboid geometry with configurable size. Position and rotation can be offset from an upstream node's output.",
+      "positionOffset": "Position Offset (+X, +Y, +Z)",
+      "rotationOffset": "Rotation Offset (+X°, +Y°, +Z°)",
+      "deltaHint": "These values are added to the position/rotation from the input binding. Leave at 0 to use input values directly.",
       "size": "Size (W, H, D)",
       "objectId": "Object ID",
       "uniqueObjectId": "unique object id",
       "objectIdHint": "Unique reference for the cube. Feed its object_ids output into a collision node.",
       "objectIdsOutput": "Object IDs (output)",
-      "noOutputYet": "No output yet. Run the workflow."
+      "noOutputYet": "No output yet. Run the workflow.",
+      "rotationHint": "Follows the right-hand rule: positive rotation is counter-clockwise when looking along the axis."
     },
     "jsonOutput": {
       "title": "JSON Output",
