@@ -5,7 +5,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-// Punkt-Koordinaten im SVG-System (viewBox: 0 0 200 150)
 const points = {
   1: { x: 40, y: 40 },
   2: { x: 160, y: 40 },
@@ -14,7 +13,6 @@ const points = {
   7: { x: 100, y: 75 },
 }
 
-// P5 und P6 korrekt berechnen (Mittelpunkte)
 points[5] = {
   x: (points[1].x + points[2].x) / 2,
   y: (points[1].y + points[2].y) / 2,
@@ -41,10 +39,7 @@ function getLabelClass(index: number) {
 
 <template>
   <div class="mt-2 mb-3 border border-slate-200 rounded bg-slate-50 p-3">
-    <div class="text-xs font-semibold text-slate-600 mb-2 text-center">
-      {{ t('node.getElementCreationPositionDoor.diagram.label') }}
-    </div>
-    <svg viewBox="0 0 200 150" class="w-full h-auto">
+    <svg viewBox="0 0 210 150" class="w-full h-auto">
       <!-- Außenrechteck (Footprint) -->
       <rect
         x="20"
@@ -55,13 +50,12 @@ function getLabelClass(index: number) {
         rx="2"
       />
 
-      <!-- Verbindungslinien (diagonal für bessere Visualisierung) -->
+      <!-- Diagonal-Linien: P4-P7-P2 und P1-P7-P3 -->
       <line x1="40" y1="40" x2="160" y2="110" class="stroke-slate-200 stroke-1" />
       <line x1="160" y1="40" x2="40" y2="110" class="stroke-slate-200 stroke-1" />
 
-      <!-- Mittellinien -->
+      <!-- P5-P6 Verbindung -->
       <line x1="100" y1="40" x2="100" y2="110" class="stroke-slate-200 stroke-1 stroke-dasharray-2" />
-      <line x1="40" y1="75" x2="160" y2="75" class="stroke-slate-200 stroke-1 stroke-dasharray-2" />
 
       <!-- Punkte P1-P7 -->
       <circle

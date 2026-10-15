@@ -14,10 +14,10 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     get_element_creation_position_door,
 )
 
-ifc_model = ifcopenshell.open(Path(__file__).parent / "CustomTestModel-EscapeRouteAnalysis-ZDB-v3.ifc")
+ifc_model = ifcopenshell.open(Path(__file__).parent / "RealWorldTestModel-EscapeRouteAnalysis-ZDB-v5.ifc")
 context = ExecutionContext(ifc_model=ifc_model, node_outputs={})
 
-door = ifc_model.by_type("IfcDoor")[4]
+door = ifc_model.by_type("IfcDoor")[9]
 result = asyncio.run(get_element_creation_position_door(
     GetElementCreationPositionDoorSettings(point_index=4),
     GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{door.id()}"]),

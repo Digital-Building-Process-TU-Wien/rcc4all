@@ -36,12 +36,13 @@ Der `get_element_creation_position_door` Node extrahiert Fußpunktpunkte aus der
 - P1-P6 erfordern mindestens 4 Bottom-Vertices
 - Für Öffnungen mit 3 Bottom-Vertices wird nur P7 berechnet
 - Bei >4 Bottom-Vertices: OBB-basierte (Oriented Bounding Box) Eckpunktbestimmung
+```
 
 ## Einstellungen
 
 | Name | Typ | Standard | Beschreibung |
 |------|-----|----------|--------------|
-| `point_index` | `1-7` | `7` | Welcher Fußpunkt zurückgegeben werden soll: 1-4 = Eckpunkte (clockwise), 5-6 = Mittelpunkte, 7 = Zentrumspunkt. P1-P6 erfordern mindestens 4 Bottom-Vertices. |
+| `point_index` | `1-7` | `7` | Welcher Fußpunkt zurückgegeben werden soll. P1-P6 erfordern mindestens 4 Bottom-Vertices. |
 
 ## Eingänge
 
@@ -110,34 +111,15 @@ Ausgabe:
 
 ## Algorithmus
 
-1. Jede `IfcDoor`-Entität per Express-ID aus der Eingabeliste laden
-2. Für jede Tür das zugehörige `IfcOpeningElement` über `IfcRelFillsElement`-Relation finden
-3. Zugehörige Wand über `IfcRelVoidsElement`-Relation finden (für Thickness Detection)
-4. 3D-Geometrie des Openings tessellieren
-5. Bottom-Vertices finden (alle Vertices auf minimaler Z-Höhe)
-6. Bei 4+ Bottom-Vertices:
-   - Lokale Achsen aus `ObjectPlacement.RelativePlacement` extrahieren
-   - Vertices ins lokale Koordinatensystem transformieren
-   - Clockwise sortieren (Startpunkt: nächste Ecke zur Placement Location)
-   - P1-P4 = 4 Eckpunkte, P5-P6 = Mittelpunkte, P7 = Centroid
-   - Zurück ins Weltkoordinatensystem transformieren
-7. Bei >4 Bottom-Vertices:
-   - OBB (Oriented Bounding Box) im lokalen Koordinatensystem berechnen
-   - 4 äußerste Eckpunkte via Min/Max auf lokalen Achsen bestimmen
-   - P1-P4 = OBB-Eckpunkte, P5-P6 = Mittelpunkte, P7 = Centroid aller Vertices
-8. **Thickness Detection:**
-   - Opening-Dicke berechnen (Ausdehnung auf lokaler Y-Achse)
-   - Wand-Dicke berechnen (via `IfcRelVoidsElement`)
-   - Wenn `opening_thickness > wall_thickness * 1.01` (>1% Toleranz):
-     - Opening-Vertices auf Wand-Grenzen clippen (placement-aligned)
-     - Geclippte Vertices für Footprint-Berechnung verwenden
-9. Bei <4 Bottom-Vertices:
-   - Nur P7 (Centroid) wird berechnet
-10. **Rotation berechnen:**
-    - Vollständige Placement-Matrix aus `ObjectPlacement` berechnen
-    - Euler-Winkel (X, Y, Z) in Grad extrahieren
-    - Als `rotation` Feld im Ergebnis speichern
-11. Angeforderten Punkt zurückgeben
+1. Jede `IfcDoor`-Entität per Express-ID laden und das zugehörige `IfcOpeningElement` über `IfcRelFillsElement` finden
+2. Zugehörige Wand über `IfcRelVoidsElement` finden (für Thickness Detection)
+3. 3D-Geometrie des Openings tessellieren und Bottom-Vertices (minimale Z-Höhe) extrahieren
+4. Bei 4+ Bottom-Vertices: Vertices ins lokale Koordinatensystem transformieren, Centroid-Y als Trennlinie für Vorder-/Rückseite verwenden, P1-P4 via X-min/max Zuordnung, P5-P6 als Mittelpunkte, P7 als Centroid berechnen und zurück ins Weltkoordinatensystem transformieren
+5. Bei >4 Bottom-Vertices: OBB (Oriented Bounding Box) berechnen und 4 extreme Eckpunkte via Min/Max bestimmen
+6. Thickness Detection: Opening- und Wand-Dicke vergleichen, bei >1% Toleranz Opening-Vertices auf Wand-Grenzen clippen (placement-aligned)
+7. Bei <4 Bottom-Vertices: Nur P7 (Centroid) berechnen
+8. Rotation: Vollständige Placement-Matrix aus `ObjectPlacement` berechnen, Euler-Winkel (X, Y, Z) extrahieren und im Ergebnis speichern
+9. Angeforderten Punkt zurückgeben
 
 ## Hinweise
 

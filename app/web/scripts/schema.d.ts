@@ -257,9 +257,7 @@ export interface Generate3DCube {
     /**
      * Elements from upstream node (e.g., set_3d_position_rotation or get_element_creation_position_door). First element is used for base position/rotation.
      */
-    elements?: {
-      [k: string]: unknown
-    }[]
+    elements?: unknown[]
   }
 }
 /**
@@ -267,9 +265,6 @@ export interface Generate3DCube {
  */
 export interface GetElementCreationPositionDoor {
   settings: {
-    /**
-     * Which footprint point to return: 1-4 = corners (clockwise from closest to placement), 5-6 = midpoints, 7 = centroid.
-     */
     point_index?: (1 | 2 | 3 | 4 | 5 | 6 | 7)
   }
   result: {
@@ -768,15 +763,15 @@ export interface Set3DPositionRotation {
       position: number[]
       rotation: {
         /**
-         * Rotation around global X-axis in degrees (0-360).
+         * Rotation around global X-axis in degrees.
          */
         rotation_x: number
         /**
-         * Rotation around global Y-axis in degrees (0-360).
+         * Rotation around global Y-axis in degrees.
          */
         rotation_y: number
         /**
-         * Rotation around global Z-axis in degrees (0-360).
+         * Rotation around global Z-axis in degrees.
          */
         rotation_z: number
       }

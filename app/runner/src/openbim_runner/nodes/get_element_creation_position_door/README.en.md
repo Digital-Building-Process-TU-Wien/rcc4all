@@ -36,6 +36,7 @@ The `get_element_creation_position_door` node extracts footprint points from the
 - P1-P6 require at least 4 bottom vertices
 - For openings with 3 bottom vertices, only P7 is calculated
 - For >4 bottom vertices: OBB-based (Oriented Bounding Box) corner finding
+```
 
 ## Settings
 
@@ -110,34 +111,15 @@ Output:
 
 ## Algorithm
 
-1. Load each `IfcDoor` entity by express ID from the input list
-2. For each door, find the associated `IfcOpeningElement` via `IfcRelFillsElement` relation
-3. Find associated wall via `IfcRelVoidsElement` relation (for thickness detection)
-4. Tessellate 3D geometry of the opening
-5. Find bottom vertices (all vertices at minimum Z elevation)
-6. For 4+ bottom vertices:
-   - Extract local axes from `ObjectPlacement.RelativePlacement`
-   - Transform vertices to local coordinate system
-   - Sort clockwise (starting from corner closest to placement location)
-   - P1-P4 = 4 corners, P5-P6 = midpoints, P7 = centroid
-   - Transform back to world coordinates
-7. For >4 bottom vertices:
-   - Calculate OBB (Oriented Bounding Box) in local coordinate system
-   - Determine 4 extreme corners via min/max on local axes
-   - P1-P4 = OBB corners, P5-P6 = midpoints, P7 = centroid of all vertices
-8. **Thickness Detection:**
-   - Calculate opening thickness (extent on local Y-axis)
-   - Calculate wall thickness (via `IfcRelVoidsElement`)
-   - If `opening_thickness > wall_thickness * 1.01` (>1% tolerance):
-     - Clip opening vertices to wall bounds (placement-aligned)
-     - Use clipped vertices for footprint calculation
-9. For <4 bottom vertices:
-   - Only P7 (centroid) is calculated
-10. **Calculate Rotation:**
-    - Calculate full placement matrix from `ObjectPlacement`
-    - Extract Euler angles (X, Y, Z) in degrees
-    - Store as `rotation` field in result
-11. Return requested point
+1. Load each `IfcDoor` entity by express ID and find the associated `IfcOpeningElement` via `IfcRelFillsElement` relation
+2. Find associated wall via `IfcRelVoidsElement` relation (for thickness detection)
+3. Tessellate 3D geometry of the opening and extract bottom vertices (minimum Z elevation)
+4. For 4+ bottom vertices: Transform vertices to local coordinate system, use Centroid-Y as front/back separator, assign P1-P4 via X-min/max, calculate P5-P6 midpoints and P7 centroid, transform back to world coordinates
+5. For >4 bottom vertices: Calculate OBB (Oriented Bounding Box) and determine 4 extreme corners via min/max
+6. Thickness Detection: Compare opening and wall thickness, clip opening vertices to wall bounds (>1% tolerance, placement-aligned)
+7. For <4 bottom vertices: Only calculate P7 (centroid)
+8. Rotation: Calculate full placement matrix from `ObjectPlacement`, extract Euler angles (X, Y, Z) and store in result
+9. Return requested point
 
 ## Notes
 
