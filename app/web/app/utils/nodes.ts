@@ -71,6 +71,7 @@ function toPascalCase(str: string): string {
 const nodeNameToComponent: Record<string, string> = {
   bcf_output: 'BcfOutput',
   collision: 'Collision',
+  comparison: 'Comparison',
   concat_string: 'ConcatString',
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',

@@ -803,6 +803,7 @@ name = "python-ifc-runner"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "bcf-client" },
     { name = "ifcopenshell" },
     { name = "ifctester" },
     { name = "manifold3d" },
@@ -827,6 +828,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "bcf-client", specifier = ">=0.8.4" },
     { name = "ifcopenshell", specifier = ">=0.8.3" },
     { name = "ifctester", specifier = ">=0.8.0" },
     { name = "manifold3d" },

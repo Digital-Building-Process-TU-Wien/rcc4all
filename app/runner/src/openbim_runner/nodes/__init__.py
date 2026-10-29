@@ -9,6 +9,7 @@ from .base import (
 )
 from .bcf_output.bcf_output import bcf_output
 from .collision.collision import collision
+from .comparison.comparison import comparison
 from .concat_string.concat_string import concat_string
 from .file_input.file_input import file_input
 from .generate_3d_cube.generate_3d_cube import generate_3d_cube
@@ -25,6 +26,7 @@ __all__ = [
     "NodeModel",
     "bcf_output",
     "collision",
+    "comparison",
     "concat_string",
     "dispatch",
     "file_input",
