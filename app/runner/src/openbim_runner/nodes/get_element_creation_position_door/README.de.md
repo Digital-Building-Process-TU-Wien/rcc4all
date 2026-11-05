@@ -36,13 +36,12 @@ Der `get_element_creation_position_door` Node extrahiert Fußpunktpunkte aus der
 - P1-P6 erfordern mindestens 4 Bottom-Vertices
 - Für Öffnungen mit 3 Bottom-Vertices wird nur P7 berechnet
 - Bei >4 Bottom-Vertices: OBB-basierte (Oriented Bounding Box) Eckpunktbestimmung
-```
 
 ## Einstellungen
 
 | Name | Typ | Standard | Beschreibung |
 |------|-----|----------|--------------|
-| `point_index` | `1-7` | `7` | Welcher Fußpunkt zurückgegeben werden soll. P1-P6 erfordern mindestens 4 Bottom-Vertices. |
+| `point_index` | `1-7` | `7` | Welcher Fußpunkt zurückgegeben werden soll: 1-4 = Eckpunkte (clockwise), 5-6 = Mittelpunkte, 7 = Zentrumspunkt. P1-P6 erfordern mindestens 4 Bottom-Vertices. |
 
 ## Eingänge
 

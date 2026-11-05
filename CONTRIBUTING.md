@@ -6,6 +6,42 @@ usecases - your first stop to get ahold of the maintainers.
 - [Issues](https://github.com/Digital-Building-Process-TU-Wien/rcc4all/issues): You found a bug, a typo or want to suggest a well defined new feature?
 Please make sure there are no existing issues covering your problem and wait for a confirmation from a team member prior to opening a PR.
 
+## Node Development & GitHub Issues
+
+Node development is tracked through GitHub Issues so admins can manage progress
+transparently. Follow the rules below for anything node-related.
+
+### Node Issues
+
+- Every node has its own **parent issue**, named after the node (e.g. `Template Node`).
+- In the issue settings, open the **Projects** tab and add the issue to the
+  **Node Development Management** project.
+- On the board, set the issue **status** to one of:
+  - `ToDo`
+  - `In progress`
+  - `Done`
+  - `Idea`
+- Set an **estimated start** and **end date** so the board reflects the schedule.
+
+### Sub-Issues
+
+All actual work on a node is done in **sub-issues** under its Node Issue. Use
+[conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) prefixes
+(`add`, `feat`, `fix`, `chore`, `docs`, `refactor`, etc.) followed by the node name:
+
+- `add: Template Node: First Node Draft`
+- `feat: Template Node: New Feature XY`
+- `fix: Template Node: Bug XY fixed`
+
+The sub-issue's **parent issue should always be the Node Issue** whenever the work is
+node-related.
+
+### Platform Improvements
+
+For general fixes, features, or changes to the platform (not tied to a single node),
+use a separate parent issue titled **`Platform improvement`** and nest sub-issues
+under it using the same conventions.
+
 ## Pull Request Guidelines
 
 - Please follow [conventional branch](https://conventionalbranch.org/) naming (e.g., `feat/element-position-node`, `fix/issue-123`, `chore/update-getting-started`) and [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) messages.

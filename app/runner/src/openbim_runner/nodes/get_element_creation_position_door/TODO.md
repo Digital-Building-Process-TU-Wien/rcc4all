@@ -1,14 +1,17 @@
 # Ausstehende Verbesserungen
 
 ## 1. Fokus auf Türen ✅ ABGESCHLOSSEN
+- [x] Aktuell unterstützt der Node IfcDoor UND IfcWall
 - [x] Primärer Use-Case: IfcDoor (über IfcOpeningElement)
-- [x] IfcWall-Unterstützung als optionales Feature erhalten
+- [x] IfcWall-Unterstützung bleibt als optionales Feature erhalten
 
 ## 2. Extrem dicke Öffnungen ✅ ABGESCHLOSSEN (v2.0)
 - [x] Öffnungen mit größerer Dicke als Wanddicke erkennen
 - [x] Footprint-Punkte auf tatsächliche Wanddicke zuschneiden
-- [x] Sutherland-Hodgman Polygon Clipping implementiert
+- [x] Algorithmus: Dicke aus Opening-Geometrie extrahieren und validieren
+- [x] Edge-Case: Öffnung dicker als angrenzende Wand(en)
 - [x] 1% Toleranz für Floating-Point-Ungenauigkeiten
+- [x] Sutherland-Hodgman Polygon Clipping implementiert
 
 **Bekannte Limitationen:**
 - ⚠️ Erfordert 3D-tessellierte Wand-Geometrie (Body Representation)

@@ -93,8 +93,8 @@ def test_comparison_emits_class(monkeypatch: pytest.MonkeyPatch) -> None:
         [101],
     )
 
-    assert result.element_count == 1
-    assert result.elements[0].express_id == _ref(101)
+    assert result.summary_element_count == 1
+    assert result.elements[0].express_ids == [_ref(101)]
     assert result.elements[0].class_name == "IFCWALL"
     assert result.elements[0].failed is False
 
@@ -120,10 +120,9 @@ def test_equals_pass_and_fail(monkeypatch: pytest.MonkeyPatch) -> None:
 
     check = result.elements[0].checks[0]
     assert check.passed is True
-    assert check.actual == "true"
-    assert check.property_key == "Pset_WallCommon.IsExternal"
-    assert check.id == "Pset_WallCommon.IsExternal"
-    assert result.failed_count == 0
+    assert check.actual_value == "true"
+    assert check.key == "Pset_WallCommon.IsExternal"
+    assert result.summary_failed_count == 0
 
 
 def test_not_equals_and_multi_row(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,9 +156,9 @@ def test_not_equals_and_multi_row(monkeypatch: pytest.MonkeyPatch) -> None:
         [101],
     )
 
-    assert result.total_checks == 3
+    assert result.summary_check_count == 3
     assert [check.passed for check in result.elements[0].checks] == [True, False, True]
-    assert result.failed_count == 1
+    assert result.summary_failed_count == 1
     assert result.elements[0].failed is True
 
 
@@ -236,7 +235,7 @@ def test_numeric_non_numeric_value_fails(monkeypatch: pytest.MonkeyPatch) -> Non
     )
 
     check = result.elements[0].checks[0]
-    assert check.actual == "F90"
+    assert check.actual_value == "F90"
     assert check.passed is False
 
 
@@ -527,7 +526,8 @@ def test_missing_property_fails_all(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     for check in result.elements[0].checks:
-        assert check.actual is None
+        assert check.missing is True
+        assert check.actual_value == ""
         assert check.passed is False
 
 
@@ -551,11 +551,11 @@ def test_entity_type_filters_rows(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     # Only the wall (matching IFCWALL) is emitted; the door is excluded entirely.
-    assert [e.express_id for e in result.elements] == [_ref(101)]
+    assert [e.express_ids[0] for e in result.elements] == [_ref(101)]
     wall_elem = result.elements[0]
     assert wall_elem.checks[0].passed is True
-    assert result.element_count == 1
-    assert result.total_checks == 1
+    assert result.summary_element_count == 1
+    assert result.summary_check_count == 1
 
 
 def test_entity_type_multiple_components_union(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -586,8 +586,8 @@ def test_entity_type_multiple_components_union(monkeypatch: pytest.MonkeyPatch) 
     )
 
     # Wall and slab (specified components) are emitted; door is excluded.
-    assert {e.express_id for e in result.elements} == {_ref(101), _ref(202)}
-    assert result.element_count == 2
+    assert {e.express_ids[0] for e in result.elements} == {_ref(101), _ref(202)}
+    assert result.summary_element_count == 2
 
 
 def test_entity_type_missing_express_id_excluded(
@@ -610,7 +610,7 @@ def test_entity_type_missing_express_id_excluded(
     )
 
     # Missing express ID (unknown type) is excluded when a component is specified.
-    assert [e.express_id for e in result.elements] == [_ref(101)]
+    assert [e.express_ids[0] for e in result.elements] == [_ref(101)]
 
 
 def test_entity_type_empty_keeps_all_input(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -632,9 +632,9 @@ def test_entity_type_empty_keeps_all_input(monkeypatch: pytest.MonkeyPatch) -> N
     )
 
     # No Component specified -> all input elements are emitted.
-    assert {e.express_id for e in result.elements} == {_ref(101), _ref(202)}
-    assert result.element_count == 2
-    assert result.total_checks == 2
+    assert {e.express_ids[0] for e in result.elements} == {_ref(101), _ref(202)}
+    assert result.summary_element_count == 2
+    assert result.summary_check_count == 2
 
 
 def test_any_element_empty_row_disables_filter(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -664,12 +664,12 @@ def test_any_element_empty_row_disables_filter(monkeypatch: pytest.MonkeyPatch) 
     )
 
     # The empty (Any Element) row disables output filtering -> all input emitted.
-    assert {e.express_id for e in result.elements} == {_ref(101), _ref(202)}
-    wall_elem = next(e for e in result.elements if e.express_id == _ref(101))
-    door_elem = next(e for e in result.elements if e.express_id == _ref(202))
+    assert {e.express_ids[0] for e in result.elements} == {_ref(101), _ref(202)}
+    wall_elem = next(e for e in result.elements if e.express_ids[0] == _ref(101))
+    door_elem = next(e for e in result.elements if e.express_ids[0] == _ref(202))
     assert len(wall_elem.checks) == 2
     assert len(door_elem.checks) == 1
-    assert result.element_count == 2
+    assert result.summary_element_count == 2
 
 
 def test_literal_any_token_disables_filter(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -699,12 +699,12 @@ def test_literal_any_token_disables_filter(monkeypatch: pytest.MonkeyPatch) -> N
     )
 
     # The literal "any" token (case-insensitive) disables output filtering too.
-    assert {e.express_id for e in result.elements} == {_ref(101), _ref(202)}
-    wall_elem = next(e for e in result.elements if e.express_id == _ref(101))
-    door_elem = next(e for e in result.elements if e.express_id == _ref(202))
+    assert {e.express_ids[0] for e in result.elements} == {_ref(101), _ref(202)}
+    wall_elem = next(e for e in result.elements if e.express_ids[0] == _ref(101))
+    door_elem = next(e for e in result.elements if e.express_ids[0] == _ref(202))
     assert len(wall_elem.checks) == 2
     assert len(door_elem.checks) == 1
-    assert result.element_count == 2
+    assert result.summary_element_count == 2
 
 
 def test_missing_express_id_unknown_class(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -790,9 +790,9 @@ def test_company_level_counters(monkeypatch: pytest.MonkeyPatch) -> None:
         [101, 102],
     )
 
-    assert result.element_count == 2
-    assert result.total_checks == 4
-    assert result.failed_count == 3
+    assert result.summary_element_count == 2
+    assert result.summary_check_count == 4
+    assert result.summary_failed_count == 2
     assert [e.failed for e in result.elements] == [True, True]
 
 
@@ -835,9 +835,9 @@ def test_range_between_inclusive_boundaries(monkeypatch: pytest.MonkeyPatch) -> 
     )
     check = result.elements[0].checks[0]
     assert check.passed is True
-    assert check.condition == "between"
-    assert check.expected_min == "3"
-    assert check.expected_max == "5"
+    assert check.expected_value_condition == "between"
+    assert check.expected_value_min == "3"
+    assert check.expected_value_max == "5"
 
 
 def test_range_between_exclusive_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1020,9 +1020,9 @@ def test_single_mode_ignores_range_when_empty(monkeypatch: pytest.MonkeyPatch) -
     )
     check = result.elements[0].checks[0]
     assert check.passed is True
-    assert check.condition == "ge"
-    assert check.expected_min is None
-    assert check.expected_max is None
+    assert check.expected_value_condition == "ge"
+    assert check.expected_value_min == ""
+    assert check.expected_value_max == ""
 
 
 def test_one_of_matches_any_allowed_value(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1042,8 +1042,8 @@ def test_one_of_matches_any_allowed_value(monkeypatch: pytest.MonkeyPatch) -> No
     )
     check = result.elements[0].checks[0]
     assert check.passed is True
-    assert check.condition == "one_of"
-    assert check.expected == "wood, concrete, masonry"
+    assert check.expected_value_condition == "one_of"
+    assert check.expected_value == "wood, concrete, masonry"
 
 
 def test_one_of_no_match_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1098,7 +1098,7 @@ def test_one_of_ignores_blank_allowed_values(monkeypatch: pytest.MonkeyPatch) ->
         [101],
     )
     assert result.elements[0].checks[0].passed is True
-    assert result.elements[0].checks[0].expected == "wood"
+    assert result.elements[0].checks[0].expected_value == "wood"
 
 
 def test_one_of_missing_property_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1117,7 +1117,7 @@ def test_one_of_missing_property_fails(monkeypatch: pytest.MonkeyPatch) -> None:
         [101],
     )
     check = result.elements[0].checks[0]
-    assert check.actual is None
+    assert check.missing is True
     assert check.passed is False
 
 
@@ -1175,8 +1175,8 @@ def test_bound_but_empty_runs_vacuously(
     )
 
     assert result.elements == []
-    assert result.element_count == 0
-    assert result.total_checks == 0
+    assert result.summary_element_count == 0
+    assert result.summary_check_count == 0
 
 
 def test_unbound_express_ids_fails_validation() -> None:
@@ -1218,9 +1218,9 @@ def test_mixed_model_list_resolves_each_ref_against_own_model(
 
     # The main ref resolves against main (pass); the arch ref resolves against
     # arch, where the id does not exist -> unknown element with no checks.
-    assert result.elements[0].express_id == "main:expr:101"
+    assert result.elements[0].express_ids == ["main:expr:101"]
     assert result.elements[0].checks[0].passed is True
-    assert result.elements[1].express_id == "arch:expr:101"
+    assert result.elements[1].express_ids == ["arch:expr:101"]
     assert result.elements[1].class_name == "unknown"
 
 

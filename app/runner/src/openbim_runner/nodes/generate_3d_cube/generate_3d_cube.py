@@ -70,9 +70,15 @@ def _extract_position_rotation(element: Any) -> tuple[list[float], list[float]]:
         return (
             getattr(element, "position", [0.0, 0.0, 0.0]),
             [
-                getattr(element.rotation, "rotation_x", 0.0) if hasattr(element, "rotation") else 0.0,
-                getattr(element.rotation, "rotation_y", 0.0) if hasattr(element, "rotation") else 0.0,
-                getattr(element.rotation, "rotation_z", 0.0) if hasattr(element, "rotation") else 0.0,
+                getattr(element.rotation, "rotation_x", 0.0)
+                if hasattr(element, "rotation")
+                else 0.0,
+                getattr(element.rotation, "rotation_y", 0.0)
+                if hasattr(element, "rotation")
+                else 0.0,
+                getattr(element.rotation, "rotation_z", 0.0)
+                if hasattr(element, "rotation")
+                else 0.0,
             ],
         )
 

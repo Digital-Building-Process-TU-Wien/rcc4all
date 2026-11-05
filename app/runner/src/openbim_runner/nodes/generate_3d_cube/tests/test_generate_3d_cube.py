@@ -181,7 +181,11 @@ def test_generate_3d_cube_with_input_binding_combined() -> None:
         elements=[
             {
                 "position": [10.0, 5.0, 2.0],
-                "rotation": {"rotation_x": 10.0, "rotation_y": 20.0, "rotation_z": 30.0},
+                "rotation": {
+                    "rotation_x": 10.0,
+                    "rotation_y": 20.0,
+                    "rotation_z": 30.0,
+                },
             }
         ]
     )

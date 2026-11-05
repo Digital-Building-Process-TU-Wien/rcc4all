@@ -8,6 +8,10 @@ import trimesh
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
+from openbim_runner.nodes.bcf_output.harmonized import (
+    HarmonizedCheckResult,
+    HarmonizedElement,
+)
 from openbim_runner.util.geometry import cache_mesh, expr_key, resolve_mesh
 from openbim_runner.util.references import ElementRef, parse_element_refs
 
@@ -87,62 +91,40 @@ class TiltOfComponentsInputs(NodeModel):
     )
 
 
-class TiltSurfaceCheck(NodeModel):
-    expected: str = Field(
-        title="Expected",
-        description="Human-readable expectation combined from the comparison method and limits.",
-    )
-    tilt_angle: float = Field(
-        title="Tilt angle (°)",
-        description="Measured tilt of the surface or axis in degrees.",
-    )
-    passed: bool = Field(
-        title="Passed",
-        description="False when this surface/axis is flagged by the comparison method.",
-    )
-    geometry_key: str | None = Field(
-        default=None,
-        title="Geometry key",
-        description="Geometry-cache key of the helper geometry for flagged surfaces/axes.",
-    )
-
-
-class TiltsElement(NodeModel):
-    express_id: str = Field(
-        title="Express ID",
-        description="The qualified element reference (`<slug>:expr:<id>`).",
-    )
-    class_name: str = Field(
-        title="Class name",
-        description="IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.",
-    )
-    element_category: ElementCategory = Field(
-        title="Element category",
-        description="The element category ('2d' or '1d') used to measure this element.",
-    )
-    failed: bool = Field(
-        title="Failed",
-        description="True if at least one surface/axis check in this element was flagged.",
-    )
-    checks: list[TiltSurfaceCheck] = Field(
-        default=[],
-        title="Checks",
-        description="Surface ('2d') or axis ('1d') tilt checks for this element.",
-    )
+# The result models are the harmonized check schema shared with other checking
+# nodes (e.g. loi_check). Keeping these aliases lets this node read the same
+# data shape while exposing a single source of truth for downstream consumers
+# like bcf_output.
+TiltCheck = HarmonizedCheckResult
+TiltsElement = HarmonizedElement
 
 
 class TiltOfComponentsResult(NodeModel):
-    element_count: int = Field(
+    summary_element_count: int = Field(
         title="Element count",
         description="Number of elements processed.",
     )
-    check_count: int = Field(
-        title="Check count",
-        description="Number of elements with at least one surface/axis check.",
+    summary_passed_count: int = Field(
+        title="Passed count",
+        description="Number of checked elements with no flagged surface/axis.",
     )
-    failed_count: int = Field(
+    summary_failed_count: int = Field(
         title="Failed count",
-        description="Number of elements with at least one flagged surface/axis.",
+        description="Number of checked elements with at least one flagged surface/axis.",
+    )
+    summary_check_count: int = Field(
+        title="Check count",
+        description="Total number of surface/axis checks across all elements.",
+    )
+    passed_express_ids: list[str] = Field(
+        default=[],
+        title="Passed express IDs",
+        description="Qualified references of elements whose checks all passed. Only elements with at least one check are included.",
+    )
+    failed_express_ids: list[str] = Field(
+        default=[],
+        title="Failed express IDs",
+        description="Qualified references of elements with at least one flagged check. Only elements with at least one check are included.",
     )
     elements: list[TiltsElement] = Field(
         default=[],
@@ -163,8 +145,6 @@ async def tilt_of_components(
         raise ValueError("horizontal_separation_angle must not be negative.")
 
     elements: list[TiltsElement] = []
-    check_count = 0
-    failed_count = 0
 
     for element in parse_element_refs(inputs.express_ids, node="tilt_of_components"):
         reference = element.reference
@@ -174,9 +154,8 @@ async def tilt_of_components(
         if mesh is None or len(mesh.faces) == 0:
             elements.append(
                 TiltsElement(
-                    express_id=reference,
+                    express_ids=[reference],
                     class_name=class_name,
-                    element_category=settings.element_category,
                     failed=False,
                     checks=[],
                 )
@@ -190,24 +169,31 @@ async def tilt_of_components(
             reference=reference,
         )
         element_failed = any(not check.passed for check in checks)
-        check_count += 1
-        if element_failed:
-            failed_count += 1
 
         elements.append(
             TiltsElement(
-                express_id=reference,
+                express_ids=[reference],
                 class_name=class_name,
-                element_category=settings.element_category,
                 failed=element_failed,
                 checks=checks,
             )
         )
 
+    checked = [element for element in elements if element.checks]
+    passed_express_ids = [
+        ref for element in checked if not element.failed for ref in element.express_ids
+    ]
+    failed_express_ids = [
+        ref for element in checked if element.failed for ref in element.express_ids
+    ]
+
     return TiltOfComponentsResult(
-        element_count=len(elements),
-        check_count=check_count,
-        failed_count=failed_count,
+        summary_element_count=len(elements),
+        summary_passed_count=len(passed_express_ids),
+        summary_failed_count=len(failed_express_ids),
+        summary_check_count=sum(len(element.checks) for element in elements),
+        passed_express_ids=passed_express_ids,
+        failed_express_ids=failed_express_ids,
         elements=elements,
     )
 
@@ -317,7 +303,7 @@ def _compute_checks(
     *,
     context: ExecutionContext,
     reference: str,
-) -> list[TiltSurfaceCheck]:
+) -> list[TiltCheck]:
     vertices = np.asarray(mesh.vertices, dtype=np.float64)
     faces = np.asarray(mesh.faces, dtype=np.int64)
     normals = _face_normals(vertices, faces)
@@ -348,7 +334,7 @@ def _checks_2d(
     normals: np.ndarray,
     context: ExecutionContext,
     reference: str,
-) -> list[TiltSurfaceCheck]:
+) -> list[TiltCheck]:
     separation = settings.horizontal_separation_angle / _DEG
     groups = _group_surfaces(normals, separation)
     areas = [_surface_area(vertices, faces, group) for group in groups]
@@ -358,7 +344,7 @@ def _checks_2d(
     )
     largest_two = [group for _, group in ordered[:2]]
 
-    checks: list[TiltSurfaceCheck] = []
+    checks: list[TiltCheck] = []
     for surface_index, group in enumerate(largest_two):
         angles_rad = np.arccos(np.clip(-normals[group, 2], -1.0, 1.0))
         tilt = float(angles_rad.mean() * _DEG)
@@ -367,21 +353,21 @@ def _checks_2d(
         tilt = round(tilt, 2)
 
         passed = not _is_flagged(settings, tilt)
-        geometry_key: str | None = None
         if not passed:
-            geometry_key = f"inter:tilt_surface_{reference}_{surface_index}"
             cache_mesh(
                 context=context,
                 mesh=_build_submesh(vertices, faces, group),
-                key=geometry_key,
+                key=f"inter:tilt_surface_{reference}_{surface_index}",
             )
 
         checks.append(
-            TiltSurfaceCheck(
-                expected=_expected_text(settings),
-                tilt_angle=tilt,
+            TiltCheck(
+                key=f"surface_{surface_index}",
+                check_parameter="angle",
+                expected_value=_expected_text(settings),
+                actual_value=_format_tilt(tilt),
+                unit="deg",
                 passed=passed,
-                geometry_key=geometry_key,
             )
         )
     return checks
@@ -394,7 +380,7 @@ def _checks_1d(
     normals: np.ndarray,
     context: ExecutionContext,
     reference: str,
-) -> list[TiltSurfaceCheck]:
+) -> list[TiltCheck]:
     separation = settings.horizontal_separation_angle / _DEG
     groups = _group_surfaces(normals, separation)
 
@@ -418,21 +404,21 @@ def _checks_1d(
     tilt = round(tilt, 2)
 
     passed = not _is_flagged(settings, tilt)
-    geometry_key: str | None = None
     if not passed:
-        geometry_key = f"inter:tilt_axis_{reference}"
         cache_mesh(
             context=context,
             mesh=_build_axis_line(centroid1, centroid2),
-            key=geometry_key,
+            key=f"inter:tilt_axis_{reference}",
         )
 
     return [
-        TiltSurfaceCheck(
-            expected=_expected_text(settings),
-            tilt_angle=tilt,
+        TiltCheck(
+            key="axis",
+            check_parameter="angle",
+            expected_value=_expected_text(settings),
+            actual_value=_format_tilt(tilt),
+            unit="deg",
             passed=passed,
-            geometry_key=geometry_key,
         )
     ]
 
@@ -524,6 +510,11 @@ def _angle_to_neg_z(vector: np.ndarray) -> float:
         return 0.0
     dot = float(np.dot(vector, _NEG_UNIT_Z) / length)
     return math.acos(np.clip(dot, -1.0, 1.0))
+
+
+def _format_tilt(tilt: float) -> str:
+    """Render a tilt angle (already rounded to 2 dp) as a string."""
+    return str(tilt)
 
 
 def _expected_text(settings: TiltOfComponentsSettings) -> str:

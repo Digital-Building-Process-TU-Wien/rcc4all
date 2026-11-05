@@ -36,7 +36,6 @@ The `get_element_creation_position_door` node extracts footprint points from the
 - P1-P6 require at least 4 bottom vertices
 - For openings with 3 bottom vertices, only P7 is calculated
 - For >4 bottom vertices: OBB-based (Oriented Bounding Box) corner finding
-```
 
 ## Settings
 
