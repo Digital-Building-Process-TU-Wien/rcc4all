@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { ModelFile } from '~/stores/flow'
+import type { ExportedWorkflow } from '~/stores/flow'
 
 const LINE_BREAK_RE = /\r?\n/
 const EVENT_SEPARATOR_RE = /\r?\n\r?\n/
@@ -26,32 +26,8 @@ export interface CompleteResult {
   exitCode?: number | null
 }
 
-export interface WorkflowEdgeData {
-  source: string
-  target: string
-}
-
-export interface WorkflowSubworkflow {
-  name: string
-  nodes: WorkflowNodeData[]
-  edges: WorkflowEdgeData[]
-}
-
-export interface WorkflowNodeData {
-  id: string
-  type: string
-  label: string
-  settings: any
-  input_bindings: Record<string, string>
-  position?: { x: number, y: number }
-  subworkflow?: WorkflowSubworkflow
-}
-
-export interface WorkflowData {
-  files: ModelFile[]
-  nodes: WorkflowNodeData[]
-  edges: WorkflowEdgeData[]
-}
+/** The execution payload is the exported workflow; kept as a name for callers. */
+export type WorkflowData = ExportedWorkflow
 
 interface ExecutionCallbacks {
   onStdout: (chunk: string, timestamp: number) => void

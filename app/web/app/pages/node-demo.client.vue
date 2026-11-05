@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
 import SlideOver from '~/components/nodes/Slideover.vue'
 import SubworkflowBreadcrumbs from '~/components/nodes/SubworkflowBreadcrumbs.vue'
+import WorkflowFileActions from '~/components/nodes/WorkflowFileActions.vue'
 import WorkflowNode from '~/components/nodes/WorkflowNode.vue'
 import { openNodeSettingsKey } from '~/composables/useNodeSettings'
 import SubworkflowInput from '~/nodes/SubworkflowInput/SubworkflowInput.vue'
@@ -260,22 +261,15 @@ function clearCanvas() {
   store.clear()
 }
 
+async function handleWorkflowLoaded() {
+  // The panel points at a node id that the loaded workflow no longer has.
+  slideover.close()
+  await nextTick()
+  fitView(0.24)
+}
+
 async function runWorkflow() {
-  const workflowFiles = store.files
-    .filter(file => file.path)
-    .map(file => ({
-      path: file.path,
-      slug: file.slug,
-      hash: file.hash,
-    }))
-
-  const graph = store.serializeWorkflow()
-
-  store.setWorkflowData({
-    files: workflowFiles,
-    nodes: graph.nodes,
-    edges: graph.edges,
-  })
+  store.setWorkflowData(store.exportWorkflow())
 
   router.push({
     path: '/results',
@@ -301,7 +295,14 @@ async function runWorkflow() {
       <UDashboardPanel class="min-w-0">
         <template #default>
           <div class="flex h-full min-h-0 flex-col">
-            <ModelBar />
+            <div class="flex items-stretch border-b border-default bg-elevated">
+              <div class="flex min-w-0 flex-1">
+                <ModelBar />
+              </div>
+              <div class="flex shrink-0 items-center px-4">
+                <WorkflowFileActions @loaded="handleWorkflowLoaded" />
+              </div>
+            </div>
 
             <SubworkflowBreadcrumbs
               v-if="breadcrumbs.length > 1"
