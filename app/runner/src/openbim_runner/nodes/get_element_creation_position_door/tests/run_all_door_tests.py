@@ -15,7 +15,12 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
 )
 
 ifc_model = ifcopenshell.open(
-    Path(__file__).parent / "CustomTestModel-EscapeRouteAnalysis-ZDB-v3.ifc"
+    Path(__file__).resolve().parents[5]
+    / "tests"
+    / "testdata"
+    / "models"
+    / "buildings"
+    / "CustomTestModel-EscapeRouteAnalysis-ZDB-v3.ifc"
 )
 context = ExecutionContext(ifc_model=ifc_model, node_outputs={})
 

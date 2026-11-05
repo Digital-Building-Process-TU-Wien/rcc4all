@@ -33,7 +33,9 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     get_element_creation_position_door,
 )
 
-TEST_DATA_DIR = Path(__file__).parent
+TEST_DATA_DIR = (
+    Path(__file__).resolve().parents[5] / "tests" / "testdata" / "models" / "buildings"
+)
 
 
 @pytest.fixture
