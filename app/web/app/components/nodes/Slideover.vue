@@ -3,6 +3,8 @@ import type { Node } from '@vue-flow/core'
 import type { NodeData, SupportedLocale } from '~/utils/nodes'
 import { Comark } from '@comark/vue'
 import InputBindingsSection from '~/components/nodes/InputBindingsSection.vue'
+import SubworkflowPortsEditor from '~/components/nodes/SubworkflowPortsEditor.vue'
+import SubworkflowSettings from '~/components/nodes/SubworkflowSettings.vue'
 import { useScopedNode } from '~/composables/useScopedNode'
 import { useFlowStore } from '~/stores/flow'
 import { getAvailableNodes, getNodeComponent } from '~/utils/nodes'
@@ -29,6 +31,32 @@ watch(() => store.nodesById[props.nodeId], (exists) => {
 function handleDelete() {
   store.removeNode(props.nodeId)
 }
+
+async function handleOpenSubworkflow(nodeId: string) {
+  if (store.enterSubworkflow(nodeId)) {
+    await nextTick()
+    store.fitView(0.3)
+    emit('close')
+  }
+}
+
+const isPortNode = computed(() => {
+  const nodeName = node.value?.data?.nodeName
+  return nodeName === 'subworkflow_input' || nodeName === 'subworkflow_output'
+})
+
+/** The settings panel's title field doubles as the subworkflow's name. */
+const labelModel = computed({
+  get: () => node.value?.data?.label ?? '',
+  set: (value: string) => {
+    const current = node.value as Node<NodeData> | undefined
+    if (!current?.data)
+      return
+    current.data.label = value
+    if (current.data.subworkflow)
+      current.data.subworkflow.name = value
+  },
+})
 
 const component = computed(() => {
   if (!node.value?.id)
@@ -58,7 +86,7 @@ const nodeDocs = computed(() => {
                 {{ t('slideover.nodeLabel') }}
               </label>
               <UInput
-                v-model="node.data!.label"
+                v-model="labelModel"
                 :placeholder="t('slideover.customLabelPlaceholder')"
                 class="mt-1"
               />
@@ -67,15 +95,26 @@ const nodeDocs = computed(() => {
               </p>
             </div>
 
+            <SubworkflowSettings
+              v-if="node.data!.nodeName === 'subworkflow'"
+              :node-id="node.id"
+              @open="handleOpenSubworkflow"
+            />
+
+            <SubworkflowPortsEditor
+              v-else-if="isPortNode"
+              :node-id="node.id"
+            />
+
             <component
               :is="component"
+              v-else
               :node="node"
             />
 
             <InputBindingsSection
-              v-if="node.data!.nodeName !== 'file_input'"
+              v-if="node.data!.nodeName !== 'file_input' && node.data!.nodeName !== 'subworkflow_input'"
               :node-id="node.id"
-              :node-name="node.data!.nodeName"
             />
 
             <div v-if="nodeDocs" class="mt-6 border-t border-default pt-4">

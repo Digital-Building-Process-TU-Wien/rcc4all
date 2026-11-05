@@ -4,10 +4,26 @@ import type { AvailableNode, NodeData, SupportedLocale } from '~/utils/nodes'
 import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
 import SlideOver from '~/components/nodes/Slideover.vue'
+import SubworkflowBreadcrumbs from '~/components/nodes/SubworkflowBreadcrumbs.vue'
 import WorkflowNode from '~/components/nodes/WorkflowNode.vue'
+import { openNodeSettingsKey } from '~/composables/useNodeSettings'
+import SubworkflowInput from '~/nodes/SubworkflowInput/SubworkflowInput.vue'
+import SubworkflowNode from '~/nodes/SubworkflowNode/SubworkflowNode.vue'
+import SubworkflowOutput from '~/nodes/SubworkflowOutput/SubworkflowOutput.vue'
 import { useFlowStore } from '~/stores/flow'
-import { getAvailableNodes } from '~/utils/nodes'
-import { getNodeInputs, getNodeOutputs, isModelInput } from '~/utils/schema-helpers'
+import {
+  createNodeData,
+  getAvailableNodeNames,
+  getAvailableNodes,
+} from '~/utils/nodes'
+import {
+  getNodeInputs,
+  getNodeOutputs,
+  INPUT_HANDLE_PREFIX,
+  isModelInput,
+  OUTPUT_HANDLE_PREFIX,
+  parsePortHandle,
+} from '~/utils/schema-helpers'
 
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -26,21 +42,42 @@ const availableNodes = computed(() => {
     categories: ['Other'],
     description: t('node.jsonOutput.description'),
   })
+  nodes.push({
+    nodeName: 'subworkflow',
+    label: t('node.subworkflow.title'),
+    categories: ['Other'],
+    description: t('node.subworkflow.description'),
+  })
   return nodes
 })
 
-const nodeTypes = {
+const nodeTypes: Record<string, any> = {
   custom: markRaw(WorkflowNode),
+  subworkflow: markRaw(SubworkflowNode),
+  subworkflow_input: markRaw(SubworkflowInput),
+  subworkflow_output: markRaw(SubworkflowOutput),
 }
+for (const nodeName of getAvailableNodeNames())
+  nodeTypes[nodeName] = markRaw(WorkflowNode)
+nodeTypes.JsonOutput = markRaw(WorkflowNode)
 
-const selectedNode = shallowRef<Node<NodeData> | null>(null)
 const overlay = useOverlay()
 const slideover = overlay.create(SlideOver)
 
+function openNodeSettings(nodeId: string) {
+  slideover.open({
+    isOpen: true,
+    nodeId,
+  })
+}
+
+provide(openNodeSettingsKey, openNodeSettings)
+
 const router = useRouter()
 const store = useFlowStore()
+const toast = useToast()
 
-const { hasNodes, nodeCount, viewport } = storeToRefs(store)
+const { hasNodes, nodeCount, viewport, breadcrumbs } = storeToRefs(store)
 const { setNodes, setEdges, fitView } = store
 const nodes = computed(() => Object.values(store.nodesById))
 
@@ -50,15 +87,15 @@ if (!hasNodes.value) {
 }
 
 function handleConnect(params: Connection) {
+  const normalizedTargetHandle
+    = params.targetHandle === 'input-hitbox' ? 'input' : params.targetHandle
+
   const edge: Edge = {
     id: nanoid(),
     source: params.source,
     target: params.target,
     sourceHandle: params.sourceHandle,
-    targetHandle:
-      params.targetHandle === 'input-hitbox'
-        ? 'input'
-        : params.targetHandle,
+    targetHandle: normalizedTargetHandle,
   }
   store.addEdges(edge)
 
@@ -67,15 +104,20 @@ function handleConnect(params: Connection) {
   if (!targetNode || !sourceNode)
     return
 
-  const sourceOutputs = getNodeOutputs(sourceNode.data.nodeName)
+  const sourceOutputs = getNodeOutputs(sourceNode)
   if (sourceOutputs.length === 0)
     return
 
-  const targetInputs = getNodeInputs(targetNode.data.nodeName)
+  const targetInputs = getNodeInputs(targetNode)
   if (targetInputs.length === 0)
     return
 
   const currentBindings = targetNode.data.input_bindings || {}
+  const explicitOutput = parsePortHandle(params.sourceHandle, OUTPUT_HANDLE_PREFIX)
+  const explicitInput = parsePortHandle(params.targetHandle, INPUT_HANDLE_PREFIX)
+  const sourceOutput = explicitOutput && sourceOutputs.includes(explicitOutput)
+    ? explicitOutput
+    : sourceOutputs[0]
 
   // A File Input node's output is a model slug; ifc_element_filter is the only
   // node with a model input left, so it is the only valid auto-wire target.
@@ -83,7 +125,8 @@ function handleConnect(params: Connection) {
     if (targetNode.data.nodeName !== 'ifc_element_filter')
       return
 
-    const modelInput = targetInputs.find(name => isModelInput(name) && !currentBindings[name])
+    const modelInput = (explicitInput && isModelInput(explicitInput) ? explicitInput : undefined)
+      ?? targetInputs.find(name => isModelInput(name) && !currentBindings[name])
       ?? targetInputs.find(name => isModelInput(name))
     if (!modelInput)
       return
@@ -97,23 +140,92 @@ function handleConnect(params: Connection) {
     return
   }
 
-  const firstInput = targetInputs.find(name => !isModelInput(name) && !currentBindings[name])
+  const firstInput = explicitInput && targetInputs.includes(explicitInput)
+    ? explicitInput
+    : targetInputs.find(name => !isModelInput(name) && !currentBindings[name])
   if (!firstInput)
     return
 
   store.updateNodeData(params.target, {
     input_bindings: {
       ...currentBindings,
-      [firstInput]: `${params.source}.${sourceOutputs[0]}`,
+      [firstInput]: `${params.source}.${sourceOutput}`,
     },
   })
 }
 
-function handleNodeClick(params: { node: Node<NodeData> }) {
-  slideover.open({
-    isOpen: true,
-    nodeId: params.node.id,
-  })
+function handleNodeClick(params: { node: Node<NodeData>, event: MouseEvent | TouchEvent }) {
+  const { node, event } = params
+  // Modifier clicks build a multi-selection; the panel would cover the canvas.
+  if ('shiftKey' in event && (event.shiftKey || event.ctrlKey || event.metaKey)) {
+    slideover.close()
+    return
+  }
+
+  // A subworkflow opens on double click. Opening the modal panel on the first
+  // click would swallow the second one, so its settings live behind the gear icon.
+  if (node.data?.nodeName === 'subworkflow')
+    return
+
+  openNodeSettings(node.id)
+}
+
+function handleSelectionStart() {
+  slideover.close()
+}
+
+async function handleNodeDoubleClick(params: { node: Node<NodeData> }) {
+  if (params.node.data?.nodeName !== 'subworkflow')
+    return
+  slideover.close()
+  if (store.enterSubworkflow(params.node.id)) {
+    await nextTick()
+    fitView(0.3)
+  }
+}
+
+async function handleBreadcrumb(index: number) {
+  if (index === breadcrumbs.value.length - 1)
+    return
+  store.goToScope(index)
+  await nextTick()
+  fitView(0.24)
+}
+
+function handleBreadcrumbRename(name: string) {
+  store.renameActiveSubworkflow(name)
+}
+
+const insideSubworkflow = computed(() => breadcrumbs.value.length > 1)
+const hasSubworkflowOutput = computed(() =>
+  store.nodes.some(node => node.data?.nodeName === 'subworkflow_output'),
+)
+
+function handleAddPort(kind: 'input' | 'output') {
+  store.addSubworkflowPort(kind)
+}
+
+async function handleExtract(nodeIds: string[]) {
+  const result = store.extractToSubworkflow(nodeIds, t('node.subworkflow.defaultName'))
+  if (!result.ok) {
+    toast.add({
+      title: t('editor.extractFailed'),
+      description: result.reason === 'output-conflict'
+        ? t('editor.extractOutputConflict', {
+            references: result.details.join(', '),
+          })
+        : result.reason === 'meta-node'
+          ? t('editor.extractMetaNode')
+          : t('editor.extractEmpty'),
+      color: 'error',
+    })
+    return
+  }
+
+  if (store.enterSubworkflow(result.nodeId)) {
+    await nextTick()
+    fitView(0.3)
+  }
 }
 
 function getNextNodePosition() {
@@ -132,17 +244,11 @@ function getNextNodePosition() {
 function addNodeToCanvas(availableNode: AvailableNode, position?: { x: number, y: number }) {
   const shouldFitView = nodes.value.length === 0
 
-  const isFileInputNode = availableNode.nodeName === 'file_input'
-
   store.addNodes({
     id: nanoid(),
-    type: 'custom',
+    type: availableNode.nodeName,
     position: position ?? getNextNodePosition(),
-    data: {
-      label: availableNode.label,
-      noInput: isFileInputNode,
-      nodeName: availableNode.nodeName,
-    },
+    data: createNodeData(availableNode),
   })
 
   if (shouldFitView && !position) {
@@ -151,14 +257,7 @@ function addNodeToCanvas(availableNode: AvailableNode, position?: { x: number, y
 }
 
 function clearCanvas() {
-  selectedNode.value = null
   store.clear()
-}
-
-function parseSettings(settings: any, _nodeType: string) {
-  const parsed = { ...settings }
-
-  return parsed
 }
 
 async function runWorkflow() {
@@ -170,31 +269,12 @@ async function runWorkflow() {
       hash: file.hash,
     }))
 
-  const workflowNodeIds = new Set<string>()
-  const workflowNodes = nodes.value
-    .filter(node => node.data.nodeName !== 'JsonOutput')
-    .map((node) => {
-      workflowNodeIds.add(node.id)
-      return {
-        id: node.id,
-        type: node.data.nodeName.toLowerCase(),
-        label: node.data.label || '',
-        settings: parseSettings(node.data.settings || {}, node.data.nodeName),
-        input_bindings: node.data.input_bindings || {},
-      }
-    })
-
-  const workflowEdges = store.edges
-    .filter(edge => workflowNodeIds.has(edge.source) && workflowNodeIds.has(edge.target))
-    .map(edge => ({
-      source: edge.source,
-      target: edge.target,
-    }))
+  const graph = store.serializeWorkflow()
 
   store.setWorkflowData({
     files: workflowFiles,
-    nodes: workflowNodes,
-    edges: workflowEdges,
+    nodes: graph.nodes,
+    edges: graph.edges,
   })
 
   router.push({
@@ -209,7 +289,11 @@ async function runWorkflow() {
       <NodeLibrarySidebar
         :has-nodes="hasNodes"
         :node-count="nodeCount"
+        :inside-subworkflow="insideSubworkflow"
+        :has-subworkflow-output="hasSubworkflowOutput"
         @add-node="addNodeToCanvas"
+        @add-input="handleAddPort('input')"
+        @add-output="handleAddPort('output')"
         @run-workflow="runWorkflow"
         @clear-canvas="clearCanvas"
       />
@@ -218,6 +302,13 @@ async function runWorkflow() {
         <template #default>
           <div class="flex h-full min-h-0 flex-col">
             <ModelBar />
+
+            <SubworkflowBreadcrumbs
+              v-if="breadcrumbs.length > 1"
+              :items="breadcrumbs"
+              @navigate="handleBreadcrumb"
+              @rename="handleBreadcrumbRename"
+            />
 
             <NodeCanvas
               class="min-h-0 flex-1"
@@ -229,6 +320,9 @@ async function runWorkflow() {
               :available-nodes="availableNodes"
               @connect="handleConnect"
               @node-click="handleNodeClick"
+              @node-double-click="handleNodeDoubleClick"
+              @selection-start="handleSelectionStart"
+              @extract="handleExtract"
             />
           </div>
         </template>

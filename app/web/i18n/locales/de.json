@@ -73,9 +73,18 @@
     "toNodeEditor": "Zum Node-Editor"
   },
   "editor": {
-    "title": "BIM-Node-Editor",
-    "nodeCount": "{count} Nodes | {count} Nodes",
-    "emptyCanvas": "Fügen Sie den ersten Node hinzu."
+    "nodeCount": "{count} Node | {count} Nodes",
+    "emptyCanvas": "Fügen Sie den ersten Node hinzu.",
+    "hintSelect": "Ziehen zum Auswählen · Leertaste + Ziehen zum Verschieben",
+    "hintPan": "Ziehen zum Verschieben · Shift + Ziehen zum Auswählen",
+    "modeSelect": "Auswählen",
+    "modePan": "Verschieben",
+    "selectionCount": "{count} ausgewählt",
+    "addToSubworkflow": "Zu Subworkflow hinzufügen",
+    "extractFailed": "Subworkflow kann nicht erstellt werden",
+    "extractOutputConflict": "Die Auswahl erzeugt mehr als einen ausgehenden Wert ({references}). Behalten Sie einen Ausgang oder wählen Sie weniger Nodes.",
+    "extractMetaNode": "Ein- und Ausgangs-Nodes bleiben in ihrem Subworkflow.",
+    "extractEmpty": "Wählen Sie mindestens einen Node."
   },
   "library": {
     "backHome": "Zurück zur Startseite",
@@ -240,6 +249,43 @@
     "jsonOutput": {
       "title": "JSON-Ausgabe",
       "description": "Visueller Abschluss für die Workflow-Ausgabe"
+    },
+    "subworkflow": {
+      "title": "Subworkflow",
+      "description": "Fassen Sie Nodes in einer verschachtelten Arbeitsfläche mit typisierten Eingängen und einem Ausgang zusammen.",
+      "defaultName": "Subworkflow",
+      "namePlaceholder": "Name des Subworkflows",
+      "nameLabel": "Name des Subworkflows",
+      "inputNodeKind": "Eingang",
+      "outputNodeKind": "Ausgang",
+      "portsTitle": "Subworkflow-Ports",
+      "addInput": "Eingang hinzufügen",
+      "addOutput": "Ausgang hinzufügen",
+      "singleOutputHint": "Ein Subworkflow hat einen Ausgang. Löschen Sie den Ausgangs-Node, um ihn zu ersetzen.",
+      "inputPortTitle": "Eingangsport",
+      "outputPortTitle": "Ausgangsport",
+      "portName": "Port-Name",
+      "portType": "Typ",
+      "noPorts": "Noch keine Ports. Öffnen Sie den Subworkflow, um Eingänge hinzuzufügen.",
+      "invalidPortName": "Nur Buchstaben, Ziffern und Unterstriche, beginnend mit einem Buchstaben.",
+      "duplicatePortName": "Port-Namen müssen im Subworkflow eindeutig sein.",
+      "unboundPort": "Im übergeordneten Workflow nicht verbunden.",
+      "outputUnbound": "Wählen Sie den inneren Node, der diesen Ausgang erzeugt.",
+      "editInsideHint": "Fassen Sie Nodes in einer verschachtelten Arbeitsfläche zusammen. Doppelklicken Sie auf den Node in der Arbeitsfläche, um ihn zu öffnen.",
+      "open": "Subworkflow öffnen",
+      "settings": "Subworkflow-Einstellungen",
+      "root": "Workflow",
+      "types": {
+        "any": "Beliebig",
+        "string": "Zeichenkette",
+        "number": "Zahl",
+        "integer": "Ganzzahl",
+        "boolean": "Boolesch",
+        "object": "Objekt",
+        "arrayString": "Liste von Zeichenketten",
+        "arrayNumber": "Liste von Zahlen",
+        "arrayObject": "Liste von Objekten"
+      }
     },
     "property": {
       "noSelectionsAdded": "Keine Auswahlen hinzugefügt",

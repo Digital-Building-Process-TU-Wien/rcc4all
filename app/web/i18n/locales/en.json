@@ -73,9 +73,18 @@
     "toNodeEditor": "To Node Editor"
   },
   "editor": {
-    "title": "BIM Node Editor",
     "nodeCount": "{count} node | {count} nodes",
-    "emptyCanvas": "Add the first node to your canvas."
+    "emptyCanvas": "Add the first node to your canvas.",
+    "hintSelect": "Drag to select · Space + drag to pan",
+    "hintPan": "Drag to pan · Shift + drag to select",
+    "modeSelect": "Select",
+    "modePan": "Pan",
+    "selectionCount": "{count} selected",
+    "addToSubworkflow": "Add to subworkflow",
+    "extractFailed": "Cannot create subworkflow",
+    "extractOutputConflict": "The selection produces more than one outgoing value ({references}). Keep a single output or select fewer nodes.",
+    "extractMetaNode": "Input and output nodes stay in their subworkflow.",
+    "extractEmpty": "Select at least one node."
   },
   "library": {
     "backHome": "Back Home",
@@ -240,6 +249,43 @@
     "jsonOutput": {
       "title": "JSON Output",
       "description": "Visual endcap for workflow output"
+    },
+    "subworkflow": {
+      "title": "Subworkflow",
+      "description": "Group nodes into a nested canvas with typed inputs and one output.",
+      "defaultName": "Subworkflow",
+      "namePlaceholder": "Subworkflow name",
+      "nameLabel": "Subworkflow name",
+      "inputNodeKind": "Input",
+      "outputNodeKind": "Output",
+      "portsTitle": "Subworkflow ports",
+      "addInput": "Add input",
+      "addOutput": "Add output",
+      "singleOutputHint": "A subworkflow has a single output. Delete its output node to replace it.",
+      "inputPortTitle": "Input port",
+      "outputPortTitle": "Output port",
+      "portName": "Port name",
+      "portType": "Type",
+      "noPorts": "No ports yet. Open the subworkflow to add inputs.",
+      "invalidPortName": "Use letters, digits and underscores, starting with a letter.",
+      "duplicatePortName": "Port names must be unique inside the subworkflow.",
+      "unboundPort": "Not bound in the parent workflow.",
+      "outputUnbound": "Pick the inner node that produces this output.",
+      "editInsideHint": "Group nodes into a nested canvas. Double-click the node on the canvas to open it.",
+      "open": "Open subworkflow",
+      "settings": "Subworkflow settings",
+      "root": "Workflow",
+      "types": {
+        "any": "Any",
+        "string": "String",
+        "number": "Number",
+        "integer": "Integer",
+        "boolean": "Boolean",
+        "object": "Object",
+        "arrayString": "Array of strings",
+        "arrayNumber": "Array of numbers",
+        "arrayObject": "Array of objects"
+      }
     },
     "property": {
       "noSelectionsAdded": "No selections added",

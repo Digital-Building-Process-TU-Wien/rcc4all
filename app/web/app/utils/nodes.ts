@@ -2,18 +2,50 @@
  * Base interface for all node data
  */
 import type { NodeRegistrySchema } from '@@/scripts/schema'
+import type { TypeInfo } from './schema-helpers'
 import schemaJson from '@@/scripts/schema.json'
+import { nanoid } from 'nanoid'
 
 export type SupportedLocale = 'en' | 'de'
+
+export interface SubworkflowPort {
+  name: string
+  type: TypeInfo
+}
+
+export interface StoredEdge {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+}
 
 export interface NodeData {
   label: string
   noInput?: boolean
+  noOutput?: boolean
   nodeName: string
   filename?: string
   settings?: Record<string, any>
   input_bindings?: Record<string, string>
+  subworkflow?: SubworkflowDefinitionData
 }
+
+export interface StoredNode {
+  id: string
+  position: { x: number, y: number }
+  data: NodeData
+}
+
+export interface SubworkflowDefinitionData {
+  name: string
+  nodes: StoredNode[]
+  edges: StoredEdge[]
+  viewport?: { x: number, y: number, zoom: number }
+}
+
+export const DEFAULT_SUBWORKFLOW_OUTPUT_PORT = 'result'
 
 export interface AvailableNode {
   label: string
@@ -83,7 +115,65 @@ const nodeNameToComponent: Record<string, string> = {
   loi_check: 'LoiCheck',
   measurement: 'Measurement',
   set_3d_position_rotation: 'Set3DPositionRotation',
+  subworkflow: 'SubworkflowNode',
+  subworkflow_input: 'SubworkflowInput',
+  subworkflow_output: 'SubworkflowOutput',
   tilt_of_components: 'TiltOfComponents',
+}
+
+const PORT_NAME_RE = /^[A-Z_]\w*$/i
+
+export function isValidPortName(name: string): boolean {
+  return PORT_NAME_RE.test(name)
+}
+
+/** Build one meta node. Each meta node owns exactly one port. */
+export function createSubworkflowPortNode(
+  kind: 'input' | 'output',
+  port: SubworkflowPort,
+  position: { x: number, y: number },
+  id: string = nanoid(),
+): StoredNode {
+  return {
+    id,
+    position,
+    data: {
+      label: port.name,
+      nodeName: kind === 'input' ? 'subworkflow_input' : 'subworkflow_output',
+      settings: { port },
+    },
+  }
+}
+
+export function createSubworkflowDefinition(): SubworkflowDefinitionData {
+  return {
+    name: '',
+    nodes: [
+      createSubworkflowPortNode(
+        'output',
+        { name: DEFAULT_SUBWORKFLOW_OUTPUT_PORT, type: { type: 'null' } },
+        { x: 480, y: 140 },
+      ),
+    ],
+    edges: [],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  }
+}
+
+export function createNodeData(availableNode: AvailableNode): NodeData {
+  if (availableNode.nodeName === 'subworkflow') {
+    return {
+      label: availableNode.label,
+      nodeName: 'subworkflow',
+      subworkflow: createSubworkflowDefinition(),
+    }
+  }
+
+  return {
+    label: availableNode.label,
+    noInput: availableNode.nodeName === 'file_input',
+    nodeName: availableNode.nodeName,
+  }
 }
 
 /**
