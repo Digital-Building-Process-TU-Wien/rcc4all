@@ -72,17 +72,25 @@ Schaltern); `outside` besteht, wenn er außerhalb liegt.
 
 ## Ausgaben
 
-- `element_count`, `total_checks`, `failed_count`
+Der Executor umhüllt jede Node-Ausgabe mit `{ label, type, result }`, wobei
+`label` (Laufzeitname) und `type` (`"loi_check"`) im äußeren Envelope liegen.
+Das `result`-Objekt der Node selbst enthält nur die folgenden Felder:
+
+- `summary_element_count`, `summary_passed_count`, `summary_failed_count` (auf
+  Elementebene) und `summary_check_count` (Gesamtzahl der Prüfungen).
 - `passed_express_ids`, `failed_express_ids`: flache Listen der voll
   qualifizierten Referenzen (`<slug>:expr:<id>`) der geprüften Elemente – jene,
   deren Prüfungen alle bestanden haben, und jene mit mindestens einer
   fehlgeschlagenen Prüfung. Elemente ohne angewandte Prüfungen sind von beiden
   Listen ausgeschlossen.
-- `elements`: jeweils mit `express_id` (voll qualifizierte Referenz),
-  `class_name` (oder `unknown`), `failed` und `checks` – jede Prüfung hat
-  `id`/`property_key`, `property_name`, `condition`, `expected`, optional
-  `expected_min`/`expected_max` (Bereichsgrenzen), `actual` (`null` bei
-  fehlender Eigenschaft) und `passed`.
+- `elements`: jeweils mit `express_ids` (Liste voll qualifizierter
+  Referenzen), `class_name` (oder `unknown`), `failed` und `checks` – jede
+  Prüfung hat `key`, `check_parameter` (Eigenschaftsname), `expected_value`,
+  `actual_value` (String, leer bei fehlender Eigenschaft), `unit` (leer bei
+  unbekannt), `missing` (true, wenn die Eigenschaft fehlt), `passed`, sowie
+  `expected_value_condition` (Vergleichsoperator) und
+  `expected_value_min` / `expected_value_max` (Bereichsgrenzen bei
+  `between`/`outside`, sonst leer).
 
 ## Beispiel
 
@@ -97,28 +105,31 @@ Schaltern); `outside` besteht, wenn er außerhalb liegt.
 
 ```json
 {
-  "element_count": 2,
-  "total_checks": 6,
-  "failed_count": 2,
+  "summary_element_count": 2,
+  "summary_passed_count": 1,
+  "summary_failed_count": 1,
+  "summary_check_count": 6,
+  "passed_express_ids": ["main:expr:1235"],
+  "failed_express_ids": ["main:expr:1234"],
   "elements": [
     {
-      "express_id": "main:expr:1235",
+      "express_ids": ["main:expr:1235"],
       "class_name": "IFCWALL",
       "failed": false,
       "checks": [
-        { "id": "Pset_WallCommon.LoadBearing", "property_key": "Pset_WallCommon.LoadBearing", "property_name": "LoadBearing", "condition": "equals", "expected": "true", "actual": "true", "passed": true },
-        { "id": "Pset_WallCommon.ThermalTransmittance", "property_key": "Pset_WallCommon.ThermalTransmittance", "property_name": "ThermalTransmittance", "condition": "lt", "expected": "0.4", "actual": "0.25", "passed": true },
-        { "id": "Pset_WallCommon.FireRating", "property_key": "Pset_WallCommon.FireRating", "property_name": "FireRating", "condition": "one_of", "expected": "F30, F60", "actual": "F30", "passed": true }
+        { "key": "Pset_WallCommon.LoadBearing", "check_parameter": "LoadBearing", "expected_value": "true", "actual_value": "true", "unit": "", "missing": false, "passed": true, "expected_value_condition": "equals", "expected_value_min": "", "expected_value_max": "" },
+        { "key": "Pset_WallCommon.ThermalTransmittance", "check_parameter": "ThermalTransmittance", "expected_value": "0.4", "actual_value": "0.25", "unit": "", "missing": false, "passed": true, "expected_value_condition": "lt", "expected_value_min": "", "expected_value_max": "" },
+        { "key": "Pset_WallCommon.FireRating", "check_parameter": "FireRating", "expected_value": "F30, F60", "actual_value": "F30", "unit": "", "missing": false, "passed": true, "expected_value_condition": "one_of", "expected_value_min": "", "expected_value_max": "" }
       ]
     },
     {
-      "express_id": "main:expr:1234",
+      "express_ids": ["main:expr:1234"],
       "class_name": "IFCWALL",
       "failed": true,
       "checks": [
-        { "id": "Pset_WallCommon.LoadBearing", "property_key": "Pset_WallCommon.LoadBearing", "property_name": "LoadBearing", "condition": "equals", "expected": "true", "actual": "true", "passed": true },
-        { "id": "Pset_WallCommon.ThermalTransmittance", "property_key": "Pset_WallCommon.ThermalTransmittance", "property_name": "ThermalTransmittance", "condition": "lt", "expected": "0.4", "actual": "0.8", "passed": false },
-        { "id": "Pset_WallCommon.FireRating", "property_key": "Pset_WallCommon.FireRating", "property_name": "FireRating", "condition": "one_of", "expected": "F30, F60", "actual": "F90", "passed": false }
+        { "key": "Pset_WallCommon.LoadBearing", "check_parameter": "LoadBearing", "expected_value": "true", "actual_value": "true", "unit": "", "missing": false, "passed": true, "expected_value_condition": "equals", "expected_value_min": "", "expected_value_max": "" },
+        { "key": "Pset_WallCommon.ThermalTransmittance", "check_parameter": "ThermalTransmittance", "expected_value": "0.4", "actual_value": "0.8", "unit": "", "missing": false, "passed": false, "expected_value_condition": "lt", "expected_value_min": "", "expected_value_max": "" },
+        { "key": "Pset_WallCommon.FireRating", "check_parameter": "FireRating", "expected_value": "F30, F60", "actual_value": "F90", "unit": "", "missing": false, "passed": false, "expected_value_condition": "one_of", "expected_value_min": "", "expected_value_max": "" }
       ]
     }
   ]

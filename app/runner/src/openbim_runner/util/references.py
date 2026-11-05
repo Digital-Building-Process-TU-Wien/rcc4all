@@ -67,6 +67,52 @@ class ElementRef:
     express_id: int
 
 
+def expand_reference(reference: str) -> list[ElementRef]:
+    """Expand a measurement/generator reference into IFC element refs.
+
+    Handles the reference shapes a numeric checking node can carry through as
+    its element identity:
+
+    - Direct expr ref ``<slug>:expr:<id>`` -> single ``ElementRef``.
+    - Collision intersection ``inter:intersection_<k1>_<k2>`` -> both member
+      keys, when each side is an IFC express key.
+    - Distance pair ``<k1>_<k2>`` (both sides ``:expr:``) -> both member keys.
+
+    Any other shape (``gen:``, malformed, or a pair whose inner keys are not
+    IFC express keys) yields ``[]``; the consumer then drops the reference.
+    """
+    reference = reference.strip()
+
+    # Collision intersection — strip the helper prefix, fall through to pair split.
+    remainder = reference
+    if reference.startswith("inter:intersection_"):
+        remainder = reference[len("inter:intersection_") :]
+
+    # Direct single ref (only when no prefix was stripped).
+    if remainder is reference:
+        parsed = split_expr_key(reference)
+        if parsed is not None:
+            slug, express_id = parsed
+            return [ElementRef(reference, slug, express_id)]
+
+    # Pair ref: split on the last underscore between two express keys.
+    underscore_pos = remainder.rfind("_")
+    if underscore_pos > 0:
+        k1 = remainder[:underscore_pos]
+        k2 = remainder[underscore_pos + 1 :]
+        parsed_k1 = split_expr_key(k1)
+        parsed_k2 = split_expr_key(k2)
+        if parsed_k1 is not None and parsed_k2 is not None:
+            slug1, id1 = parsed_k1
+            slug2, id2 = parsed_k2
+            return [
+                ElementRef(k1, slug1, id1),
+                ElementRef(k2, slug2, id2),
+            ]
+
+    return []
+
+
 def parse_element_ref(reference: str, *, node: str) -> ElementRef:
     """Parse one IFC element reference, raising a node-scoped error otherwise.
 
@@ -185,6 +231,7 @@ __all__ = [
     "GEN_KIND",
     "GUID_KIND",
     "ElementRef",
+    "expand_reference",
     "expr_key",
     "guid_key",
     "is_generated_key",
