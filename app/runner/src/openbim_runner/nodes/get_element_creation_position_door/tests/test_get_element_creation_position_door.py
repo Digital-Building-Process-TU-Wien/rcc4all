@@ -13,18 +13,18 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     GetElementCreationPositionDoorInputs,
     GetElementCreationPositionDoorResult,
     GetElementCreationPositionDoorSettings,
-    _build_opening_to_wall_map,
-    _clip_edge,
-    _clip_opening_to_wall_polygon,
-    _extract_4_corners,
-    _get_element_thickness_direct,
-    _get_footprint_points,
-    _get_placement_matrix,
-    _get_rotation_angles,
-    _get_thickness_info,
-    _line_intersection_2d,
-    _round_position,
-    _sort_polygon_ccw,
+    _build_opening_to_wall_map,  # pyright: ignore[reportPrivateUsage]
+    _clip_edge,  # pyright: ignore[reportPrivateUsage]
+    _clip_opening_to_wall_polygon,  # pyright: ignore[reportPrivateUsage]
+    _extract_4_corners,  # pyright: ignore[reportPrivateUsage]
+    _get_element_thickness_direct,  # pyright: ignore[reportPrivateUsage]
+    _get_footprint_points,  # pyright: ignore[reportPrivateUsage]
+    _get_placement_matrix,  # pyright: ignore[reportPrivateUsage]
+    _get_rotation_angles,  # pyright: ignore[reportPrivateUsage]
+    _get_thickness_info,  # pyright: ignore[reportPrivateUsage]
+    _line_intersection_2d,  # pyright: ignore[reportPrivateUsage]
+    _round_position,  # pyright: ignore[reportPrivateUsage]
+    _sort_polygon_ccw,  # pyright: ignore[reportPrivateUsage]
     get_element_creation_position_door,
 )
 
@@ -53,7 +53,9 @@ def test_get_element_creation_position_door_p7_center(
     result = asyncio.run(
         get_element_creation_position_door(
             GetElementCreationPositionDoorSettings(point_index=7),
-            GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{express_id}"]),
+            GetElementCreationPositionDoorInputs(
+                express_ids=[f"main:expr:{express_id}"]
+            ),
             context,
         )
     )
@@ -77,7 +79,9 @@ def test_get_element_creation_position_door_multiple_doors(
     result = asyncio.run(
         get_element_creation_position_door(
             GetElementCreationPositionDoorSettings(point_index=7),
-            GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{id}" for id in express_ids]),
+            GetElementCreationPositionDoorInputs(
+                express_ids=[f"main:expr:{id}" for id in express_ids]
+            ),
             context,
         )
     )
@@ -100,7 +104,9 @@ def test_get_element_creation_position_door_centroid_returns_3d_point(
     result = asyncio.run(
         get_element_creation_position_door(
             GetElementCreationPositionDoorSettings(point_index=7),
-            GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{id}" for id in express_ids]),
+            GetElementCreationPositionDoorInputs(
+                express_ids=[f"main:expr:{id}" for id in express_ids]
+            ),
             context,
         )
     )
@@ -110,7 +116,7 @@ def test_get_element_creation_position_door_centroid_returns_3d_point(
     for elem in result.elements:
         assert len(elem.position) == 3
         # Coordinates should be reasonable (not NaN or infinite)
-        assert all(not (coord != coord) for coord in elem.position)  # NaN check
+        assert all(coord == coord for coord in elem.position)  # NaN check
         assert all(abs(coord) < 1e6 for coord in elem.position)  # Reasonable bounds
 
 
@@ -136,7 +142,9 @@ def test_get_element_creation_position_door_invalid_express_id(
     result = asyncio.run(
         get_element_creation_position_door(
             GetElementCreationPositionDoorSettings(point_index=7),
-            GetElementCreationPositionDoorInputs(express_ids=["main:expr:99999", "main:expr:88888"]),
+            GetElementCreationPositionDoorInputs(
+                express_ids=["main:expr:99999", "main:expr:88888"]
+            ),
             context,
         )
     )
@@ -155,7 +163,13 @@ def test_get_element_creation_position_door_mixed_valid_invalid(
     result = asyncio.run(
         get_element_creation_position_door(
             GetElementCreationPositionDoorSettings(point_index=7),
-            GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{valid_id}", "main:expr:99999", "main:expr:88888"]),
+            GetElementCreationPositionDoorInputs(
+                express_ids=[
+                    f"main:expr:{valid_id}",
+                    "main:expr:99999",
+                    "main:expr:88888",
+                ]
+            ),
             context,
         )
     )
@@ -174,7 +188,9 @@ def test_get_element_creation_position_door_not_a_door(
     result = asyncio.run(
         get_element_creation_position_door(
             GetElementCreationPositionDoorSettings(point_index=7),
-            GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{space.id()}"]),
+            GetElementCreationPositionDoorInputs(
+                express_ids=[f"main:expr:{space.id()}"]
+            ),
             context,
         )
     )
@@ -195,8 +211,10 @@ def test_get_element_creation_position_door_all_corners(
     for point_index in [1, 2, 3, 4, 7]:
         result = asyncio.run(
             get_element_creation_position_door(
-                GetElementCreationPositionDoorSettings(point_index=point_index),
-                GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{express_id}"]),
+                GetElementCreationPositionDoorSettings(point_index=point_index),  # pyright: ignore[reportArgumentType]
+                GetElementCreationPositionDoorInputs(
+                    express_ids=[f"main:expr:{express_id}"]
+                ),
                 context,
             )
         )
@@ -224,11 +242,15 @@ def test_get_element_creation_position_door_p5_p6_midpoints(
     # Get all corner points and midpoints
     all_positions = {}
     for point_index in [1, 2, 3, 4, 5, 6]:
-        result = asyncio.run(get_element_creation_position_door(
-            GetElementCreationPositionDoorSettings(point_index=point_index),
-            GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{express_id}"]),
-            context,
-        ))
+        result = asyncio.run(
+            get_element_creation_position_door(
+                GetElementCreationPositionDoorSettings(point_index=point_index),  # pyright: ignore[reportArgumentType]
+                GetElementCreationPositionDoorInputs(
+                    express_ids=[f"main:expr:{express_id}"]
+                ),
+                context,
+            )
+        )
         assert len(result.elements) == 1
         all_positions[point_index] = result.elements[0].position
 
@@ -275,17 +297,17 @@ def test_thickness_detection_equal(
     assert wall is not None
 
     # Get bottom vertices directly (world coordinates)
-    settings = ifcopenshell.geom.settings()
+    settings = ifcopenshell.geom.settings()  # pyright: ignore[reportAttributeAccessIssue]
     settings.set("use-world-coords", True)
     settings.set("weld-vertices", True)
     settings.set("context-types", ["Body"])
 
-    opening_shape = ifcopenshell.geom.create_shape(settings, opening)
+    opening_shape = ifcopenshell.geom.create_shape(settings, opening)  # pyright: ignore[reportAttributeAccessIssue]
     opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
 
-    wall_shape = ifcopenshell.geom.create_shape(settings, wall)
+    wall_shape = ifcopenshell.geom.create_shape(settings, wall)  # pyright: ignore[reportAttributeAccessIssue]
     wall_verts = np.array(wall_shape.geometry.verts).reshape((-1, 3))
     min_z = wall_verts[:, 2].min()
     wall_bottom = wall_verts[np.isclose(wall_verts[:, 2], min_z, atol=0.001)]
@@ -324,12 +346,12 @@ def test_thickness_detection_wall_not_found(
     assert opening is not None
 
     # Get bottom vertices directly (world coordinates)
-    settings = ifcopenshell.geom.settings()
+    settings = ifcopenshell.geom.settings()  # pyright: ignore[reportAttributeAccessIssue]
     settings.set("use-world-coords", True)
     settings.set("weld-vertices", True)
     settings.set("context-types", ["Body"])
 
-    opening_shape = ifcopenshell.geom.create_shape(settings, opening)
+    opening_shape = ifcopenshell.geom.create_shape(settings, opening)  # pyright: ignore[reportAttributeAccessIssue]
     opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
@@ -393,18 +415,19 @@ def test_clip_opening_to_wall_polygon(
 
     # Get bottom vertices (world coordinates)
     import ifcopenshell.geom
+
     settings = ifcopenshell.geom.settings()
     settings.set("use-world-coords", True)
     settings.set("weld-vertices", True)
     settings.set("context-types", ["Body"])
 
     opening_shape = ifcopenshell.geom.create_shape(settings, opening)
-    opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))
+    opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
 
     wall_shape = ifcopenshell.geom.create_shape(settings, wall)
-    wall_verts = np.array(wall_shape.geometry.verts).reshape((-1, 3))
+    wall_verts = np.array(wall_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
     min_z = wall_verts[:, 2].min()
     wall_bottom = wall_verts[np.isclose(wall_verts[:, 2], min_z, atol=0.001)]
 
@@ -426,15 +449,21 @@ def test_clip_opening_to_wall_polygon(
     # Simple approach: project onto wall axes and check bounds
     wall_center = wall_bottom.mean(axis=0)
     wall_centered = wall_bottom - wall_center
-    U, S, Vh = np.linalg.svd(wall_centered, full_matrices=False)
+    _U, _S, Vh = np.linalg.svd(wall_centered, full_matrices=False)
     length_axis = Vh[0]
     thickness_axis = Vh[1]
 
     # Wall bounds
     wall_length_proj = wall_centered @ length_axis
     wall_thickness_proj = wall_centered @ thickness_axis
-    wall_length_min, wall_length_max = float(wall_length_proj.min()), float(wall_length_proj.max())
-    wall_thickness_min, wall_thickness_max = float(wall_thickness_proj.min()), float(wall_thickness_proj.max())
+    wall_length_min, wall_length_max = (
+        float(wall_length_proj.min()),
+        float(wall_length_proj.max()),
+    )
+    wall_thickness_min, wall_thickness_max = (
+        float(wall_thickness_proj.min()),
+        float(wall_thickness_proj.max()),
+    )
 
     # Check all clipped vertices are within bounds (with 2mm tolerance for numerical precision)
     clipped_centered = clipped_verts - wall_center
@@ -442,7 +471,9 @@ def test_clip_opening_to_wall_polygon(
         length_coord = float(clipped_centered[i] @ length_axis)
         thickness_coord = float(clipped_centered[i] @ thickness_axis)
         assert wall_length_min - 0.002 <= length_coord <= wall_length_max + 0.002
-        assert wall_thickness_min - 0.002 <= thickness_coord <= wall_thickness_max + 0.002
+        assert (
+            wall_thickness_min - 0.002 <= thickness_coord <= wall_thickness_max + 0.002
+        )
 
 
 def test_get_rotation_angles_with_placement(context: ExecutionContext) -> None:
@@ -456,7 +487,7 @@ def test_get_rotation_angles_with_placement(context: ExecutionContext) -> None:
         assert "rotation_y" in rotation
         assert "rotation_z" in rotation
 
-        for key, value in rotation.items():
+        for _key, value in rotation.items():
             assert 0.0 <= value <= 360.0
             assert isinstance(value, float)
 
@@ -471,7 +502,9 @@ def test_get_element_creation_position_door_includes_rotation(
     result = asyncio.run(
         get_element_creation_position_door(
             GetElementCreationPositionDoorSettings(point_index=7),
-            GetElementCreationPositionDoorInputs(express_ids=[f"main:expr:{express_id}"]),
+            GetElementCreationPositionDoorInputs(
+                express_ids=[f"main:expr:{express_id}"]
+            ),
             context,
         )
     )
@@ -552,7 +585,9 @@ class TestGetPlacementMatrix:
         assert matrix.shape == (4, 4)
         np.testing.assert_array_almost_equal(matrix, np.eye(4))
 
-    def test_get_placement_matrix_simple_placement(self, context: ExecutionContext) -> None:
+    def test_get_placement_matrix_simple_placement(
+        self, context: ExecutionContext
+    ) -> None:
         """Test matrix extraction from a simple IfcLocalPlacement."""
         door = context.ifc_model.by_type("IfcDoor")[0]
         if door.ObjectPlacement:
@@ -563,9 +598,11 @@ class TestGetPlacementMatrix:
 
     def test_get_placement_matrix_invalid_placement(self) -> None:
         """Test handling of non-IfcLocalPlacement objects."""
+
         class MockPlacement:
             def is_a(self, type_name: str) -> bool:
                 return False
+
         matrix = _get_placement_matrix(MockPlacement())
         assert matrix.shape == (4, 4)
         np.testing.assert_array_almost_equal(matrix, np.eye(4))
@@ -576,12 +613,14 @@ class TestExtract4Corners:
 
     def test_extract_4_corners_exact_4_vertices(self) -> None:
         """Test with exactly 4 vertices (rectangle)."""
-        vertices = np.array([
-            [0, 0, 0],
-            [2, 0, 0],
-            [2, 1, 0],
-            [0, 1, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [2, 0, 0],
+                [2, 1, 0],
+                [0, 1, 0],
+            ]
+        )
         corners = _extract_4_corners(vertices)
         assert corners.shape == (4, 3)
         # All original vertices should be preserved (order may vary)
@@ -591,33 +630,39 @@ class TestExtract4Corners:
     def test_extract_4_corners_more_than_4_vertices(self) -> None:
         """Test with >4 vertices (OBB should find 4 outer corners)."""
         theta = np.linspace(0, 2 * np.pi, 8, endpoint=False)
-        vertices = np.column_stack([
-            2 * np.cos(theta),
-            1 * np.sin(theta),
-            np.zeros(8),
-        ])
+        vertices = np.column_stack(
+            [
+                2 * np.cos(theta),
+                1 * np.sin(theta),
+                np.zeros(8),
+            ]
+        )
         corners = _extract_4_corners(vertices)
         assert corners.shape == (4, 3)
         # Corners should form a bounding box around the ellipse
 
     def test_extract_4_corners_less_than_4_vertices(self) -> None:
         """Test with <4 vertices (should still return 4 corners via OBB)."""
-        vertices = np.array([
-            [0, 0, 0],
-            [1, 0, 0],
-            [0.5, 0.5, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [1, 0, 0],
+                [0.5, 0.5, 0],
+            ]
+        )
         corners = _extract_4_corners(vertices)
         assert corners.shape == (4, 3)
 
     def test_extract_4_corners_collinear_points(self) -> None:
         """Test with collinear points (degenerate case)."""
-        vertices = np.array([
-            [0, 0, 0],
-            [1, 0, 0],
-            [2, 0, 0],
-            [3, 0, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [1, 0, 0],
+                [2, 0, 0],
+                [3, 0, 0],
+            ]
+        )
         corners = _extract_4_corners(vertices)
         assert corners.shape == (4, 3)
         assert not np.any(np.isnan(corners))
@@ -625,16 +670,20 @@ class TestExtract4Corners:
     def test_extract_4_corners_rotated_rectangle(self) -> None:
         """Test with rotated rectangle (45 degrees)."""
         angle = np.pi / 4
-        rotation = np.array([
-            [np.cos(angle), -np.sin(angle)],
-            [np.sin(angle), np.cos(angle)],
-        ])
-        vertices = np.array([
-            [0, 0],
-            [2, 0],
-            [2, 1],
-            [0, 1],
-        ])
+        rotation = np.array(
+            [
+                [np.cos(angle), -np.sin(angle)],
+                [np.sin(angle), np.cos(angle)],
+            ]
+        )
+        vertices = np.array(
+            [
+                [0, 0],
+                [2, 0],
+                [2, 1],
+                [0, 1],
+            ]
+        )
         rotated = (rotation @ vertices.T).T
         vertices_3d = np.column_stack([rotated, np.zeros(4)])
 
@@ -647,12 +696,14 @@ class TestGetFootprintPoints:
 
     def test_get_footprint_points_4_vertices_axis_aligned(self) -> None:
         """Test footprint points for axis-aligned rectangle."""
-        vertices = np.array([
-            [0, 0, 0],
-            [2, 0, 0],
-            [2, 1, 0],
-            [0, 1, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [2, 0, 0],
+                [2, 1, 0],
+                [0, 1, 0],
+            ]
+        )
         points = _get_footprint_points(vertices, None, 0.0)
 
         # Should have all 7 points
@@ -663,15 +714,22 @@ class TestGetFootprintPoints:
 
     def test_get_footprint_points_p7_is_centroid(self) -> None:
         """Test that P7 is the centroid of P1-P4."""
-        vertices = np.array([
-            [0, 0, 0],
-            [4, 0, 0],
-            [4, 2, 0],
-            [0, 2, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [4, 0, 0],
+                [4, 2, 0],
+                [0, 2, 0],
+            ]
+        )
         points = _get_footprint_points(vertices, None, 0.0)
 
-        p1, p2, p3, p4 = np.array(points[1]), np.array(points[2]), np.array(points[3]), np.array(points[4])
+        p1, p2, p3, p4 = (
+            np.array(points[1]),
+            np.array(points[2]),
+            np.array(points[3]),
+            np.array(points[4]),
+        )
         p7 = np.array(points[7])
 
         expected_centroid = (p1 + p2 + p3 + p4) / 4
@@ -679,12 +737,14 @@ class TestGetFootprintPoints:
 
     def test_get_footprint_points_p5_is_midpoint_p1_p2(self) -> None:
         """Test that P5 is the midpoint between P1 and P2."""
-        vertices = np.array([
-            [0, 0, 0],
-            [4, 0, 0],
-            [4, 2, 0],
-            [0, 2, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [4, 0, 0],
+                [4, 2, 0],
+                [0, 2, 0],
+            ]
+        )
         points = _get_footprint_points(vertices, None, 0.0)
 
         p1 = np.array(points[1])
@@ -696,12 +756,14 @@ class TestGetFootprintPoints:
 
     def test_get_footprint_points_p6_is_midpoint_p3_p4(self) -> None:
         """Test that P6 is the midpoint between P3 and P4."""
-        vertices = np.array([
-            [0, 0, 0],
-            [4, 0, 0],
-            [4, 2, 0],
-            [0, 2, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [4, 0, 0],
+                [4, 2, 0],
+                [0, 2, 0],
+            ]
+        )
         points = _get_footprint_points(vertices, None, 0.0)
 
         p3 = np.array(points[3])
@@ -713,11 +775,13 @@ class TestGetFootprintPoints:
 
     def test_get_footprint_points_less_than_4_vertices_fallback(self) -> None:
         """Test fallback to centroid only when <4 vertices."""
-        vertices = np.array([
-            [0, 0, 0],
-            [1, 0, 0],
-            [0.5, 0.5, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [1, 0, 0],
+                [0.5, 0.5, 0],
+            ]
+        )
         points = _get_footprint_points(vertices, None, 0.0)
 
         # Should only have P7 (centroid)
@@ -730,38 +794,46 @@ class TestGetElementThicknessDirect:
 
     def test_get_element_thickness_direct_rectangular_wall(self) -> None:
         """Test thickness calculation for rectangular wall."""
-        vertices = np.array([
-            [0, 0, 0],
-            [5, 0, 0],
-            [5, 0.24, 0],
-            [0, 0.24, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [5, 0, 0],
+                [5, 0.24, 0],
+                [0, 0.24, 0],
+            ]
+        )
         thickness = _get_element_thickness_direct(vertices)
         assert thickness > 0.0
         assert abs(thickness - 0.24) < 0.01
 
     def test_get_element_thickness_direct_insufficient_vertices(self) -> None:
         """Test with <3 vertices returns 0.0."""
-        vertices = np.array([
-            [0, 0, 0],
-            [1, 0, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [1, 0, 0],
+            ]
+        )
         thickness = _get_element_thickness_direct(vertices)
         assert thickness == 0.0
 
     def test_get_element_thickness_direct_rotated_wall(self) -> None:
         """Test thickness for rotated wall (SVD should find correct axis)."""
         angle = np.pi / 6
-        rotation = np.array([
-            [np.cos(angle), -np.sin(angle)],
-            [np.sin(angle), np.cos(angle)],
-        ])
-        vertices = np.array([
-            [0, 0],
-            [5, 0],
-            [5, 0.24],
-            [0, 0.24],
-        ])
+        rotation = np.array(
+            [
+                [np.cos(angle), -np.sin(angle)],
+                [np.sin(angle), np.cos(angle)],
+            ]
+        )
+        vertices = np.array(
+            [
+                [0, 0],
+                [5, 0],
+                [5, 0.24],
+                [0, 0.24],
+            ]
+        )
         rotated = (rotation @ vertices.T).T
         vertices_3d = np.column_stack([rotated, np.zeros(4)])
 
@@ -809,7 +881,12 @@ class TestClipEdge:
         """Test clipping when all points are inside the clip edge."""
         # Edge from (0,0) to (0,3) - edge_vec=(0,3), normal=(-3,0) points to negative X
         # Points with x <= 0 are "inside" (dot product >= 0)
-        subject = [np.array([-1.0, 0.0]), np.array([-2.0, 0.0]), np.array([-2.0, 1.0]), np.array([-1.0, 1.0])]
+        subject = [
+            np.array([-1.0, 0.0]),
+            np.array([-2.0, 0.0]),
+            np.array([-2.0, 1.0]),
+            np.array([-1.0, 1.0]),
+        ]
         edge_start = np.array([0.0, 0.0])
         edge_end = np.array([0.0, 3.0])
 
@@ -821,7 +898,12 @@ class TestClipEdge:
         """Test clipping when points are outside the clip edge."""
         # Edge from (0,0) to (0,2) - normal points to negative X
         # Points with x > 0 are "outside"
-        subject = [np.array([1.0, 0.0]), np.array([2.0, 0.0]), np.array([2.0, 1.0]), np.array([1.0, 1.0])]
+        subject = [
+            np.array([1.0, 0.0]),
+            np.array([2.0, 0.0]),
+            np.array([2.0, 1.0]),
+            np.array([1.0, 1.0]),
+        ]
         edge_start = np.array([0.0, 0.0])
         edge_end = np.array([0.0, 2.0])
 
@@ -840,32 +922,37 @@ class TestSortPolygonCcw:
 
     def test_sort_polygon_ccw_clockwise_input(self) -> None:
         """Test sorting clockwise polygon to counter-clockwise."""
-        vertices = np.array([
-            [0, 0, 0],
-            [0, 1, 0],
-            [1, 1, 0],
-            [1, 0, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [0, 1, 0],
+                [1, 1, 0],
+                [1, 0, 0],
+            ]
+        )
         sorted_vertices = _sort_polygon_ccw(vertices)
         assert sorted_vertices.shape == vertices.shape
 
     def test_sort_polygon_ccw_already_ccw(self) -> None:
         """Test sorting already CCW polygon."""
-        vertices = np.array([
-            [0, 0, 0],
-            [1, 0, 0],
-            [1, 1, 0],
-            [0, 1, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [1, 0, 0],
+                [1, 1, 0],
+                [0, 1, 0],
+            ]
+        )
         sorted_vertices = _sort_polygon_ccw(vertices)
         assert sorted_vertices.shape == vertices.shape
 
     def test_sort_polygon_ccw_less_than_3_vertices(self) -> None:
         """Test sorting with <3 vertices returns copy."""
-        vertices = np.array([
-            [0, 0, 0],
-            [1, 0, 0],
-        ])
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [1, 0, 0],
+            ]
+        )
         sorted_vertices = _sort_polygon_ccw(vertices)
         np.testing.assert_array_almost_equal(sorted_vertices, vertices)
-

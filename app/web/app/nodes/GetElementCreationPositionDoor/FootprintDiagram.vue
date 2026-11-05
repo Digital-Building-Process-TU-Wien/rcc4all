@@ -11,17 +11,9 @@ const points = {
   2: { x: 160, y: 40 },
   3: { x: 160, y: 110 },
   4: { x: 40, y: 110 },
+  5: { x: 100, y: 40 },
+  6: { x: 100, y: 110 },
   7: { x: 100, y: 75 },
-}
-
-// P5 und P6 korrekt berechnen (Mittelpunkte)
-points[5] = {
-  x: (points[1].x + points[2].x) / 2,
-  y: (points[1].y + points[2].y) / 2,
-}
-points[6] = {
-  x: (points[3].x + points[4].x) / 2,
-  y: (points[3].y + points[4].y) / 2,
 }
 
 function getPointClass(index: number) {

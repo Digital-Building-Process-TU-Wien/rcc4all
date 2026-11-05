@@ -619,10 +619,7 @@
             "elements": {
               "default": [],
               "description": "Elements from upstream node (e.g., set_3d_position_rotation or get_element_creation_position_door). First element is used for base position/rotation.",
-              "items": {
-                "additionalProperties": true,
-                "type": "object"
-              },
+              "items": {},
               "type": "array"
             }
           },
@@ -1945,15 +1942,15 @@
                     "additionalProperties": false,
                     "properties": {
                       "rotation_x": {
-                        "description": "Rotation around global X-axis in degrees (0-360).",
+                        "description": "Rotation around global X-axis in degrees.",
                         "type": "number"
                       },
                       "rotation_y": {
-                        "description": "Rotation around global Y-axis in degrees (0-360).",
+                        "description": "Rotation around global Y-axis in degrees.",
                         "type": "number"
                       },
                       "rotation_z": {
-                        "description": "Rotation around global Z-axis in degrees (0-360).",
+                        "description": "Rotation around global Z-axis in degrees.",
                         "type": "number"
                       }
                     },
