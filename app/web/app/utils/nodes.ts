@@ -75,12 +75,14 @@ const nodeNameToComponent: Record<string, string> = {
   concat_string: 'ConcatString',
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',
+  get_element_creation_position_door: 'GetElementCreationPositionDoor',
   get_property: 'GetProperty',
   ids_checker: 'IdsChecker',
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
-  measurement: 'Measurement',
   loi_check: 'LoiCheck',
+  measurement: 'Measurement',
+  set_3d_position_rotation: 'Set3DPositionRotation',
   tilt_of_components: 'TiltOfComponents',
 }
 

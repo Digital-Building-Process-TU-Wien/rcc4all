@@ -7,11 +7,13 @@ export interface NodeRegistrySchema {
   concat_string?: ConcatenateStrings
   file_input?: FileInput
   generate_3d_cube?: Generate3DCube
+  get_element_creation_position_door?: GetElementCreationPositionDoor
   get_property?: GetProperty
   ids_checker?: IDSChecker
   ifc_element_filter?: IfcElementFilter
   loi_check?: LOICheck
   measurement?: Measurement
+  set_3d_position_rotation?: Set3DPositionRotation
   tilt_of_components?: TiltOfComponents
 }
 /**
@@ -423,16 +425,16 @@ export interface FileInput {
   }
 }
 /**
- * Create a 3D cube geometry with customizable size, position, and rotation for clash detection.
+ * Create a 3D box geometry with configurable size, position offset, and rotation offset for clash detection.
  */
 export interface Generate3DCube {
   settings: {
     /**
-     * 3D position [x, y, z] for the cube center in meters.
+     * Position offset [x, y, z] in meters added to base position from input. Default [0,0,0] means no offset.
      */
     position?: number[]
     /**
-     * Euler angles [x, y, z] in degrees for rotation around each axis.
+     * Rotation offset [x, y, z] in degrees added to base rotation from input. Default [0,0,0] means no offset.
      */
     rotation?: number[]
     /**
@@ -449,6 +451,69 @@ export interface Generate3DCube {
      * 1-element list with the qualified geometry cache key (`gen:<object_id>`) of the generated cube.
      */
     object_ids?: string[]
+  }
+  inputs: {
+    /**
+     * Elements from upstream node (e.g., set_3d_position_rotation or get_element_creation_position_door). First element is used for base position/rotation.
+     */
+    elements?: unknown[]
+  }
+}
+/**
+ * Retrieves footprint points (P1-P7) of IFC door openings for element creation.
+ */
+export interface GetElementCreationPositionDoor {
+  settings: {
+    /**
+     * Which footprint point to return: 1-4 = corners (clockwise from closest to placement), 5-6 = midpoints, 7 = centroid.
+     */
+    point_index?: (1 | 2 | 3 | 4 | 5 | 6 | 7)
+  }
+  result: {
+    /**
+     * List of element positions (P7) for all processed doors and walls.
+     */
+    elements?: {
+      /**
+       * IFC entity type (IfcDoor or IfcWall).
+       */
+      element_type: string
+      /**
+       * The qualified element reference (`<slug>:expr:<id>`).
+       */
+      express_id: string
+      /**
+       * Which point was returned (1-4 for corners, 5-6 for midpoints, 7 for centroid). P1-P6 require at least 4 bottom vertices.
+       */
+      point_index: number
+      /**
+       * World coordinates [x, y, z] in meters (rounded to 3 decimals / millimeter precision).
+       */
+      position: number[]
+      /**
+       * Euler-Rotationswinkel (X, Y, Z) in Grad (0-360). None wenn Placement nicht verfügbar.
+       */
+      rotation?: ({
+        /**
+         * Rotation um globale X-Achse in Grad (0-360).
+         */
+        rotation_x: number
+        /**
+         * Rotation um globale Y-Achse in Grad (0-360).
+         */
+        rotation_y: number
+        /**
+         * Rotation um globale Z-Achse in Grad (0-360).
+         */
+        rotation_z: number
+      } | null)
+    }[]
+  }
+  inputs: {
+    /**
+     * Qualified element references (`<slug>:expr:<id>`) to get positions from. Bind ifc_element_filter output here.
+     */
+    express_ids?: string[]
   }
 }
 /**
@@ -877,6 +942,50 @@ export interface Measurement {
     list_b?: (string[] | {
       [k: string]: (string | null)
     })
+  }
+}
+/**
+ * Define a 3D position and rotation via UI settings.
+ */
+export interface Set3DPositionRotation {
+  settings: {
+    /**
+     * 3D position [x, y, z] in meters.
+     */
+    position?: number[]
+    /**
+     * Euler angles [x, y, z] in degrees for rotation around each axis.
+     */
+    rotation?: number[]
+  }
+  result: {
+    /**
+     * List with one element containing position and rotation values.
+     */
+    elements?: {
+      /**
+       * Empty string (no IFC element reference).
+       */
+      express_id?: string
+      /**
+       * World coordinates [x, y, z] in meters.
+       */
+      position: number[]
+      rotation: {
+        /**
+         * Rotation around global X-axis in degrees.
+         */
+        rotation_x: number
+        /**
+         * Rotation around global Y-axis in degrees.
+         */
+        rotation_y: number
+        /**
+         * Rotation around global Z-axis in degrees.
+         */
+        rotation_z: number
+      }
+    }[]
   }
 }
 /**
