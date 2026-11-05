@@ -175,23 +175,25 @@ def _get_rotation_angles(placement: Any) -> dict[str, float]:
     }
 
 
-def _collect_descendant_shapes(element, model, seen: set[int]) -> list[tuple]:
+def _collect_descendant_shapes(
+    element: Any, model: Any, seen: set[int]
+) -> list[tuple[np.ndarray, np.ndarray]]:
     """
     Collects Body meshes of all aggregated child elements (recursively).
-    
+
     Inspired by tilt_of_components._collect_descendant_meshes.
-    
+
     Args:
         element: IFC entity (IfcWall or similar)
         model: IFC model instance
         seen: set of already processed express IDs (cycle guard)
-        
+
     Returns:
         List of (verts, faces) tuples for concatenation
     """
-    collected: list[tuple] = []
-    for rel in getattr(element, 'IsDecomposedBy', []) or []:
-        if not rel.is_a('IfcRelAggregates'):
+    collected: list[tuple[np.ndarray, np.ndarray]] = []
+    for rel in getattr(element, "IsDecomposedBy", []) or []:
+        if not rel.is_a("IfcRelAggregates"):
             continue
         for part in rel.RelatedObjects or []:
             part_id = part.id()
@@ -202,57 +204,61 @@ def _collect_descendant_shapes(element, model, seen: set[int]) -> list[tuple]:
                 settings = ifcopenshell.geom.settings()
                 settings.set("use-world-coords", True)
                 settings.set("context-types", ["Body"])
-                shape = ifcopenshell.geom.create_shape(settings, part)
-                geom = shape.geometry
-                if len(geom.verts) > 0 and len(geom.faces) > 0:
-                    collected.append((
-                        np.array(geom.verts).reshape((-1, 3)),
-                        np.array(geom.faces).reshape((-1, 3))
-                    ))
+                shape = ifcopenshell.geom.create_shape(settings, part)  # pyright: ignore[reportUnknownVariableType]
+                geom = shape.geometry  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType]
+                if len(geom.verts) > 0 and len(geom.faces) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                    collected.append(
+                        (
+                            np.array(geom.verts).reshape((-1, 3)),  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                            np.array(geom.faces).reshape((-1, 3)),  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                        )
+                    )
             except Exception:
                 pass
             collected.extend(_collect_descendant_shapes(part, model, seen))
     return collected
 
 
-def _get_composed_body_mesh(element, model) -> trimesh.Trimesh | None:
+def _get_composed_body_mesh(element: Any, model: Any) -> trimesh.Trimesh | None:
     """
     Builds a composed mesh from all aggregated children of an element.
-    
+
     Inspired by tilt_of_components._resolve_composed_mesh.
-    
+
     Args:
         element: IFC entity (IfcWall or similar)
         model: IFC model instance
-        
+
     Returns:
         Merged trimesh or None if no children with geometry found
     """
     children = _collect_descendant_shapes(element, model, set())
     if not children:
         return None
-    verts_list, faces_list = zip(*children)
+    verts_list, faces_list = zip(*children, strict=True)
     offsets = np.cumsum([0] + [len(v) for v in verts_list[:-1]])
     merged_verts = np.concatenate(verts_list)
-    merged_faces = np.concatenate([f + o for f, o in zip(faces_list, offsets)])
+    merged_faces = np.concatenate(
+        [f + o for f, o in zip(faces_list, offsets, strict=True)]
+    )
     return trimesh.Trimesh(
         np.asarray(merged_verts, dtype=np.float64),
         np.asarray(merged_faces, dtype=np.int64),
-        process=False
+        process=False,
     )
 
 
 def _extract_4_corners(bottom_vertices: np.ndarray) -> np.ndarray:
     """
     Extrahiert 4 äußere Eckpunkte aus N Bottom-Vertices mittels PCA.
-    
+
     Verwendet SVD zur Bestimmung der Hauptachsen und bildet ein OBB
     (Oriented Bounding Box) um alle Vertices. Die 4 Ecken des OBB werden
     als neue Bottom-Vertices zurückgegeben.
-    
+
     Args:
         bottom_vertices: N x 3 array of bottom vertices in world coordinates
-        
+
     Returns:
         4 x 3 array mit den 4 extrahierten Eckpunkten (world coordinates)
     """
@@ -284,6 +290,18 @@ def _extract_4_corners(bottom_vertices: np.ndarray) -> np.ndarray:
         )
 
     return corners_3d
+
+
+@overload
+def _get_element_centroid(
+    element: Any, return_bottom_vertices: Literal[False] = ..., model: Any = None
+) -> list[float] | None: ...
+
+
+@overload
+def _get_element_centroid(
+    element: Any, return_bottom_vertices: Literal[True], model: Any = None
+) -> tuple[list[float] | None, np.ndarray | None, float | None]: ...
 
 
 def _get_element_centroid(
@@ -401,7 +419,9 @@ def _get_element_centroid(
             if composed is not None and len(composed.faces) > 0:
                 vertices = composed.vertices
                 min_z = float(vertices[:, 2].min())
-                bottom_mask = np.isclose(vertices[:, 2], min_z, atol=FOOTPRINT_Z_TOLERANCE)
+                bottom_mask = np.isclose(
+                    vertices[:, 2], min_z, atol=FOOTPRINT_Z_TOLERANCE
+                )
                 bottom_vertices = vertices[bottom_mask]
 
                 if len(bottom_vertices) > 4:
@@ -514,7 +534,7 @@ def _get_footprint_points(
     # P1-P4 werden basierend auf der lokalen Y-Achse (Öffnungsrichtung)
     # zugewiesen. P1 liegt auf der Öffnungsseite (Vorderseite) links der Y-Achse.
     # Reihenfolge clockwise: P1 → P2 → P3 → P4
-    
+
     # Centroid-Y-Wert im lokalen System → trennt Vorder-/Rückseite
     local_centroid_y = np.mean(local_verts_array[:, 1])
 
@@ -546,17 +566,21 @@ def _get_footprint_points(
     p4_local = local_verts_final[3]
 
     # P5 = Mittelpunkt zwischen P1 und P2
-    p5_local = (
-        (p1_local[0] + p2_local[0]) / 2,
-        (p1_local[1] + p2_local[1]) / 2,
-        p1_local[2],
+    p5_local = np.array(
+        [
+            (p1_local[0] + p2_local[0]) / 2,
+            (p1_local[1] + p2_local[1]) / 2,
+            p1_local[2],
+        ]
     )
 
     # P6 = Mittelpunkt zwischen P3 und P4
-    p6_local = (
-        (p3_local[0] + p4_local[0]) / 2,
-        (p3_local[1] + p4_local[1]) / 2,
-        p3_local[2],
+    p6_local = np.array(
+        [
+            (p3_local[0] + p4_local[0]) / 2,
+            (p3_local[1] + p4_local[1]) / 2,
+            p3_local[2],
+        ]
     )
 
     # 6. Helper-Funktion: Lokale Koordinaten zurück ins Weltkoordinatensystem
@@ -631,7 +655,9 @@ async def get_element_creation_position_door(
             if opening is None:
                 continue
 
-            centroid, bottom_vertices, min_z = _get_element_centroid(opening, return_bottom_vertices=True, model=model)
+            centroid, bottom_vertices, min_z = _get_element_centroid(
+                opening, return_bottom_vertices=True, model=model
+            )
             if centroid is None or bottom_vertices is None or min_z is None:
                 continue
 
@@ -641,7 +667,9 @@ async def get_element_creation_position_door(
                 wall = opening_to_wall_map.get(opening.id())
                 wall_bottom_vertices = None
                 if wall is not None:
-                    _, wall_bottom_vertices, _ = _get_element_centroid(wall, return_bottom_vertices=True, model=model)
+                    _, wall_bottom_vertices, _ = _get_element_centroid(
+                        wall, return_bottom_vertices=True, model=model
+                    )
 
                 thickness_info = _get_thickness_info(
                     bottom_vertices,
@@ -666,12 +694,16 @@ async def get_element_creation_position_door(
 
         elif entity.is_a("IfcWall"):
             element_type = "IfcWall"
-            centroid, bottom_vertices, min_z = _get_element_centroid(entity, return_bottom_vertices=True, model=model)
+            centroid, bottom_vertices, min_z = _get_element_centroid(
+                entity, return_bottom_vertices=True, model=model
+            )
             if centroid is None or bottom_vertices is None or min_z is None:
                 continue
 
             if len(bottom_vertices) >= 4 and entity.ObjectPlacement:
-                all_points = _get_footprint_points(bottom_vertices, entity.ObjectPlacement, min_z)
+                all_points = _get_footprint_points(
+                    bottom_vertices, entity.ObjectPlacement, min_z
+                )
                 position = all_points.get(settings.point_index, centroid)
             else:
                 position = centroid
@@ -709,6 +741,7 @@ async def get_element_creation_position_door(
 @dataclass
 class ThicknessInfo:
     """Internal dataclass for thickness analysis results."""
+
     opening_thickness: float
     wall_thickness: float | None
     needs_clipping: bool
