@@ -4,9 +4,10 @@ import type { AvailableNode, NodeData, SupportedLocale } from '~/utils/nodes'
 import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
 import SlideOver from '~/components/nodes/Slideover.vue'
+import WorkflowFileActions from '~/components/nodes/WorkflowFileActions.vue'
 import WorkflowNode from '~/components/nodes/WorkflowNode.vue'
 import { useFlowStore } from '~/stores/flow'
-import { getAvailableNodes } from '~/utils/nodes'
+import { getAvailableNodes, nodeHasNoInput } from '~/utils/nodes'
 import { getNodeInputs, getNodeOutputs, isModelInput } from '~/utils/schema-helpers'
 
 import '@vue-flow/core/dist/style.css'
@@ -132,15 +133,13 @@ function getNextNodePosition() {
 function addNodeToCanvas(availableNode: AvailableNode, position?: { x: number, y: number }) {
   const shouldFitView = nodes.value.length === 0
 
-  const isFileInputNode = availableNode.nodeName === 'file_input'
-
   store.addNodes({
     id: nanoid(),
     type: 'custom',
     position: position ?? getNextNodePosition(),
     data: {
       label: availableNode.label,
-      noInput: isFileInputNode,
+      noInput: nodeHasNoInput(availableNode.nodeName),
       nodeName: availableNode.nodeName,
     },
   })
@@ -155,47 +154,15 @@ function clearCanvas() {
   store.clear()
 }
 
-function parseSettings(settings: any, _nodeType: string) {
-  const parsed = { ...settings }
-
-  return parsed
+async function handleWorkflowLoaded() {
+  // The panel points at a node id that the loaded workflow no longer has.
+  slideover.close()
+  await nextTick()
+  fitView(0.24)
 }
 
 async function runWorkflow() {
-  const workflowFiles = store.files
-    .filter(file => file.path)
-    .map(file => ({
-      path: file.path,
-      slug: file.slug,
-      hash: file.hash,
-    }))
-
-  const workflowNodeIds = new Set<string>()
-  const workflowNodes = nodes.value
-    .filter(node => node.data.nodeName !== 'JsonOutput')
-    .map((node) => {
-      workflowNodeIds.add(node.id)
-      return {
-        id: node.id,
-        type: node.data.nodeName.toLowerCase(),
-        label: node.data.label || '',
-        settings: parseSettings(node.data.settings || {}, node.data.nodeName),
-        input_bindings: node.data.input_bindings || {},
-      }
-    })
-
-  const workflowEdges = store.edges
-    .filter(edge => workflowNodeIds.has(edge.source) && workflowNodeIds.has(edge.target))
-    .map(edge => ({
-      source: edge.source,
-      target: edge.target,
-    }))
-
-  store.setWorkflowData({
-    files: workflowFiles,
-    nodes: workflowNodes,
-    edges: workflowEdges,
-  })
+  store.setWorkflowData(store.exportWorkflow())
 
   router.push({
     path: '/results',
@@ -217,7 +184,14 @@ async function runWorkflow() {
       <UDashboardPanel class="min-w-0">
         <template #default>
           <div class="flex h-full min-h-0 flex-col">
-            <ModelBar />
+            <div class="flex items-stretch border-b border-default bg-elevated">
+              <div class="flex min-w-0 flex-1">
+                <ModelBar />
+              </div>
+              <div class="flex shrink-0 items-center px-4">
+                <WorkflowFileActions @loaded="handleWorkflowLoaded" />
+              </div>
+            </div>
 
             <NodeCanvas
               class="min-h-0 flex-1"

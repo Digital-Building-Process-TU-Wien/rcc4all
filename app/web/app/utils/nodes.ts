@@ -108,6 +108,11 @@ export function getNodeLabel(nodeName: string): string {
   return formatNodeLabel(nodeName)
 }
 
+/** Nodes that never accept an incoming edge; their inputs come from settings only. */
+export function nodeHasNoInput(nodeName: string): boolean {
+  return nodeName === 'file_input'
+}
+
 function toSnakeCase(str: string): string {
   return str
     .replace(CAMEL_BOUNDARY_RE, '$1_$2')

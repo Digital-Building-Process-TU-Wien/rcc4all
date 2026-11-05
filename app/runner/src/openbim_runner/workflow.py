@@ -14,6 +14,11 @@ from openbim_runner.nodes.base import AutoBind
 from openbim_runner.util.geometry import build_geometry_cache
 
 
+class NodePosition(NodeModel):
+    x: float = Field(default=0, title="X", description="Canvas X coordinate.")
+    y: float = Field(default=0, title="Y", description="Canvas Y coordinate.")
+
+
 class WorkflowNode(NodeModel):
     id: str = Field(title="Node ID", description="Unique workflow node identifier.")
     type: str = Field(title="Node type", description="Registered node type name.")
@@ -31,6 +36,11 @@ class WorkflowNode(NodeModel):
         default={},
         title="Input bindings",
         description="Mappings from node input names to previously produced '<node_id>.<field_name>' references.",
+    )
+    position: NodePosition | None = Field(
+        default=None,
+        title="Position",
+        description="Canvas position. Persisted so the editor can restore layout; ignored by execution.",
     )
 
     def get_label(self) -> str:
