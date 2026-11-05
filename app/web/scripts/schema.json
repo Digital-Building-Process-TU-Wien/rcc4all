@@ -1701,6 +1701,428 @@
       ],
       "additionalProperties": false
     },
+    "opening_surface": {
+      "type": "object",
+      "title": "Opening Surface",
+      "description": "Retrieves the surfaces of openings that lie in the plane of the host surface (walls, slabs, roofs) and caches them as generated geometry for downstream nodes.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "The `opening_surface` node retrieves, for every opening of the input building\nelements, the void faces that lie in the plane of the host surface \u2014 the two cap\nfaces of the opening \u2014 and caches them as generated geometry for downstream\nnodes such as measurement or collision.\n\n## How it works\n\nFor each input element, the openings (`IfcRelVoidsElement`) and their cached\nBody meshes are resolved. The opening mesh triangles are grouped into planar\nsurfaces: triangles join a group when their normal deviates by less than ~1\u00b0\nand they lie on the same plane. The two largest groups with opposing normals\nare the cap faces in the plane of the host surface; the remaining groups (the\nreveal band cut into the host) are dropped.\n\n## Use case example\n\n- Measure the window opening area of exterior walls for daylight or fire-safety\n  checks: connect `ifc_element_filter` (walls) \u2192 `opening_surface` \u2192\n  `measurement` (surface area) via the `geometry_keys` output.\n- Retrieve the opening geometry of roofs and slabs (skylights, shafts) for\n  clash or clearance checks against other elements.\n\n## Inputs\n\n- **Express IDs** (required): a list of fully qualified element references\n  (`<slug>:expr:<id>`) of host building elements (e.g. walls, slabs, roofs).\n  Typically connected to the output of an `ifc_element_filter`. Each reference\n  resolves against the model named inside it, so mixed-model lists are allowed.\n  An unbound required input fails validation; an empty bound list processes\n  zero elements.\n\n## Outputs\n\nThe result is a flat list with one entry per opening:\n\n- `opening_count`: number of openings found on the input elements\n- `surface_count`: number of openings whose surfaces were retrieved into the\n  geometry cache\n- `geometry_keys`: the `gen:` geometry-cache keys of the retrieved opening\n  surfaces, in opening order \u2014 bind directly to geometry consumers such as\n  measurement or collision\n- `openings`: ordered list of\n  - `express_id` (the qualified opening reference), `guid` (GlobalId of the\n    opening), `host_express_id` (the qualified host reference)\n  - `geometry_key`: geometry-cache key of the retrieved cap faces\n  - `area`: opening area in the plane of the host surface (the larger cap face;\n    both caps are congruent for straight through-openings)\n  - `width` / `height`: extents of the opening surfaces within the host plane\n    (horizontal / vertical for wall openings)\n  - `depth`: distance between the two cap faces along the host surface normal;\n    `None` when the void exposes only one dominant flat face\n  - `error`: reason when the surfaces could not be retrieved (e.g. \"no cached\n    geometry\")\n\n## Generated geometry\n\nEach retrieved opening surface is cached as generated geometry under\n`gen:opening_surface_<slug>_<express_id>`, where `<express_id>` is the opening\nelement's express ID. These are user-referencable `gen:` keys \u2014 valid geometry\ncache keys for the measurement and collision nodes.\n\n## Notes and limitations\n\n- Only openings with a cached Body mesh are processed; openings without\n  tessellated geometry are reported with an error entry instead.\n- Each opening appears once, even when its host element is passed multiple\n  times. References that resolve to no entity contribute no openings.\n- The two-largest-opposing-surfaces heuristic matches openings whose cap faces\n  dominate the void. Strongly tapered voids report the larger (outer) cap as\n  `area`; niches whose back face rivals the cap (e.g. deep rectangular\n  recesses) can pick up the back face as the second cap.\n- Curved cap faces (e.g. arched openings) are grouped with a fixed ~1\u00b0 normal\n  tolerance, so the largest flat portion of the curve is retrieved.\n- Openings are only collected from the input elements themselves, not from\n  parts of decomposed elements.",
+      "locales": {
+        "de": {
+          "title": "\u00d6ffnungsfl\u00e4chen",
+          "description": "Ermittelt die \u00d6ffnungsfl\u00e4chen, die in der Ebene der Bauteiloberfl\u00e4che liegen (W\u00e4nde, Decken, D\u00e4cher), und speichert sie als generierte Geometrie f\u00fcr nachfolgende Nodes.",
+          "categories": [
+            "geometry"
+          ],
+          "markdownDescription": "Der `opening_surface`-Node ermittelt f\u00fcr jede \u00d6ffnung der Eingabe-Elemente die\nLeerraum-Fl\u00e4chen, die in der Ebene der Bauteiloberfl\u00e4che liegen \u2014 die beiden\nDeckelfl\u00e4chen der \u00d6ffnung \u2014 und speichert sie als generierte Geometrie f\u00fcr\nnachfolgende Nodes wie measurement oder collision.\n\n## Funktionsweise\n\nF\u00fcr jedes Eingabe-Element werden die \u00d6ffnungen (`IfcRelVoidsElement`) und ihre\nzwischengespeicherten Body-Netze aufgel\u00f6st. Die Dreiecke des \u00d6ffnungsnetzes\nwerden zu ebenen Fl\u00e4chen gruppiert: Dreiecke geh\u00f6ren zur gleichen Gruppe, wenn\nihre Normale um weniger als ~1\u00b0 abweicht und sie in derselben Ebene liegen.\nDie beiden gr\u00f6\u00dften Gruppen mit entgegengesetzten Normalen sind die\nDeckelfl\u00e4chen in der Ebene der Bauteiloberfl\u00e4che; die \u00fcbrigen Gruppen (die in\ndas Bauteil geschnittene Laibung) werden verworfen.\n\n## Anwendungsbeispiel\n\n- Fenster\u00f6ffnungsfl\u00e4chen von Au\u00dfenw\u00e4nden f\u00fcr Tageslicht- oder\n  Brandschutzpr\u00fcfungen messen: `ifc_element_filter` (W\u00e4nde) \u2192\n  `opening_surface` \u2192 `measurement` (surface area) \u00fcber den `geometry_keys`-Ausgang.\n- \u00d6ffnungsgeometrie von D\u00e4chern und Decken (Oberlichter, Sch\u00e4chte) f\u00fcr\n  Kollisions- oder Freiheitspr\u00fcfungen gegen\u00fcber anderen Elementen ermitteln.\n\n## Eingaben\n\n- **Express-IDs** (erforderlich): Liste voll qualifizierter Referenzen\n  (`<slug>:expr:<id>`) der tragenden Bauteile (z. B. W\u00e4nde, Decken, D\u00e4cher).\n  \u00dcblicherweise mit dem Ausgang eines `ifc_element_filter` verbunden. Jede\n  Referenz wird gegen das in ihr genannte Modell aufgel\u00f6st; gemischte Listen\n  aus mehreren Modellen sind erlaubt. Ohne Verbindung schl\u00e4gt die\n  Eingabevalidierung fehl.\n\n## Ausgaben\n\nDas Ergebnis ist eine flache Liste mit einem Eintrag pro \u00d6ffnung:\n\n- `opening_count`: Anzahl der auf den Eingabe-Elementen gefundenen \u00d6ffnungen\n- `surface_count`: Anzahl der \u00d6ffnungen, deren Fl\u00e4chen in den Geometrie-Cache\n  \u00fcbernommen wurden\n- `geometry_keys`: die `gen:`-Geometrie-Cache-Schl\u00fcssel der ermittelten\n  \u00d6ffnungsfl\u00e4chen, in \u00d6ffnungsreihenfolge \u2014 direkt an Geometrie-Consumer wie\n  measurement oder collision bindbar\n- `openings`: geordnete Liste aus\n  - `express_id` (voll qualifizierte \u00d6ffnungs-Referenz), `guid` (GlobalId der\n    \u00d6ffnung), `host_express_id` (voll qualifizierte Referenz des Bauteils)\n  - `geometry_key`: Geometrie-Cache-Schl\u00fcssel der ermittelten Deckelfl\u00e4chen\n  - `area`: \u00d6ffnungsfl\u00e4che in der Ebene der Bauteiloberfl\u00e4che (die gr\u00f6\u00dfere\n    Deckelfl\u00e4che; bei geraden Durchbr\u00fcchen sind beide Deckelfl\u00e4chen kongruent)\n  - `width` / `height`: Ausdehnungen der \u00d6ffnungsfl\u00e4chen innerhalb der\n    Bauteilebene (horizontal / vertikal bei Wand\u00f6ffnungen)\n  - `depth`: Abstand der beiden Deckelfl\u00e4chen entlang der Fl\u00e4chennormale;\n    `None`, wenn der Leerraum nur eine dominante ebene Fl\u00e4che aufweist\n  - `error`: Grund, wenn die Fl\u00e4chen nicht ermittelt werden konnten (z. B.\n    \u201eno cached geometry\")\n\n## Generierte Geometrie\n\nJede ermittelte \u00d6ffnungsfl\u00e4che wird als generierte Geometrie unter\n`gen:opening_surface_<slug>_<express_id>` gespeichert, wobei `<express_id>`\ndie Express-ID des \u00d6ffnungselements ist. Dies sind benutzerreferenzierbare\n`gen:`-Schl\u00fcssel \u2014 g\u00fcltige Geometrie-Cache-Keys f\u00fcr die measurement- und\ncollision-Nodes.\n\n## Hinweise und Einschr\u00e4nkungen\n\n- Nur \u00d6ffnungen mit zwischengespeichertem Body-Netz werden verarbeitet;\n  \u00d6ffnungen ohne tessellierte Geometrie erhalten stattdessen einen\n  Fehler-Eintrag.\n- Jede \u00d6ffnung erscheint genau einmal, auch wenn ihr Bauteil mehrfach\n  \u00fcbergeben wird. Referenzen ohne aufl\u00f6sbare Entit\u00e4t tragen keine \u00d6ffnungen bei.\n- Die Heuristik der zwei gr\u00f6\u00dften, entgegengesetzten Fl\u00e4chen passt f\u00fcr\n  \u00d6ffnungen, deren Deckelfl\u00e4chen den Leerraum dominieren. Stark konische\n  Leerr\u00e4ume melden die gr\u00f6\u00dfere (\u00e4u\u00dfere) Deckelfl\u00e4che als `area`; Nischen,\n  deren R\u00fcckfl\u00e4che der Deckelfl\u00e4che nahekommt (z. B. tiefe rechteckige\n  Taschen), k\u00f6nnen die R\u00fcckfl\u00e4che als zweite Deckelfl\u00e4che aufnehmen.\n- Gekr\u00fcmmte Deckelfl\u00e4chen (z. B. Sturz\u00f6ffnungen) werden mit einer festen\n  Normalen-Toleranz von ~1\u00b0 gruppiert; ermittelt wird der gr\u00f6\u00dfte ebenen Teil\n  der Kr\u00fcmmung.\n- \u00d6ffnungen werden nur von den Eingabe-Elementen selbst gesammelt, nicht von\n  Teilen zerlegter Elemente."
+        },
+        "en": {
+          "title": "Opening Surface",
+          "description": "Retrieves the surfaces of openings that lie in the plane of the host surface (walls, slabs, roofs) and caches them as generated geometry for downstream nodes.",
+          "categories": [
+            "geometry"
+          ],
+          "markdownDescription": "The `opening_surface` node retrieves, for every opening of the input building\nelements, the void faces that lie in the plane of the host surface \u2014 the two cap\nfaces of the opening \u2014 and caches them as generated geometry for downstream\nnodes such as measurement or collision.\n\n## How it works\n\nFor each input element, the openings (`IfcRelVoidsElement`) and their cached\nBody meshes are resolved. The opening mesh triangles are grouped into planar\nsurfaces: triangles join a group when their normal deviates by less than ~1\u00b0\nand they lie on the same plane. The two largest groups with opposing normals\nare the cap faces in the plane of the host surface; the remaining groups (the\nreveal band cut into the host) are dropped.\n\n## Use case example\n\n- Measure the window opening area of exterior walls for daylight or fire-safety\n  checks: connect `ifc_element_filter` (walls) \u2192 `opening_surface` \u2192\n  `measurement` (surface area) via the `geometry_keys` output.\n- Retrieve the opening geometry of roofs and slabs (skylights, shafts) for\n  clash or clearance checks against other elements.\n\n## Inputs\n\n- **Express IDs** (required): a list of fully qualified element references\n  (`<slug>:expr:<id>`) of host building elements (e.g. walls, slabs, roofs).\n  Typically connected to the output of an `ifc_element_filter`. Each reference\n  resolves against the model named inside it, so mixed-model lists are allowed.\n  An unbound required input fails validation; an empty bound list processes\n  zero elements.\n\n## Outputs\n\nThe result is a flat list with one entry per opening:\n\n- `opening_count`: number of openings found on the input elements\n- `surface_count`: number of openings whose surfaces were retrieved into the\n  geometry cache\n- `geometry_keys`: the `gen:` geometry-cache keys of the retrieved opening\n  surfaces, in opening order \u2014 bind directly to geometry consumers such as\n  measurement or collision\n- `openings`: ordered list of\n  - `express_id` (the qualified opening reference), `guid` (GlobalId of the\n    opening), `host_express_id` (the qualified host reference)\n  - `geometry_key`: geometry-cache key of the retrieved cap faces\n  - `area`: opening area in the plane of the host surface (the larger cap face;\n    both caps are congruent for straight through-openings)\n  - `width` / `height`: extents of the opening surfaces within the host plane\n    (horizontal / vertical for wall openings)\n  - `depth`: distance between the two cap faces along the host surface normal;\n    `None` when the void exposes only one dominant flat face\n  - `error`: reason when the surfaces could not be retrieved (e.g. \"no cached\n    geometry\")\n\n## Generated geometry\n\nEach retrieved opening surface is cached as generated geometry under\n`gen:opening_surface_<slug>_<express_id>`, where `<express_id>` is the opening\nelement's express ID. These are user-referencable `gen:` keys \u2014 valid geometry\ncache keys for the measurement and collision nodes.\n\n## Notes and limitations\n\n- Only openings with a cached Body mesh are processed; openings without\n  tessellated geometry are reported with an error entry instead.\n- Each opening appears once, even when its host element is passed multiple\n  times. References that resolve to no entity contribute no openings.\n- The two-largest-opposing-surfaces heuristic matches openings whose cap faces\n  dominate the void. Strongly tapered voids report the larger (outer) cap as\n  `area`; niches whose back face rivals the cap (e.g. deep rectangular\n  recesses) can pick up the back face as the second cap.\n- Curved cap faces (e.g. arched openings) are grouped with a fixed ~1\u00b0 normal\n  tolerance, so the largest flat portion of the curve is retrieved.\n- Openings are only collected from the input elements themselves, not from\n  parts of decomposed elements."
+        }
+      },
+      "properties": {
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "opening_count": {
+              "description": "Number of openings found on the input elements.",
+              "type": "integer"
+            },
+            "surface_count": {
+              "description": "Number of openings whose surfaces were retrieved into the geometry cache.",
+              "type": "integer"
+            },
+            "geometry_keys": {
+              "default": [],
+              "description": "Geometry-cache keys (`gen:`) of the retrieved opening surfaces, in opening order. Bind to geometry consumers such as measurement or collision.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "openings": {
+              "default": [],
+              "description": "Flat list of openings with their retrieved surface data.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "express_id": {
+                    "description": "The qualified opening reference (`<slug>:expr:<id>`).",
+                    "type": "string"
+                  },
+                  "guid": {
+                    "default": "",
+                    "description": "GlobalId of the opening element, empty when missing.",
+                    "type": "string"
+                  },
+                  "host_express_id": {
+                    "description": "Qualified reference of the host element the opening voids.",
+                    "type": "string"
+                  },
+                  "geometry_key": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Geometry-cache key (`gen:`) of the retrieved opening surfaces, or None when they could not be retrieved."
+                  },
+                  "area": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Opening area in the plane of the host surface (the larger cap face), or None when it could not be retrieved."
+                  },
+                  "width": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Horizontal extent of the opening surfaces in the host plane, or None when it could not be retrieved."
+                  },
+                  "height": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Vertical extent of the opening surfaces in the host plane, or None when it could not be retrieved."
+                  },
+                  "depth": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Distance between the two cap faces along the host surface normal. None when only one cap face exists (e.g. a recess) or when it could not be retrieved."
+                  },
+                  "error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Error reason when the opening surfaces could not be retrieved."
+                  }
+                },
+                "required": [
+                  "express_id",
+                  "host_express_id"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "opening_count",
+            "surface_count"
+          ],
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "express_ids": {
+              "description": "Qualified element references (`<slug>:expr:<id>`) of host building elements (e.g. walls, slabs, roofs) whose openings are retrieved. Bind ifc_element_filter output here.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "express_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
+    "opening_surface_ifc_generator": {
+      "type": "object",
+      "title": "Opening Surface IFC Generator",
+      "description": "Builds a self-contained IFC4X3 model of opening-surface cap faces from the opening_surface node, placed into the source model's spatial structure.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "The `opening_surface_ifc_generator` node writes a fresh IFC4X3 model from the\nopening surfaces retrieved by the `opening_surface` node. Each opening's cap\nface is emitted as a polygonal face set on an `IfcBuildingElementProxy`,\ntogether with an `IfcQuantityArea` carrying the opening area. The generated\nmodel replicates the project/site/building/storey hierarchy of the source model\nand contains every proxy in the storey that holds its host element.\n\n## How it works\n\n- Takes the `openings` output of an `opening_surface` node (does not tessellate\n  on demand \u2014 it reads the `gen:` geometry from the workflow cache).\n- For each opening it selects the larger cap-face group of the cached mesh,\n  flattens it into the plane of the host surface, and snaps the outline (outer\n  boundary and any holes) into `IfcIndexedPolygonalFaceSet` geometry.\n- Creates one `IfcBuildingElementProxy` per opening, placed at the world origin\n  (the cached cap geometry is already in world coordinates) and assigns a\n  quantity set `OpeningSurfaceQuantities` with `IfcQuantityArea` `OpeningArea`.\n- Copies the source model's spatial skeleton into the new file\n  (`IfcProject` \u2192 `IfcSite` \u2192 `IfcBuilding` \u2192 `IfcBuildingStorey`) including\n  the placement chain, and creates `IfcRelContainedInSpatialStructure` links\n  from each proxy to the storey containing its host.\n\n## Inputs\n\n- **Openings** (required): the `openings` output of the `opening_surface` node.\n  An unbound input fails validation; an empty list raises a node error.\n\n## Settings\n\n- **Output filename** (default `opening_surface_model.ifc`): the generated\n  file. It is written into the workflow output directory (the folder containing\n  the workflow file).\n\n## Outputs\n\n- `output_path`: absolute path of the generated IFC file\n- `element_count`: number of generated `IfcBuildingElementProxy` elements\n- `storey_count`: number of replicated `IfcBuildingStorey` elements\n- `elements`: ordered list, one entry per opening, with `opening_ref`,\n  `element_guid`, `host_ref`, `storey_ref`, `area` and `error`.\n\n## Notes and limitations\n\n- Only openings with a cached cap-face mesh are emitted; openings without\n  geometry are reported with an `error` entry and no element.\n- Only the opening-surface cap-face geometry is generated. The light prisms\n  (clear-view / light-incidence) are omitted because the required angles and\n  distances are not available from the `opening_surface` node.\n- Property sets are not created; only the `OpeningArea` quantity set is added.\n- A host element that is not contained in any building storey yields a proxy\n  without a spatial containment link (`storey_ref = None`).",
+      "locales": {
+        "de": {
+          "title": "\u00d6ffnungsfl\u00e4chen-IFC-Generator",
+          "description": "Erstellt ein eigenst\u00e4ndiges IFC4X3-Modell aus den Deckelfl\u00e4chen des opening_surface-Nodes und ordnet es der r\u00e4umlichen Struktur des Quellmodells zu.",
+          "categories": [
+            "geometry"
+          ],
+          "markdownDescription": "Der Node `opening_surface_ifc_generator` schreibt ein neues IFC4X3-Modell aus\nden \u00d6ffnungsfl\u00e4chen, die der Node `opening_surface` ermittelt. Jede\nDeckelfl\u00e4che einer \u00d6ffnung wird als polygonaler Fl\u00e4chenverbund auf einem\n`IfcBuildingElementProxy` ausgegeben, zusammen mit einem `IfcQuantityArea` f\u00fcr\ndie \u00d6ffnungsfl\u00e4che. Das erzeugte Modell bildet die Struktur\nProjekt/Standort/Geb\u00e4ude/Geschoss des Quellmodells nach und ordnet jeden Proxy\ndem Geschoss zu, das sein Bauteil enth\u00e4lt.\n\n## Funktionsweise\n\n- Liest den Ausgang `openings` eines `opening_surface`-Nodes (keine\n  Nach-Tessellierung \u2014 die `gen:`-Geometrie kommt aus dem Workflow-Cache).\n- W\u00e4hlt f\u00fcr jede \u00d6ffnung die gr\u00f6\u00dfere Deckelfl\u00e4che des gecachten Netzes, legt\n  sie in die Ebene der Bauteiloberfl\u00e4che und \u00fcberf\u00fchrt die Kontur (Au\u00dfenrand\n  und etwaige L\u00f6cher) in `IfcIndexedPolygonalFaceSet`-Geometrie.\n- Erstellt je \u00d6ffnung einen `IfcBuildingElementProxy` \u2014 platziert am\n  Weltursprung (die gecachte Deckelgeometrie liegt bereits in Weltkoordinaten)\n  \u2014 und weist das Mengenset `OpeningSurfaceQuantities` mit `IfcQuantityArea`\n  `OpeningArea` zu.\n- Kopiert das r\u00e4umliche Ger\u00fcst des Quellmodells in die neue Datei\n  (`IfcProject` \u2192 `IfcSite` \u2192 `IfcBuilding` \u2192 `IfcBuildingStorey`) samt\n  Platzierungskette und erzeugt `IfcRelContainedInSpatialStructure`-Verweise\n  vom Proxy zum Geschoss, das sein Bauteil enth\u00e4lt.\n\n## Eingaben\n\n- **\u00d6ffnungen** (erforderlich): der Ausgang `openings` des `opening_surface`-\n  Nodes. Ohne Verbindung schl\u00e4gt die Validierung fehl; eine leere Liste l\u00f6st\n  einen Node-Fehler aus.\n\n## Einstellungen\n\n- **Ausgabedateiname** (Standard `opening_surface_model.ifc`): die erzeugte\n  Datei. Sie wird im Workflow-Ausgabeverzeichnis (Ordner der Workflow-Datei)\n  gespeichert.\n\n## Ausgaben\n\n- `output_path`: absoluter Pfad der erzeugten IFC-Datei\n- `element_count`: Anzahl der erzeugten `IfcBuildingElementProxy`-Elemente\n- `storey_count`: Anzahl der nachgebildeten `IfcBuildingStorey`-Elemente\n- `elements`: geordnete Liste je \u00d6ffnung mit `opening_ref`, `element_guid`,\n  `host_ref`, `storey_ref`, `area` und `error`.\n\n## Hinweise und Einschr\u00e4nkungen\n\n- Nur \u00d6ffnungen mit gecachter Deckelfl\u00e4che werden ausgegeben; \u00d6ffnungen ohne\n  Geometrie erhalten einen `error`-Eintrag und kein Element.\n- Erzeugt wird ausschlie\u00dflich die Deckelgeometrie der \u00d6ffnungsfl\u00e4chen. Die\n  Lichtprismen (Sichtfeld / Lichteinfall) entfallen, da die ben\u00f6tigten Winkel\n  und Distanzen aus dem `opening_surface`-Node nicht verf\u00fcgbar sind.\n- Es werden keine Property-Sets erzeugt; nur das Mengenset `OpeningArea` wird\n  hinzugef\u00fcgt.\n- Ein Bauteil, das keinem Geschoss zugeordnet ist, ergibt einen Proxy ohne\n  r\u00e4umliche Einordnung (`storey_ref = None`)."
+        },
+        "en": {
+          "title": "Opening Surface IFC Generator",
+          "description": "Builds a self-contained IFC4X3 model of opening-surface cap faces from the opening_surface node, placed into the source model's spatial structure.",
+          "categories": [
+            "geometry"
+          ],
+          "markdownDescription": "The `opening_surface_ifc_generator` node writes a fresh IFC4X3 model from the\nopening surfaces retrieved by the `opening_surface` node. Each opening's cap\nface is emitted as a polygonal face set on an `IfcBuildingElementProxy`,\ntogether with an `IfcQuantityArea` carrying the opening area. The generated\nmodel replicates the project/site/building/storey hierarchy of the source model\nand contains every proxy in the storey that holds its host element.\n\n## How it works\n\n- Takes the `openings` output of an `opening_surface` node (does not tessellate\n  on demand \u2014 it reads the `gen:` geometry from the workflow cache).\n- For each opening it selects the larger cap-face group of the cached mesh,\n  flattens it into the plane of the host surface, and snaps the outline (outer\n  boundary and any holes) into `IfcIndexedPolygonalFaceSet` geometry.\n- Creates one `IfcBuildingElementProxy` per opening, placed at the world origin\n  (the cached cap geometry is already in world coordinates) and assigns a\n  quantity set `OpeningSurfaceQuantities` with `IfcQuantityArea` `OpeningArea`.\n- Copies the source model's spatial skeleton into the new file\n  (`IfcProject` \u2192 `IfcSite` \u2192 `IfcBuilding` \u2192 `IfcBuildingStorey`) including\n  the placement chain, and creates `IfcRelContainedInSpatialStructure` links\n  from each proxy to the storey containing its host.\n\n## Inputs\n\n- **Openings** (required): the `openings` output of the `opening_surface` node.\n  An unbound input fails validation; an empty list raises a node error.\n\n## Settings\n\n- **Output filename** (default `opening_surface_model.ifc`): the generated\n  file. It is written into the workflow output directory (the folder containing\n  the workflow file).\n\n## Outputs\n\n- `output_path`: absolute path of the generated IFC file\n- `element_count`: number of generated `IfcBuildingElementProxy` elements\n- `storey_count`: number of replicated `IfcBuildingStorey` elements\n- `elements`: ordered list, one entry per opening, with `opening_ref`,\n  `element_guid`, `host_ref`, `storey_ref`, `area` and `error`.\n\n## Notes and limitations\n\n- Only openings with a cached cap-face mesh are emitted; openings without\n  geometry are reported with an `error` entry and no element.\n- Only the opening-surface cap-face geometry is generated. The light prisms\n  (clear-view / light-incidence) are omitted because the required angles and\n  distances are not available from the `opening_surface` node.\n- Property sets are not created; only the `OpeningArea` quantity set is added.\n- A host element that is not contained in any building storey yields a proxy\n  without a spatial containment link (`storey_ref = None`)."
+        }
+      },
+      "properties": {
+        "settings": {
+          "additionalProperties": false,
+          "properties": {
+            "output_filename": {
+              "default": "opening_surface_model.ifc",
+              "description": "Name of the generated IFC file. Written into the workflow output directory (the folder containing the workflow file).",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "result": {
+          "additionalProperties": false,
+          "properties": {
+            "output_path": {
+              "description": "Absolute path of the generated IFC file.",
+              "type": "string"
+            },
+            "element_count": {
+              "description": "Number of generated opening-surface proxies.",
+              "type": "integer"
+            },
+            "storey_count": {
+              "description": "Number of building storeys replicated from the source model.",
+              "type": "integer"
+            },
+            "elements": {
+              "default": [],
+              "description": "Ordered list of generated proxies with their spatial relation.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "opening_ref": {
+                    "description": "Qualified reference of the source opening (`<slug>:expr:<id>`).",
+                    "type": "string"
+                  },
+                  "element_guid": {
+                    "description": "GlobalId of the generated IfcBuildingElementProxy.",
+                    "type": "string"
+                  },
+                  "host_ref": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Qualified reference of the host element the opening voids."
+                  },
+                  "storey_ref": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Qualified reference of the source building storey the proxy was contained in, or None when the host is not inside a storey."
+                  },
+                  "area": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Opening area written as an IfcQuantityArea on the proxy."
+                  },
+                  "error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Error reason when the proxy could not be generated."
+                  }
+                },
+                "required": [
+                  "opening_ref",
+                  "element_guid"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "output_path",
+            "element_count",
+            "storey_count"
+          ],
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": false,
+          "properties": {
+            "openings": {
+              "default": [],
+              "description": "Opening surface results of the opening_surface node. Bind its 'openings' output here.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "express_id": {
+                    "description": "The qualified opening reference (`<slug>:expr:<id>`).",
+                    "type": "string"
+                  },
+                  "guid": {
+                    "default": "",
+                    "description": "GlobalId of the opening element, empty when missing.",
+                    "type": "string"
+                  },
+                  "host_express_id": {
+                    "description": "Qualified reference of the host element the opening voids.",
+                    "type": "string"
+                  },
+                  "geometry_key": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Geometry-cache key (`gen:`) of the retrieved opening surfaces, or None when they could not be retrieved."
+                  },
+                  "area": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Opening area in the plane of the host surface (the larger cap face), or None when it could not be retrieved."
+                  },
+                  "width": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Horizontal extent of the opening surfaces in the host plane, or None when it could not be retrieved."
+                  },
+                  "height": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Vertical extent of the opening surfaces in the host plane, or None when it could not be retrieved."
+                  },
+                  "depth": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Distance between the two cap faces along the host surface normal. None when only one cap face exists (e.g. a recess) or when it could not be retrieved."
+                  },
+                  "error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Error reason when the opening surfaces could not be retrieved."
+                  }
+                },
+                "required": [
+                  "express_id",
+                  "host_express_id"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result",
+        "settings",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
     "tilt_of_components": {
       "type": "object",
       "title": "Tilt of Components",

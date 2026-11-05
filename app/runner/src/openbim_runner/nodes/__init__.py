@@ -17,6 +17,10 @@ from .ids_checker.ids_checker import ids_checker
 from .ifc_element_filter.ifc_element_filter import ifc_element_filter
 from .loi_check.loi_check import loi_check
 from .measurement.measurement import measurement
+from .opening_surface.opening_surface import opening_surface
+from .opening_surface_ifc_generator.opening_surface_ifc_generator import (
+    opening_surface_ifc_generator,
+)
 from .tilt_of_components.tilt_of_components import tilt_of_components
 
 __all__ = [
@@ -37,5 +41,7 @@ __all__ = [
     "loi_check",
     "measurement",
     "node",
+    "opening_surface",
+    "opening_surface_ifc_generator",
     "tilt_of_components",
 ]

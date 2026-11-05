@@ -79,6 +79,8 @@ const nodeNameToComponent: Record<string, string> = {
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
   measurement: 'Measurement',
+  opening_surface: 'OpeningSurface',
+  opening_surface_ifc_generator: 'OpeningSurfaceIfcGenerator',
   loi_check: 'LoiCheck',
   tilt_of_components: 'TiltOfComponents',
 }

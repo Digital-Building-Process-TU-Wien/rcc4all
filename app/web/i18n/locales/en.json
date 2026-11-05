@@ -357,6 +357,24 @@
       "presetXAxis": "X Axis",
       "presetYAxis": "Y Axis"
     },
+    "openingSurface": {
+      "title": "Opening Surface",
+      "description": "Retrieves the opening surfaces that lie in the plane of the host surface (walls, slabs, roofs) and caches them as generated geometry.",
+      "bindHint": "Bind the Express IDs input to an ifc_element_filter output that selects the host elements.",
+      "openingsOutput": "Openings (output)",
+      "openingCount": "{count} opening | {count} openings",
+      "noOutputYet": "No output yet. Run the workflow."
+    },
+    "openingSurfaceIfcGenerator": {
+      "title": "Opening Surface IFC Generator",
+      "description": "Builds a self-contained IFC4X3 model of the opening-surface cap faces, placed into the source model's spatial structure.",
+      "outputFilename": "Output filename",
+      "outputFilenamePlaceholder": "opening_surface_model.ifc",
+      "resultOutput": "Result (output)",
+      "elementCount": "{count} element | {count} elements",
+      "storeyCount": "{count} storey | {count} storeys",
+      "noOutputYet": "No output yet. Run the workflow."
+    },
     "idsChecker": {
       "title": "IDS Checker Node",
       "description": "Select a local development IDS file.",

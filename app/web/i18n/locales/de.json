@@ -357,6 +357,24 @@
       "presetXAxis": "X-Achse",
       "presetYAxis": "Y-Achse"
     },
+    "openingSurface": {
+      "title": "Öffnungsflächen",
+      "description": "Ermittelt die Öffnungsflächen, die in der Ebene der Bauteiloberfläche liegen (Wände, Decken, Dächer), und speichert sie als generierte Geometrie.",
+      "bindHint": "Verbinden Sie den Express-IDs-Eingang mit einem ifc_element_filter-Ausgang, der die Bauteile auswählt.",
+      "openingsOutput": "Öffnungen (Ausgabe)",
+      "openingCount": "{count} Öffnung | {count} Öffnungen",
+      "noOutputYet": "Noch keine Ausgabe. Führen Sie den Workflow aus."
+    },
+    "openingSurfaceIfcGenerator": {
+      "title": "Öffnungsflächen-IFC-Generator",
+      "description": "Erstellt ein eigenständiges IFC4X3-Modell aus den Deckelflächen der Öffnungsflächen und ordnet es der räumlichen Struktur des Quellmodells zu.",
+      "outputFilename": "Ausgabedateiname",
+      "outputFilenamePlaceholder": "opening_surface_model.ifc",
+      "resultOutput": "Ergebnis (Ausgabe)",
+      "elementCount": "{count} Element | {count} Elemente",
+      "storeyCount": "{count} Geschoss | {count} Geschosse",
+      "noOutputYet": "Noch keine Ausgabe. Führen Sie den Workflow aus."
+    },
     "idsChecker": {
       "title": "IDS Checker Node",
       "description": "Wählen Sie eine lokale IDS-Entwicklungsdatei aus.",
