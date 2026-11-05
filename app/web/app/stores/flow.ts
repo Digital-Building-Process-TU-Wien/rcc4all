@@ -2,6 +2,7 @@ import type { Edge, Node } from '@vue-flow/core'
 import type { Ref } from 'vue'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { nodeHasNoInput } from '~/utils/nodes'
 
 interface Viewport {
   x: number
@@ -15,10 +16,84 @@ export interface ModelFile {
   hash: string
 }
 
-interface WorkflowData {
+/** One node as the runner reads it. `position` is editor state it ignores. */
+export interface SerializedWorkflowNode {
+  id: string
+  type: string
+  label: string
+  settings: Record<string, any>
+  input_bindings: Record<string, string>
+  position: { x: number, y: number }
+}
+
+export interface SerializedWorkflowEdge {
+  source: string
+  target: string
+}
+
+/**
+ * The runnable workflow payload: assigned model files plus the serialized graph.
+ * `openbim_runner` forbids unknown keys, so this is also exactly what is written
+ * to `.dev-files` by the save dialog.
+ */
+export interface ExportedWorkflow {
   files: ModelFile[]
-  nodes: any[]
-  edges: any[]
+  nodes: SerializedWorkflowNode[]
+  edges: SerializedWorkflowEdge[]
+}
+
+function hydrateNode(raw: any): Node {
+  const data = raw?.data && typeof raw.data === 'object' ? raw.data : raw
+  const nodeName: string = data?.nodeName ?? raw.type ?? 'unknown'
+  return {
+    id: raw.id,
+    type: 'custom',
+    position: raw.position ?? { x: 0, y: 0 },
+    data: {
+      label: data?.label ?? '',
+      nodeName,
+      settings: data?.settings ?? {},
+      input_bindings: data?.input_bindings ?? {},
+      // The runner payload has no editor flags, so derive the ones fixed by the
+      // node type and keep any flag the file happens to carry.
+      ...(data?.noInput || nodeHasNoInput(nodeName) ? { noInput: true } : {}),
+    },
+  }
+}
+
+function hydrateEdge(raw: any, index: number): Edge {
+  return {
+    id: raw.id ?? `edge-${index}-${raw.source}-${raw.target}`,
+    source: raw.source,
+    target: raw.target,
+    // Handles are editor state, not part of the runner payload; the connect
+    // handler normalizes to these same ids.
+    sourceHandle: raw.sourceHandle ?? 'output',
+    targetHandle: raw.targetHandle ?? 'input',
+  }
+}
+
+function hydrateModelFiles(raw: unknown): ModelFile[] {
+  const entries = Array.isArray(raw) ? raw : []
+  const valid = entries
+    .filter((entry): entry is ModelFile =>
+      !!entry
+      && typeof entry === 'object'
+      && typeof (entry as ModelFile).slug === 'string'
+      && (entry as ModelFile).slug.length > 0
+      && typeof (entry as ModelFile).path === 'string',
+    )
+    .map(entry => ({
+      slug: entry.slug,
+      path: entry.path,
+      hash: typeof entry.hash === 'string' ? entry.hash : '',
+    }))
+
+  const main = valid.find(file => file.slug === 'main')
+  return [
+    { slug: 'main', path: main?.path ?? '', hash: main?.hash ?? '' },
+    ...valid.filter(file => file.slug !== 'main'),
+  ]
 }
 
 export const useFlowStore = defineStore('flow', () => {
@@ -32,7 +107,9 @@ export const useFlowStore = defineStore('flow', () => {
     y: 0,
     zoom: 1,
   })
-  const workflowData = ref<WorkflowData | null>(null)
+  const workflowData = ref<ExportedWorkflow | null>(null)
+  // Path (relative to `web/.dev-files`) of the workflow file last loaded/saved.
+  const activeWorkflowPath = ref<string | null>(null)
   // The `main` slot is always present but starts unassigned; no file is implied.
   const files = ref<ModelFile[]>([{ slug: 'main', path: '', hash: '' }])
 
@@ -94,14 +171,51 @@ export const useFlowStore = defineStore('flow', () => {
     viewport.value = { ...viewport.value, ...viewportUpdate }
   }
 
+  /** The runnable workflow payload: assigned model files plus the serialized graph. */
+  function exportWorkflow(): ExportedWorkflow {
+    const workflowNodes = nodes.value.filter(node => node.data.nodeName !== 'JsonOutput')
+    const keptIds = new Set(workflowNodes.map(node => node.id))
+
+    return {
+      files: files.value
+        .filter(file => file.path)
+        .map(file => ({ ...file })),
+      nodes: workflowNodes.map(node => ({
+        id: node.id,
+        type: node.data.nodeName.toLowerCase(),
+        label: node.data.label || '',
+        settings: node.data.settings ?? {},
+        input_bindings: node.data.input_bindings ?? {},
+        position: { x: node.position.x, y: node.position.y },
+      })),
+      edges: edges.value
+        .filter(edge => keptIds.has(edge.source) && keptIds.has(edge.target))
+        .map(edge => ({ source: edge.source, target: edge.target })),
+    }
+  }
+
+  /** Replace the canvas with a workflow read from `.dev-files`. */
+  function hydrate(workflow: any) {
+    setNodes((workflow?.nodes ?? []).map(hydrateNode))
+    setEdges((workflow?.edges ?? []).map(hydrateEdge))
+    // Loading a file replaces the canvas, so inherited model slots must not linger.
+    files.value = hydrateModelFiles(workflow?.files)
+    viewport.value = { x: 0, y: 0, zoom: 1 }
+  }
+
   function clear() {
     nodesById.value = {}
     edges.value = []
     viewport.value = { x: 0, y: 0, zoom: 1 }
     workflowData.value = null
+    activeWorkflowPath.value = null
   }
 
-  function setWorkflowData(data: WorkflowData) {
+  function setActiveWorkflowPath(path: string | null) {
+    activeWorkflowPath.value = path
+  }
+
+  function setWorkflowData(data: ExportedWorkflow) {
     workflowData.value = data
   }
 
@@ -204,6 +318,10 @@ export const useFlowStore = defineStore('flow', () => {
     updateNodeData,
     updateNodePosition,
     updateViewport,
+    exportWorkflow,
+    hydrate,
+    activeWorkflowPath,
+    setActiveWorkflowPath,
     setWorkflowData,
     getWorkflowData,
     addFile,
