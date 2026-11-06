@@ -1,20 +1,41 @@
 <script setup lang="ts">
-const props = defineProps<{
+interface Props {
   selectedPointIndex?: number
-}>()
+}
+
+interface Point {
+  x: number
+  y: number
+}
+
+const props = defineProps<Props>()
 
 const { t } = useI18n()
 
-// Punkt-Koordinaten im SVG-System (viewBox: 0 0 200 150)
-const points = {
-  1: { x: 40, y: 40 },
-  2: { x: 160, y: 40 },
-  3: { x: 160, y: 110 },
-  4: { x: 40, y: 110 },
-  5: { x: 100, y: 40 },
-  6: { x: 100, y: 110 },
-  7: { x: 100, y: 75 },
+const p1 = { x: 70, y: 130 }
+const p2 = { x: 170, y: 130 }
+const p3 = { x: 170, y: 200 }
+const p4 = { x: 70, y: 200 }
+const p5 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+const p6 = { x: (p3.x + p4.x) / 2, y: (p3.y + p4.y) / 2 }
+const p7 = { x: 120, y: 165 }
+
+const points: Record<number, Point> = {
+  1: p1,
+  2: p2,
+  3: p3,
+  4: p4,
+  5: p5,
+  6: p6,
+  7: p7,
 }
+
+function getPoint(index: number): Point {
+  return points[index] ?? p7
+}
+
+const doorWidth = p2.x - p1.x
+const hinge = p1
 
 function getPointClass(index: number) {
   if (props.selectedPointIndex === index) {
@@ -33,34 +54,56 @@ function getLabelClass(index: number) {
 
 <template>
   <div class="mt-2 mb-3 border border-slate-200 rounded bg-slate-50 p-3">
-    <div class="text-xs font-semibold text-slate-600 mb-2 text-center">
-      {{ t('node.getElementCreationPositionDoor.diagram.label') }}
-    </div>
-    <svg viewBox="0 0 200 150" class="w-full h-auto">
-      <!-- Außenrechteck (Footprint) -->
+    <svg viewBox="0 0 240 220" class="w-full h-auto">
+      <!-- Wand -->
       <rect
-        x="20"
-        y="20"
-        width="160"
-        height="110"
-        class="fill-white stroke-slate-300 stroke-2"
+        x="10"
+        y="130"
+        width="220"
+        height="70"
+        class="fill-slate-100 stroke-slate-300 stroke-2"
         rx="2"
       />
 
-      <!-- Verbindungslinien (diagonal für bessere Visualisierung) -->
-      <line x1="40" y1="40" x2="160" y2="110" class="stroke-slate-200 stroke-1" />
-      <line x1="160" y1="40" x2="40" y2="110" class="stroke-slate-200 stroke-1" />
+      <!-- Türöffnung -->
+      <rect
+        x="70"
+        y="130"
+        :width="doorWidth"
+        height="70"
+        class="fill-white stroke-slate-400 stroke-1 stroke-dasharray-2"
+        rx="2"
+      />
 
-      <!-- Mittellinien -->
-      <line x1="100" y1="40" x2="100" y2="110" class="stroke-slate-200 stroke-1 stroke-dasharray-2" />
-      <line x1="40" y1="75" x2="160" y2="75" class="stroke-slate-200 stroke-1 stroke-dasharray-2" />
+      <!-- Türblatt (geöffnet) -->
+      <line
+        :x1="hinge.x"
+        :y1="hinge.y"
+        :x2="hinge.x"
+        :y2="hinge.y - doorWidth"
+        class="stroke-slate-400 stroke-2 stroke-dasharray-2"
+      />
+
+      <!-- Schwenkbogen -->
+      <path
+        :d="`M ${p2.x} ${p2.y} A ${doorWidth} ${doorWidth} 0 0 0 ${hinge.x} ${hinge.y - doorWidth}`"
+        class="fill-none stroke-slate-400 stroke-2 stroke-dasharray-2"
+      />
+
+      <!-- Richtungs-Labels -->
+      <text x="120" y="10" text-anchor="middle" class="fill-slate-500 text-[9px] uppercase">
+        {{ t('node.getElementCreationPositionDoor.diagram.front') }}
+      </text>
+      <text x="120" y="213" text-anchor="middle" class="fill-slate-500 text-[9px] uppercase">
+        {{ t('node.getElementCreationPositionDoor.diagram.back') }}
+      </text>
 
       <!-- Punkte P1-P7 -->
       <circle
         v-for="index in [1, 2, 3, 4, 5, 6, 7]"
         :key="index"
-        :cx="points[index as keyof typeof points].x"
-        :cy="points[index as keyof typeof points].y"
+        :cx="getPoint(index).x"
+        :cy="getPoint(index).y"
         :r="index === 7 ? 10 : 6"
         :class="getPointClass(index)"
       />
@@ -69,8 +112,8 @@ function getLabelClass(index: number) {
       <text
         v-for="index in [1, 2, 3, 4, 5, 6, 7]"
         :key="index"
-        :x="points[index as keyof typeof points].x"
-        :y="points[index as keyof typeof points].y - (index === 7 ? 15 : 10)"
+        :x="getPoint(index).x"
+        :y="getPoint(index).y - (index === 7 ? 15 : 10)"
         text-anchor="middle"
         class="text-[10px] font-semibold"
         :class="getLabelClass(index)"
@@ -78,13 +121,6 @@ function getLabelClass(index: number) {
         P{{ index }}
       </text>
 
-      <!-- Richtungs-Labels -->
-      <text x="100" y="15" text-anchor="middle" class="fill-slate-500 text-[9px] uppercase">
-        {{ t('node.getElementCreationPositionDoor.diagram.front') }}
-      </text>
-      <text x="100" y="145" text-anchor="middle" class="fill-slate-500 text-[9px] uppercase">
-        {{ t('node.getElementCreationPositionDoor.diagram.back') }}
-      </text>
     </svg>
   </div>
 </template>

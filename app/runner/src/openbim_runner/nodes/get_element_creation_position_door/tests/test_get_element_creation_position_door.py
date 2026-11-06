@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Literal
 
 import ifcopenshell
+import ifcopenshell.geom
 import numpy as np
 import pytest
 
@@ -16,7 +18,10 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     _build_opening_to_wall_map,  # pyright: ignore[reportPrivateUsage]
     _clip_edge,  # pyright: ignore[reportPrivateUsage]
     _clip_opening_to_wall_polygon,  # pyright: ignore[reportPrivateUsage]
+    _collect_descendant_shapes,  # pyright: ignore[reportPrivateUsage]
     _extract_4_corners,  # pyright: ignore[reportPrivateUsage]
+    _get_composed_body_mesh,  # pyright: ignore[reportPrivateUsage]
+    _get_element_centroid,  # pyright: ignore[reportPrivateUsage]
     _get_element_thickness_direct,  # pyright: ignore[reportPrivateUsage]
     _get_footprint_points,  # pyright: ignore[reportPrivateUsage]
     _get_placement_matrix,  # pyright: ignore[reportPrivateUsage]
@@ -28,7 +33,9 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     get_element_creation_position_door,
 )
 
-TEST_DATA_DIR = Path(__file__).parent
+TEST_DATA_DIR = (
+    Path(__file__).resolve().parents[5] / "tests" / "testdata" / "models" / "buildings"
+)
 
 
 @pytest.fixture
@@ -303,12 +310,12 @@ def test_thickness_detection_equal(
     settings.set("context-types", ["Body"])
 
     opening_shape = ifcopenshell.geom.create_shape(settings, opening)  # pyright: ignore[reportAttributeAccessIssue]
-    opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))
+    opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
 
     wall_shape = ifcopenshell.geom.create_shape(settings, wall)  # pyright: ignore[reportAttributeAccessIssue]
-    wall_verts = np.array(wall_shape.geometry.verts).reshape((-1, 3))
+    wall_verts = np.array(wall_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
     min_z = wall_verts[:, 2].min()
     wall_bottom = wall_verts[np.isclose(wall_verts[:, 2], min_z, atol=0.001)]
 
@@ -352,7 +359,7 @@ def test_thickness_detection_wall_not_found(
     settings.set("context-types", ["Body"])
 
     opening_shape = ifcopenshell.geom.create_shape(settings, opening)  # pyright: ignore[reportAttributeAccessIssue]
-    opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))
+    opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
 
@@ -422,7 +429,7 @@ def test_clip_opening_to_wall_polygon(
     settings.set("context-types", ["Body"])
 
     opening_shape = ifcopenshell.geom.create_shape(settings, opening)
-    opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
+    opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]  # pyright: ignore[reportAttributeAccessIssue]
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
 
@@ -956,3 +963,140 @@ class TestSortPolygonCcw:
         )
         sorted_vertices = _sort_polygon_ccw(vertices)
         np.testing.assert_array_almost_equal(sorted_vertices, vertices)
+
+
+class TestMultilayerWallAggregates:
+    """Tests for walls with IfcRelAggregates children (no own Body geometry)."""
+
+    @pytest.fixture
+    def realworld_model(self) -> ifcopenshell.file:
+        """Load RealWorldTestModel with multilayered walls."""
+        ifc_path = TEST_DATA_DIR / "RealWorldTestModel-EscapeRouteAnalysis-ZDB-v5.ifc"
+        return ifcopenshell.open(str(ifc_path))
+
+    @pytest.fixture
+    def context(self, realworld_model: ifcopenshell.file) -> ExecutionContext:
+        return ExecutionContext(ifc_model=realworld_model, node_outputs={})
+
+    def test_multilayer_wall_door_position(self, context: ExecutionContext) -> None:
+        """Test door position extraction for a door in a multilayer wall (IfcRelAggregates).
+
+        Door GloballyId: 0oncCaDYb5JRd2G9UQrNES (Tür-002)
+        Wall #94031 (Wand-002) has no own Body geometry.
+        Its children [33364, 33411, 33458, 33425] have Body geometry via IfcRelAggregates.
+        """
+        door = context.ifc_model.by_id(34470)  # GloballyId 0oncCaDYb5JRd2G9UQrNES
+        assert door.GlobalId == "0oncCaDYb5JRd2G9UQrNES"
+
+        result = asyncio.run(
+            get_element_creation_position_door(
+                GetElementCreationPositionDoorSettings(point_index=7),
+                GetElementCreationPositionDoorInputs(
+                    express_ids=[f"main:expr:{door.id()}"]
+                ),
+                context,
+            )
+        )
+
+        assert len(result.elements) == 1
+        elem = result.elements[0]
+        assert elem.element_type == "IfcDoor"
+        assert elem.position is not None
+        assert len(elem.position) == 3
+        assert all(isinstance(v, float) for v in elem.position)
+
+    def test_multilayer_wall_door_all_points(self, context: ExecutionContext) -> None:
+        """Test all 7 footprint points for a door in a multilayer wall."""
+        door = context.ifc_model.by_id(34470)
+
+        point_indices: list[Literal[1, 2, 3, 4, 5, 6, 7]] = [1, 2, 3, 4, 5, 6, 7]
+        for point_index in point_indices:
+            result = asyncio.run(
+                get_element_creation_position_door(
+                    GetElementCreationPositionDoorSettings(point_index=point_index),
+                    GetElementCreationPositionDoorInputs(
+                        express_ids=[f"main:expr:{door.id()}"]
+                    ),
+                    context,
+                )
+            )
+
+            assert len(result.elements) == 1
+            elem = result.elements[0]
+            assert elem.point_index == point_index
+            assert elem.position is not None
+            assert len(elem.position) == 3
+
+    def test_multilayer_wall_composed_geometry_direct(self) -> None:
+        """Directly test _collect_descendant_shapes and _get_composed_body_mesh."""
+        ifc_path = TEST_DATA_DIR / "RealWorldTestModel-EscapeRouteAnalysis-ZDB-v5.ifc"
+        model = ifcopenshell.open(str(ifc_path))
+        wall = model.by_id(94031)  # Wand-002, no own Body geometry
+
+        # Wall has no Body geometry itself
+        settings = ifcopenshell.geom.settings()
+        settings.set("use-world-coords", True)
+        settings.set("context-types", ["Body"])
+        with pytest.raises(RuntimeError):
+            ifcopenshell.geom.create_shape(settings, wall)  # pyright: ignore[reportArgumentType]
+
+        # _collect_descendant_shapes finds all 4 children
+        children = _collect_descendant_shapes(wall, model, set())
+        assert len(children) == 4
+
+        # _get_composed_body_mesh creates a valid composed mesh
+        composed = _get_composed_body_mesh(wall, model)
+        assert composed is not None
+        assert len(composed.faces) > 0
+
+        # Bottom vertices should exist and be >= 4
+        vertices = composed.vertices
+        min_z = float(vertices[:, 2].min())
+        bottom_mask = np.isclose(vertices[:, 2], min_z, atol=0.001)
+        bottom_vertices = vertices[bottom_mask]
+        assert len(bottom_vertices) >= 4
+
+    def test_wall_centroid_with_model_param(self) -> None:
+        """Test that _get_element_centroid returns valid bottom vertices with model param."""
+        ifc_path = TEST_DATA_DIR / "RealWorldTestModel-EscapeRouteAnalysis-ZDB-v5.ifc"
+        model = ifcopenshell.open(str(ifc_path))
+        wall = model.by_id(94031)
+
+        # Without model param: should fall back to Axis (line, <4 bottom vertices)
+        result_no_model = _get_element_centroid(
+            wall, return_bottom_vertices=True, model=None
+        )
+        if result_no_model[1] is not None:
+            # Axis geometry gives a line, not a rectangle
+            assert len(result_no_model[1]) < 4  # or exactly 4 from BBox fallback
+
+        # With model param: should get composed geometry from children
+        centroid, bottom_vertices, min_z = _get_element_centroid(
+            wall, return_bottom_vertices=True, model=model
+        )
+        assert centroid is not None
+        assert bottom_vertices is not None
+        assert len(bottom_vertices) >= 4
+        assert min_z is not None
+
+    def test_door_with_multilayer_wall_clipping(
+        self, context: ExecutionContext
+    ) -> None:
+        """Test that clipping works correctly for door in multilayer wall."""
+        door = context.ifc_model.by_id(34470)
+
+        result = asyncio.run(
+            get_element_creation_position_door(
+                GetElementCreationPositionDoorSettings(point_index=1),
+                GetElementCreationPositionDoorInputs(
+                    express_ids=[f"main:expr:{door.id()}"]
+                ),
+                context,
+            )
+        )
+
+        assert len(result.elements) == 1
+        # P1 should be a valid corner (not the raw opening centroid)
+        elem = result.elements[0]
+        assert elem.position is not None
+        assert all(isinstance(v, float) for v in elem.position)
