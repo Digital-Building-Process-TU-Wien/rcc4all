@@ -72,15 +72,31 @@ def _run_real(
     )
 
 
-def test_real_model_generates_one_proxy_per_opening(
+def _expected_proxy_count(openings: list[OpeningSurface]) -> int:
+    """Both caps of a through-opening become independent proxies."""
+    return sum(2 if opening.depth is not None else 1 for opening in openings)
+
+
+def test_real_model_generates_one_proxy_per_cap_face(
     real_context: ExecutionContext, real_openings: list[OpeningSurface]
 ) -> None:
     result = _run_real(real_context, real_openings)
 
+    expected = _expected_proxy_count(real_openings)
     assert Path(result.output_path).exists()
-    assert result.element_count == len(real_openings)
-    assert len(result.elements) == len(real_openings)
+    assert result.element_count == expected
+    assert len(result.elements) == expected
     assert all(element.error is None for element in result.elements)
+
+    caps_per_opening: dict[str, list[int]] = {}
+    for element in result.elements:
+        caps_per_opening.setdefault(element.opening_ref, []).append(element.cap)
+    for opening in real_openings:
+        caps = caps_per_opening[opening.express_id]
+        if opening.depth is None:
+            assert caps == [0]
+        else:
+            assert sorted(caps) == [0, 1]
 
 
 def test_real_model_replicates_storeys_and_containment(
@@ -94,7 +110,7 @@ def test_real_model_replicates_storeys_and_containment(
 
     assert result.storey_count > 0
     assert result.storey_count == len(storeys)
-    assert len(containment) == len(real_openings)
+    assert len(containment) == _expected_proxy_count(real_openings)
     contained_ids = {rel.RelatingStructure.id() for rel in containment}
     assert contained_ids == {storey.id() for storey in storeys}
     assert all(element.storey_ref is not None for element in result.elements)
@@ -107,7 +123,8 @@ def test_real_model_proxies_have_tessellated_body(
     model = ifcopenshell.open(result.output_path)
 
     proxies = model.by_type("IfcBuildingElementProxy")
-    assert len(proxies) == len(real_openings)
+    assert len(proxies) == _expected_proxy_count(real_openings)
+    assert {proxy.Name for proxy in proxies} == {"OpeningSurface_0", "OpeningSurface_1"}
     for proxy in proxies:
         shape = proxy.Representation
         assert shape is not None
@@ -129,7 +146,7 @@ def test_real_model_assigns_area_quantity(
     model = ifcopenshell.open(result.output_path)
 
     quantities = model.by_type("IfcQuantityArea")
-    assert len(quantities) == len(real_openings)
+    assert len(quantities) == _expected_proxy_count(real_openings)
     quantity_values = {round(quantity.AreaValue, 6) for quantity in quantities}
     opening_areas = {round(opening.area or 0.0, 6) for opening in real_openings}
     assert quantity_values == opening_areas

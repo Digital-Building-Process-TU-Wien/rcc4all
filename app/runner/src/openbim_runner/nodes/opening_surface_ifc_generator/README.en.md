@@ -5,22 +5,27 @@ categories: geometry
 ---
 
 The `opening_surface_ifc_generator` node writes a fresh IFC4X3 model from the
-opening surfaces retrieved by the `opening_surface` node. Each opening's cap
-face is emitted as a polygonal face set on an `IfcBuildingElementProxy`,
-together with an `IfcQuantityArea` carrying the opening area. The generated
-model replicates the project/site/building/storey hierarchy of the source model
-and contains every proxy in the storey that holds its host element.
+opening surfaces retrieved by the `opening_surface` node. Each of an opening's
+cap faces (front and back) is emitted as an independent polygonal face set on
+its own `IfcBuildingElementProxy`, together with an `IfcQuantityArea` carrying
+the opening area. The generated model replicates the project/site/building/
+storey hierarchy of the source model and contains every proxy in the storey
+that holds its host element.
 
 ## How it works
 
 - Takes the `openings` output of an `opening_surface` node (does not tessellate
   on demand — it reads the `gen:` geometry from the workflow cache).
-- For each opening it selects the larger cap-face group of the cached mesh,
-  flattens it into the plane of the host surface, and snaps the outline (outer
-  boundary and any holes) into `IfcIndexedPolygonalFaceSet` geometry.
-- Creates one `IfcBuildingElementProxy` per opening, placed at the world origin
-  (the cached cap geometry is already in world coordinates) and assigns a
-  quantity set `OpeningSurfaceQuantities` with `IfcQuantityArea` `OpeningArea`.
+- **Each cached cap mesh already contains both cap faces of a through-opening.**
+  For every opening it splits the mesh into its cap-face groups (front + back,
+  or a single group for a recess), flattens each group into the plane of the
+  host surface, and snaps its outline (outer boundary and any holes) into
+  `IfcIndexedPolygonalFaceSet` geometry.
+- Creates one `IfcBuildingElementProxy` per cap face, named `OpeningSurface_0`
+  (larger cap) and `OpeningSurface_1` (its opposing cap), each placed at the
+  world origin (the cached cap geometry is already in world coordinates) and
+  assigned a quantity set `OpeningSurfaceQuantities` with `IfcQuantityArea`
+  `OpeningArea`.
 - Copies the source model's spatial skeleton into the new file
   (`IfcProject` → `IfcSite` → `IfcBuilding` → `IfcBuildingStorey`) including
   the placement chain, and creates `IfcRelContainedInSpatialStructure` links
@@ -42,8 +47,9 @@ and contains every proxy in the storey that holds its host element.
 - `output_path`: absolute path of the generated IFC file
 - `element_count`: number of generated `IfcBuildingElementProxy` elements
 - `storey_count`: number of replicated `IfcBuildingStorey` elements
-- `elements`: ordered list, one entry per opening, with `opening_ref`,
-  `element_guid`, `host_ref`, `storey_ref`, `area` and `error`.
+- `elements`: ordered list, one entry per generated proxy (two per
+  through-opening, one per recess), with `opening_ref`, `element_guid`, `cap`
+  (0 = larger cap, 1 = opposing), `host_ref`, `storey_ref`, `area` and `error`.
 
 ## Notes and limitations
 

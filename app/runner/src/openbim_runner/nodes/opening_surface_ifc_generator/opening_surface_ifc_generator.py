@@ -21,6 +21,9 @@ from openbim_runner.util.references import split_expr_key
 
 _ALIGNED_COS = math.cos(math.pi / 180.0)
 _PLANE_TOLERANCE = 0.01
+# Two cap-face groups count as the two faces of a through-opening while their
+# normals enclose at least 170°.
+_OPPOSING_COS = -math.cos(math.radians(10.0))
 
 
 class OpeningSurfaceIfcGeneratorSettings(NodeModel):
@@ -53,6 +56,14 @@ class OpeningSurfaceIfcElementResult(NodeModel):
     element_guid: str = Field(
         title="Element GUID",
         description="GlobalId of the generated IfcBuildingElementProxy.",
+    )
+    cap: int = Field(
+        default=0,
+        title="Cap index",
+        description=(
+            "Index of the cap face this proxy represents (0 = larger cap, 1 = "
+            "its opposing cap; a single-cap recess yields only cap 0)."
+        ),
     )
     host_ref: str | None = Field(
         default=None,
@@ -122,14 +133,15 @@ async def opening_surface_ifc_generator(
 
     elements: list[OpeningSurfaceIfcElementResult] = []
     for opening in inputs.openings:
-        result = _generate_opening(
-            context,
-            new_model,
-            storey_maps,
-            body_context,
-            opening,
+        elements.extend(
+            _generate_opening(
+                context,
+                new_model,
+                storey_maps,
+                body_context,
+                opening,
+            )
         )
-        elements.append(result)
 
     output_dir = Path(context.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -330,55 +342,75 @@ def _generate_opening(
     storey_maps: dict[str, dict[int, Any]],
     body_context: Any,
     opening: OpeningSurface,
-) -> OpeningSurfaceIfcElementResult:
+) -> list[OpeningSurfaceIfcElementResult]:
+    """Generate one proxy per cap face of ``opening``.
+
+    The cached opening mesh already holds both cap faces (front + back) of a
+    through-void, so each cap group is emitted as its own independent
+    ``IfcBuildingElementProxy``. A single-cap recess yields one proxy.
+    """
     if opening.geometry_key is None or opening.error is not None:
-        return OpeningSurfaceIfcElementResult(
-            opening_ref=opening.express_id,
-            element_guid="",
-            host_ref=opening.host_express_id,
-            error=opening.error or "missing geometry",
-        )
+        return [
+            OpeningSurfaceIfcElementResult(
+                opening_ref=opening.express_id,
+                element_guid="",
+                host_ref=opening.host_express_id,
+                error=opening.error or "missing geometry",
+            )
+        ]
 
     try:
         mesh = resolve_mesh(context, opening.geometry_key)
     except ValueError:
-        return OpeningSurfaceIfcElementResult(
-            opening_ref=opening.express_id,
-            element_guid="",
-            host_ref=opening.host_express_id,
-            error=f"unresolvable geometry '{opening.geometry_key}'",
-        )
+        return [
+            OpeningSurfaceIfcElementResult(
+                opening_ref=opening.express_id,
+                element_guid="",
+                host_ref=opening.host_express_id,
+                error=f"unresolvable geometry '{opening.geometry_key}'",
+            )
+        ]
 
-    cap_faces = _largest_cap_faces(mesh)
-    if not cap_faces:
-        return OpeningSurfaceIfcElementResult(
-            opening_ref=opening.express_id,
-            element_guid="",
-            host_ref=opening.host_express_id,
-            error="no planar cap faces in opening mesh",
-        )
-
-    triangles = np.asarray(mesh.vertices, dtype=np.float64)[
-        np.asarray(mesh.faces, dtype=np.int64)[cap_faces]
-    ]
-    solid_hole_pairs = _process_triangles(triangles)
-    if not solid_hole_pairs:
-        return OpeningSurfaceIfcElementResult(
-            opening_ref=opening.express_id,
-            element_guid="",
-            host_ref=opening.host_express_id,
-            error="no polygon outline derived from cap faces",
-        )
-
-    shape = _build_polygonal_face_set(new_model, body_context, solid_hole_pairs)
-    proxy = _create_proxy(new_model, shape)
-    _add_area_quantity(new_model, proxy, opening.area)
+    vertices = np.asarray(mesh.vertices, dtype=np.float64)
+    faces = np.asarray(mesh.faces, dtype=np.int64)
+    normals = _face_normals(vertices, faces)
+    cap_groups = _cap_groups(vertices, faces, normals)
+    if not cap_groups:
+        return [
+            OpeningSurfaceIfcElementResult(
+                opening_ref=opening.express_id,
+                element_guid="",
+                host_ref=opening.host_express_id,
+                error="no planar cap faces in opening mesh",
+            )
+        ]
 
     storey_ref = None
+    new_storey = None
     if opening.host_express_id:
         storey_ref, new_storey = _result_storey(
             context, storey_maps, opening.host_express_id
         )
+
+    results: list[OpeningSurfaceIfcElementResult] = []
+    for cap_index, cap_group in enumerate(cap_groups):
+        triangles = vertices[faces[cap_group]]
+        solid_hole_pairs = _process_triangles(triangles)
+        if not solid_hole_pairs:
+            results.append(
+                OpeningSurfaceIfcElementResult(
+                    opening_ref=opening.express_id,
+                    element_guid="",
+                    cap=cap_index,
+                    host_ref=opening.host_express_id,
+                    error="no polygon outline derived from cap faces",
+                )
+            )
+            continue
+
+        shape = _build_polygonal_face_set(new_model, body_context, solid_hole_pairs)
+        proxy = _create_proxy(new_model, shape, cap_index)
+        _add_area_quantity(new_model, proxy, opening.area)
         if new_storey is not None:
             new_model.createIfcRelContainedInSpatialStructure(
                 ifcopenshell.guid.new(),
@@ -389,26 +421,45 @@ def _generate_opening(
                 new_storey,
             )
 
-    return OpeningSurfaceIfcElementResult(
-        opening_ref=opening.express_id,
-        element_guid=str(proxy.GlobalId),
-        host_ref=opening.host_express_id,
-        storey_ref=storey_ref,
-        area=opening.area,
-    )
+        results.append(
+            OpeningSurfaceIfcElementResult(
+                opening_ref=opening.express_id,
+                element_guid=str(proxy.GlobalId),
+                cap=cap_index,
+                host_ref=opening.host_express_id,
+                storey_ref=storey_ref,
+                area=opening.area,
+            )
+        )
+    return results
 
 
-def _largest_cap_faces(mesh: Any) -> list[int]:
-    vertices = np.asarray(mesh.vertices, dtype=np.float64)
-    faces = np.asarray(mesh.faces, dtype=np.int64)
-    if len(faces) == 0:
+def _cap_groups(
+    vertices: np.ndarray, faces: np.ndarray, normals: np.ndarray
+) -> list[list[int]]:
+    """The cap face groups of an opening mesh.
+
+    The cached cap mesh contains the two opposing faces of a through-opening (or
+    one face for a recess). The largest planar group is the larger cap; its
+    largest opposing group (normals enclosing ≥170°) is the other cap. Returns
+    an empty list when the mesh has no planar faces.
+    """
+    sized = [
+        (group, _group_area(vertices, faces, group))
+        for group in _planar_groups(vertices, faces, normals)
+    ]
+    sized = [(group, area) for group, area in sized if area > 0.0]
+    sized.sort(key=lambda item: item[1], reverse=True)
+    if not sized:
         return []
-    normals = _face_normals(vertices, faces)
-    groups = _planar_groups(vertices, faces, normals)
-    if not groups:
-        return []
-    cap_group = max(groups, key=lambda group: _group_area(vertices, faces, group))
-    return [int(index) for index in cap_group]
+
+    caps = [sized[0][0]]
+    first_normal = normals[caps[0][0]]
+    for group, _area in sized[1:]:
+        if float(normals[group[0]] @ first_normal) <= _OPPOSING_COS:
+            caps.append(group)
+            break
+    return caps
 
 
 def _face_normals(vertices: np.ndarray, faces: np.ndarray) -> np.ndarray:
@@ -476,12 +527,12 @@ def _build_polygonal_face_set(
     return new_model.createIfcProductDefinitionShape(None, None, [representation])
 
 
-def _create_proxy(new_model: Any, shape: Any) -> Any:
+def _create_proxy(new_model: Any, shape: Any, cap_index: int) -> Any:
     placement = _local_placement(new_model, (0.0, 0.0, 0.0))
     return new_model.createIfcBuildingElementProxy(
         ifcopenshell.guid.new(),
         None,
-        "OpeningSurface",
+        f"OpeningSurface_{cap_index}",
         None,
         None,
         placement,

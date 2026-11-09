@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import Iterator
 from typing import Any, cast
 
 import ifcopenshell
+import numpy as np
 import pytest
 import trimesh
 
@@ -83,6 +85,86 @@ def _run(
     return asyncio.run(opening_surface(inputs, context))
 
 
+def _add_host_mesh(
+    context: ExecutionContext, host: _FakeHost, mesh: trimesh.Trimesh
+) -> None:
+    cache_mesh(context, mesh, express_id=host.id())
+
+
+# --- host-parallelity helpers ----------------------------------------------------
+
+_ALIGNED_COS = math.cos(math.pi / 180.0)
+_PLANE_TOLERANCE = 0.01
+_OPPOSING_COS = -math.cos(math.radians(10.0))
+
+
+def _face_normals(vertices: np.ndarray, faces: np.ndarray) -> np.ndarray:
+    v0 = vertices[faces[:, 0]]
+    v1 = vertices[faces[:, 1]]
+    v2 = vertices[faces[:, 2]]
+    cross = np.cross(v1 - v0, v2 - v0)
+    lengths = np.linalg.norm(cross, axis=1)
+    normals = np.zeros_like(cross)
+    np.divide(cross, lengths[:, None], out=normals, where=lengths[:, None] > 0)
+    return normals
+
+
+def _group_area(vertices: np.ndarray, faces: np.ndarray, group: list[int]) -> float:
+    v0 = vertices[faces[group, 0]]
+    v1 = vertices[faces[group, 1]]
+    v2 = vertices[faces[group, 2]]
+    cross = np.cross(v1 - v0, v2 - v0)
+    return float(0.5 * np.linalg.norm(cross, axis=1).sum())
+
+
+def _planar_groups(
+    vertices: np.ndarray, faces: np.ndarray, normals: np.ndarray
+) -> list[list[int]]:
+    first_points = vertices[faces[:, 0]]
+    assigned = np.zeros(len(faces), dtype=bool)
+    groups: list[list[int]] = []
+    for seed in range(len(faces)):
+        if assigned[seed]:
+            continue
+        normal = normals[seed]
+        offsets = (first_points - first_points[seed]) @ normal
+        same = (
+            (normals @ normal >= _ALIGNED_COS)
+            & (np.abs(offsets) <= _PLANE_TOLERANCE)
+            & ~assigned
+        )
+        same[seed] = True
+        assigned |= same
+        groups.append(np.flatnonzero(same).tolist())
+    return groups
+
+
+def _significant_host_normals(mesh: trimesh.Trimesh) -> list[np.ndarray]:
+    """Normals of the host's largest planar faces (its actual surface planes)."""
+    vertices = np.asarray(mesh.vertices, dtype=np.float64)
+    faces = np.asarray(mesh.faces, dtype=np.int64)
+    normals = _face_normals(vertices, faces)
+    sized = [
+        (group, _group_area(vertices, faces, group))
+        for group in _planar_groups(vertices, faces, normals)
+    ]
+    sized = [(group, area) for group, area in sized if area > 0.0]
+    if not sized:
+        return []
+    max_area = max(area for _group, area in sized)
+    return [normals[group[0]] for group, area in sized if area >= 0.2 * max_area]
+
+
+def _opening_cap_normal(mesh: trimesh.Trimesh) -> np.ndarray:
+    """Normal of the largest planar face of a retrieved opening surface mesh."""
+    vertices = np.asarray(mesh.vertices, dtype=np.float64)
+    faces = np.asarray(mesh.faces, dtype=np.int64)
+    normals = _face_normals(vertices, faces)
+    groups = _planar_groups(vertices, faces, normals)
+    largest = max(groups, key=lambda group: _group_area(vertices, faces, group))
+    return normals[largest[0]]
+
+
 # --- cap-face retrieval ---------------------------------------------------------
 
 
@@ -145,6 +227,32 @@ def test_opening_with_single_cap_face_has_no_depth() -> None:
     opening_result = result.openings[0]
     assert opening_result.area == pytest.approx(1.4)
     assert opening_result.depth is None
+
+
+def test_oversized_opening_is_clipped_to_host_planes() -> None:
+    context = _context()
+    # Wall: the two dominant opposing faces are the ±Z faces (thickness 0.4).
+    host = _FakeHost(20, [])
+    _add_entity(context, host)
+    _add_host_mesh(context, host, _box([2.0, 2.0, 0.4]))
+    # Opening prism crosses the wall along Z but extends far beyond it, so its
+    # largest faces (±X/±Y, 0.6 each) are perpendicular to the wall surface.
+    opening = _FakeOpening(21)
+    _add_entity(context, _FakeHost(20, [opening]))
+    _add_opening(context, opening, _box([0.3, 0.3, 2.0]))
+
+    result = _run(OpeningSurfaceInputs(express_ids=[_ref(20)]), context)
+
+    assert result.opening_count == 1
+    opening_result = result.openings[0]
+    assert opening_result.error is None
+    # The true hole is the ±Z cross-section, not the large perpendicular faces.
+    assert opening_result.area == pytest.approx(0.09, rel=1e-2)
+    assert opening_result.depth == pytest.approx(0.4, rel=1e-2)
+    assert opening_result.geometry_key is not None
+    cap_mesh = resolve_mesh(context, opening_result.geometry_key)
+    assert cap_mesh.bounds[0][2] == pytest.approx(-0.2, abs=1e-3)
+    assert cap_mesh.bounds[1][2] == pytest.approx(0.2, abs=1e-3)
 
 
 # --- edge cases -----------------------------------------------------------------
@@ -262,6 +370,101 @@ def test_all_model_openings_are_retrieved(
         assert opening.depth is not None and opening.depth > 0
         mesh = resolve_mesh(real_context, opening.geometry_key)
         assert len(mesh.faces) > 0
+
+    # Oversized cutter that extends beyond the wall: its surface must be the
+    # host-parallel hole (0.30 x 0.30) within the wall thickness, not the large
+    # perpendicular faces of the raw element.
+    entries = {
+        opening.express_id.split(":")[-1]: opening for opening in real_result.openings
+    }
+    oversized = entries["2555"]
+    assert oversized.area == pytest.approx(0.09, rel=0.01)
+    assert oversized.depth == pytest.approx(0.47, rel=0.01)
+    assert oversized.width == pytest.approx(0.30, rel=0.01)
+    assert oversized.height == pytest.approx(0.30, rel=0.01)
+
+
+def test_wall_opening_models_produce_host_parallel_caps() -> None:
+    expected: dict[str, dict[str, Any]] = {
+        "Testmodel-WallOpenings.ifc": {
+            "count": 10,
+            "areas": {"4188": 1.35, "4196": 1.7952},
+        },
+        "Testmodel-WallOpenings-Complex.ifc": {
+            "count": 22,
+            "areas": {"6303": 1.9404, "8059": 1.8415},
+        },
+    }
+    for model_file, meta in expected.items():
+        model = ifcopenshell.open(str(MODELS_ROOT / "specific" / model_file))
+        context = ExecutionContext(
+            ifc_model=cast(Any, model),
+            node_outputs={},
+            geometry_cache=build_geometry_cache(model),
+        )
+        refs = [f"main:expr:{entity.id()}" for entity in model.by_type("IfcWall")]
+        result = _run(OpeningSurfaceInputs(express_ids=refs), context)
+        assert result.opening_count == meta["count"]
+
+        entries = {
+            opening.express_id.split(":")[-1]: opening for opening in result.openings
+        }
+        for opening in result.openings:
+            assert opening.error is None
+            assert opening.geometry_key is not None
+            host_id = opening.host_express_id.split(":")[-1]
+            host_mesh = resolve_mesh(context, f"main:expr:{host_id}")
+            host_normals = _significant_host_normals(host_mesh)
+            assert host_normals
+            cap_normal = _opening_cap_normal(
+                resolve_mesh(context, opening.geometry_key)
+            )
+            parallel = max(abs(float(cap_normal @ normal)) for normal in host_normals)
+            assert parallel >= 0.98
+
+        for opening_id, area in meta["areas"].items():
+            assert entries[opening_id].area == pytest.approx(area, rel=0.02)
+
+
+def test_roof_openings_are_host_parallel_and_clipped_to_roof_thickness(
+    real_context: ExecutionContext, real_result: OpeningSurfaceResult
+) -> None:
+    """Roof openings lie in the plane of their pitch and are clipped to its slab.
+
+    The sloped roof (express 655) is ~0.35 units thick but is voided by cutters
+    that are ~0.52 deep. Every roof opening must therefore be clipped to the
+    pitch slab: its cap faces are host-parallel to one of the roof's significant
+    surface planes and its depth equals the roof thickness, not the raw cutter
+    length.
+    """
+    roof_openings = [
+        opening
+        for opening in real_result.openings
+        if opening.host_express_id.endswith(":655")
+    ]
+    assert len(roof_openings) == 5
+
+    for opening in roof_openings:
+        assert opening.error is None
+        assert opening.geometry_key is not None
+        assert opening.area is not None and opening.area > 0
+        assert opening.depth == pytest.approx(0.35, rel=0.01)
+
+        host_mesh = resolve_mesh(real_context, opening.host_express_id)
+        host_normals = _significant_host_normals(host_mesh)
+        assert host_normals
+        cap_normal = _opening_cap_normal(
+            resolve_mesh(real_context, opening.geometry_key)
+        )
+        parallel = max(abs(float(cap_normal @ normal)) for normal in host_normals)
+        assert parallel >= 0.98
+
+    entries = {opening.express_id.split(":")[-1]: opening for opening in roof_openings}
+    # The oversized cutters are clipped, so their area no longer reports the large
+    # unclipped cap of the raw cutting solid.
+    assert entries["667"].area == pytest.approx(1.8455, rel=0.01)
+    assert entries["679"].area == pytest.approx(7.9971, rel=0.01)
+    assert entries["817"].area == pytest.approx(2.8209, rel=0.01)
 
 
 def _filled_windows(real_context: ExecutionContext) -> Iterator[tuple[Any, Any]]:

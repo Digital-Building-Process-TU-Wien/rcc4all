@@ -5,24 +5,28 @@ categories: geometry
 ---
 
 Der Node `opening_surface_ifc_generator` schreibt ein neues IFC4X3-Modell aus
-den Öffnungsflächen, die der Node `opening_surface` ermittelt. Jede
-Deckelfläche einer Öffnung wird als polygonaler Flächenverbund auf einem
-`IfcBuildingElementProxy` ausgegeben, zusammen mit einem `IfcQuantityArea` für
-die Öffnungsfläche. Das erzeugte Modell bildet die Struktur
-Projekt/Standort/Gebäude/Geschoss des Quellmodells nach und ordnet jeden Proxy
-dem Geschoss zu, das sein Bauteil enthält.
+den Öffnungsflächen, die der Node `opening_surface` ermittelt. Jede der beiden
+Deckelflächen einer Öffnung (vorne und hinten) wird als eigenständiger
+polygonaler Flächenverbund auf einem eigenen `IfcBuildingElementProxy`
+ausgegeben, zusammen mit einem `IfcQuantityArea` für die Öffnungsfläche. Das
+erzeugte Modell bildet die Struktur Projekt/Standort/Gebäude/Geschoss des
+Quellmodells nach und ordnet jeden Proxy dem Geschoss zu, das sein Bauteil
+enthält.
 
 ## Funktionsweise
 
 - Liest den Ausgang `openings` eines `opening_surface`-Nodes (keine
   Nach-Tessellierung — die `gen:`-Geometrie kommt aus dem Workflow-Cache).
-- Wählt für jede Öffnung die größere Deckelfläche des gecachten Netzes, legt
-  sie in die Ebene der Bauteiloberfläche und überführt die Kontur (Außenrand
-  und etwaige Löcher) in `IfcIndexedPolygonalFaceSet`-Geometrie.
-- Erstellt je Öffnung einen `IfcBuildingElementProxy` — platziert am
-  Weltursprung (die gecachte Deckelgeometrie liegt bereits in Weltkoordinaten)
-  — und weist das Mengenset `OpeningSurfaceQuantities` mit `IfcQuantityArea`
-  `OpeningArea` zu.
+- **Jedes gecachte Deckelnetz enthält bereits beide Deckelflächen eines
+  Durchbruchs.** Für jede Öffnung wird das Netz in seine Deckelflächen-Gruppen
+  zerlegt (vorne + hinten, bei einer Nische nur eine Gruppe), jede Gruppe in
+  die Ebene der Bauteiloberfläche gelegt und ihre Kontur (Außenrand und
+  etwaige Löcher) in `IfcIndexedPolygonalFaceSet`-Geometrie überführt.
+- Erstellt je Deckelfläche einen `IfcBuildingElementProxy` — benannt
+  `OpeningSurface_0` (größere Deckelfläche) und `OpeningSurface_1` (die
+  gegenüberliegende) — platziert am Weltursprung (die gecachte
+  Deckelgeometrie liegt bereits in Weltkoordinaten) und weist das Mengenset
+  `OpeningSurfaceQuantities` mit `IfcQuantityArea` `OpeningArea` zu.
 - Kopiert das räumliche Gerüst des Quellmodells in die neue Datei
   (`IfcProject` → `IfcSite` → `IfcBuilding` → `IfcBuildingStorey`) samt
   Platzierungskette und erzeugt `IfcRelContainedInSpatialStructure`-Verweise
@@ -45,8 +49,9 @@ dem Geschoss zu, das sein Bauteil enthält.
 - `output_path`: absoluter Pfad der erzeugten IFC-Datei
 - `element_count`: Anzahl der erzeugten `IfcBuildingElementProxy`-Elemente
 - `storey_count`: Anzahl der nachgebildeten `IfcBuildingStorey`-Elemente
-- `elements`: geordnete Liste je Öffnung mit `opening_ref`, `element_guid`,
-  `host_ref`, `storey_ref`, `area` und `error`.
+- `elements`: geordnete Liste je erzeugtem Proxy (zwei je Durchbruch, eine je
+  Nische) mit `opening_ref`, `element_guid`, `cap` (0 = größere Deckelfläche,
+  1 = gegenüberliegende), `host_ref`, `storey_ref`, `area` und `error`.
 
 ## Hinweise und Einschränkungen
 

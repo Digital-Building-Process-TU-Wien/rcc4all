@@ -776,6 +776,10 @@ export interface OpeningSurfaceIFCGenerator {
        */
       element_guid: string
       /**
+       * Index of the cap face this proxy represents (0 = larger cap, 1 = its opposing cap; a single-cap recess yields only cap 0).
+       */
+      cap?: number
+      /**
        * Qualified reference of the host element the opening voids.
        */
       host_ref?: (string | null)

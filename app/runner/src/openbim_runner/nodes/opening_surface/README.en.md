@@ -18,6 +18,18 @@ and they lie on the same plane. The two largest groups with opposing normals
 are the cap faces in the plane of the host surface; the remaining groups (the
 reveal band cut into the host) are dropped.
 
+Because an `IfcOpeningElement` is a cutting solid that often extends far beyond
+the element it voids, the largest opposing faces are not always the hole in the
+host. The node therefore clips the opening solid to the host's surface slab and
+selects its host-parallel faces, so the retrieved area is the true hole, the cap
+faces lie in the host surface plane, and `depth` is the host surface thickness.
+The host's dominant (largest) opposing surface pair defines the slab; when an
+opening sits in a different surface of a multi-face host (e.g. the secondary
+pitch of a gable roof), the neighbouring surface pair the opening actually
+pierces is used instead. When the host cannot be analysed (no cached mesh, no
+dominant opposing pair) or clipping cuts no through-void (a recess, a single-cap
+void), the two-largest-opposing heuristic is used as a fallback.
+
 ## Use case example
 
 - Measure the window opening area of exterior walls for daylight or fire-safety
@@ -75,6 +87,17 @@ cache keys for the measurement and collision nodes.
   dominate the void. Strongly tapered voids report the larger (outer) cap as
   `area`; niches whose back face rivals the cap (e.g. deep rectangular
   recesses) can pick up the back face as the second cap.
+- Openings are oversized cutting solids, so the retrieved opening surface is
+  always clipped to the host surface slab it voids and lies in the plane of that
+  surface. The dominant surface pair (the two largest opposing faces) gives the
+  slab for the common case (wall thickness, roof/slab thickness); for a multi-face
+  host such as a multi-slope roof the surface pair the opening actually pierces is
+  used instead. The enlarged faces that fall outside the host are dropped, so
+  `area` is the physical hole and `depth` is the host surface thickness at the
+  opening. The clip is a no-op for openings that already fit within the host slab
+  (recesses, shallow windows). When the host mesh is unavailable, or the clip
+  cuts no through-void (a recess or single-cap void), the two-largest heuristic is
+  used as a fallback.
 - Curved cap faces (e.g. arched openings) are grouped with a fixed ~1° normal
   tolerance, so the largest flat portion of the curve is retrieved.
 - Openings are only collected from the input elements themselves, not from

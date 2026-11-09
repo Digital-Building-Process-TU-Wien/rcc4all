@@ -19,6 +19,22 @@ Die beiden größten Gruppen mit entgegengesetzten Normalen sind die
 Deckelflächen in der Ebene der Bauteiloberfläche; die übrigen Gruppen (die in
 das Bauteil geschnittene Laibung) werden verworfen.
 
+Da ein `IfcOpeningElement` ein Schneidekörper ist, der oft weit über das
+durchbrochene Element hinausragt, sind die größten entgegengesetzten Flächen
+nicht immer das Loch im Bauteil. Der Node beschnitten daher den Öffnungskörper
+auf die Oberflächenplatte des Bauteils und wählt dessen bauteilparallelen
+Flächen aus, damit die ermittelte Fläche das tatsächliche Loch ist, die
+Deckelflächen in der Ebene der Bauteiloberfläche liegen und `depth` der Dicke
+der Bauteiloberfläche entspricht. Das dominante (größte) gegensinnige
+Oberflächenpaar des Bauteils definiert die Platte; liegt eine Öffnung in einer
+anderen Oberfläche eines vielflächigen Bauteils (z. B. der sekundären Schräge
+eines Satteldachs), wird stattdessen das benachbarte, tatsächlich durchstoßene
+Flächenpaar verwendet. Kann das Bauteil nicht analysiert werden (kein
+zwischengespeichertes Netz, kein dominantes gegensinniges Paar) oder schneidet
+der Zuschnitt keinen Durchbruch (eine Nische, ein Nut mit nur einer Deckelfläche),
+wird als Fallback die Heuristik der zwei größten entgegengesetzten Flächen
+verwendet.
+
 ## Anwendungsbeispiel
 
 - Fensteröffnungsflächen von Außenwänden für Tageslicht- oder
@@ -79,6 +95,19 @@ collision-Nodes.
   Leerräume melden die größere (äußere) Deckelfläche als `area`; Nischen,
   deren Rückfläche der Deckelfläche nahekommt (z. B. tiefe rechteckige
   Taschen), können die Rückfläche als zweite Deckelfläche aufnehmen.
+- Öffnungen sind überdimensionierte Schneidekörper; die ermittelte
+  Öffnungsfläche wird daher immer auf die durchstoßene Oberflächenplatte des
+  Bauteils beschnitten und liegt in deren Ebene. Das dominante Oberflächenpaar
+  (die zwei größten entgegengesetzten Flächen) liefert die Platte für den
+  Normalfall (Wanddicke, Decken-/Dachdicke); bei einem vielflächigen Bauteil wie
+  einem mehrschrägigen Dach wird das vom Öffnungskörper tatsächlich durchstoßene
+  Flächenpaar verwendet. Die außerhalb des Bauteils liegenden vergrößerten
+  Flächen werden verworfen, sodass `area` das physische Loch und `depth` die
+  Dicke der Bauteiloberfläche an der Öffnung ist. Der Zuschnitt ist für
+  Öffnungen, die bereits in die Bauteilplatte passen (Nischen, flache Fenster),
+  wirkungslos. Bei fehlendem Bauteilnetz oder wenn der Zuschnitt keinen Durchbruch
+  schneidet (Nische, einzelne Deckelfläche), wird auf die
+  Zwei-größten-Heuristik zurückgegriffen.
 - Gekrümmte Deckelflächen (z. B. Sturzöffnungen) werden mit einer festen
   Normalen-Toleranz von ~1° gruppiert; ermittelt wird der größte ebenen Teil
   der Krümmung.
