@@ -11,11 +11,41 @@ import trimesh
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
-from openbim_runner.util.references import parse_element_refs
+from openbim_runner.util.geometry import GEOMETRY_LIBRARY
+from openbim_runner.util.openings import (
+    build_door_to_opening_map,
+    build_opening_to_wall_map,
+)
+from openbim_runner.util.references import expr_key, parse_element_refs
 
 FOOTPRINT_Z_TOLERANCE = (
     0.001  # 1mm tolerance for floating-point comparison (bottom vertices, in meters)
 )
+
+# ifcopenshell.geom has incomplete type stubs. create_shape's member is partially
+# unknown, so bind the entry points to Any once here; the many call sites below
+# then don't each need their own pyright ignore.
+_create_shape: Any = ifcopenshell.geom.create_shape  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+_iterator: Any = ifcopenshell.geom.iterator
+
+
+def _mesh_from_shape(
+    settings: Any, element: Any
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Builds (verts, faces) as (N,3) numpy arrays from an element via create_shape.
+
+    Returns None when the shape has no verts/faces (empty geometry). The shape
+    type from ifcopenshell is a union whose members expose .geometry at runtime;
+    binding create_shape to Any above keeps this helper free of pyright ignores.
+    """
+    shape = _create_shape(settings, element, geometry_library=GEOMETRY_LIBRARY)
+    geometry = shape.geometry
+    if len(geometry.verts) == 0 or len(geometry.faces) == 0:
+        return None
+    return (
+        np.array(geometry.verts).reshape((-1, 3)),
+        np.array(geometry.faces).reshape((-1, 3)),
+    )
 
 
 def _round_position(position: list[float]) -> list[float]:
@@ -201,15 +231,9 @@ def _collect_descendant_shapes(
                 settings = ifcopenshell.geom.settings()
                 settings.set("use-world-coords", True)
                 settings.set("context-types", ["Body"])
-                shape = ifcopenshell.geom.create_shape(settings, part)  # pyright: ignore[reportUnknownVariableType]
-                geom = shape.geometry  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType]
-                if len(geom.verts) > 0 and len(geom.faces) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                    collected.append(
-                        (
-                            np.array(geom.verts).reshape((-1, 3)),  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                            np.array(geom.faces).reshape((-1, 3)),  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                        )
-                    )
+                mesh = _mesh_from_shape(settings, part)
+                if mesh is not None:
+                    collected.append(mesh)
             except Exception:
                 pass
             collected.extend(_collect_descendant_shapes(part, model, seen))
@@ -243,6 +267,48 @@ def _get_composed_body_mesh(element: Any, model: Any) -> trimesh.Trimesh | None:
         np.asarray(merged_faces, dtype=np.int64),
         process=False,
     )
+
+
+def _footprint_from_mesh(
+    vertices: np.ndarray,
+    faces: np.ndarray | None,
+    return_bottom_vertices: bool,
+) -> list[float] | tuple[list[float] | None, np.ndarray | None, float | None]:
+    """
+    Derives (centroid, bottom_vertices, min_z) from raw triangulated geometry.
+
+    Shared by the geometry-cache path and the create_shape fallback so the
+    centroid/footprint math is identical regardless of source.
+    """
+    min_z = float(vertices[:, 2].min())
+    bottom_mask = np.isclose(vertices[:, 2], min_z, atol=FOOTPRINT_Z_TOLERANCE)
+    bottom_vertices = vertices[bottom_mask]
+
+    # >4 vertices: OBB-based corner extraction (only 4 corners)
+    if len(bottom_vertices) > 4:
+        bottom_vertices = _extract_4_corners(bottom_vertices)
+
+    # Need at least 4 points for a valid 2D centroid (rectangular opening)
+    if len(bottom_vertices) >= 4:
+        # 2D centroid from bottom corners (X, Y mean)
+        centroid_x = float(bottom_vertices[:, 0].mean())
+        centroid_y = float(bottom_vertices[:, 1].mean())
+        centroid_z = min_z
+    else:
+        # Fallback: 3D mesh centroid if too few bottom points (<4)
+        if faces is None or len(faces) == 0:
+            return (None, None, None) if return_bottom_vertices else None  # type: ignore[return-value]
+        mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
+        centroid_x, centroid_y, centroid_z = (
+            float(mesh.centroid[0]),
+            float(mesh.centroid[1]),
+            float(mesh.centroid[2]),
+        )
+
+    centroid = [centroid_x, centroid_y, centroid_z]
+    if return_bottom_vertices:
+        return centroid, bottom_vertices, min_z
+    return centroid
 
 
 def _extract_4_corners(bottom_vertices: np.ndarray) -> np.ndarray:
@@ -289,13 +355,23 @@ def _extract_4_corners(bottom_vertices: np.ndarray) -> np.ndarray:
 
 @overload
 def _get_element_centroid(
-    element: Any, return_bottom_vertices: Literal[False] = ..., model: Any = None
+    element: Any,
+    return_bottom_vertices: Literal[False] = ...,
+    model: Any = None,
+    *,
+    slug: str | None = None,
+    geometry_cache: dict[str, trimesh.Trimesh] | None = None,
 ) -> list[float] | None: ...
 
 
 @overload
 def _get_element_centroid(
-    element: Any, return_bottom_vertices: Literal[True], model: Any = None
+    element: Any,
+    return_bottom_vertices: Literal[True],
+    model: Any = None,
+    *,
+    slug: str | None = None,
+    geometry_cache: dict[str, trimesh.Trimesh] | None = None,
 ) -> tuple[list[float] | None, np.ndarray | None, float | None]: ...
 
 
@@ -303,6 +379,9 @@ def _get_element_centroid(
     element: Any,
     return_bottom_vertices: bool = False,
     model: Any = None,
+    *,
+    slug: str | None = None,
+    geometry_cache: dict[str, trimesh.Trimesh] | None = None,
 ) -> list[float] | None | tuple[list[float] | None, np.ndarray | None, float | None]:
     """
     Computes the geometric centroid of an element as a 3D point.
@@ -312,11 +391,33 @@ def _get_element_centroid(
         element: IfcOpeningElement or IfcWall entity
         return_bottom_vertices: If True, returns (centroid, bottom_vertices) tuple
         model: IFC model instance (used for composed geometry via IfcRelAggregates)
+        slug: Model slug for the geometry-cache key (<slug>:expr:<id>)
+        geometry_cache: Shared workflow geometry cache. When the element's Body mesh
+            is already cached it is reused instead of re-tessellating via create_shape.
 
     Returns:
         [x, y, z] in world coordinates (meters), or None if geometry is unavailable.
         If return_bottom_vertices is True, returns (centroid, bottom_vertices) tuple.
     """
+    # Cache-first: the workflow already tessellated Body geometry for almost all
+    # elements. Reuse it instead of re-running create_shape (the dominant cost for
+    # door/wall/opening centroid extraction, and especially for multi-element walls
+    # whose aggregate children would otherwise ALL be re-tessellated). Only fall
+    # back to create_shape for elements that lack a cached Body mesh
+    # (FootPrint/Axis/SurveyPoints-only geometries).
+    if geometry_cache is not None and slug is not None:
+        key = expr_key(slug, element.id())
+        cached = geometry_cache.get(key)
+        if cached is not None and len(cached.faces) > 0:
+            try:
+                return _footprint_from_mesh(
+                    np.asarray(cached.vertices, dtype=np.float64),
+                    np.asarray(cached.faces, dtype=np.int64),
+                    return_bottom_vertices,
+                )
+            except Exception:
+                pass  # Degenerate cached mesh → fall back to create_shape
+
     # Fallback chain for context-types: "Body" (3D) → "FootPrint" (2D) → "Axis" → "SurveyPoints"
     context_types_list = [["Body"], ["FootPrint"], ["Axis"], ["SurveyPoints"]]
 
@@ -327,41 +428,11 @@ def _get_element_centroid(
         settings.set("context-types", context_types)
 
         try:
-            shape = ifcopenshell.geom.create_shape(settings, element)  # pyright: ignore[reportUnknownVariableType]
-
-            # ifcopenshell stubs have incomplete type info; attributes exist at runtime
-            geometry = shape.geometry  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType]
-            if len(geometry.verts) == 0 or len(geometry.faces) == 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+            mesh = _mesh_from_shape(settings, element)
+            if mesh is None:
                 continue  # Empty geometry → try next context type
-
-            vertices = np.array(geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-
-            # Find bottom edge (element floor)
-            min_z = vertices[:, 2].min()
-            bottom_mask = np.isclose(vertices[:, 2], min_z, atol=FOOTPRINT_Z_TOLERANCE)
-            bottom_vertices = vertices[bottom_mask]
-
-            # >4 vertices: OBB-based corner extraction (only 4 corners)
-            if len(bottom_vertices) > 4:
-                bottom_vertices = _extract_4_corners(bottom_vertices)
-
-            # Need at least 4 points for a valid 2D centroid (rectangular opening)
-            if len(bottom_vertices) >= 4:
-                # 2D centroid from bottom corners (X, Y mean)
-                centroid_x = bottom_vertices[:, 0].mean()
-                centroid_y = bottom_vertices[:, 1].mean()
-                centroid_z = min_z
-            else:
-                # Fallback: 3D mesh centroid if too few bottom points (<4)
-                faces = np.array(geometry.faces).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
-                centroid_x, centroid_y, centroid_z = mesh.centroid
-
-            centroid = [float(centroid_x), float(centroid_y), float(centroid_z)]  # pyright: ignore[reportUnknownMemberType]
-
-            if return_bottom_vertices:
-                return centroid, bottom_vertices, min_z
-            return centroid
+            vertices, faces = mesh
+            return _footprint_from_mesh(vertices, faces, return_bottom_vertices)
 
         except Exception:
             # Error with this context type → try next
@@ -374,7 +445,11 @@ def _get_element_centroid(
         settings.set("use-world-coords", True)
         settings.set("context-types", ["Body", "FootPrint", "Axis", "SurveyPoints"])
 
-        iterator = ifcopenshell.geom.iterator(settings, [element])  # pyright: ignore[reportArgumentType]
+        iterator = _iterator(
+            settings,
+            [element],
+            geometry_library=GEOMETRY_LIBRARY,
+        )
         iterator.initialize()
         shape = iterator.get()
 
@@ -617,19 +692,8 @@ async def get_element_creation_position_door(
         return GetElementCreationPositionDoorResult(elements=[])
 
     # Build mappings once before the loop (O(n) instead of O(n²))
-    door_to_opening_map: dict[int, Any] = {}
-    for rel in context.ifc_model.by_type("IfcRelFillsElement"):
-        door = rel.RelatedBuildingElement
-        opening = rel.RelatingOpeningElement
-        if door and door.is_a("IfcDoor") and opening:
-            door_to_opening_map[door.id()] = opening
-
-    opening_to_wall_map: dict[int, Any] = {}
-    for rel in context.ifc_model.by_type("IfcRelVoidsElement"):
-        opening = rel.RelatedOpeningElement
-        wall = rel.RelatingBuildingElement
-        if opening and wall:
-            opening_to_wall_map[opening.id()] = wall
+    door_to_opening_map = build_door_to_opening_map(context.ifc_model)
+    opening_to_wall_map = build_opening_to_wall_map(context.ifc_model)
 
     elements = []
     for element_ref in parse_element_refs(
@@ -650,7 +714,11 @@ async def get_element_creation_position_door(
                 continue
 
             centroid, bottom_vertices, min_z = _get_element_centroid(
-                opening, return_bottom_vertices=True, model=model
+                opening,
+                return_bottom_vertices=True,
+                model=model,
+                slug=element_ref.slug,
+                geometry_cache=context.geometry_cache,
             )
             if centroid is None or bottom_vertices is None or min_z is None:
                 continue
@@ -662,7 +730,11 @@ async def get_element_creation_position_door(
                 wall_bottom_vertices = None
                 if wall is not None:
                     _, wall_bottom_vertices, _ = _get_element_centroid(
-                        wall, return_bottom_vertices=True, model=model
+                        wall,
+                        return_bottom_vertices=True,
+                        model=model,
+                        slug=element_ref.slug,
+                        geometry_cache=context.geometry_cache,
                     )
 
                 thickness_info = _get_thickness_info(
@@ -689,7 +761,11 @@ async def get_element_creation_position_door(
         elif entity.is_a("IfcWall"):
             element_type = "IfcWall"
             centroid, bottom_vertices, min_z = _get_element_centroid(
-                entity, return_bottom_vertices=True, model=model
+                entity,
+                return_bottom_vertices=True,
+                model=model,
+                slug=element_ref.slug,
+                geometry_cache=context.geometry_cache,
             )
             if centroid is None or bottom_vertices is None or min_z is None:
                 continue
@@ -739,25 +815,6 @@ class ThicknessInfo:
     opening_thickness: float
     wall_thickness: float | None
     needs_clipping: bool
-
-
-def _build_opening_to_wall_map(ifc_model: Any) -> dict[int, Any]:  # pyright: ignore[reportUnusedFunction]
-    """
-    Build O(1) lookup map: opening_id → wall entity via IfcRelVoidsElement.
-
-    Args:
-        ifc_model: IFC model instance
-
-    Returns:
-        Dictionary mapping opening express IDs to their associated wall entities
-    """
-    mapping: dict[int, Any] = {}
-    for rel in ifc_model.by_type("IfcRelVoidsElement"):
-        opening = rel.RelatedOpeningElement
-        wall = rel.RelatingBuildingElement
-        if opening and wall:
-            mapping[opening.id()] = wall
-    return mapping
 
 
 def _get_element_thickness_direct(bottom_vertices: np.ndarray) -> float:

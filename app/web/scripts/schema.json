@@ -1038,15 +1038,15 @@
                         "additionalProperties": false,
                         "properties": {
                           "rotation_x": {
-                            "description": "Rotation um globale X-Achse in Grad (0-360).",
+                            "description": "Rotation about global X-axis in degrees (0-360).",
                             "type": "number"
                           },
                           "rotation_y": {
-                            "description": "Rotation um globale Y-Achse in Grad (0-360).",
+                            "description": "Rotation about global Y-axis in degrees (0-360).",
                             "type": "number"
                           },
                           "rotation_z": {
-                            "description": "Rotation um globale Z-Achse in Grad (0-360).",
+                            "description": "Rotation about global Z-axis in degrees (0-360).",
                             "type": "number"
                           }
                         },
@@ -1062,7 +1062,7 @@
                       }
                     ],
                     "default": null,
-                    "description": "Euler-Rotationswinkel (X, Y, Z) in Grad (0-360). None wenn Placement nicht verf\u00fcgbar."
+                    "description": "Euler rotation angles (X, Y, Z) in degrees (0-360). None if Placement is unavailable."
                   }
                 },
                 "required": [

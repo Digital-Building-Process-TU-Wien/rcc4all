@@ -8,6 +8,7 @@ import ifcopenshell
 import ifcopenshell.geom
 import numpy as np
 import pytest
+import trimesh
 
 from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.get_element_creation_position_door.get_element_creation_position_door import (
@@ -15,7 +16,6 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     GetElementCreationPositionDoorInputs,
     GetElementCreationPositionDoorResult,
     GetElementCreationPositionDoorSettings,
-    _build_opening_to_wall_map,  # pyright: ignore[reportPrivateUsage]
     _clip_edge,  # pyright: ignore[reportPrivateUsage]
     _clip_opening_to_wall_polygon,  # pyright: ignore[reportPrivateUsage]
     _collect_descendant_shapes,  # pyright: ignore[reportPrivateUsage]
@@ -32,6 +32,9 @@ from openbim_runner.nodes.get_element_creation_position_door.get_element_creatio
     _sort_polygon_ccw,  # pyright: ignore[reportPrivateUsage]
     get_element_creation_position_door,
 )
+from openbim_runner.util.geometry import build_geometry_cache
+from openbim_runner.util.openings import build_opening_to_wall_map
+from openbim_runner.util.references import expr_key
 
 TEST_DATA_DIR = (
     Path(__file__).resolve().parents[5] / "tests" / "testdata" / "models" / "buildings"
@@ -304,17 +307,17 @@ def test_thickness_detection_equal(
     assert wall is not None
 
     # Get bottom vertices directly (world coordinates)
-    settings = ifcopenshell.geom.settings()  # pyright: ignore[reportAttributeAccessIssue]
+    settings = ifcopenshell.geom.settings()
     settings.set("use-world-coords", True)
     settings.set("weld-vertices", True)
     settings.set("context-types", ["Body"])
 
-    opening_shape = ifcopenshell.geom.create_shape(settings, opening)  # pyright: ignore[reportAttributeAccessIssue]
+    opening_shape = ifcopenshell.geom.create_shape(settings, opening)
     opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
 
-    wall_shape = ifcopenshell.geom.create_shape(settings, wall)  # pyright: ignore[reportAttributeAccessIssue]
+    wall_shape = ifcopenshell.geom.create_shape(settings, wall)
     wall_verts = np.array(wall_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
     min_z = wall_verts[:, 2].min()
     wall_bottom = wall_verts[np.isclose(wall_verts[:, 2], min_z, atol=0.001)]
@@ -353,12 +356,12 @@ def test_thickness_detection_wall_not_found(
     assert opening is not None
 
     # Get bottom vertices directly (world coordinates)
-    settings = ifcopenshell.geom.settings()  # pyright: ignore[reportAttributeAccessIssue]
+    settings = ifcopenshell.geom.settings()
     settings.set("use-world-coords", True)
     settings.set("weld-vertices", True)
     settings.set("context-types", ["Body"])
 
-    opening_shape = ifcopenshell.geom.create_shape(settings, opening)  # pyright: ignore[reportAttributeAccessIssue]
+    opening_shape = ifcopenshell.geom.create_shape(settings, opening)
     opening_verts = np.array(opening_shape.geometry.verts).reshape((-1, 3))  # pyright: ignore[reportAttributeAccessIssue]
     min_z = opening_verts[:, 2].min()
     opening_bottom = opening_verts[np.isclose(opening_verts[:, 2], min_z, atol=0.001)]
@@ -385,7 +388,7 @@ def test_build_opening_to_wall_map(
     context: ExecutionContext,
 ) -> None:
     """Test building opening-to-wall mapping."""
-    mapping = _build_opening_to_wall_map(context.ifc_model)
+    mapping = build_opening_to_wall_map(context.ifc_model)
 
     # Should have at least one mapping (test model has doors)
     assert len(mapping) > 0
@@ -1100,3 +1103,86 @@ class TestMultilayerWallAggregates:
         elem = result.elements[0]
         assert elem.position is not None
         assert all(isinstance(v, float) for v in elem.position)
+
+
+# =============================================================================
+# GEOMETRY CACHE INTEGRATION
+# =============================================================================
+
+
+def test_uses_geometry_cache_instead_of_create_shape(
+    context: ExecutionContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Body geometry is served from the shared cache; create_shape is not re-run.
+
+    The workflow builds a full Body geometry cache up front
+    (build_geometry_cache). This node should reuse it instead of re-tessellating
+    every door/opening/wall. Monkeypatching create_shape to raise proves the
+    cache path is taken (no regenerate, no fallback for cached elements).
+    """
+    context.geometry_cache = build_geometry_cache(context.ifc_model, slug="main")
+    all_doors = context.ifc_model.by_type("IfcDoor")
+
+    calls = {"n": 0}
+
+    def boom(*args: object, **kwargs: object) -> None:
+        calls["n"] += 1
+        raise AssertionError("ifcopenshell.geom.create_shape should not be called")
+
+    monkeypatch.setattr(ifcopenshell.geom, "create_shape", boom)
+
+    result = asyncio.run(
+        get_element_creation_position_door(
+            GetElementCreationPositionDoorSettings(point_index=7),
+            GetElementCreationPositionDoorInputs(
+                express_ids=[f"main:expr:{d.id()}" for d in all_doors]
+            ),
+            context,
+        )
+    )
+
+    # Every door was fully served from the cache → no create_shape, no skip.
+    assert calls["n"] == 0
+    assert len(result.elements) == len(all_doors)
+    assert all(len(elem.position) == 3 for elem in result.elements)
+
+
+def test_get_element_centroid_prefers_cached_mesh(
+    context: ExecutionContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_get_element_centroid returns the cached mesh footprint without create_shape.
+
+    This covers multi-element walls too: the cache key of an aggregation parent
+    is synthesized by _merge_decomposed_parents, so reading it here avoids
+    re-tessellating every child.
+    """
+    wall = context.ifc_model.by_type("IfcWall")[0]
+    key = expr_key("main", wall.id())
+    # 1x1x1 box centered at origin → bottom corners centroid [0, 0, -0.5]
+    context.geometry_cache = {key: trimesh.creation.box()}
+
+    calls = {"n": 0}
+
+    def boom(*args: object, **kwargs: object) -> None:
+        calls["n"] += 1
+        raise AssertionError("ifcopenshell.geom.create_shape should not be called")
+
+    monkeypatch.setattr(ifcopenshell.geom, "create_shape", boom)
+
+    result = _get_element_centroid(
+        wall,
+        return_bottom_vertices=True,
+        slug="main",
+        geometry_cache=context.geometry_cache,
+    )
+
+    assert calls["n"] == 0
+    assert result is not None
+    centroid, bottom_vertices, min_z = result
+    assert centroid is not None
+    assert bottom_vertices is not None
+    assert centroid[0] == 0.0
+    assert centroid[1] == 0.0
+    assert centroid[2] == -0.5
+    assert min_z == -0.5
+    assert bottom_vertices.shape == (4, 3)

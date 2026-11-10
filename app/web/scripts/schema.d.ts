@@ -491,19 +491,19 @@ export interface GetElementCreationPositionDoor {
        */
       position: number[]
       /**
-       * Euler-Rotationswinkel (X, Y, Z) in Grad (0-360). None wenn Placement nicht verfügbar.
+       * Euler rotation angles (X, Y, Z) in degrees (0-360). None if Placement is unavailable.
        */
       rotation?: ({
         /**
-         * Rotation um globale X-Achse in Grad (0-360).
+         * Rotation about global X-axis in degrees (0-360).
          */
         rotation_x: number
         /**
-         * Rotation um globale Y-Achse in Grad (0-360).
+         * Rotation about global Y-axis in degrees (0-360).
          */
         rotation_y: number
         /**
-         * Rotation um globale Z-Achse in Grad (0-360).
+         * Rotation about global Z-axis in degrees (0-360).
          */
         rotation_z: number
       } | null)
