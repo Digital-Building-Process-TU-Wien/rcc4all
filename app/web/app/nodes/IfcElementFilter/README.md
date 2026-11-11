@@ -241,7 +241,7 @@ When `express_ids` is not connected, the node scans the model selected by `model
 - **Property filters**: Case-insensitive for string comparisons
 - **Include/Exclude logic**: All include rows are evaluated first (OR), then exclude rows are subtracted
 - **GUIDs**: Returned as qualified references (`<slug>:guid:<GlobalId>`), in the same order as express_ids
-- **Unknown entity types**: Return empty results (no error thrown)
+- **Unknown entity types**: Return empty results (no error thrown). Any valid IFC entity type is matched by the runner, including entities not in the UI suggestion index (e.g. `IFCALIGNMENT`, `IFCPROJECT`); manually entered types are preserved instead of being wiped.
 
 ## Filter Logic
 
@@ -261,9 +261,6 @@ final_ids = include_ids - exclude_ids
 ## Data Sources
 
 This node uses shared IFC data files for entity types, predefined types, property sets, and properties:
-- `shared/ifc-data/entities.json` - Common IFC entity types
-- `shared/ifc-data/predefined_types.json` - PredefinedType enum values per entity
-- `shared/ifc-data/property_sets.json` - Standard IFC PropertySets
-- `shared/ifc-data/properties.json` - Common IFC property names
+- `app/web/public/list/ifc-4.3-filter-index.json` - Generated IFC 4.3 filter index (entity types, PredefinedTypes, PropertySets, properties), produced by `generate-ifc-filter-index.py` from `ifc-4.3.json`.
 
-These files provide suggestions in the UI, but manual entry is always supported.
+These files provide suggestions in the UI, but manual entry is always supported; any valid IFC entity type is passed through to the runner.

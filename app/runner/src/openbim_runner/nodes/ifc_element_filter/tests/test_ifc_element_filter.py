@@ -161,6 +161,38 @@ def test_ifc_element_filter_unknown_entity_type_returns_empty() -> None:
     assert result.guids == []
 
 
+def test_ifc_element_filter_matches_non_element_entity_type() -> None:
+    # Entities that are not IfcElement subclasses (e.g. IFCALIGNMENT,
+    # IFCSPACE, IFCPROJECT) are scanned and matched by type.
+    alignment = FakeEntity(1, GlobalId="alignment-1")
+    alignment.type_name = "IFCALIGNMENT"
+    space = FakeEntity(2, GlobalId="space-1")
+    space.type_name = "IFCSPACE"
+
+    result = run_filter(
+        IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCALIGNMENT")]),
+        FakeIfcModel({"IFCALIGNMENT": [alignment], "IFCSPACE": [space]}),
+    )
+
+    assert result.express_ids == [_ref(1)]
+    assert result.guids == [_guid("alignment-1")]
+
+
+def test_ifc_element_filter_skips_entity_without_global_id() -> None:
+    # Entities that are not IfcRoot have no GlobalId (e.g. IFCCIRCLE); they
+    # cannot be GUID-referenced and are excluded from the result.
+    circle = FakeEntity(1)
+    circle.type_name = "IFCCIRCLE"
+
+    result = run_filter(
+        IfcElementFilterSettings(filter_rows=[FilterRow(entity_type="IFCCIRCLE")]),
+        FakeIfcModel({"IFCCIRCLE": [circle]}),
+    )
+
+    assert result.express_ids == []
+    assert result.guids == []
+
+
 def test_ifc_element_filter_empty_entity_type_searches_all_ifc_elements(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

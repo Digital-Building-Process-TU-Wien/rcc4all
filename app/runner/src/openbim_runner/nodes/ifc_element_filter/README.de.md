@@ -24,7 +24,7 @@ Verwenden Sie diesen Node, wenn Sie:
 | Name | Typ | Beschreibung |
 |------|-----|--------------|
 | `mode` | `include`, `exclude`, `disabled` | Include fuegt Treffer hinzu, exclude entfernt Treffer, disabled ignoriert die Zeile. |
-| `entity_type` | `str` | IFC-Entity-Typ, zum Beispiel `IFCWALL` oder `IFCSLAB`. |
+| `entity_type` | `str` | IFC-Entity-Typ, zum Beispiel `IFCWALL` oder `IFCSPACE`. Jeder gueltige IFC-Entity-Typ wird unterstuetzt, auch Entitaeten, die keine `IfcElement`-Unterklassen sind (z.B. `IFCALIGNMENT`, `IFCPROJECT`) sowie Typen, die nicht in der UI-Vorschlagsliste stehen. |
 | `predefined_type` | `str` | Optionaler `PredefinedType`-Wert. Leer bedeutet beliebiger PredefinedType. Wenn der Wert nicht aus der PredefinedType-Liste ausgewählt, sondern manuell eingegeben wird, soll das Programm ihn als benutzerdefinierten Typ behandeln: `PredefinedType == USERDEFINED` und `ObjectType == <eingegebener Wert>`. |
 | `property_set` | `str` | Optionaler IFC-PropertySet-Name, zum Beispiel `Pset_WallCommon`. Wenn `Attributes` ausgewählt ist, sind damit die direkten IFC-Attribute der ausgewählten Entity gemeint. Leer erlaubt direkte Attributsuche oder Suche in allen PropertySets. |
 | `property_name` | `str` | Optionaler IFC-Attribut- oder PropertySet-Property-Name. Leer bedeutet kein Wertvergleich. |
@@ -91,7 +91,8 @@ Alle Waende filtern, aber externe Waende ausschliessen:
 ## Hinweise
 
 - Leere `filter_rows` im Scan-Modus (unverbundener `express_ids`-Eingang) liefern alle `IfcElement` des Modells.
-- Unbekannte IFC-Entity-Typen liefern keine Treffer.
+- Unbekannte IFC-Entity-Typen liefern keine Treffer. Jeder gueltige IFC-Entity-Typ wird unterstuetzt, auch Entitaeten, die keine `IfcElement`-Unterklassen sind (z.B. `IFCALIGNMENT`, `IFCSPACE`) sowie Typen, die nicht in der UI-Vorschlagsliste stehen.
+- Entitaeten ohne `GlobalId` (z.B. `IfcRepresentationItem`-Untertypen wie `IfcCircle`) werden aus dem Ergebnis ausgeschlossen, da sie nicht per GUID referenzierbar sind.
 - Die `guids`-Ausgabe qualifizierter GUID-Referenzen (`<slug>:guid:<GlobalId>`) steht bereit; derzeit gibt es noch keinen Verbraucher-Node dafür.
 - Stringvergleiche sind case-insensitive.
 - Numerische Vergleichsoperatoren benoetigen numerische Werte.
