@@ -311,6 +311,11 @@ async def ifc_element_filter(
         if matches_include and not matches_exclude:
             matched.append((entity, slug))
 
+    matched = [
+        (entity, slug)
+        for entity, slug in matched
+        if _string_value(_get_entity_attribute(entity, "GlobalId"))
+    ]
     express_ids = [expr_key(slug, entity.id()) for entity, slug in matched]
     guids = [
         guid_key(slug, _string_value(_get_entity_attribute(entity, "GlobalId")))

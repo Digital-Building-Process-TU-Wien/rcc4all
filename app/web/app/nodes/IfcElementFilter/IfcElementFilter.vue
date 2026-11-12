@@ -165,17 +165,13 @@ function updatePropertySet(row: FilterRow) {
 }
 
 function updateEntityType(row: FilterRow) {
-  row.entity_type = (row.entity_type ?? '').toUpperCase()
+  row.entity_type = (row.entity_type ?? '').trim().toUpperCase()
   if (!row.entity_type)
     return
 
   const entity = getEntity(row.entity_type)
-  if (!entity) {
-    row.entity_type = ''
-    return
-  }
-
-  row.entity_type = entity.code
+  if (entity)
+    row.entity_type = entity.code
 }
 
 function updatePredefinedType(row: FilterRow) {

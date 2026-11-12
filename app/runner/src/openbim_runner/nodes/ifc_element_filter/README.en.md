@@ -24,7 +24,7 @@ Use this node when you need to:
 | Name | Type | Description |
 |------|------|-------------|
 | `mode` | `include`, `exclude`, `disabled` | Include adds matching elements, exclude removes matching elements, disabled ignores the row. |
-| `entity_type` | `str` | IFC entity type name, for example `IFCWALL` or `IFCSLAB`. |
+| `entity_type` | `str` | IFC entity type name, for example `IFCWALL` or `IFCSPACE`. Any valid IFC entity type is matched, including entities that are not `IfcElement` subclasses (e.g. `IFCALIGNMENT`, `IFCPROJECT`), even ones not listed in the UI suggestion index. |
 | `predefined_type` | `str` | Optional `PredefinedType` enum value. Empty means any predefined type. If the value is not selected from the predefined list but entered manually, the program should treat it as a user-defined type: `PredefinedType == USERDEFINED` and `ObjectType == <entered value>`. |
 | `property_set` | `str` | Optional IFC PropertySet name, for example `Pset_WallCommon`. If `Attributes` is selected, it refers to the direct IFC attributes available for the selected entity. Empty allows direct attribute lookup or search across all PropertySets. |
 | `property_name` | `str` | Optional IFC attribute or PropertySet property name. Empty means no value comparison. |
@@ -91,7 +91,8 @@ Filter all walls, but exclude external walls:
 ## Notes
 
 - Scan mode (unbound `express_ids`) with no active filter rows returns **all** `IfcElement` entities of the model.
-- Unknown IFC entity types return no matches.
+- Unknown IFC entity types return no matches. Any valid IFC entity type is supported, including entities that are not `IfcElement` subclasses (e.g. `IFCALIGNMENT`, `IFCSPACE`) and types not present in the UI suggestion index.
+- Entities without a `GlobalId` (e.g. `IfcRepresentationItem` subtypes such as `IfcCircle`) are excluded from the result, since they cannot be GUID-referenced.
 - String comparisons are case-insensitive.
 - Numeric comparison operators require numeric values.
 - PropertySet suggestions can later be backed by JSON files in `app/web/public/list` without changing the runner contract.
