@@ -9,7 +9,8 @@ graph allows.
 
 from __future__ import annotations
 
-from openbim_runner.workflow.diagnostics import warn
+import sys
+
 from openbim_runner.workflow.model import (
     SUBWORKFLOW_INPUT_TYPE,
     SUBWORKFLOW_META_TYPES,
@@ -75,9 +76,10 @@ def _expand_scope(
 
 
 def _warn_order_only_edge(edge: WorkflowEdge, subworkflow_node: WorkflowNode) -> None:
-    warn(
-        f"dropping order-only edge '{edge.source}' -> '{edge.target}' "
-        f"across subworkflow {describe_node(subworkflow_node)}."
+    print(
+        f"WARNING: dropping order-only edge '{edge.source}' -> '{edge.target}' "
+        f"across subworkflow {describe_node(subworkflow_node)}.",
+        file=sys.stderr,
     )
 
 

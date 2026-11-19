@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +19,6 @@ import ifcopenshell
 from openbim_runner.nodes import ExecutionContext, NodeModel, dispatch
 from openbim_runner.util.geometry import build_geometry_cache
 from openbim_runner.workflow.bindings import resolve_input_bindings
-from openbim_runner.workflow.diagnostics import warn
 from openbim_runner.workflow.loader import (
     prepare_workflow,
     require_definition,
@@ -95,9 +95,10 @@ def _warn_on_hash_mismatch(model_file: ModelFile, resolved_path: Path) -> None:
     except OSError:
         return
     if digest != model_file.hash:
-        warn(
-            f"IFC file '{model_file.slug}' hash does not match the "
-            "workflow definition (file changed since it was assigned)."
+        print(
+            f"WARNING: IFC file '{model_file.slug}' hash does not match the "
+            "workflow definition (file changed since it was assigned).",
+            file=sys.stderr,
         )
 
 
