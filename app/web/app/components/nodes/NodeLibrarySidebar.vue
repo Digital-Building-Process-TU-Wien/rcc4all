@@ -6,14 +6,20 @@ interface Props {
   hasNodes: boolean
   nodeCount: number
   isRunning?: boolean
+  insideSubworkflow?: boolean
+  hasSubworkflowOutput?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
   isRunning: false,
+  insideSubworkflow: false,
+  hasSubworkflowOutput: false,
 })
 
 const emit = defineEmits<{
   addNode: [node: AvailableNode]
+  addInput: []
+  addOutput: []
   runWorkflow: []
   clearCanvas: []
 }>()
@@ -27,6 +33,12 @@ const availableNodes = computed(() => {
     label: t('node.jsonOutput.title'),
     categories: ['Other'],
     description: t('node.jsonOutput.description'),
+  })
+  nodes.push({
+    nodeName: 'subworkflow',
+    label: t('node.subworkflow.title'),
+    categories: ['Other'],
+    description: t('node.subworkflow.description'),
   })
   return nodes
 })
@@ -167,6 +179,32 @@ function handleAddNode(node: AvailableNode) {
         </p>
       </div>
       <div class="flex flex-col gap-2 px-3 pb-4">
+        <div v-if="insideSubworkflow" class="flex flex-col gap-2 rounded-xl border border-default bg-default/80 p-3">
+          <p class="text-xs font-semibold uppercase tracking-tight text-muted">
+            {{ t('node.subworkflow.portsTitle') }}
+          </p>
+          <UButton
+            icon="i-lucide-log-in"
+            color="primary"
+            variant="soft"
+            block
+            :label="t('node.subworkflow.addInput')"
+            @click="emit('addInput')"
+          />
+          <UButton
+            v-if="!hasSubworkflowOutput"
+            icon="i-lucide-log-out"
+            color="primary"
+            variant="soft"
+            block
+            :label="t('node.subworkflow.addOutput')"
+            @click="emit('addOutput')"
+          />
+          <p v-else class="text-xs text-muted">
+            {{ t('node.subworkflow.singleOutputHint') }}
+          </p>
+        </div>
+
         <div class="rounded-xl border border-default bg-default/80 p-3">
           <p class="text-sm font-medium text-highlighted">
             {{ t('library.addAvailableNodes') }}

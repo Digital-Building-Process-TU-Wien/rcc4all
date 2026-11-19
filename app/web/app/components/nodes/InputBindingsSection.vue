@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import type { Node } from '@vue-flow/core'
+import type { NodeData } from '~/utils/nodes'
 import { useFlowStore } from '@/stores/flow'
 import { useFlowGraph } from '~/composables/useFlowGraph'
 import { useScopedNode } from '~/composables/useScopedNode'
@@ -16,29 +17,28 @@ import {
 
 interface Props {
   nodeId: string
-  nodeName: string
 }
 
 const props = defineProps<Props>()
 const store = useFlowStore()
-const node = useScopedNode(props.nodeId)
+const node = useScopedNode<Node<NodeData>>(props.nodeId)
 const { t } = useI18n()
 const { getBindingOptions } = useFlowGraph()
 
-const nodeInputs = computed(() => getNodeInputs(props.nodeName))
+const nodeInputs = computed(() => getNodeInputs(node.value))
 const bindingOptions = computed(() => getBindingOptions(props.nodeId))
-
-const currentBindings = computed(() => node.value.data.input_bindings || {})
 
 // Sentinel for the explicit "None" entry in the binding dropdowns. Selecting it
 // removes the binding so the input falls back to its default.
 const NONE_VALUE = '__none__'
 
+const currentBindings = computed<Record<string, string>>(() => node.value.data!.input_bindings || {})
+
 /** Friendly, localized labels for the dedicated model input port. */
 function resolveInputLabel(inputName: string): string {
   if (isModelInput(inputName))
     return t('bindings.model')
-  return getInputLabel(props.nodeName, inputName)
+  return getInputLabel(node.value, inputName)
 }
 
 function getBindingSource(inputName: string): string | undefined {
@@ -79,7 +79,7 @@ function getOutputOptions(inputName: string): { label: string, value: string }[]
   return [
     { label: t('bindings.none'), value: NONE_VALUE },
     ...option.outputs
-      .filter(output => arePortsCompatible(props.nodeName, inputName, option.nodeName, output))
+      .filter(output => arePortsCompatible(node.value, inputName, option.node, output))
       .map(output => ({ label: output, value: output })),
   ]
 }
@@ -87,7 +87,7 @@ function getOutputOptions(inputName: string): { label: string, value: string }[]
 function clearBinding(inputName: string) {
   const bindings = { ...currentBindings.value }
   delete bindings[inputName]
-  node.value.data.input_bindings = bindings
+  node.value.data!.input_bindings = bindings
 }
 
 function updateBinding(inputName: string, sourceId?: string, outputField?: string) {
@@ -105,7 +105,7 @@ function updateBinding(inputName: string, sourceId?: string, outputField?: strin
     const sourceOption = bindingOptions.value.find(opt => opt.id === newSource)
     const compatibleOutputs = sourceOption
       ? sourceOption.outputs.filter(output =>
-          arePortsCompatible(props.nodeName, inputName, sourceOption.nodeName, output))
+          arePortsCompatible(node.value, inputName, sourceOption.node, output))
       : []
     newOutput = compatibleOutputs[0]
   }
@@ -119,7 +119,7 @@ function updateBinding(inputName: string, sourceId?: string, outputField?: strin
     delete bindings[inputName]
   }
 
-  node.value.data.input_bindings = bindings
+  node.value.data!.input_bindings = bindings
 }
 
 function getTypeWarning(inputName: string): string | null {
@@ -128,14 +128,15 @@ function getTypeWarning(inputName: string): string | null {
     return null
 
   const [sourceId, outputField] = binding.split('.')
-  const sourceNode = store.nodes.find(n => n.id === sourceId)
-  if (!sourceNode)
+  const sourceNode = bindingOptions.value.find(opt => opt.id === sourceId)?.node
+    ?? store.nodes.find(n => n.id === sourceId)
+  if (!sourceNode || !outputField)
     return null
 
-  const outputType = getOutputType(sourceNode.data.nodeName, outputField)
-  const inputType = getInputType(props.nodeName, inputName)
+  const outputType = getOutputType(sourceNode, outputField)
+  const inputType = getInputType(node.value, inputName)
 
-  if (!arePortsCompatible(props.nodeName, inputName, sourceNode.data.nodeName, outputField)) {
+  if (!arePortsCompatible(node.value, inputName, sourceNode, outputField)) {
     return `${t('bindings.typeMismatch')}: ${describeType(outputType)} → ${describeType(inputType)}`
   }
 
@@ -181,7 +182,7 @@ function getTypeWarning(inputName: string): string | null {
       </div>
 
       <p class="mt-1 text-xs text-muted">
-        {{ getInputDescription(props.nodeName, inputName) }}
+        {{ getInputDescription(node, inputName) }}
       </p>
     </div>
   </div>

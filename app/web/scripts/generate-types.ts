@@ -34,6 +34,13 @@ async function generate() {
   const outputPath = resolve(__dirname, 'schema.d.ts')
 
   const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'))
+
+  // The node registry is the only part of `schema.json` this file compiles.
+  // `x-workflows` has its own `$defs` document and its own generator, and the
+  // ref parser would otherwise resolve its refs against the wrong root.
+  delete schema['x-workflows']
+  delete schema['x-ports']
+
   let ts = await compile(schema, 'WorkflowSchema', { additionalProperties: true })
 
   ts = toSingleQuoted(ts)

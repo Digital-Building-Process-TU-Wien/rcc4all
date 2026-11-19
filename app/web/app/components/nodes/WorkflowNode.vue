@@ -3,11 +3,16 @@ import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
 import { Handle, Position } from '@vue-flow/core'
 import { ref } from 'vue'
+import { useWorkflowWarnings } from '~/composables/useWorkflowWarnings'
 import { useFlowStore } from '~/stores/flow'
 
 const props = defineProps<NodeProps<NodeData>>()
 const store = useFlowStore()
+const { t } = useI18n()
+const { nodeWarningCounts } = useWorkflowWarnings()
 const showConfirm = ref(false)
+
+const warningCount = computed(() => nodeWarningCounts.value[props.id] ?? 0)
 
 function handleDeleteClick() {
   showConfirm.value = true
@@ -26,6 +31,7 @@ function handleCancel() {
 <template>
   <div
     class="bg-white text-slate-900 border-2 border-slate-200 rounded-lg min-w-45 shadow-sm relative cursor-pointer hover:shadow-md transition-shadow"
+    :class="{ 'border-amber-300': warningCount > 0 }"
   >
     <Handle
       v-if="!props.data?.noInput"
@@ -41,10 +47,17 @@ function handleCancel() {
       type="target"
       :position="Position.Left"
       :connectable="false"
-      class="w-4! h-4! bg-blue-600! border-2! border-white! -left-2! shadow-sm"
+      class="w-4! h-4! border-2! border-white! -left-2! shadow-sm"
+      :class="warningCount > 0 ? 'bg-amber-500!' : 'bg-blue-600!'"
     />
     <div class="group flex items-center justify-between gap-2 px-3 py-2">
       <span class="font-medium truncate">{{ props.data.label }}</span>
+      <UIcon
+        v-if="warningCount > 0"
+        name="i-lucide-triangle-alert"
+        class="size-4 shrink-0 text-amber-500"
+        :title="t('editor.warningCount', warningCount)"
+      />
       <div v-if="showConfirm" class="flex items-center justify-center">
         <button
           type="button"

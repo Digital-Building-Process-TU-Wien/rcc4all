@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from inspect import getfile, isawaitable, signature
@@ -7,6 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast, get_type_hints
 
 from pydantic import BaseModel, ConfigDict
+
+from openbim_runner.port_types import annotation_to_port_type
 
 if TYPE_CHECKING:
     import ifcopenshell
@@ -196,7 +199,8 @@ def load_node_documentation_all_locales(
 
     if missing_locales:
         print(
-            f"⚠️  WARNING: Node '{definition.name}' missing translations: {missing_locales}"
+            f"⚠️  WARNING: Node '{definition.name}' missing translations: {missing_locales}",
+            file=sys.stderr,
         )
 
     return all_locales
@@ -376,8 +380,29 @@ def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _model_ports(model: type[NodeModel], node_name: str) -> list[dict[str, Any]]:
+    """Port descriptors for one settings/inputs/result model.
+
+    Types come from the Pydantic annotations through the shared mapper, so an
+    annotation without a faithful port representation fails ``export-schema``
+    instead of silently degrading to a wildcard.
+    """
+    return [
+        {
+            "name": field_name,
+            "title": field_info.title or "",
+            "description": field_info.description or "",
+            "type": annotation_to_port_type(
+                field_info.annotation, node=node_name, field=field_name
+            ).model_dump(mode="json"),
+        }
+        for field_name, field_info in model.model_fields.items()
+    ]
+
+
 def get_registry_schema() -> dict[str, Any]:
     nodes_schemas: dict[str, Any] = {}
+    ports_schemas: dict[str, Any] = {}
     # Sorted so the exported schema (and the generated types derived from it)
     # are deterministic regardless of node import/registration order.
     for name, definition in sorted(REGISTRY.items()):
@@ -385,6 +410,7 @@ def get_registry_schema() -> dict[str, Any]:
         required_fields = ["result"]
 
         node_properties: dict[str, Any] = {}
+        node_ports: dict[str, Any] = {"inputs": [], "outputs": []}
 
         if definition.takes_settings:
             if definition.settings_model is None:
@@ -401,12 +427,14 @@ def get_registry_schema() -> dict[str, Any]:
             definition.result_model.model_json_schema()
         )
         node_properties["result"] = result_schema
+        node_ports["outputs"] = _model_ports(definition.result_model, name)
 
         if definition.takes_inputs and definition.inputs_model:
             inputs_schema = _remove_titles_from_schema(
                 definition.inputs_model.model_json_schema()
             )
             node_properties["inputs"] = inputs_schema
+            node_ports["inputs"] = _model_ports(definition.inputs_model, name)
             required_fields.append("inputs")
 
         en_docs = all_locales.get("en")
@@ -438,6 +466,7 @@ def get_registry_schema() -> dict[str, Any]:
             "required": required_fields,
             "additionalProperties": False,
         }
+        ports_schemas[name] = node_ports
 
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -445,4 +474,8 @@ def get_registry_schema() -> dict[str, Any]:
         "type": "object",
         "additionalProperties": False,
         "properties": nodes_schemas,
+        # Port metadata lives outside ``properties`` so it never becomes a
+        # node type. The web reads it instead of re-deriving types from the
+        # per-node JSON Schema.
+        "x-ports": ports_schemas,
     }
