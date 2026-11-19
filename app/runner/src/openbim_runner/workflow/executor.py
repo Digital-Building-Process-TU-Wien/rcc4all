@@ -19,16 +19,18 @@ from openbim_runner.nodes import ExecutionContext, NodeModel, dispatch
 from openbim_runner.util.geometry import build_geometry_cache
 from openbim_runner.workflow.bindings import resolve_input_bindings
 from openbim_runner.workflow.diagnostics import warn
-from openbim_runner.workflow.io import parse_workflow, resolve_ifc_path
+from openbim_runner.workflow.loader import (
+    prepare_workflow,
+    require_definition,
+    resolve_ifc_path,
+)
 from openbim_runner.workflow.model import ModelFile, WorkflowNode, describe_node
-from openbim_runner.workflow.validate import prepare_workflow, require_definition
 
 
 async def execute_workflow_async(
     workflow_path: Path,
 ) -> tuple[dict[str, NodeModel], dict[str, WorkflowNode]]:
-    workflow = parse_workflow(workflow_path)
-    prepared = prepare_workflow(workflow)
+    prepared = prepare_workflow(workflow_path)
     workflow = prepared.workflow
     node_lookup = prepared.node_lookup
     execution_order = prepared.execution_order

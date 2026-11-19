@@ -1,16 +1,17 @@
-"""Static validation of a workflow graph.
+"""Turn a workflow file into a prepared, runnable workflow.
 
-Answers one question before any IFC file is opened: can this graph run? That
-means model slots, subworkflow structure, edge endpoints, every bound port
-pair against the assignability table, and execution-order cycles.
+Everything before the first IFC file is opened lives here: reading the JSON,
+checking model slots, ports, edges and cycles, expanding subworkflows, sorting
+the nodes, and resolving auto-bindings. ``prepare_workflow`` is the entry point
+the executor uses, so a file is parsed once per run.
 
-Port resolution here is written from the type checker's point of view: what
-does a node accept in its own scope, and what does it produce.
+The name pairs with ``executor``: the loader prepares, the executor runs.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from openbim_runner.nodes import NodeDefinition, get_registry
 from openbim_runner.port_types import (
@@ -35,6 +36,73 @@ from openbim_runner.workflow.model import (
     validate_model_files,
 )
 from openbim_runner.workflow.subworkflow import expand_workflow
+
+
+def _read(workflow_path: Path) -> WorkflowDefinition:
+    return WorkflowDefinition.model_validate_json(
+        workflow_path.read_text(encoding="utf-8")
+    )
+
+
+@dataclass(frozen=True)
+class PreparedWorkflow:
+    """A validated workflow flattened once, ready to execute."""
+
+    workflow: WorkflowDefinition
+    node_lookup: dict[str, WorkflowNode]
+    execution_order: list[str]
+    auto_bindings: dict[str, dict[str, str]]
+
+
+def prepare_definition(workflow: WorkflowDefinition) -> PreparedWorkflow:
+    """Run every static check and flatten a parsed workflow in one pass.
+
+    Validation used to expand and topologically sort, then execution repeated
+    both steps. Both now build this value instead, so there is one path and the
+    work happens once.
+    """
+    validate_model_files(workflow.files)
+    _validate_scope(workflow.nodes, workflow.edges)
+    expanded = expand_workflow(workflow)
+    node_lookup = build_node_lookup(expanded)
+    execution_order = build_execution_order(expanded)
+    auto_bindings = resolve_auto_bindings(expanded, node_lookup)
+    return PreparedWorkflow(
+        workflow=expanded,
+        node_lookup=node_lookup,
+        execution_order=execution_order,
+        auto_bindings=auto_bindings,
+    )
+
+
+def prepare_workflow(workflow_path: Path) -> PreparedWorkflow:
+    """Read a workflow file and prepare it for execution."""
+    return prepare_definition(_read(workflow_path))
+
+
+def load_workflow(workflow_path: Path) -> WorkflowDefinition:
+    """Read a workflow file and validate it, without flattening it."""
+    workflow = _read(workflow_path)
+    validate_workflow(workflow)
+    return workflow
+
+
+def validate_workflow(workflow: WorkflowDefinition) -> None:
+    """Validate a workflow before any IFC file is opened.
+
+    Checks model slots, subworkflow structure, edge endpoints, every bound port
+    pair against the assignability table, auto-bind ambiguity, and
+    execution-order cycles.
+    """
+    prepare_definition(workflow)
+
+
+def resolve_ifc_path(workflow_path: Path, ifc_path: str) -> Path:
+    candidate_path = Path(ifc_path)
+    if candidate_path.is_absolute():
+        return candidate_path
+
+    return workflow_path.parent / candidate_path
 
 
 def require_definition(node: WorkflowNode) -> NodeDefinition:
@@ -158,44 +226,3 @@ def _validate_scope(
                     f"but receives {describe_port_type(output_type)} from "
                     f"'{field_name}' of node {describe_node(source)}."
                 )
-
-
-def validate_workflow(workflow: WorkflowDefinition) -> None:
-    """Validate a workflow before any IFC file is opened.
-
-    Checks model slots, subworkflow structure, edge endpoints, every bound port
-    pair against the assignability table, auto-bind ambiguity, and
-    execution-order cycles.
-    """
-    prepare_workflow(workflow)
-
-
-@dataclass(frozen=True)
-class PreparedWorkflow:
-    """A validated workflow flattened once, ready to execute."""
-
-    workflow: WorkflowDefinition
-    node_lookup: dict[str, WorkflowNode]
-    execution_order: list[str]
-    auto_bindings: dict[str, dict[str, str]]
-
-
-def prepare_workflow(workflow: WorkflowDefinition) -> PreparedWorkflow:
-    """Run every static check and flatten subworkflows in a single pass.
-
-    Validation used to expand and topologically sort, then execution repeated
-    both steps. Both now build this value instead, so there is one path and the
-    work happens once.
-    """
-    validate_model_files(workflow.files)
-    _validate_scope(workflow.nodes, workflow.edges)
-    expanded = expand_workflow(workflow)
-    node_lookup = build_node_lookup(expanded)
-    execution_order = build_execution_order(expanded)
-    auto_bindings = resolve_auto_bindings(expanded, node_lookup)
-    return PreparedWorkflow(
-        workflow=expanded,
-        node_lookup=node_lookup,
-        execution_order=execution_order,
-        auto_bindings=auto_bindings,
-    )

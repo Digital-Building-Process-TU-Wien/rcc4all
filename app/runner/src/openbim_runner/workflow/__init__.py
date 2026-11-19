@@ -7,9 +7,8 @@ package split stays invisible to ``main.py`` and the tests.
 Module map:
 
 - ``model``: the workflow document, slug rules, references, JSON schema
-- ``io``: read a workflow from disk, resolve IFC paths
+- ``loader``: read the JSON, validate it, flatten and prepare it to run
 - ``subworkflow``: inline embedded subworkflows into a flat graph
-- ``validate``: static port, edge, and cycle checks
 - ``graph``: node lookup and topological execution order
 - ``bindings``: explicit and auto-bound input resolution
 - ``executor``: IFC loading, geometry cache, dispatch, results
@@ -31,7 +30,13 @@ from openbim_runner.workflow.graph import (
     build_execution_order,
     build_node_lookup,
 )
-from openbim_runner.workflow.io import load_workflow, parse_workflow, resolve_ifc_path
+from openbim_runner.workflow.loader import (
+    PreparedWorkflow,
+    load_workflow,
+    prepare_workflow,
+    resolve_ifc_path,
+    validate_workflow,
+)
 from openbim_runner.workflow.model import (
     MODEL_SLUG_PATTERN,
     PORT_NAME_PATTERN,
@@ -54,11 +59,6 @@ from openbim_runner.workflow.model import (
 from openbim_runner.workflow.subworkflow import (
     NAMESPACE_SEPARATOR,
     expand_workflow,
-)
-from openbim_runner.workflow.validate import (
-    PreparedWorkflow,
-    prepare_workflow,
-    validate_workflow,
 )
 
 __all__ = [
@@ -88,7 +88,6 @@ __all__ = [
     "get_workflow_models_schema",
     "load_workflow",
     "parse_reference",
-    "parse_workflow",
     "prepare_workflow",
     "resolve_auto_bindings",
     "resolve_ifc_path",
