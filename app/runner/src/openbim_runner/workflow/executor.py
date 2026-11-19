@@ -48,7 +48,6 @@ async def execute_workflow_async(
         geometry_cache.update(build_geometry_cache(model, slug=slug))
 
     node_outputs: dict[str, NodeModel] = {}
-    auto_bindings = prepared.auto_bindings
 
     for node_id in execution_order:
         workflow_node = node_lookup[node_id]
@@ -60,11 +59,7 @@ async def execute_workflow_async(
             )
 
         settings_payload = workflow_node.settings
-        input_payload = resolve_input_bindings(
-            workflow_node,
-            node_outputs,
-            auto_bindings=auto_bindings.get(workflow_node.id, {}),
-        )
+        input_payload = resolve_input_bindings(workflow_node, node_outputs)
         context = ExecutionContext(
             models=models,
             main_model_id="main",

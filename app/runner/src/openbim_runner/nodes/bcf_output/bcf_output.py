@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import Field
 
 from openbim_runner.nodes.base import (
-    AutoBind,
     ExecutionContext,
     NodeModel,
     node,
@@ -101,8 +100,7 @@ class BcfOutputSettings(NodeModel):
 
 
 class BcfOutputInputs(NodeModel):
-    elements: Annotated[list[HarmonizedElement], AutoBind()] = Field(
-        default=[],
+    elements: list[HarmonizedElement] = Field(
         title="Elements",
         description=(
             "Harmonized check elements from an upstream checking node "

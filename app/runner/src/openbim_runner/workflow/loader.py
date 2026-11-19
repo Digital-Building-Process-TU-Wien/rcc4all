@@ -1,9 +1,9 @@
 """Turn a workflow file into a prepared, runnable workflow.
 
 Everything before the first IFC file is opened lives here: reading the JSON,
-checking model slots, ports, edges and cycles, expanding subworkflows, sorting
-the nodes, and resolving auto-bindings. ``prepare_workflow`` is the entry point
-the executor uses, so a file is parsed once per run.
+checking model slots, ports, edges and cycles, expanding subworkflows, and
+sorting the nodes. ``prepare_workflow`` is the entry point the executor uses, so
+a file is parsed once per run.
 
 The name pairs with ``executor``: the loader prepares, the executor runs.
 """
@@ -20,10 +20,10 @@ from openbim_runner.port_types import (
     is_assignable,
     model_port_types,
 )
-from openbim_runner.workflow.bindings import resolve_auto_bindings
 from openbim_runner.workflow.graph import build_execution_order, build_node_lookup
 from openbim_runner.workflow.model import (
     SUBWORKFLOW_INPUT_TYPE,
+    SUBWORKFLOW_META_TYPES,
     SUBWORKFLOW_OUTPUT_TYPE,
     SUBWORKFLOW_TYPE,
     SubworkflowPort,
@@ -51,7 +51,6 @@ class PreparedWorkflow:
     workflow: WorkflowDefinition
     node_lookup: dict[str, WorkflowNode]
     execution_order: list[str]
-    auto_bindings: dict[str, dict[str, str]]
 
 
 def prepare_definition(workflow: WorkflowDefinition) -> PreparedWorkflow:
@@ -66,12 +65,10 @@ def prepare_definition(workflow: WorkflowDefinition) -> PreparedWorkflow:
     expanded = expand_workflow(workflow)
     node_lookup = build_node_lookup(expanded)
     execution_order = build_execution_order(expanded)
-    auto_bindings = resolve_auto_bindings(expanded, node_lookup)
     return PreparedWorkflow(
         workflow=expanded,
         node_lookup=node_lookup,
         execution_order=execution_order,
-        auto_bindings=auto_bindings,
     )
 
 
@@ -91,8 +88,8 @@ def validate_workflow(workflow: WorkflowDefinition) -> None:
     """Validate a workflow before any IFC file is opened.
 
     Checks model slots, subworkflow structure, edge endpoints, every bound port
-    pair against the assignability table, auto-bind ambiguity, and
-    execution-order cycles.
+    pair against the assignability table, every required input having a
+    binding, and execution-order cycles.
     """
     prepare_definition(workflow)
 
@@ -166,6 +163,28 @@ def _node_output_ports(node: WorkflowNode) -> dict[str, PortType]:
     return model_port_types(definition.result_model, node=node.type)
 
 
+def _validate_required_inputs(node: WorkflowNode) -> None:
+    """Every input without a default must be bound explicitly.
+
+    "Required" is taken from the input model: the field has no default. The
+    runner does not infer bindings, so an unbound required input is a workflow
+    error rather than a guess.
+    """
+    if node.type in SUBWORKFLOW_META_TYPES:
+        return
+
+    definition = require_definition(node)
+    if not definition.takes_inputs or definition.inputs_model is None:
+        return
+
+    for input_name, field_info in definition.inputs_model.model_fields.items():
+        if field_info.is_required() and input_name not in node.input_bindings:
+            raise ValueError(
+                f"Node {describe_node(node)} input '{input_name}' is required but "
+                "has no binding. Connect an upstream output to it."
+            )
+
+
 def _validate_scope(
     nodes: list[WorkflowNode],
     edges: list[WorkflowEdge],
@@ -184,6 +203,8 @@ def _validate_scope(
                     "embedded definition."
                 )
             _validate_scope(definition.nodes, definition.edges)
+            continue
+        _validate_required_inputs(node)
 
     for edge in edges:
         if edge.source not in node_by_id:

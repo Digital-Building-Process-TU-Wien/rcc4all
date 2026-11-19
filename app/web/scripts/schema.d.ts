@@ -121,7 +121,7 @@ export interface BCFOutput {
     /**
      * Harmonized check elements from an upstream checking node (LOI-Check.elements, Tilt-of-Components.elements or Comparison.elements).
      */
-    elements?: {
+    elements: {
       /**
        * The element reference(s) this element carries. Usually a single raw reference (`<slug>:expr:<id>`, an `inter:intersection_...` helper key, or a `_`-joined distance pair) that bcf_output expands into IFC member objects for viewpoints.
        */

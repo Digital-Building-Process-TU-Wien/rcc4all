@@ -151,14 +151,22 @@ def _workflow(source_type: str, binding: str) -> WorkflowDefinition:
     return WorkflowDefinition(
         files=[ModelFile(path="model.ifc", slug="main")],
         nodes=[
-            WorkflowNode(id="source", type=source_type),
+            WorkflowNode(id="provider", type="ifc_element_filter"),
+            WorkflowNode(
+                id="source",
+                type=source_type,
+                input_bindings={"express_ids": "provider.express_ids"},
+            ),
             WorkflowNode(
                 id="sink",
                 type="concat_string",
                 input_bindings={"values": binding},
             ),
         ],
-        edges=[WorkflowEdge(source="source", target="sink")],
+        edges=[
+            WorkflowEdge(source="provider", target="source"),
+            WorkflowEdge(source="source", target="sink"),
+        ],
     )
 
 
@@ -178,20 +186,56 @@ def test_compatible_binding_passes() -> None:
     validate_workflow(_workflow("ifc_element_filter", "source.express_ids"))
 
 
+def test_required_input_without_binding_is_rejected() -> None:
+    workflow = WorkflowDefinition(
+        files=[ModelFile(path="model.ifc", slug="main")],
+        nodes=[
+            WorkflowNode(id="source", type="ifc_element_filter"),
+            WorkflowNode(id="check", type="loi_check"),
+        ],
+        edges=[WorkflowEdge(source="source", target="check")],
+    )
+
+    with pytest.raises(ValueError, match="has no binding"):
+        validate_workflow(workflow)
+
+
+def test_bcf_output_requires_an_elements_binding() -> None:
+    workflow = WorkflowDefinition(
+        files=[ModelFile(path="model.ifc", slug="main")],
+        nodes=[
+            WorkflowNode(id="source", type="ifc_element_filter"),
+            WorkflowNode(id="report", type="bcf_output"),
+        ],
+        edges=[WorkflowEdge(source="source", target="report")],
+    )
+
+    with pytest.raises(ValueError, match="elements"):
+        validate_workflow(workflow)
+
+
 def _write_workflow(path: Path, binding: str, *, source_type: str) -> None:
     path.write_text(
         json.dumps(
             {
                 "files": [{"path": "model.ifc", "slug": "main", "hash": ""}],
                 "nodes": [
-                    {"id": "source", "type": source_type},
+                    {"id": "provider", "type": "ifc_element_filter"},
+                    {
+                        "id": "source",
+                        "type": source_type,
+                        "input_bindings": {"express_ids": "provider.express_ids"},
+                    },
                     {
                         "id": "sink",
                         "type": "concat_string",
                         "input_bindings": {"values": binding},
                     },
                 ],
-                "edges": [{"source": "source", "target": "sink"}],
+                "edges": [
+                    {"source": "provider", "target": "source"},
+                    {"source": "source", "target": "sink"},
+                ],
             }
         ),
         encoding="utf-8",

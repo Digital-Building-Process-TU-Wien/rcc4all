@@ -118,14 +118,10 @@ Description:  Element {guid} ({class_name} {name}) hat {check_parameter}={actual
 - **Elements** (erforderlich): die harmonisierte Elementliste aus `loi_check`
   (`LOI-Check.elements`), `tilt_of_components`
   (`Tilt-of-Components.elements`) oder `comparison`
-  (`Comparison.elements`); der Node meldet einen Fehler, wenn sie fehlt.
-- **Automatische Verbindung**: Wenn Sie keine Quelle wählen, verwendet der
-  Node automatisch den einzelnen direkt vorgelagerten Node, der die
-  erwarteten Daten liefert. Das geschieht anhand des Node-Typs (nicht seines
-  Anzeigenamens), sodass eine Umbenennung Ihres Prüfungs-Nodes keine
-  Auswirkung hat. Können mehrere direkt vorgelagerte Nodes sie liefern, stoppt
-  der Lauf und fordert eine Auswahl — und Sie können die automatische Wahl
-  jederzeit im Eingabebindungen-Panel überschreiben.
+  (`Comparison.elements`); ohne Binding wird der Workflow abgelehnt.
+- **Verbindung erforderlich**: Wählen Sie die Quelle im Eingabebindungen-Panel.
+  Der Runner rät nicht; fehlt das Binding, schlägt das Laden fehl, bevor eine
+  IFC-Datei geöffnet wird.
 
 ## Ausgaben
 

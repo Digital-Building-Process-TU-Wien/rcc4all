@@ -111,13 +111,10 @@ Description:  Element {guid} ({class_name} {name}) has {check_parameter}={actual
 - **Elements** (required): the harmonized element list from `loi_check`
   (`LOI-Check.elements`), `tilt_of_components`
   (`Tilt-of-Components.elements`) or `comparison`
-  (`Comparison.elements`); the node reports an error if it is missing.
-- **Auto-connect**: if you don't pick a source, the node automatically uses the
-  single directly-upstream node that provides the expected data. This matches
-  by node type (not its display name), so renaming your checking node has no
-  effect. If several directly-upstream nodes could supply it, the run stops and
-  asks you to choose — and you can always override the automatic choice in the
-  Input Bindings panel.
+  (`Comparison.elements`); the workflow is rejected if it is not bound.
+- **Binding required**: pick the source in the Input Bindings panel. The runner
+  never guesses, so a missing binding fails the load before any IFC file is
+  opened.
 
 ## Outputs
 

@@ -10,16 +10,13 @@ Module map:
 - ``loader``: read the JSON, validate it, flatten and prepare it to run
 - ``subworkflow``: inline embedded subworkflows into a flat graph
 - ``graph``: node lookup and topological execution order
-- ``bindings``: explicit and auto-bound input resolution
+- ``bindings``: declared input references resolved to runtime values
 - ``executor``: IFC loading, geometry cache, dispatch, results
 """
 
 from __future__ import annotations
 
-from openbim_runner.workflow.bindings import (
-    resolve_auto_bindings,
-    resolve_input_bindings,
-)
+from openbim_runner.workflow.bindings import resolve_input_bindings
 from openbim_runner.workflow.executor import (
     dump_results,
     execute_workflow,
@@ -89,7 +86,6 @@ __all__ = [
     "load_workflow",
     "parse_reference",
     "prepare_workflow",
-    "resolve_auto_bindings",
     "resolve_ifc_path",
     "resolve_input_bindings",
     "validate_model_files",

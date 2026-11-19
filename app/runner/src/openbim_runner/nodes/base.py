@@ -20,19 +20,6 @@ class NodeModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-@dataclass(frozen=True)
-class AutoBind:
-    """Opt-in marker for a node input field.
-
-    When an input is marked with this and is left unbound in a workflow, the
-    runner auto-resolves it at execution time to the single, directly-upstream
-    node (via workflow edges) whose result exposes a field of a compatible
-    type. Explicit ``input_bindings`` always take precedence. The marker is
-    intended as ``pydantic`` field metadata and never appears in the exported
-    JSON schema.
-    """
-
-
 class ExecutionContext:
     """Execution context carrying one or more loaded IFC models.
 
