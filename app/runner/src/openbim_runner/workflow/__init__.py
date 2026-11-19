@@ -1,4 +1,4 @@
-"""Public façade for workflow loading, validation, and execution.
+"""Public wrapper for workflow loading, validation, and execution.
 
 The implementation lives in focused modules. This module re-exports the names
 that callers have always imported from ``openbim_runner.workflow`` so the
