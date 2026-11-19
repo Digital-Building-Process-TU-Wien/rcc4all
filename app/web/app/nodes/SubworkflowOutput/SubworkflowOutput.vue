@@ -3,13 +3,18 @@ import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
 import { Handle, Position } from '@vue-flow/core'
 import NodeDeleteButton from '~/components/nodes/NodeDeleteButton.vue'
+import { useWorkflowWarnings } from '~/composables/useWorkflowWarnings'
 import { getNodeInputPorts } from '~/utils/schema-helpers'
 
 const props = defineProps<NodeProps<NodeData>>()
 const { t } = useI18n()
+const { warningsByPort } = useWorkflowWarnings()
 
 const portsNode = computed(() => ({ data: props.data }))
 const port = computed(() => getNodeInputPorts(portsNode.value)[0])
+const warning = computed(() =>
+  port.value ? warningsByPort.value[`${props.id}:${port.value.name}`] : undefined,
+)
 </script>
 
 <template>
@@ -22,7 +27,8 @@ const port = computed(() => getNodeInputPorts(portsNode.value)[0])
       type="target"
       :position="Position.Left"
       :title="port.name"
-      class="w-4! h-4! bg-green-600! border-2! border-white! -left-2! shadow-sm"
+      class="w-4! h-4! border-2! border-white! -left-2! shadow-sm"
+      :class="warning ? 'bg-amber-500!' : 'bg-green-600!'"
     />
 
     <div class="flex items-center justify-between gap-2 px-3 py-2">
@@ -34,6 +40,12 @@ const port = computed(() => getNodeInputPorts(portsNode.value)[0])
           {{ port?.label ?? t('node.subworkflow.noPorts') }}
         </p>
       </div>
+      <UIcon
+        v-if="warning"
+        name="i-lucide-triangle-alert"
+        class="size-4 shrink-0 text-amber-500"
+        :title="warning.message"
+      />
       <NodeDeleteButton :node-id="props.id" />
     </div>
   </div>

@@ -2,17 +2,19 @@
  * Base interface for all node data
  */
 import type { NodeRegistrySchema } from '@@/scripts/schema'
-import type { TypeInfo } from './schema-helpers'
+import type { SubworkflowPort } from '@@/scripts/workflow-schema'
 import schemaJson from '@@/scripts/schema.json'
 import { nanoid } from 'nanoid'
 
+export type { SubworkflowPort }
+
 export type SupportedLocale = 'en' | 'de'
 
-export interface SubworkflowPort {
-  name: string
-  type: TypeInfo
-}
-
+// Editor-side mirrors of the generated workflow-file types. They are
+// deliberately hand-written: the editor graph carries concerns the stored
+// workflow file does not (the `viewport` on a subworkflow definition, Vue
+// Flow handles on edges, and the runtime `label` on node data). The stored
+// file types stay generated in `scripts/workflow-schema.d.ts`.
 export interface StoredEdge {
   id: string
   source: string
@@ -151,7 +153,7 @@ export function createSubworkflowDefinition(): SubworkflowDefinitionData {
     nodes: [
       createSubworkflowPortNode(
         'output',
-        { name: DEFAULT_SUBWORKFLOW_OUTPUT_PORT, type: { type: 'null' } },
+        { name: DEFAULT_SUBWORKFLOW_OUTPUT_PORT, type: { type: 'any' } },
         { x: 480, y: 140 },
       ),
     ],

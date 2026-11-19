@@ -2,6 +2,7 @@
 import type { Node } from '@vue-flow/core'
 import type { NodeData, SupportedLocale } from '~/utils/nodes'
 import { Comark } from '@comark/vue'
+import { useCssVar, useLocalStorage } from '@vueuse/core'
 import InputBindingsSection from '~/components/nodes/InputBindingsSection.vue'
 import SubworkflowPortsEditor from '~/components/nodes/SubworkflowPortsEditor.vue'
 import SubworkflowSettings from '~/components/nodes/SubworkflowSettings.vue'
@@ -68,17 +69,73 @@ const nodeDocs = computed(() => {
   const availableNodes = getAvailableNodes(locale.value as SupportedLocale)
   return availableNodes.find(n => n.nodeName === node.value?.data?.nodeName)
 })
+
+const PANEL_DEFAULT_WIDTH = 896
+const PANEL_MIN_WIDTH = 320
+const PANEL_KEYBOARD_STEP = 16
+
+const panelWidth = useLocalStorage('node-details-panel-width', PANEL_DEFAULT_WIDTH)
+const panelWidthVar = useCssVar('--node-details-panel-width')
+const isResizing = ref(false)
+let dragStartX = 0
+let dragStartWidth = 0
+
+watch(panelWidth, (width) => {
+  panelWidthVar.value = `${width}px`
+}, { immediate: true })
+
+function clampPanelWidth(width: number) {
+  return Math.min(Math.max(width, PANEL_MIN_WIDTH), window.innerWidth)
+}
+
+function handleResizeStart(event: PointerEvent) {
+  isResizing.value = true
+  dragStartX = event.clientX
+  dragStartWidth = panelWidth.value
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+}
+
+function handleResizeMove(event: PointerEvent) {
+  if (!isResizing.value)
+    return
+  panelWidth.value = clampPanelWidth(dragStartWidth + dragStartX - event.clientX)
+}
+
+function handleResizeKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    panelWidth.value = clampPanelWidth(panelWidth.value + PANEL_KEYBOARD_STEP)
+  }
+  else if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    panelWidth.value = clampPanelWidth(panelWidth.value - PANEL_KEYBOARD_STEP)
+  }
+}
 </script>
 
 <template>
   <USlideover
     :title="t('slideover.nodeDetails')"
     :description="t('slideover.description')"
-    :ui="{ content: 'max-w-4xl' }"
+    :ui="{ content: 'sm:w-(--node-details-panel-width) sm:max-w-full' }"
     @close="emit('close')"
   >
     <template #body>
-      <div class="flex flex-col h-full">
+      <div class="flex flex-col h-full" :class="{ 'select-none': isResizing }">
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          tabindex="0"
+          :aria-label="t('slideover.resizePanel')"
+          :aria-valuenow="panelWidth"
+          class="hidden sm:block absolute inset-y-0 left-0 z-10 w-2 cursor-col-resize touch-none hover:bg-primary/20 focus-visible:bg-primary/20 focus:outline-none"
+          :class="{ 'bg-primary/30': isResizing }"
+          @pointerdown="handleResizeStart"
+          @pointermove="handleResizeMove"
+          @pointerup="isResizing = false"
+          @pointercancel="isResizing = false"
+          @keydown="handleResizeKeydown"
+        />
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
           <template v-if="node && component">
             <div class="mb-4">

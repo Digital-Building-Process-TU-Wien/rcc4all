@@ -3,15 +3,23 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import sys
 from collections import deque
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import ifcopenshell
-from pydantic import Field, ValidationError
+from pydantic import Field, TypeAdapter, ValidationError
 
 from openbim_runner.nodes import ExecutionContext, NodeModel, dispatch, get_registry
 from openbim_runner.nodes.base import AutoBind
+from openbim_runner.port_types import (
+    PortType,
+    annotation_to_port_type,
+    annotation_to_port_type_or_none,
+    describe_port_type,
+    is_assignable,
+)
 from openbim_runner.util.geometry import build_geometry_cache
 
 SUBWORKFLOW_TYPE = "subworkflow"
@@ -31,10 +39,9 @@ class NodePosition(NodeModel):
 
 class SubworkflowPort(NodeModel):
     name: str = Field(title="Port name", description="Port name used in bindings.")
-    type: Any = Field(
-        default_factory=dict,
+    type: PortType = Field(
         title="Port type",
-        description="JSON-schema-like type descriptor. Informational only for the runner.",
+        description="Port type descriptor. Enforced by the runner and the editor.",
     )
 
 
@@ -164,10 +171,36 @@ def validate_model_files(files: list[ModelFile]) -> None:
         raise ValueError("Workflow must define a file with the reserved slug 'main'.")
 
 
+def get_workflow_models_schema() -> dict[str, Any]:
+    """JSON Schema for the workflow file itself, for ``export-schema``.
+
+    ``SubworkflowPort`` is not reachable from ``WorkflowDefinition`` because
+    meta-node ports live in a free-form ``settings`` object, so it is added
+    explicitly. Its inline ``PortType`` union is named once and referenced, so
+    the generated TypeScript has a single ``PortType`` type to reuse.
+    """
+    schema = WorkflowDefinition.model_json_schema()
+    defs: dict[str, Any] = schema.setdefault("$defs", {})
+
+    port_schema = SubworkflowPort.model_json_schema()
+    defs.update(port_schema.pop("$defs", {}))
+
+    port_type_schema = TypeAdapter(PortType).json_schema()
+    defs.update(port_type_schema.pop("$defs", {}))
+    defs["PortType"] = port_type_schema
+
+    properties = cast(dict[str, Any], port_schema["properties"])
+    properties["type"] = {"$ref": "#/$defs/PortType"}
+    defs["SubworkflowPort"] = port_schema
+    return schema
+
+
 def load_workflow(workflow_path: Path) -> WorkflowDefinition:
-    return WorkflowDefinition.model_validate_json(
+    workflow = WorkflowDefinition.model_validate_json(
         workflow_path.read_text(encoding="utf-8")
     )
+    validate_workflow(workflow)
+    return workflow
 
 
 def resolve_ifc_path(workflow_path: Path, ifc_path: str) -> Path:
@@ -189,6 +222,155 @@ def build_node_lookup(workflow: WorkflowDefinition) -> dict[str, WorkflowNode]:
 def describe_node(workflow_node: WorkflowNode) -> str:
     """Label and id of a node, for error messages."""
     return f"'{workflow_node.get_label()}' (id '{workflow_node.id}')"
+
+
+def _model_port_types(model: type[NodeModel], *, node_name: str) -> dict[str, PortType]:
+    return {
+        field_name: annotation_to_port_type(
+            field_info.annotation, node=node_name, field=field_name
+        )
+        for field_name, field_info in model.model_fields.items()
+    }
+
+
+def _subworkflow_input_ports(node: WorkflowNode) -> dict[str, PortType]:
+    definition = node.subworkflow
+    if definition is None:
+        return {}
+    ports: dict[str, PortType] = {}
+    for inner_node in definition.nodes:
+        if inner_node.type == SUBWORKFLOW_INPUT_TYPE:
+            port = _parse_single_port(inner_node)
+            ports[port.name] = port.type
+    return ports
+
+
+def _subworkflow_output_port(node: WorkflowNode) -> SubworkflowPort | None:
+    definition = node.subworkflow
+    if definition is None:
+        return None
+    for inner_node in definition.nodes:
+        if inner_node.type == SUBWORKFLOW_OUTPUT_TYPE:
+            return _parse_single_port(inner_node)
+    return None
+
+
+def _node_input_ports(
+    node: WorkflowNode, registry: dict[str, Any]
+) -> dict[str, PortType]:
+    """The ports a node accepts, as the type checker sees them in its scope."""
+    if node.type == SUBWORKFLOW_INPUT_TYPE:
+        return {}
+    if node.type == SUBWORKFLOW_OUTPUT_TYPE:
+        port = _parse_single_port(node)
+        return {port.name: port.type}
+    if node.type == SUBWORKFLOW_TYPE:
+        return _subworkflow_input_ports(node)
+
+    definition = registry.get(node.type)
+    if definition is None:
+        raise ValueError(f"Node {describe_node(node)} has unknown type '{node.type}'.")
+    if not definition.takes_inputs or definition.inputs_model is None:
+        return {}
+    return _model_port_types(definition.inputs_model, node_name=node.type)
+
+
+def _node_output_ports(
+    node: WorkflowNode, registry: dict[str, Any]
+) -> dict[str, PortType]:
+    """The ports a node produces, as the type checker sees them in its scope."""
+    if node.type == SUBWORKFLOW_OUTPUT_TYPE:
+        return {}
+    if node.type == SUBWORKFLOW_INPUT_TYPE:
+        port = _parse_single_port(node)
+        return {port.name: port.type}
+    if node.type == SUBWORKFLOW_TYPE:
+        port = _subworkflow_output_port(node)
+        return {} if port is None else {port.name: port.type}
+
+    definition = registry.get(node.type)
+    if definition is None:
+        raise ValueError(f"Node {describe_node(node)} has unknown type '{node.type}'.")
+    return _model_port_types(definition.result_model, node_name=node.type)
+
+
+def _validate_scope(
+    nodes: list[WorkflowNode],
+    edges: list[WorkflowEdge],
+) -> None:
+    """Validate one scope: edge endpoints and every bound port pair."""
+    registry = get_registry()
+    node_by_id = {node.id: node for node in nodes}
+    if len(node_by_id) != len(nodes):
+        raise ValueError("Workflow contains duplicate node IDs.")
+
+    for node in nodes:
+        if node.type == SUBWORKFLOW_TYPE:
+            definition = node.subworkflow
+            if definition is None:
+                raise ValueError(
+                    f"Subworkflow node {describe_node(node)} is missing its "
+                    "embedded definition."
+                )
+            _validate_scope(definition.nodes, definition.edges)
+
+    for edge in edges:
+        if edge.source not in node_by_id:
+            raise ValueError(f"Edge references unknown source node '{edge.source}'.")
+        if edge.target not in node_by_id:
+            raise ValueError(f"Edge references unknown target node '{edge.target}'.")
+
+    for node in nodes:
+        if not node.input_bindings:
+            continue
+        input_ports = _node_input_ports(node, registry)
+        for input_name, reference in node.input_bindings.items():
+            try:
+                source_id, field_name = parse_reference(reference)
+            except ValueError as error:
+                raise ValueError(
+                    f"Node {describe_node(node)} input '{input_name}' has an "
+                    f"invalid reference: {error}"
+                ) from error
+
+            source = node_by_id.get(source_id)
+            if source is None:
+                raise ValueError(
+                    f"Node {describe_node(node)} input '{input_name}' points at "
+                    f"unknown node '{source_id}'."
+                )
+            if input_name not in input_ports:
+                raise ValueError(
+                    f"Node {describe_node(node)} has no input port '{input_name}'."
+                )
+
+            output_ports = _node_output_ports(source, registry)
+            if field_name not in output_ports:
+                raise ValueError(
+                    f"Node {describe_node(source)} has no output port '{field_name}'."
+                )
+
+            output_type = output_ports[field_name]
+            input_type = input_ports[input_name]
+            if not is_assignable(output_type, input_type):
+                raise ValueError(
+                    f"Type mismatch on node {describe_node(node)}: input "
+                    f"'{input_name}' expects {describe_port_type(input_type)} "
+                    f"but receives {describe_port_type(output_type)} from "
+                    f"'{field_name}' of node {describe_node(source)}."
+                )
+
+
+def validate_workflow(workflow: WorkflowDefinition) -> None:
+    """Validate a workflow before any IFC file is opened.
+
+    Checks model slots, subworkflow structure, edge endpoints, every bound port
+    pair against the assignability table, and execution-order cycles.
+    """
+    validate_model_files(workflow.files)
+    _validate_scope(workflow.nodes, workflow.edges)
+    expanded = expand_workflow(workflow)
+    build_execution_order(expanded)
 
 
 def parse_reference(reference: str) -> tuple[str, str]:
@@ -567,7 +749,8 @@ def _inline_subworkflow(
                 print(
                     f"WARNING: dropping order-only edge '{edge.source}' -> "
                     f"'{edge.target}' across subworkflow "
-                    f"{describe_node(subworkflow_node)}."
+                    f"{describe_node(subworkflow_node)}.",
+                    file=sys.stderr,
                 )
             continue
 
@@ -582,7 +765,8 @@ def _inline_subworkflow(
                 print(
                     f"WARNING: dropping order-only edge '{edge.source}' -> "
                     f"'{edge.target}' across subworkflow "
-                    f"{describe_node(subworkflow_node)}."
+                    f"{describe_node(subworkflow_node)}.",
+                    file=sys.stderr,
                 )
             continue
 
@@ -759,6 +943,10 @@ def _resolve_auto_source(
     simply stays unbound (the node keeps its own default/error behavior).
     Raises ``ValueError`` when the resolution is ambiguous.
     """
+    input_type = annotation_to_port_type_or_none(input_annotation)
+    if input_type is None:
+        return None
+
     candidates: list[tuple[str, str | None]] = []
     for source_id in sorted(predecessors):
         source_definition = registry.get(node_lookup[source_id].type)
@@ -767,7 +955,11 @@ def _resolve_auto_source(
         match_fields = [
             field
             for field, field_info in source_definition.result_model.model_fields.items()
-            if field_info.annotation == input_annotation
+            if (
+                (output_type := annotation_to_port_type_or_none(field_info.annotation))
+                is not None
+                and is_assignable(output_type, input_type)
+            )
         ]
         if not match_fields:
             continue
@@ -803,7 +995,6 @@ async def execute_workflow_async(
     execution_order = build_execution_order(workflow)
     node_registry = get_registry()
 
-    validate_model_files(workflow.files)
     models: dict[str, Any] = {}
     for model_file in workflow.files:
         resolved_path = resolve_ifc_path(workflow_path, model_file.path)
@@ -872,7 +1063,8 @@ def _warn_on_hash_mismatch(model_file: ModelFile, resolved_path: Path) -> None:
     if digest != model_file.hash:
         print(
             f"WARNING: IFC file '{model_file.slug}' hash does not match the "
-            "workflow definition (file changed since it was assigned)."
+            "workflow definition (file changed since it was assigned).",
+            file=sys.stderr,
         )
 
 

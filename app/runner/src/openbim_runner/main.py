@@ -7,7 +7,13 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from openbim_runner.nodes import get_registry_schema
-from openbim_runner.workflow import dump_results, execute_workflow
+from openbim_runner.port_types import get_compatibility_table
+from openbim_runner.workflow import (
+    dump_results,
+    execute_workflow,
+    get_workflow_models_schema,
+    load_workflow,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,6 +40,15 @@ def build_parser() -> argparse.ArgumentParser:
         "output",
         nargs="?",
         help="Optional output file path. Prints to stdout when omitted.",
+    )
+
+    validate_parser = subparsers.add_parser(
+        "validate",
+        help="Validate a workflow JSON file without running it.",
+    )
+    validate_parser.add_argument(
+        "workflow",
+        help="Path to the workflow JSON file.",
     )
 
     inspect_parser = subparsers.add_parser(
@@ -75,6 +90,7 @@ def normalize_argv(argv: Sequence[str] | None) -> list[str]:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if not arguments or arguments[0] in {
         "run",
+        "validate",
         "export-schema",
         "inspect-models",
         "-h",
@@ -86,7 +102,12 @@ def normalize_argv(argv: Sequence[str] | None) -> list[str]:
 
 
 def dump_registry_schema() -> str:
-    return json.dumps(get_registry_schema(), indent=2)
+    schema = get_registry_schema()
+    schema["x-workflows"] = {
+        "schema": get_workflow_models_schema(),
+        "compatibility": get_compatibility_table(),
+    }
+    return json.dumps(schema, indent=2)
 
 
 def export_registry_schema(output: str | None) -> int:
@@ -111,6 +132,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "export-schema":
         return export_registry_schema(args.output)
+
+    if args.command == "validate":
+        validate_path = Path(args.workflow).resolve()
+        try:
+            load_workflow(validate_path)
+        except (FileNotFoundError, OSError, RuntimeError, ValueError) as error:
+            print(error)
+            return 1
+        print(f"OK: {validate_path}")
+        return 0
 
     if args.command == "inspect-models":
         from openbim_runner.inspect_models import MODELS_ROOT, inspect_models

@@ -5,6 +5,7 @@ import { Handle, Position } from '@vue-flow/core'
 import NodeDeleteButton from '~/components/nodes/NodeDeleteButton.vue'
 import { useOpenNodeSettings } from '~/composables/useNodeSettings'
 import { useScopedNode } from '~/composables/useScopedNode'
+import { useWorkflowWarnings } from '~/composables/useWorkflowWarnings'
 import { useFlowStore } from '~/stores/flow'
 import { getNodeInputPorts, getNodeOutputPorts } from '~/utils/schema-helpers'
 
@@ -13,9 +14,15 @@ const { t } = useI18n()
 const store = useFlowStore()
 const node = useScopedNode<Node<NodeData>>(props.id)
 const openNodeSettings = useOpenNodeSettings()
+const { warningsByPort } = useWorkflowWarnings()
 
 const portsNode = computed(() => ({ data: props.data }))
-const inputPorts = computed(() => getNodeInputPorts(portsNode.value))
+const inputPorts = computed(() =>
+  getNodeInputPorts(portsNode.value).map(port => ({
+    ...port,
+    warning: warningsByPort.value[`${props.id}:${port.name}`],
+  })),
+)
 const outputPorts = computed(() => getNodeOutputPorts(portsNode.value))
 const hasPorts = computed(() => inputPorts.value.length > 0 || outputPorts.value.length > 0)
 
@@ -97,9 +104,16 @@ function resetTitleScroll(event: FocusEvent) {
           type="target"
           :position="Position.Left"
           :title="port.name"
-          class="w-4! h-4! bg-blue-600! border-2! border-white! -left-3.5! shadow-sm"
+          class="w-4! h-4! border-2! border-white! -left-3.5! shadow-sm"
+          :class="port.warning ? 'bg-amber-500!' : 'bg-blue-600!'"
         />
         <span class="truncate text-xs font-medium text-slate-600">{{ port.label }}</span>
+        <UIcon
+          v-if="port.warning"
+          name="i-lucide-triangle-alert"
+          class="size-3.5 shrink-0 text-amber-500"
+          :title="port.warning.message"
+        />
       </div>
 
       <div

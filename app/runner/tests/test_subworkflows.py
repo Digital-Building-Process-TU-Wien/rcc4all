@@ -21,7 +21,7 @@ def _files() -> list[ModelFile]:
 
 
 def _port(name: str) -> dict[str, Any]:
-    return {"name": name, "type": {"type": "array"}}
+    return {"name": name, "type": {"type": "array", "items": {"type": "string"}}}
 
 
 def _input(node_id: str = "in", port_name: str = "elements") -> WorkflowNode:
@@ -322,7 +322,8 @@ def test_drops_order_only_edges_across_boundary(
 
     # Nothing inside consumes the port, so the edge has no inner endpoint.
     assert expanded.edges == []
-    assert "order-only edge" in capsys.readouterr().out
+    # The warning goes to stderr so the runner's stdout stays machine-readable.
+    assert "order-only edge" in capsys.readouterr().err
 
 
 def test_bindings_without_edges_still_order() -> None:

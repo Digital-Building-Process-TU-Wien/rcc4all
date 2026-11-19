@@ -8,6 +8,7 @@ import {
   workflowFileErrorMessage,
 } from '~/composables/useWorkflowFiles'
 import { useWorkflowSaveForm } from '~/composables/useWorkflowSaveForm'
+import { useWorkflowWarnings } from '~/composables/useWorkflowWarnings'
 import { useFlowStore } from '~/stores/flow'
 
 const emit = defineEmits<{
@@ -19,6 +20,7 @@ const { hasNodes } = storeToRefs(store)
 const { t } = useI18n()
 const toast = useToast()
 const { loadWorkflow, saveWorkflow } = useWorkflowFiles()
+const { warnings } = useWorkflowWarnings()
 
 const {
   name: saveName,
@@ -51,6 +53,8 @@ const browseDir = ref(DEFAULT_WORKFLOW_DIR)
 const hasMainModel = computed(() =>
   store.files.some(file => file.slug === 'main' && !!file.path),
 )
+
+const warningCount = computed(() => warnings.value.length)
 
 function activeDirectory(): string {
   return store.activeWorkflowPath
@@ -255,6 +259,13 @@ async function confirmSave() {
           color="warning"
           variant="subtle"
           :title="t('workflowFiles.noModelWarning')"
+        />
+
+        <UAlert
+          v-if="warningCount > 0"
+          color="warning"
+          variant="subtle"
+          :title="t('workflowFiles.typeWarnings', warningCount)"
         />
 
         <div class="space-y-2">

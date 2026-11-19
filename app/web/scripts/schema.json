@@ -2524,5 +2524,1163 @@
       ],
       "additionalProperties": false
     }
+  },
+  "x-ports": {
+    "bcf_output": {
+      "inputs": [
+        {
+          "name": "elements",
+          "title": "Elements",
+          "description": "Harmonized check elements from an upstream checking node (LOI-Check.elements, Tilt-of-Components.elements or Comparison.elements).",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output_path",
+          "title": "Output path",
+          "description": "Filesystem path the BCF 3.0 file was written to.",
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "topic_count",
+          "title": "Topic count",
+          "description": "Number of BCF topics written.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "viewpoint_count",
+          "title": "Viewpoint count",
+          "description": "Number of viewpoints written (one per resolvable failing element).",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "processed_result_count",
+          "title": "Processed result count",
+          "description": "Total number of checks processed across all input elements.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "element_count",
+          "title": "Element count",
+          "description": "Number of input elements consumed from the upstream node.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "failure_count",
+          "title": "Failure count",
+          "description": "Total number of failed checks found.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "skipped",
+          "title": "Skipped",
+          "description": "Number of elements (with reported checks) skipped because they could not be resolved to a BCF viewpoint: references whose IFC entity / GlobalId could not be resolved, plus elements whose raw references expand to no IFC members (helper/generated geometry).",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "warnings",
+          "title": "Warnings",
+          "description": "Non-fatal notices collected while running.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "topics",
+          "title": "Topics",
+          "description": "Resolved topics (element GUID, check key, title, description).",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "collision": {
+      "inputs": [
+        {
+          "name": "list_a",
+          "title": "List A",
+          "description": "First list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`), in the order to test. Bind ifc_element_filter output here.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "list_b",
+          "title": "List B",
+          "description": "Second list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`) to test the first list against. Mixed-model lists are allowed; each reference resolves against its own model.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "collisions",
+          "title": "Collisions",
+          "description": "Grouped by side-A cache key; each value lists the side-B cache keys it collides with. Only colliding pairs are included.",
+          "type": {
+            "type": "object"
+          }
+        },
+        {
+          "name": "errors",
+          "title": "Errors",
+          "description": "Pairs whose collision could not be decided (e.g. non-watertight or boolean failure).",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "name": "intersection_meshes",
+          "title": "Intersection Meshes",
+          "description": "Only populated in 'intersection_mesh' mode. Maps a pair key '{key_a}__{key_b}' to the geometry-cache key 'inter:intersection_{key_a}_{key_b}' under which the intersection mesh was stored. A null value signals an FCL-decided collision (mesh non-repairable or boolean failed) for which no intersection mesh could be generated. Empty in 'boolean' mode.",
+          "type": {
+            "type": "object"
+          }
+        }
+      ]
+    },
+    "comparison": {
+      "inputs": [
+        {
+          "name": "values",
+          "title": "Values",
+          "description": "List of values to compare. Each item has a `reference` to its source element and a `value`. Bind to a list output of an upstream node.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "name": "unit",
+          "title": "Unit",
+          "description": "Unit of the compared values. Bind to a unit output of an upstream node, e.g. measurement.unit.",
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "check_parameter",
+          "title": "Check parameter",
+          "description": "Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. measurement.type.",
+          "type": {
+            "type": "string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "summary_element_count",
+          "title": "Element count",
+          "description": "Number of elements processed.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_passed_count",
+          "title": "Passed count",
+          "description": "Number of elements whose check passed.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_failed_count",
+          "title": "Failed count",
+          "description": "Number of elements with a failed check.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_check_count",
+          "title": "Check count",
+          "description": "Total number of checks (equals element count, one check per element).",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "passed_express_ids",
+          "title": "Passed express IDs",
+          "description": "Qualified references of elements whose check passed.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "failed_express_ids",
+          "title": "Failed express IDs",
+          "description": "Qualified references of elements with a failed check.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "elements",
+          "title": "Elements",
+          "description": "Ordered list of elements with their comparison check results.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "concat_string": {
+      "inputs": [
+        {
+          "name": "values",
+          "title": "Input values",
+          "description": "Resolved values to concatenate.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "value",
+          "title": "Concatenated string",
+          "description": "Final string assembled from the input strings.",
+          "type": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "file_input": {
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model_slug",
+          "title": "Model slug",
+          "description": "Slug of the selected IFC model, for binding to a consumer's model input.",
+          "type": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "generate_3d_cube": {
+      "inputs": [
+        {
+          "name": "elements",
+          "title": "Base Elements",
+          "description": "Elements from upstream node (e.g., set_3d_position_rotation or get_element_creation_position_door). First element is used for base position/rotation.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "any"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "object_ids",
+          "title": "Object IDs",
+          "description": "1-element list with the qualified geometry cache key (`gen:<object_id>`) of the generated cube.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "get_element_creation_position_door": {
+      "inputs": [
+        {
+          "name": "express_ids",
+          "title": "Express IDs",
+          "description": "Qualified element references (`<slug>:expr:<id>`) to get positions from. Bind ifc_element_filter output here.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "elements",
+          "title": "Elements",
+          "description": "List of element positions (P7) for all processed doors and walls.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "get_property": {
+      "inputs": [
+        {
+          "name": "express_ids",
+          "title": "Express IDs",
+          "description": "Qualified element references (`<slug>:expr:<id>`) to read property values from. Bind ifc_element_filter output here.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mode",
+          "title": "Mode",
+          "description": "The output mode used to generate this result.",
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "elements",
+          "title": "Elements",
+          "description": "List of elements with their property values (output_mode = elements).",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "name": "classes",
+          "title": "Classes",
+          "description": "Elements grouped by IFC class (output_mode = by_class).",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "name": "properties",
+          "title": "Properties",
+          "description": "Distinct values with counts per property (output_mode = model).",
+          "type": {
+            "type": "object"
+          }
+        }
+      ]
+    },
+    "ids_checker": {
+      "inputs": [
+        {
+          "name": "express_ids",
+          "title": "Express IDs",
+          "description": "Qualified element references (`<slug>:expr:<id>`) to validate against the IDS requirements. Mixed-model lists are grouped by model and each model is validated once. Bind ifc_element_filter output here.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "failed_express_ids",
+          "title": "Failed Express IDs",
+          "description": "Qualified references of entities that failed at least one IDS requirement (combined across all specifications).",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "passed_express_ids",
+          "title": "Passed Express IDs",
+          "description": "Qualified references of entities that passed all applicable IDS requirements (combined across all specifications).",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "specifications",
+          "title": "Specification Results",
+          "description": "Per-specification breakdown. Only included when generate_detailed_report is enabled.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "name": "report_path",
+          "title": "Report File Path",
+          "description": "Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.",
+          "type": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "ifc_element_filter": {
+      "inputs": [
+        {
+          "name": "express_ids",
+          "title": "Express IDs",
+          "description": "Optional list of qualified element references (`<slug>:expr:<id>`) to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result. Per-reference model slugs win over the model input.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "model_slug",
+          "title": "Model",
+          "description": "Model slug to scan when no references are bound. Defaults to the main model.",
+          "type": {
+            "type": "string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "express_ids",
+          "title": "Express IDs",
+          "description": "Qualified references (`<slug>:expr:<id>`) of all matching IFC entities.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "guids",
+          "title": "GUIDs",
+          "description": "Qualified GUID references (`<slug>:guid:<GlobalId>`) for all matching IFC entities in the same order as express_ids.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "loi_check": {
+      "inputs": [
+        {
+          "name": "express_ids",
+          "title": "Express IDs",
+          "description": "Qualified element references (`<slug>:expr:<id>`) to run property comparisons against. Bind ifc_element_filter output here.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "summary_element_count",
+          "title": "Element count",
+          "description": "Number of elements processed.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_passed_count",
+          "title": "Passed count",
+          "description": "Number of checked elements whose checks all passed.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_failed_count",
+          "title": "Failed count",
+          "description": "Number of checked elements with at least one failed check.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_check_count",
+          "title": "Check count",
+          "description": "Total number of property checks across all elements.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "passed_express_ids",
+          "title": "Passed express IDs",
+          "description": "Qualified references of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "failed_express_ids",
+          "title": "Failed express IDs",
+          "description": "Qualified references of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "elements",
+          "title": "Elements",
+          "description": "Ordered list of elements with their property check results.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "measurement": {
+      "inputs": [
+        {
+          "name": "list_a",
+          "title": "List A",
+          "description": "First list of fully qualified geometry cache keys \u2014 `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, `inter:<id>` for helper/intersection geometry \u2014 in the order to test. An empty list yields zero measurements. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are used.",
+          "type": {
+            "type": "union",
+            "members": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object"
+              }
+            ]
+          }
+        },
+        {
+          "name": "list_b",
+          "title": "List B",
+          "description": "Second (optional) list of fully qualified geometry cache keys. When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.",
+          "type": {
+            "type": "union",
+            "members": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object"
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "type",
+          "title": "Type",
+          "description": "The measurement type used to generate this result.",
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "unit",
+          "title": "Unit",
+          "description": "The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).",
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "measurements",
+          "title": "Measurements",
+          "description": "List of per-element measurements.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "set_3d_position_rotation": {
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "elements",
+          "title": "Elements",
+          "description": "List with one element containing position and rotation values.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "tilt_of_components": {
+      "inputs": [
+        {
+          "name": "express_ids",
+          "title": "Express IDs",
+          "description": "Qualified element references (`<slug>:expr:<id>`) to measure. Bind ifc_element_filter output here.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "summary_element_count",
+          "title": "Element count",
+          "description": "Number of elements processed.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_passed_count",
+          "title": "Passed count",
+          "description": "Number of checked elements with no flagged surface/axis.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_failed_count",
+          "title": "Failed count",
+          "description": "Number of checked elements with at least one flagged surface/axis.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "summary_check_count",
+          "title": "Check count",
+          "description": "Total number of surface/axis checks across all elements.",
+          "type": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "passed_express_ids",
+          "title": "Passed express IDs",
+          "description": "Qualified references of elements whose checks all passed. Only elements with at least one check are included.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "failed_express_ids",
+          "title": "Failed express IDs",
+          "description": "Qualified references of elements with at least one flagged check. Only elements with at least one check are included.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "elements",
+          "title": "Elements",
+          "description": "Ordered list of elements with their tilt checks.",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "x-workflows": {
+    "schema": {
+      "$defs": {
+        "ModelFile": {
+          "additionalProperties": false,
+          "description": "An IFC file assigned to a workflow slot, keyed by a user-chosen slug.",
+          "properties": {
+            "path": {
+              "description": "Path to the IFC file, relative to the workflow JSON when not absolute.",
+              "title": "Path",
+              "type": "string"
+            },
+            "slug": {
+              "description": "User-chosen identifier for this model. The reserved slug 'main' is the main IFC file.",
+              "title": "Slug",
+              "type": "string"
+            },
+            "hash": {
+              "default": "",
+              "description": "Optional SHA-256 content hash of the file, recorded when the file was assigned.",
+              "title": "File hash",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "slug"
+          ],
+          "title": "ModelFile",
+          "type": "object"
+        },
+        "NodePosition": {
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "default": 0,
+              "description": "Canvas X coordinate.",
+              "title": "X",
+              "type": "number"
+            },
+            "y": {
+              "default": 0,
+              "description": "Canvas Y coordinate.",
+              "title": "Y",
+              "type": "number"
+            }
+          },
+          "title": "NodePosition",
+          "type": "object"
+        },
+        "SubworkflowDefinition": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "default": "",
+              "description": "Display name.",
+              "title": "Name",
+              "type": "string"
+            },
+            "nodes": {
+              "default": [],
+              "description": "Nodes belonging to the subworkflow.",
+              "items": {
+                "$ref": "#/$defs/WorkflowNode"
+              },
+              "title": "Nodes",
+              "type": "array"
+            },
+            "edges": {
+              "default": [],
+              "description": "Edges belonging to the subworkflow.",
+              "items": {
+                "$ref": "#/$defs/WorkflowEdge"
+              },
+              "title": "Edges",
+              "type": "array"
+            }
+          },
+          "title": "SubworkflowDefinition",
+          "type": "object"
+        },
+        "WorkflowEdge": {
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "description": "Upstream node ID.",
+              "title": "Source node",
+              "type": "string"
+            },
+            "target": {
+              "description": "Downstream node ID.",
+              "title": "Target node",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "target"
+          ],
+          "title": "WorkflowEdge",
+          "type": "object"
+        },
+        "WorkflowNode": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Unique workflow node identifier.",
+              "title": "Node ID",
+              "type": "string"
+            },
+            "type": {
+              "description": "Registered node type name.",
+              "title": "Node type",
+              "type": "string"
+            },
+            "label": {
+              "default": "",
+              "description": "Human-readable label for the node. Falls back to node type if empty.",
+              "title": "Node label",
+              "type": "string"
+            },
+            "settings": {
+              "additionalProperties": true,
+              "default": {},
+              "description": "User-authored settings passed directly to the node function.",
+              "title": "Node settings",
+              "type": "object"
+            },
+            "input_bindings": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "default": {},
+              "description": "Mappings from node input names to previously produced '<node_id>.<field_name>' references.",
+              "title": "Input bindings",
+              "type": "object"
+            },
+            "position": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/NodePosition"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Canvas position. Persisted so the editor can restore layout; ignored by execution.",
+              "title": "Position"
+            },
+            "subworkflow": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SubworkflowDefinition"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Embedded subworkflow definition when this node's type is 'subworkflow'.",
+              "title": "Subworkflow"
+            }
+          },
+          "required": [
+            "id",
+            "type"
+          ],
+          "title": "WorkflowNode",
+          "type": "object"
+        },
+        "PortArray": {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "array",
+              "description": "Always 'array'.",
+              "title": "Type",
+              "type": "string"
+            },
+            "items": {
+              "description": "Type of every element.",
+              "discriminator": {
+                "mapping": {
+                  "any": "#/$defs/PortScalar",
+                  "array": "#/$defs/PortArray",
+                  "boolean": "#/$defs/PortScalar",
+                  "integer": "#/$defs/PortScalar",
+                  "number": "#/$defs/PortScalar",
+                  "object": "#/$defs/PortScalar",
+                  "string": "#/$defs/PortScalar",
+                  "union": "#/$defs/PortUnion"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PortScalar"
+                },
+                {
+                  "$ref": "#/$defs/PortArray"
+                },
+                {
+                  "$ref": "#/$defs/PortUnion"
+                }
+              ],
+              "title": "Item type"
+            }
+          },
+          "required": [
+            "type",
+            "items"
+          ],
+          "title": "PortArray",
+          "type": "object"
+        },
+        "PortScalar": {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "description": "One of the scalar JSON types, or 'any' for an explicit wildcard.",
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean",
+                "object",
+                "any"
+              ],
+              "title": "Type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "PortScalar",
+          "type": "object"
+        },
+        "PortUnion": {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "union",
+              "description": "Always 'union'.",
+              "title": "Type",
+              "type": "string"
+            },
+            "members": {
+              "description": "Every member type an assignable value may have.",
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "any": "#/$defs/PortScalar",
+                    "array": "#/$defs/PortArray",
+                    "boolean": "#/$defs/PortScalar",
+                    "integer": "#/$defs/PortScalar",
+                    "number": "#/$defs/PortScalar",
+                    "object": "#/$defs/PortScalar",
+                    "string": "#/$defs/PortScalar",
+                    "union": "#/$defs/PortUnion"
+                  },
+                  "propertyName": "type"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/PortScalar"
+                  },
+                  {
+                    "$ref": "#/$defs/PortArray"
+                  },
+                  {
+                    "$ref": "#/$defs/PortUnion"
+                  }
+                ]
+              },
+              "title": "Members",
+              "type": "array"
+            }
+          },
+          "required": [
+            "type",
+            "members"
+          ],
+          "title": "PortUnion",
+          "type": "object"
+        },
+        "PortType": {
+          "discriminator": {
+            "mapping": {
+              "any": "#/$defs/PortScalar",
+              "array": "#/$defs/PortArray",
+              "boolean": "#/$defs/PortScalar",
+              "integer": "#/$defs/PortScalar",
+              "number": "#/$defs/PortScalar",
+              "object": "#/$defs/PortScalar",
+              "string": "#/$defs/PortScalar",
+              "union": "#/$defs/PortUnion"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PortScalar"
+            },
+            {
+              "$ref": "#/$defs/PortArray"
+            },
+            {
+              "$ref": "#/$defs/PortUnion"
+            }
+          ]
+        },
+        "SubworkflowPort": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "description": "Port name used in bindings.",
+              "title": "Port name",
+              "type": "string"
+            },
+            "type": {
+              "$ref": "#/$defs/PortType"
+            }
+          },
+          "required": [
+            "name",
+            "type"
+          ],
+          "title": "SubworkflowPort",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "default": [],
+          "description": "IFC files loaded for this workflow, each keyed by a model slug. Exactly one file must use the reserved slug 'main'.",
+          "items": {
+            "$ref": "#/$defs/ModelFile"
+          },
+          "title": "IFC files",
+          "type": "array"
+        },
+        "nodes": {
+          "default": [],
+          "description": "Workflow nodes to execute.",
+          "items": {
+            "$ref": "#/$defs/WorkflowNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "edges": {
+          "default": [],
+          "description": "Directed edges used to determine execution order.",
+          "items": {
+            "$ref": "#/$defs/WorkflowEdge"
+          },
+          "title": "Edges",
+          "type": "array"
+        }
+      },
+      "title": "WorkflowDefinition",
+      "type": "object"
+    },
+    "compatibility": {
+      "string": [
+        "string",
+        "any"
+      ],
+      "integer": [
+        "integer",
+        "number",
+        "any"
+      ],
+      "number": [
+        "number",
+        "any"
+      ],
+      "boolean": [
+        "boolean",
+        "any"
+      ],
+      "object": [
+        "object",
+        "any"
+      ],
+      "array": [
+        "array",
+        "any"
+      ],
+      "any": [
+        "string",
+        "integer",
+        "number",
+        "boolean",
+        "object",
+        "array",
+        "any"
+      ]
+    }
   }
 }

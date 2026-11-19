@@ -75,6 +75,9 @@ jobs:
       - name: Typecheck (nuxt typecheck)
         run: npm run typecheck
 
+      - name: Unit tests (node:test)
+        run: npm run test:unit
+
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: '3.11'
@@ -85,4 +88,4 @@ jobs:
       - name: Generated schema is up to date
         run: |
           npm run generate:schema
-          git diff --exit-code -- scripts/schema.json scripts/schema.d.ts
+          git diff --exit-code -- scripts/schema.json scripts/schema.d.ts scripts/workflow-schema.d.ts scripts/workflow-schema.zod.ts

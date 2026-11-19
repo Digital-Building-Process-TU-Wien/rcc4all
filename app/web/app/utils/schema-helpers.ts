@@ -1,4 +1,5 @@
 import type { NodeRegistrySchema } from '@@/scripts/schema'
+import type { PortType } from '@@/scripts/workflow-schema'
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from './nodes'
 import schemaJson from '@@/scripts/schema.json'
@@ -11,6 +12,30 @@ const DIGIT_UPPERCASE_RE = /(\d)([A-Z])/gi
 export const INPUT_HANDLE_PREFIX = 'input:'
 export const OUTPUT_HANDLE_PREFIX = 'output:'
 
+interface RawPort {
+  name: string
+  title?: string
+  description?: string
+  type: unknown
+}
+
+interface RawNodePorts {
+  inputs?: RawPort[]
+  outputs?: RawPort[]
+}
+
+/**
+ * The exported port metadata and the assignability table. Both are written by
+ * the Python runner into `schema.json`, so the editor follows the same rules
+ * as validation at run time.
+ */
+const EXTRA_SCHEMA = schemaJson as unknown as {
+  'x-ports'?: Record<string, RawNodePorts>
+  'x-workflows'?: { compatibility?: Record<string, string[]> }
+}
+
+const COMPATIBILITY = EXTRA_SCHEMA['x-workflows']?.compatibility ?? {}
+
 /**
  * A node-shaped value whose ports can be resolved. Normal nodes read the
  * generated schema; subworkflow nodes read their inner input/output nodes.
@@ -21,7 +46,7 @@ export interface PortNode {
 
 export interface PortInfo {
   name: string
-  type: TypeInfo
+  type: PortType
   label: string
   description: string
 }
@@ -52,28 +77,50 @@ export function getNodeSchema<K extends keyof NodeRegistrySchema>(nodeName: K): 
 }
 
 function getSchemaPorts(nodeName: string, direction: 'inputs' | 'outputs'): PortInfo[] {
-  const schema = (schemaJson.properties as any)[nodeName]
-  const properties = direction === 'inputs'
-    ? schema?.properties?.inputs?.properties
-    : schema?.properties?.result?.properties
+  const nodePorts = EXTRA_SCHEMA['x-ports']?.[nodeName]
+  const entries = direction === 'inputs' ? nodePorts?.inputs : nodePorts?.outputs
 
-  if (!properties)
-    return []
-
-  return Object.entries(properties).map(([name, property]) => ({
-    name,
-    type: parseTypeSchema(property),
-    label: (property as any)?.title || formatLabel(name),
-    description: (property as any)?.description || '',
+  return (entries ?? []).map(entry => ({
+    name: entry.name,
+    type: normalizePortType(entry.type),
+    label: entry.title || formatLabel(entry.name),
+    description: entry.description || '',
   }))
 }
 
-function normalizeTypeInfo(value: unknown): TypeInfo {
-  if (typeof value === 'string')
-    return { type: value as TypeInfo['type'] }
-  if (value && typeof value === 'object' && typeof (value as any).type === 'string')
-    return value as TypeInfo
-  return { type: 'null' }
+const SCALAR_PORT_TYPES = new Set([
+  'string',
+  'integer',
+  'number',
+  'boolean',
+  'object',
+  'any',
+])
+
+/** Whether a value read from workflow JSON is a well-formed port type. */
+export function isPortType(value: unknown): value is PortType {
+  if (!value || typeof value !== 'object')
+    return false
+
+  const port = value as { type?: unknown, items?: unknown, members?: unknown }
+  switch (port.type) {
+    case 'array':
+      return isPortType(port.items)
+    case 'union':
+      return Array.isArray(port.members)
+        && port.members.length > 0
+        && port.members.every(isPortType)
+    default:
+      return typeof port.type === 'string' && SCALAR_PORT_TYPES.has(port.type)
+  }
+}
+
+/**
+ * A missing or malformed port type degrades to the explicit `any` wildcard.
+ * There is no implicit "unknown" type any more; `any` is a real choice.
+ */
+export function normalizePortType(value: unknown): PortType {
+  return isPortType(value) ? value : { type: 'any' }
 }
 
 function parsePort(raw: unknown): PortInfo | null {
@@ -86,7 +133,7 @@ function parsePort(raw: unknown): PortInfo | null {
 
   return {
     name: entry.name,
-    type: normalizeTypeInfo(entry.type),
+    type: normalizePortType(entry.type),
     label: formatLabel(entry.name),
     description: '',
   }
@@ -153,117 +200,63 @@ export function getInputDescription(node: PortNode, inputName: string): string {
   return getNodeInputPorts(node).find(port => port.name === inputName)?.description ?? ''
 }
 
-export interface TypeInfo {
-  type: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object' | 'null'
-  items?: TypeInfo
-  /**
-   * Set when the schema is a union (`anyOf`) of two or more non-null types.
-   * `type` mirrors the first member so plain displays stay sensible.
-   */
-  anyOf?: TypeInfo[]
-}
-
-export function getOutputType(node: PortNode, outputName: string): TypeInfo {
+export function getOutputType(node: PortNode, outputName: string): PortType {
   return getNodeOutputPorts(node).find(port => port.name === outputName)?.type
-    ?? { type: 'null' }
+    ?? { type: 'any' }
 }
 
-export function getInputType(node: PortNode, inputName: string): TypeInfo {
+export function getInputType(node: PortNode, inputName: string): PortType {
   return getNodeInputPorts(node).find(port => port.name === inputName)?.type
-    ?? { type: 'null' }
-}
-
-function parseTypeSchema(schema: any): TypeInfo {
-  if (!schema)
-    return { type: 'null' }
-
-  if (schema.type === 'array') {
-    return {
-      type: 'array',
-      items: schema.items ? parseTypeSchema(schema.items) : undefined,
-    }
-  }
-
-  if (Array.isArray(schema.anyOf)) {
-    const members = schema.anyOf
-      .filter((t: any) => t.type !== 'null')
-      .map(parseTypeSchema)
-    if (members.length === 0)
-      return { type: 'null' }
-    if (members.length === 1)
-      return members[0]
-    return { ...members[0], anyOf: members }
-  }
-
-  return { type: schema.type || 'null' }
+    ?? { type: 'any' }
 }
 
 /**
  * Whether an output type can feed an input type. Unions are honoured on both
  * sides: every member of a union output must fit, and a union input accepts an
- * output if any of its members do.
+ * output if any of its members do. The scalar rules come from the table the
+ * runner exports.
  */
-function isAssignable(output: TypeInfo, input: TypeInfo): boolean {
-  if (output.anyOf)
-    return output.anyOf.every(member => isAssignable(member, input))
-  if (input.anyOf)
-    return input.anyOf.some(member => isAssignable(output, member))
+function isAssignableType(output: PortType, input: PortType): boolean {
+  if (output.type === 'union')
+    return output.members.every(member => isAssignableType(member, input))
+  if (input.type === 'union')
+    return input.members.some(member => isAssignableType(output, member))
 
-  // 'null' means unknown/no type — accept while either side lacks a concrete
-  // type. Manually typed subworkflow ports default to 'null' ("Any").
-  if (output.type === 'null' || input.type === 'null')
-    return true
-
-  // For arrays, compare item types rather than only the top-level 'array' type.
   if (output.type === 'array' && input.type === 'array')
-    return areItemsCompatible(output.items, input.items)
+    return isAssignableType(output.items, input.items)
 
-  if (output.type === input.type)
-    return true
-  if (output.type === 'integer' && input.type === 'number')
-    return true
-  return false
+  return (COMPATIBILITY[output.type] ?? []).includes(input.type)
 }
 
-export function areTypesCompatible(output: TypeInfo, input: TypeInfo): boolean {
-  return isAssignable(output, input)
-}
-
-function areItemsCompatible(output: TypeInfo | undefined, input: TypeInfo | undefined): boolean {
-  if (!output || !input)
-    return true
-  return isAssignable(output, input)
+export function areTypesCompatible(output: PortType, input: PortType): boolean {
+  return isAssignableType(output, input)
 }
 
 /** Human-readable type name for warnings, e.g. `array<integer | string>`. */
-export function describeType(type: TypeInfo): string {
-  if (type.anyOf?.length)
-    return type.anyOf.map(describeType).join(' | ')
+export function describeType(type: PortType): string {
+  if (type.type === 'union')
+    return type.members.map(describeType).join(' | ')
   if (type.type === 'array')
-    return `array<${type.items ? describeType(type.items) : 'any'}>`
+    return `array<${describeType(type.items)}>`
   return type.type
 }
 
 const MODEL_SLUG_PREFIX = 'model_slug'
 
 /**
- * A model input is a consumer's model selection (fed by a File Input node's output).
- * Model ports only connect to other model ports — never to ordinary data ports.
+ * A model input is a consumer's model selection, typically fed by a File Input
+ * node's `model_slug` output. Editor UX only (auto-binding preferences and
+ * labels) — compatibility itself is decided by the exported rule table,
+ * exactly like the runner.
  */
 export function isModelInput(inputName: string): boolean {
   return inputName.startsWith(MODEL_SLUG_PREFIX)
 }
 
 /**
- * The File Input node's `model_slug` output is the only model-producing port.
- */
-export function isModelOutput(nodeName: string, outputName: string): boolean {
-  return nodeName === 'file_input' && outputName === 'model_slug'
-}
-
-/**
- * Whether a source node's output may feed a target node's input, taking the
- * dedicated model port into account in addition to type compatibility.
+ * Whether a source node's output may feed a target node's input. Pure type
+ * compatibility through the exported rule table — the same rule the runner
+ * applies, so the editor warns exactly where the runner would reject.
  */
 export function arePortsCompatible(
   targetNode: PortNode,
@@ -271,9 +264,6 @@ export function arePortsCompatible(
   sourceNode: PortNode,
   outputName: string,
 ): boolean {
-  const modelToData = isModelInput(inputName) !== isModelOutput(sourceNode.data?.nodeName ?? '', outputName)
-  if (modelToData)
-    return false
   return areTypesCompatible(
     getOutputType(sourceNode, outputName),
     getInputType(targetNode, inputName),

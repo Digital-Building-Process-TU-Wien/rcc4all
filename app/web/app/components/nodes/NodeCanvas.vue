@@ -3,6 +3,7 @@ import type { Connection, Edge, Node } from '@vue-flow/core'
 import type { AvailableNode, NodeData } from '~/utils/nodes'
 import { VueFlow } from '@vue-flow/core'
 import { nanoid } from 'nanoid'
+import { useWorkflowWarnings } from '~/composables/useWorkflowWarnings'
 import { useFlowStore } from '~/stores/flow'
 import { createNodeData } from '~/utils/nodes'
 
@@ -27,6 +28,25 @@ const emit = defineEmits<{
 
 const store = useFlowStore()
 const { t } = useI18n()
+const { warnings, warningCount, warnedEdgeIds } = useWorkflowWarnings()
+
+/**
+ * Edges keep their stored shape; the warning class is decoration only, so the
+ * flow's `update:edges` handler strips it again before persisting.
+ */
+const renderedEdges = computed<Edge[]>(() =>
+  props.edges.map(edge =>
+    warnedEdgeIds.value.has(edge.id)
+      ? { ...edge, class: 'edge-warning' }
+      : edge,
+  ),
+)
+
+function stripEdgeDecoration(edge: Edge): Edge {
+  const plain: Edge = { ...edge }
+  delete plain.class
+  return plain
+}
 
 interface SelectableNode {
   id: string
@@ -125,6 +145,37 @@ function handleDrop(event: DragEvent) {
               @click="setInteractionMode('pan')"
             />
           </div>
+          <UBadge v-if="warningCount > 0" color="warning" variant="soft" class="mr-3">
+            <UPopover mode="click">
+              <button
+                type="button"
+                class="flex items-center gap-1 font-medium text-warning"
+                :aria-label="t('editor.warningTitle')"
+              >
+                <UIcon name="i-lucide-triangle-alert" class="size-4" />
+                {{ t('editor.warningCount', warningCount) }}
+              </button>
+              <template #content>
+                <div class="max-w-sm space-y-2 p-3">
+                  <p class="text-sm font-medium text-default">
+                    {{ t('editor.warningTitle') }}
+                  </p>
+                  <ul class="space-y-1">
+                    <li
+                      v-for="warning in warnings"
+                      :key="warning.key"
+                      class="text-xs text-muted"
+                    >
+                      {{ warning.message }}
+                    </li>
+                  </ul>
+                  <p class="text-xs text-muted">
+                    {{ t('editor.warningHint') }}
+                  </p>
+                </div>
+              </template>
+            </UPopover>
+          </UBadge>
           <UBadge color="neutral" variant="soft">
             {{ t('editor.nodeCount', nodes.length) }}
           </UBadge>
@@ -135,7 +186,7 @@ function handleDrop(event: DragEvent) {
         <VueFlow
           ref="vueFlowRef"
           :nodes="nodes"
-          :edges="edges"
+          :edges="renderedEdges"
           :viewport="viewport"
           :node-types="nodeTypes"
           :selection-key-code="isSelectMode ? true : 'Shift'"
@@ -149,7 +200,7 @@ function handleDrop(event: DragEvent) {
             store.nodesById = newById
           }"
           @update:edges="(newEdges: Edge[]) => {
-            store.edges = newEdges
+            store.edges = newEdges.map(stripEdgeDecoration)
           }"
           @update:viewport="(newViewport: { x: number, y: number, zoom: number }) => {
             store.viewport = newViewport
@@ -210,6 +261,13 @@ function handleDrop(event: DragEvent) {
 .vue-flow__edge-path {
   stroke: #cbd5e1 !important;
   stroke-width: 3;
+}
+
+/* A wire whose bound ports have incompatible types. The editor allows it; the
+   runner rejects it. */
+.vue-flow__edge.edge-warning .vue-flow__edge-path {
+  stroke: #d97706 !important;
+  stroke-dasharray: 6 4;
 }
 
 .vue-flow__handle:not(.node-hitbox) {

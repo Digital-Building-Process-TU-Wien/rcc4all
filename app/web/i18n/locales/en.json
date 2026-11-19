@@ -84,7 +84,11 @@
     "extractFailed": "Cannot create subworkflow",
     "extractOutputConflict": "The selection produces more than one outgoing value ({references}). Keep a single output or select fewer nodes.",
     "extractMetaNode": "Input and output nodes stay in their subworkflow.",
-    "extractEmpty": "Select at least one node."
+    "extractEmpty": "Select at least one node.",
+    "warningCount": "{count} warning | {count} warnings",
+    "warningTitle": "Type warnings",
+    "warningItem": "{target} input '{input}' expects {expected} but receives {actual} from {source}.{output}",
+    "warningHint": "These connections are saved, but the runner rejects the workflow until they are fixed."
   },
   "library": {
     "backHome": "Back Home",
@@ -150,6 +154,7 @@
     "existingFiles": "Existing files",
     "existingFilesHint": "Pick a file to overwrite it, or type a new name above.",
     "noModelWarning": "No main model assigned. The runner needs one, so this workflow will not run until you assign it.",
+    "typeWarnings": "This workflow has {count} type warning. The runner will reject it until the warning is fixed. | This workflow has {count} type warnings. The runner will reject it until the warnings are fixed.",
     "searchFiles": "Search workflow files...",
     "searchFolders": "Search folders...",
     "loading": "Loading...",
@@ -183,7 +188,8 @@
     "unknownNode": "Unknown Node",
     "componentNotFound": "Node component not found",
     "selectNode": "Select a node to view details",
-    "deleteNode": "Delete Node"
+    "deleteNode": "Delete Node",
+    "resizePanel": "Resize panel"
   },
   "bindings": {
     "title": "Input Bindings",
