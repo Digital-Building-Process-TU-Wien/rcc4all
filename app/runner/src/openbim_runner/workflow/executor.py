@@ -8,19 +8,20 @@ and serialising results.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
 import ifcopenshell
 
-from openbim_runner.nodes import ExecutionContext, NodeModel, dispatch, get_registry
+from openbim_runner.nodes import ExecutionContext, NodeModel, dispatch
 from openbim_runner.util.geometry import build_geometry_cache
 from openbim_runner.workflow.bindings import resolve_input_bindings
+from openbim_runner.workflow.diagnostics import warn
 from openbim_runner.workflow.io import parse_workflow, resolve_ifc_path
 from openbim_runner.workflow.model import ModelFile, WorkflowNode, describe_node
-from openbim_runner.workflow.validate import prepare_workflow
+from openbim_runner.workflow.validate import prepare_workflow, require_definition
 
 
 async def execute_workflow_async(
@@ -31,7 +32,6 @@ async def execute_workflow_async(
     workflow = prepared.workflow
     node_lookup = prepared.node_lookup
     execution_order = prepared.execution_order
-    node_registry = get_registry()
 
     models: dict[str, Any] = {}
     for model_file in workflow.files:
@@ -50,11 +50,7 @@ async def execute_workflow_async(
 
     for node_id in execution_order:
         workflow_node = node_lookup[node_id]
-        definition = node_registry.get(workflow_node.type)
-        if definition is None:
-            raise ValueError(
-                f"Node {describe_node(workflow_node)} has unknown type '{workflow_node.type}'."
-            )
+        definition = require_definition(workflow_node)
 
         if workflow_node.input_bindings and not definition.takes_inputs:
             raise ValueError(
@@ -92,17 +88,14 @@ def _warn_on_hash_mismatch(model_file: ModelFile, resolved_path: Path) -> None:
     SHA-256 hex digest. A mismatch signals the file on disk changed since
     assignment; the workflow still runs against the current file contents.
     """
-    import hashlib
-
     try:
         digest = hashlib.sha256(resolved_path.read_bytes()).hexdigest()
     except OSError:
         return
     if digest != model_file.hash:
-        print(
-            f"WARNING: IFC file '{model_file.slug}' hash does not match the "
-            "workflow definition (file changed since it was assigned).",
-            file=sys.stderr,
+        warn(
+            f"IFC file '{model_file.slug}' hash does not match the "
+            "workflow definition (file changed since it was assigned)."
         )
 
 

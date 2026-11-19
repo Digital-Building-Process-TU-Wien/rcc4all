@@ -19,7 +19,7 @@ from openbim_runner.workflow.model import (
     WorkflowDefinition,
     WorkflowNode,
     describe_node,
-    parse_reference,
+    parse_input_reference,
 )
 
 
@@ -35,13 +35,9 @@ def resolve_input_bindings(
     input_payload: dict[str, Any] = {}
 
     for input_name, reference in effective.items():
-        try:
-            source_node_id, field_name = parse_reference(reference)
-        except ValueError as error:
-            raise ValueError(
-                f"Node {describe_node(workflow_node)} input '{input_name}' has "
-                f"an invalid reference: {error}"
-            ) from error
+        source_node_id, field_name = parse_input_reference(
+            reference, node=workflow_node, input_name=input_name
+        )
         source_output = node_outputs.get(source_node_id)
         if source_output is None:
             raise ValueError(

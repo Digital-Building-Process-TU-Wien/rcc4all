@@ -11,14 +11,13 @@ does a node accept in its own scope, and what does it produce.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
-from openbim_runner.nodes import NodeModel, get_registry
+from openbim_runner.nodes import NodeDefinition, get_registry
 from openbim_runner.port_types import (
     PortType,
-    annotation_to_port_type,
     describe_port_type,
     is_assignable,
+    model_port_types,
 )
 from openbim_runner.workflow.bindings import resolve_auto_bindings
 from openbim_runner.workflow.graph import build_execution_order, build_node_lookup
@@ -31,20 +30,19 @@ from openbim_runner.workflow.model import (
     WorkflowEdge,
     WorkflowNode,
     describe_node,
-    parse_reference,
+    parse_input_reference,
     parse_single_port,
     validate_model_files,
 )
 from openbim_runner.workflow.subworkflow import expand_workflow
 
 
-def _model_port_types(model: type[NodeModel], *, node_name: str) -> dict[str, PortType]:
-    return {
-        field_name: annotation_to_port_type(
-            field_info.annotation, node=node_name, field=field_name
-        )
-        for field_name, field_info in model.model_fields.items()
-    }
+def require_definition(node: WorkflowNode) -> NodeDefinition:
+    """Return the registered definition for a node, naming the node on failure."""
+    definition = get_registry().get(node.type)
+    if definition is None:
+        raise ValueError(f"Node {describe_node(node)} has unknown type '{node.type}'.")
+    return definition
 
 
 def _subworkflow_input_ports(node: WorkflowNode) -> dict[str, PortType]:
@@ -69,9 +67,7 @@ def _subworkflow_output_port(node: WorkflowNode) -> SubworkflowPort | None:
     return None
 
 
-def _node_input_ports(
-    node: WorkflowNode, registry: dict[str, Any]
-) -> dict[str, PortType]:
+def _node_input_ports(node: WorkflowNode) -> dict[str, PortType]:
     """The ports a node accepts, as the type checker sees them in its scope."""
     if node.type == SUBWORKFLOW_INPUT_TYPE:
         return {}
@@ -81,17 +77,13 @@ def _node_input_ports(
     if node.type == SUBWORKFLOW_TYPE:
         return _subworkflow_input_ports(node)
 
-    definition = registry.get(node.type)
-    if definition is None:
-        raise ValueError(f"Node {describe_node(node)} has unknown type '{node.type}'.")
+    definition = require_definition(node)
     if not definition.takes_inputs or definition.inputs_model is None:
         return {}
-    return _model_port_types(definition.inputs_model, node_name=node.type)
+    return model_port_types(definition.inputs_model, node=node.type)
 
 
-def _node_output_ports(
-    node: WorkflowNode, registry: dict[str, Any]
-) -> dict[str, PortType]:
+def _node_output_ports(node: WorkflowNode) -> dict[str, PortType]:
     """The ports a node produces, as the type checker sees them in its scope."""
     if node.type == SUBWORKFLOW_OUTPUT_TYPE:
         return {}
@@ -102,10 +94,8 @@ def _node_output_ports(
         port = _subworkflow_output_port(node)
         return {} if port is None else {port.name: port.type}
 
-    definition = registry.get(node.type)
-    if definition is None:
-        raise ValueError(f"Node {describe_node(node)} has unknown type '{node.type}'.")
-    return _model_port_types(definition.result_model, node_name=node.type)
+    definition = require_definition(node)
+    return model_port_types(definition.result_model, node=node.type)
 
 
 def _validate_scope(
@@ -113,7 +103,6 @@ def _validate_scope(
     edges: list[WorkflowEdge],
 ) -> None:
     """Validate one scope: edge endpoints and every bound port pair."""
-    registry = get_registry()
     node_by_id = {node.id: node for node in nodes}
     if len(node_by_id) != len(nodes):
         raise ValueError("Workflow contains duplicate node IDs.")
@@ -137,15 +126,11 @@ def _validate_scope(
     for node in nodes:
         if not node.input_bindings:
             continue
-        input_ports = _node_input_ports(node, registry)
+        input_ports = _node_input_ports(node)
         for input_name, reference in node.input_bindings.items():
-            try:
-                source_id, field_name = parse_reference(reference)
-            except ValueError as error:
-                raise ValueError(
-                    f"Node {describe_node(node)} input '{input_name}' has an "
-                    f"invalid reference: {error}"
-                ) from error
+            source_id, field_name = parse_input_reference(
+                reference, node=node, input_name=input_name
+            )
 
             source = node_by_id.get(source_id)
             if source is None:
@@ -158,7 +143,7 @@ def _validate_scope(
                     f"Node {describe_node(node)} has no input port '{input_name}'."
                 )
 
-            output_ports = _node_output_ports(source, registry)
+            output_ports = _node_output_ports(source)
             if field_name not in output_ports:
                 raise ValueError(
                     f"Node {describe_node(source)} has no output port '{field_name}'."

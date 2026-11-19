@@ -210,6 +210,22 @@ def parse_reference(reference: str) -> tuple[str, str]:
     return node_id, field_name
 
 
+def parse_input_reference(
+    reference: str,
+    *,
+    node: WorkflowNode,
+    input_name: str,
+) -> tuple[str, str]:
+    """Parse a node input reference, adding the node and input to errors."""
+    try:
+        return parse_reference(reference)
+    except ValueError as error:
+        raise ValueError(
+            f"Node {describe_node(node)} input '{input_name}' has an "
+            f"invalid reference: {error}"
+        ) from error
+
+
 def parse_single_port(node: WorkflowNode) -> SubworkflowPort:
     """Read the one port a ``subworkflow_input``/``subworkflow_output`` node owns."""
     raw_port = node.settings.get("port")

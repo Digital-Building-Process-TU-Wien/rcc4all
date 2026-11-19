@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, cast, get_type_hints
 
 from pydantic import BaseModel, ConfigDict
 
-from openbim_runner.port_types import annotation_to_port_type
+from openbim_runner.port_types import model_port_types
 
 if TYPE_CHECKING:
     import ifcopenshell
@@ -387,14 +387,13 @@ def _model_ports(model: type[NodeModel], node_name: str) -> list[dict[str, Any]]
     annotation without a faithful port representation fails ``export-schema``
     instead of silently degrading to a wildcard.
     """
+    port_types = model_port_types(model, node=node_name)
     return [
         {
             "name": field_name,
             "title": field_info.title or "",
             "description": field_info.description or "",
-            "type": annotation_to_port_type(
-                field_info.annotation, node=node_name, field=field_name
-            ).model_dump(mode="json"),
+            "type": port_types[field_name].model_dump(mode="json"),
         }
         for field_name, field_info in model.model_fields.items()
     ]

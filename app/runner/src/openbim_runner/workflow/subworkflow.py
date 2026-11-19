@@ -9,8 +9,7 @@ graph allows.
 
 from __future__ import annotations
 
-import sys
-
+from openbim_runner.workflow.diagnostics import warn
 from openbim_runner.workflow.model import (
     SUBWORKFLOW_INPUT_TYPE,
     SUBWORKFLOW_META_TYPES,
@@ -21,6 +20,7 @@ from openbim_runner.workflow.model import (
     WorkflowEdge,
     WorkflowNode,
     describe_node,
+    parse_input_reference,
     parse_reference,
     parse_single_port,
 )
@@ -72,6 +72,13 @@ def _expand_scope(
         definition.nodes = inner_nodes
         definition.edges = inner_edges
         nodes, edges = _inline_subworkflow(subworkflow_node, nodes, edges)
+
+
+def _warn_order_only_edge(edge: WorkflowEdge, subworkflow_node: WorkflowNode) -> None:
+    warn(
+        f"dropping order-only edge '{edge.source}' -> '{edge.target}' "
+        f"across subworkflow {describe_node(subworkflow_node)}."
+    )
 
 
 def _inline_subworkflow(
@@ -150,13 +157,9 @@ def _inline_subworkflow(
                 f"Subworkflow node {describe_node(subworkflow_node)} has a binding "
                 f"for '{input_name}' but no matching input port."
             )
-        try:
-            source_id, _ = parse_reference(reference)
-        except ValueError as error:
-            raise ValueError(
-                f"Subworkflow node {describe_node(subworkflow_node)} input "
-                f"'{input_name}' has an invalid reference: {error}"
-            ) from error
+        source_id, _ = parse_input_reference(
+            reference, node=subworkflow_node, input_name=input_name
+        )
         if source_id == subworkflow_node.id:
             raise ValueError(
                 f"Subworkflow node {describe_node(subworkflow_node)} input "
@@ -208,13 +211,9 @@ def _inline_subworkflow(
         if inner_node.id in input_ports_by_id or inner_node.id == output_node_id:
             continue
         for input_name, reference in inner_node.input_bindings.items():
-            try:
-                source_id, field_name = parse_reference(reference)
-            except ValueError as error:
-                raise ValueError(
-                    f"Node {describe_node(inner_node)} input '{input_name}' has an "
-                    f"invalid reference: {error}"
-                ) from error
+            source_id, field_name = parse_input_reference(
+                reference, node=inner_node, input_name=input_name
+            )
             if source_id in input_ports_by_id:
                 port = input_ports_by_id[source_id]
                 if field_name != port.name:
@@ -295,13 +294,9 @@ def _inline_subworkflow(
         renamed_other = other_node.model_copy(deep=True)
         rewritten_bindings = {}
         for input_name, reference in other_node.input_bindings.items():
-            try:
-                source_id, field_name = parse_reference(reference)
-            except ValueError as error:
-                raise ValueError(
-                    f"Node {describe_node(other_node)} input '{input_name}' has an "
-                    f"invalid reference: {error}"
-                ) from error
+            source_id, field_name = parse_input_reference(
+                reference, node=other_node, input_name=input_name
+            )
             if source_id == subworkflow_node.id:
                 if output_port is None or output_producer_reference is None:
                     raise ValueError(
@@ -361,12 +356,7 @@ def _inline_subworkflow(
                 for consumer_id in sorted(consumers):
                     add_edge(edge.source, consumer_id)
             else:
-                print(
-                    f"WARNING: dropping order-only edge '{edge.source}' -> "
-                    f"'{edge.target}' across subworkflow "
-                    f"{describe_node(subworkflow_node)}.",
-                    file=sys.stderr,
-                )
+                _warn_order_only_edge(edge, subworkflow_node)
             continue
 
         if edge.source == subworkflow_node.id:
@@ -377,12 +367,7 @@ def _inline_subworkflow(
             if output_producer_id is not None and edge.target in output_consumers:
                 add_edge(output_producer_id, edge.target)
             else:
-                print(
-                    f"WARNING: dropping order-only edge '{edge.source}' -> "
-                    f"'{edge.target}' across subworkflow "
-                    f"{describe_node(subworkflow_node)}.",
-                    file=sys.stderr,
-                )
+                _warn_order_only_edge(edge, subworkflow_node)
             continue
 
         add_edge(edge.source, edge.target)

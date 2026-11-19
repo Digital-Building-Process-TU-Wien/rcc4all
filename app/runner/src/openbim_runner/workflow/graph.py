@@ -8,7 +8,7 @@ from openbim_runner.workflow.model import (
     WorkflowDefinition,
     WorkflowNode,
     describe_node,
-    parse_reference,
+    parse_input_reference,
 )
 
 
@@ -47,13 +47,9 @@ def build_execution_order(workflow: WorkflowDefinition) -> list[str]:
 
     for workflow_node in workflow.nodes:
         for input_name, reference in workflow_node.input_bindings.items():
-            try:
-                source_node_id, _ = parse_reference(reference)
-            except ValueError as error:
-                raise ValueError(
-                    f"Node {describe_node(workflow_node)} input '{input_name}' has "
-                    f"an invalid reference: {error}"
-                ) from error
+            source_node_id, _ = parse_input_reference(
+                reference, node=workflow_node, input_name=input_name
+            )
             if source_node_id not in node_lookup:
                 raise ValueError(
                     f"Node {describe_node(workflow_node)} input '{input_name}' points "
