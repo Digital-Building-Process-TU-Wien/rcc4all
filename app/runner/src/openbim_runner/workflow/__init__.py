@@ -31,7 +31,7 @@ from openbim_runner.workflow.graph import (
     build_execution_order,
     build_node_lookup,
 )
-from openbim_runner.workflow.io import load_workflow, resolve_ifc_path
+from openbim_runner.workflow.io import load_workflow, parse_workflow, resolve_ifc_path
 from openbim_runner.workflow.model import (
     MODEL_SLUG_PATTERN,
     PORT_NAME_PATTERN,
@@ -55,7 +55,11 @@ from openbim_runner.workflow.subworkflow import (
     NAMESPACE_SEPARATOR,
     expand_workflow,
 )
-from openbim_runner.workflow.validate import validate_workflow
+from openbim_runner.workflow.validate import (
+    PreparedWorkflow,
+    prepare_workflow,
+    validate_workflow,
+)
 
 __all__ = [
     "MODEL_SLUG_PATTERN",
@@ -67,6 +71,7 @@ __all__ = [
     "SUBWORKFLOW_TYPE",
     "ModelFile",
     "NodePosition",
+    "PreparedWorkflow",
     "SubworkflowDefinition",
     "SubworkflowPort",
     "WorkflowDefinition",
@@ -83,6 +88,8 @@ __all__ = [
     "get_workflow_models_schema",
     "load_workflow",
     "parse_reference",
+    "parse_workflow",
+    "prepare_workflow",
     "resolve_auto_bindings",
     "resolve_ifc_path",
     "resolve_input_bindings",

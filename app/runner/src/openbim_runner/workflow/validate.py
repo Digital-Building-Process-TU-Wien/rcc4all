@@ -10,6 +10,7 @@ does a node accept in its own scope, and what does it produce.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from openbim_runner.nodes import NodeModel, get_registry
@@ -19,7 +20,8 @@ from openbim_runner.port_types import (
     describe_port_type,
     is_assignable,
 )
-from openbim_runner.workflow.graph import build_execution_order
+from openbim_runner.workflow.bindings import resolve_auto_bindings
+from openbim_runner.workflow.graph import build_execution_order, build_node_lookup
 from openbim_runner.workflow.model import (
     SUBWORKFLOW_INPUT_TYPE,
     SUBWORKFLOW_OUTPUT_TYPE,
@@ -177,9 +179,38 @@ def validate_workflow(workflow: WorkflowDefinition) -> None:
     """Validate a workflow before any IFC file is opened.
 
     Checks model slots, subworkflow structure, edge endpoints, every bound port
-    pair against the assignability table, and execution-order cycles.
+    pair against the assignability table, auto-bind ambiguity, and
+    execution-order cycles.
+    """
+    prepare_workflow(workflow)
+
+
+@dataclass(frozen=True)
+class PreparedWorkflow:
+    """A validated workflow flattened once, ready to execute."""
+
+    workflow: WorkflowDefinition
+    node_lookup: dict[str, WorkflowNode]
+    execution_order: list[str]
+    auto_bindings: dict[str, dict[str, str]]
+
+
+def prepare_workflow(workflow: WorkflowDefinition) -> PreparedWorkflow:
+    """Run every static check and flatten subworkflows in a single pass.
+
+    Validation used to expand and topologically sort, then execution repeated
+    both steps. Both now build this value instead, so there is one path and the
+    work happens once.
     """
     validate_model_files(workflow.files)
     _validate_scope(workflow.nodes, workflow.edges)
     expanded = expand_workflow(workflow)
-    build_execution_order(expanded)
+    node_lookup = build_node_lookup(expanded)
+    execution_order = build_execution_order(expanded)
+    auto_bindings = resolve_auto_bindings(expanded, node_lookup)
+    return PreparedWorkflow(
+        workflow=expanded,
+        node_lookup=node_lookup,
+        execution_order=execution_order,
+        auto_bindings=auto_bindings,
+    )

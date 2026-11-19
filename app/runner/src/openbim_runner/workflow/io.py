@@ -8,10 +8,15 @@ from openbim_runner.workflow.model import WorkflowDefinition
 from openbim_runner.workflow.validate import validate_workflow
 
 
-def load_workflow(workflow_path: Path) -> WorkflowDefinition:
-    workflow = WorkflowDefinition.model_validate_json(
+def parse_workflow(workflow_path: Path) -> WorkflowDefinition:
+    """Read a workflow document without validating it."""
+    return WorkflowDefinition.model_validate_json(
         workflow_path.read_text(encoding="utf-8")
     )
+
+
+def load_workflow(workflow_path: Path) -> WorkflowDefinition:
+    workflow = parse_workflow(workflow_path)
     validate_workflow(workflow)
     return workflow
 

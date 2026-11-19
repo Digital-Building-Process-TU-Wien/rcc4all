@@ -17,23 +17,20 @@ import ifcopenshell
 
 from openbim_runner.nodes import ExecutionContext, NodeModel, dispatch, get_registry
 from openbim_runner.util.geometry import build_geometry_cache
-from openbim_runner.workflow.bindings import (
-    resolve_auto_bindings,
-    resolve_input_bindings,
-)
-from openbim_runner.workflow.graph import build_execution_order, build_node_lookup
-from openbim_runner.workflow.io import load_workflow, resolve_ifc_path
+from openbim_runner.workflow.bindings import resolve_input_bindings
+from openbim_runner.workflow.io import parse_workflow, resolve_ifc_path
 from openbim_runner.workflow.model import ModelFile, WorkflowNode, describe_node
-from openbim_runner.workflow.subworkflow import expand_workflow
+from openbim_runner.workflow.validate import prepare_workflow
 
 
 async def execute_workflow_async(
     workflow_path: Path,
 ) -> tuple[dict[str, NodeModel], dict[str, WorkflowNode]]:
-    workflow = load_workflow(workflow_path)
-    workflow = expand_workflow(workflow)
-    node_lookup = build_node_lookup(workflow)
-    execution_order = build_execution_order(workflow)
+    workflow = parse_workflow(workflow_path)
+    prepared = prepare_workflow(workflow)
+    workflow = prepared.workflow
+    node_lookup = prepared.node_lookup
+    execution_order = prepared.execution_order
     node_registry = get_registry()
 
     models: dict[str, Any] = {}
@@ -49,7 +46,7 @@ async def execute_workflow_async(
         geometry_cache.update(build_geometry_cache(model, slug=slug))
 
     node_outputs: dict[str, NodeModel] = {}
-    auto_bindings = resolve_auto_bindings(workflow, node_lookup)
+    auto_bindings = prepared.auto_bindings
 
     for node_id in execution_order:
         workflow_node = node_lookup[node_id]
