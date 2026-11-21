@@ -29,6 +29,41 @@ function toSingleQuoted(input: string): string {
   return input.replace(DOUBLE_QUOTED_RE, requoteDoubleQuoted)
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Strip `title` from nested node schemas so `json-schema-to-typescript-lite`
+ * inlines them instead of hoisting top-level `export type` aliases.
+ * Top-level registry and node titles stay intact to preserve interface names.
+ */
+function stripSchemaTitles(node: unknown): void {
+  if (!isRecord(node))
+    return
+
+  delete node.title
+
+  if (isRecord(node.properties)) {
+    for (const propSchema of Object.values(node.properties))
+      stripSchemaTitles(propSchema)
+  }
+
+  if (isRecord(node.items))
+    stripSchemaTitles(node.items)
+  else if (Array.isArray(node.items))
+    node.items.forEach(stripSchemaTitles)
+
+  if (isRecord(node.additionalProperties))
+    stripSchemaTitles(node.additionalProperties)
+
+  for (const key of ['anyOf', 'oneOf', 'allOf'] as const) {
+    const branches = node[key]
+    if (Array.isArray(branches))
+      branches.forEach(stripSchemaTitles)
+  }
+}
+
 async function generate() {
   const schemaPath = resolve(__dirname, 'schema.json')
   const outputPath = resolve(__dirname, 'schema.d.ts')
@@ -39,7 +74,15 @@ async function generate() {
   // `x-workflows` has its own `$defs` document and its own generator, and the
   // ref parser would otherwise resolve its refs against the wrong root.
   delete schema['x-workflows']
-  delete schema['x-ports']
+
+  if (isRecord(schema.properties)) {
+    for (const nodeSchema of Object.values(schema.properties)) {
+      if (!isRecord(nodeSchema) || !isRecord(nodeSchema.properties))
+        continue
+      for (const section of Object.values(nodeSchema.properties))
+        stripSchemaTitles(section)
+    }
+  }
 
   let ts = await compile(schema, 'WorkflowSchema', { additionalProperties: true })
 

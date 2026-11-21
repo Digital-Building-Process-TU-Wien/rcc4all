@@ -15,6 +15,7 @@ from openbim_runner.port_types import (
     UnsupportedPortTypeError,
     annotation_to_port_type,
     is_assignable,
+    model_port_types,
 )
 from openbim_runner.workflow import (
     ModelFile,
@@ -126,26 +127,38 @@ def test_assignability_matches_the_exported_rules(
 
 def test_every_registered_node_exports_typed_ports() -> None:
     schema = get_registry_schema()
-    ports = schema["x-ports"]
+    assert "x-ports" not in schema
 
-    assert set(ports) == set(get_registry())
+    node_schemas = schema["properties"]
+    assert set(node_schemas) == set(get_registry())
+
+    valid_kinds = {
+        "string",
+        "integer",
+        "number",
+        "boolean",
+        "object",
+        "array",
+        "union",
+        "any",
+    }
 
     for node_name, definition in get_registry().items():
-        assert ports[node_name]["outputs"]
-        for port in ports[node_name]["outputs"] + ports[node_name]["inputs"]:
-            assert port["type"]["type"] in {
-                "string",
-                "integer",
-                "number",
-                "boolean",
-                "object",
-                "array",
-                "union",
-                "any",
-            }
+        node_properties = node_schemas[node_name]["properties"]
+
+        output_types = model_port_types(definition.result_model, node=node_name)
+        assert output_types
+        assert list(node_properties["result"]["properties"]) == list(output_types)
+        for port_type in output_types.values():
+            assert port_type.type in valid_kinds
 
         if definition.takes_inputs:
-            assert ports[node_name]["inputs"]
+            assert definition.inputs_model is not None
+            input_types = model_port_types(definition.inputs_model, node=node_name)
+            assert input_types
+            assert list(node_properties["inputs"]["properties"]) == list(input_types)
+            for port_type in input_types.values():
+                assert port_type.type in valid_kinds
 
 
 def _workflow(source_type: str, binding: str) -> WorkflowDefinition:

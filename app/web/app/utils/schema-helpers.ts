@@ -1,5 +1,5 @@
 import type { NodeRegistrySchema } from '@@/scripts/schema'
-import type { PortType } from '@@/scripts/workflow-schema'
+import type { PortScalar, PortType } from '@@/scripts/workflow-schema'
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from './nodes'
 import schemaJson from '@@/scripts/schema.json'
@@ -12,29 +12,15 @@ const DIGIT_UPPERCASE_RE = /(\d)([A-Z])/gi
 export const INPUT_HANDLE_PREFIX = 'input:'
 export const OUTPUT_HANDLE_PREFIX = 'output:'
 
-interface RawPort {
-  name: string
-  title?: string
-  description?: string
-  type: unknown
-}
-
-interface RawNodePorts {
-  inputs?: RawPort[]
-  outputs?: RawPort[]
-}
-
 /**
- * The exported port metadata and the assignability table. Both are written by
- * the Python runner into `schema.json`, so the editor follows the same rules
- * as validation at run time.
+ * The assignability table exported by the Python runner into `schema.json`,
+ * so the editor follows the same rules as validation at run time.
  */
-const EXTRA_SCHEMA = schemaJson as unknown as {
-  'x-ports'?: Record<string, RawNodePorts>
+const WORKFLOW_SCHEMA = schemaJson as unknown as {
   'x-workflows'?: { compatibility?: Record<string, string[]> }
 }
 
-const COMPATIBILITY = EXTRA_SCHEMA['x-workflows']?.compatibility ?? {}
+const COMPATIBILITY = WORKFLOW_SCHEMA['x-workflows']?.compatibility ?? {}
 
 /**
  * A node-shaped value whose ports can be resolved. Normal nodes read the
@@ -76,18 +62,6 @@ export function getNodeSchema<K extends keyof NodeRegistrySchema>(nodeName: K): 
   return schemaJson.properties[nodeName] as any
 }
 
-function getSchemaPorts(nodeName: string, direction: 'inputs' | 'outputs'): PortInfo[] {
-  const nodePorts = EXTRA_SCHEMA['x-ports']?.[nodeName]
-  const entries = direction === 'inputs' ? nodePorts?.inputs : nodePorts?.outputs
-
-  return (entries ?? []).map(entry => ({
-    name: entry.name,
-    type: normalizePortType(entry.type),
-    label: entry.title || formatLabel(entry.name),
-    description: entry.description || '',
-  }))
-}
-
 const SCALAR_PORT_TYPES = new Set([
   'string',
   'integer',
@@ -96,6 +70,114 @@ const SCALAR_PORT_TYPES = new Set([
   'object',
   'any',
 ])
+
+function isSchemaRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function portTypesEqual(left: PortType, right: PortType): boolean {
+  if (left.type !== right.type)
+    return false
+  if (left.type === 'array' && right.type === 'array')
+    return portTypesEqual(left.items, right.items)
+  if (left.type === 'union' && right.type === 'union') {
+    return left.members.length === right.members.length
+      && left.members.every((member, index) => portTypesEqual(member, right.members[index]!))
+  }
+  return true
+}
+
+function collapsePortMembers(members: PortType[]): PortType {
+  const unique: PortType[] = []
+  for (const member of members) {
+    const flattened = member.type === 'union' ? member.members : [member]
+    for (const candidate of flattened) {
+      if (!unique.some(existing => portTypesEqual(existing, candidate)))
+        unique.push(candidate)
+    }
+  }
+
+  if (unique.length === 0)
+    return { type: 'any' }
+  if (unique.length === 1)
+    return unique[0]!
+  return { type: 'union', members: unique }
+}
+
+function literalValueToPortType(value: unknown): PortType {
+  if (typeof value === 'boolean')
+    return { type: 'boolean' }
+  if (typeof value === 'number')
+    return { type: Number.isInteger(value) ? 'integer' : 'number' }
+  if (typeof value === 'string')
+    return { type: 'string' }
+  return { type: 'object' }
+}
+
+/**
+ * Derive a runner-compatible `PortType` directly from a node field's JSON Schema.
+ */
+export function jsonSchemaToPortType(schema: unknown): PortType {
+  if (!isSchemaRecord(schema))
+    return { type: 'any' }
+
+  const unionBranches = Array.isArray(schema.anyOf)
+    ? schema.anyOf
+    : Array.isArray(schema.oneOf)
+      ? schema.oneOf
+      : null
+  if (unionBranches) {
+    const nonNull = unionBranches.filter(branch => !(isSchemaRecord(branch) && branch.type === 'null'))
+    return collapsePortMembers(nonNull.map(jsonSchemaToPortType))
+  }
+
+  if (Array.isArray(schema.allOf) && schema.allOf.length === 1)
+    return jsonSchemaToPortType(schema.allOf[0])
+
+  if (Array.isArray(schema.type)) {
+    const nonNullTypes = schema.type.filter((entry): entry is string => typeof entry === 'string' && entry !== 'null')
+    return collapsePortMembers(nonNullTypes.map(typeName => jsonSchemaToPortType({ ...schema, type: typeName })))
+  }
+
+  if (schema.type === 'array') {
+    return {
+      type: 'array',
+      items: schema.items !== undefined ? jsonSchemaToPortType(schema.items) : { type: 'any' },
+    }
+  }
+
+  if (typeof schema.type === 'string' && SCALAR_PORT_TYPES.has(schema.type))
+    return { type: schema.type as PortScalar['type'] }
+
+  if ('const' in schema)
+    return schema.const === null ? { type: 'any' } : literalValueToPortType(schema.const)
+
+  if (Array.isArray(schema.enum)) {
+    const nonNullValues = schema.enum.filter(value => value !== null)
+    return collapsePortMembers(nonNullValues.map(literalValueToPortType))
+  }
+
+  return { type: 'any' }
+}
+
+function getSchemaPorts(nodeName: string, direction: 'inputs' | 'outputs'): PortInfo[] {
+  const section = direction === 'inputs' ? 'inputs' : 'result'
+  const nodes = schemaJson.properties as Record<string, {
+    properties?: Record<string, { properties?: Record<string, Record<string, unknown>> }>
+  }>
+  const fields = nodes[nodeName]?.properties?.[section]?.properties
+  if (!fields)
+    return []
+
+  return Object.entries(fields).map(([name, fieldSchema]) => ({
+    name,
+    type: jsonSchemaToPortType(fieldSchema),
+    label: typeof fieldSchema?.title === 'string' && fieldSchema.title.length > 0
+      ? fieldSchema.title
+      : formatLabel(name),
+    description: typeof fieldSchema?.description === 'string' ? fieldSchema.description : '',
+  }))
+}
 
 /** Whether a value read from workflow JSON is a well-formed port type. */
 export function isPortType(value: unknown): value is PortType {

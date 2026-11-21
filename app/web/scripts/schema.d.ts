@@ -971,6 +971,9 @@ export interface Set3DPositionRotation {
        * World coordinates [x, y, z] in meters.
        */
       position: number[]
+      /**
+       * Euler angles (X, Y, Z) in degrees.
+       */
       rotation: {
         /**
          * Rotation around global X-axis in degrees.
