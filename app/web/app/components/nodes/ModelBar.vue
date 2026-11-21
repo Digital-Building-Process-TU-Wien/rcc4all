@@ -3,7 +3,7 @@ import type { ModelFile } from '~/stores/flow'
 import { useFlowStore } from '~/stores/flow'
 
 // Keep in sync with the runner validator:
-// app/runner/src/openbim_runner/workflow.py (MODEL_SLUG_PATTERN).
+// app/runner/src/openbim_runner/workflow/model.py (MODEL_SLUG_PATTERN).
 const MODEL_SLUG_RE = /^[a-z0-9][a-z0-9-_]*$/
 
 const { t } = useI18n()

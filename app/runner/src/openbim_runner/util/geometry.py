@@ -90,10 +90,9 @@ def cache_mesh(
 
     - ``express_id`` stores an IFC body under ``<slug>:expr:<express_id>``.
     - ``object_id`` stores an external/generated geometry under ``gen:<object_id>``.
-    - ``intermediate`` stores an internal helper mesh under ``inter:<uuid>`` (excluded
-      from the whole-model expansion).
+    - ``intermediate`` stores an internal helper mesh under ``inter:<uuid>``.
     - ``key`` stores the mesh under an explicit, fully-specified key (e.g. a
-      deterministic intermediate key like ``inter:intersection_1_expr:2``).
+      deterministic intermediate key like ``inter:intersection_main:expr:1_main:expr:2``).
 
     Exactly one of these must be provided, and the key must not already exist.
     ``slug`` defaults to the execution context's main model.

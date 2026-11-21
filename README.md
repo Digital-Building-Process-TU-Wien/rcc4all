@@ -45,7 +45,7 @@ GEV011020ZFT S235030-000 - Digital Building Process
 1. Each checking authority (for example, a state building authority or a rail/infrastructure authority) works in its own team space with separate projects, permissions, and model versions.
 2. Domain experts and technical users design reusable workflows in the authoring environment.
 3. These workflows are exported as an execution plan (JSON) and passed to the runner, which executes the plan against IFC and related input files.
-4. Results are returned as reports and generated helper geometry, which support interpretation and traceability.
+4. Results are returned as structured reports (JSON, BCF, HTML) and, as a planned extension, generated helper geometry in IFC format (planned) to support interpretation and traceability.
 
 ## Core Components
 
@@ -53,23 +53,21 @@ GEV011020ZFT S235030-000 - Digital Building Process
 
 Location: [./app/web](./app/web)
 
-The web frontend provides the main user interface and is built with [Nuxt 4](https://nuxt.com/). In the current research project, it offers practical governance and collaboration views for working with groups, projects, and files through the [Payload SDK](https://github.com/payloadcms/payload/tree/main/packages/sdk), making the multi-authority workflow manageable. Its central capability is a visual scripting editor where checking nodes are composed into reusable templates. From this authoring step, an execution plan JSON is produced for the runner. The architecture also keeps the editor concept portable beyond the current workspace logic, so it can be reused in setups where governance and storage are provided differently.
+The web frontend provides the main user interface and is built with [Nuxt 4](https://nuxt.com/). Its central capability is a visual scripting editor where checking nodes are composed into reusable templates and exported as an execution plan JSON for the runner. Optional governance and collaboration views for groups, projects, and files via the [Payload SDK](https://github.com/payloadcms/payload/tree/main/packages/sdk) are also present, though the CMS integration is not currently used.
 
 ### Checking Rule Runner
 
 Location: [./app/runner](./app/runner)
 
-The runner is a Python-based CLI engine for execution checking rules. It executes a library of decorator-registered Python functions whose input and output contracts are defined with Pydantic models. It receives an execution plan as a JSON file that defines nodes, their connections, inputs, outputs, and result names, and it includes the implementation version of the runner as an integral part of the plan (git hash, release tag, python wheel hash). The runner then executes that version-pinned plan against input files (for example IFC, IDS, Excel, and CSV). In addition to textual outputs, it can produce helper geometry in IFC format to document how checks were performed, such as temporary collision meshes, measured distances, and other derived geometric artifacts.
+The runner is a Python-based CLI engine for executing checking rules. It executes a library of decorator-registered Python functions whose input and output contracts are defined with Pydantic models. It receives an execution plan as a JSON file that defines input files, nodes, their connections, settings, and input bindings, and executes that plan against IFC and IDS input files (additional formats such as Excel/CSV and version-pinned runner hashes in the execution plan are planned). In addition to textual/structured outputs (JSON, BCF, HTML), helper geometry meshes are used internally during geometric checks, with IFC helper-geometry export planned.
 
-In this prototype the web app spawns the python runner directly, this can be replaced by a job queue or seperate API in a production setup.
+In this prototype the web app spawns the python runner directly; this can be replaced by a job queue or separate API in a production setup.
 
-### CMS
+### CMS (not currently used)
 
 Location: [./app/cms](./app/cms)
 
-The CMS is the collaboration and governance layer of the platform. It manages groups, projects, user permissions, and versioned project data, including IFC files, workflow plans, and partial checking results. It enables multiple teams to work in parallel while keeping clear access boundaries and an auditable project structure. The CMS is built with [Payload](https://payloadcms.com/). See [CMS README.md](./app/cms/README.md) for implementation details.
-
-Within this project phase, the CMS is our prototype approach to make collaboration workable across project partners. Its purpose is to let different checking authorities run their own checking tasks independently, without forcing everyone to navigate or manage each other's project spaces.
+The CMS is a [Payload](https://payloadcms.com/) prototype for collaboration and governance (groups, projects, user permissions, and versioned project data). It is currently not used in active development; the web frontend runs standalone against local files in `app/web/.dev-files/`. See [CMS README.md](./app/cms/README.md) for details.
 
 ## Summary of project goals
 
@@ -83,18 +81,18 @@ A further focus is the treatment of information generated during checking. Some 
 
 To set up a local development environment and start contributing:
 
-1. **Install prerequisites**: Node.js 24+, Python 3+
-2. **See [CONTRIBUTING.md](./CONTRIBUTING.md)** for detailed setup instructions and development workflows
+1. **Install prerequisites**: Node.js 24+ (npm 11.7+), Python 3.11+, and [uv](https://github.com/astral-sh/uv)
+2. **See [GettingStarted.md](./GettingStarted.md)** for local node authoring and running workflows, and **[CONTRIBUTING.md](./CONTRIBUTING.md)** for PR guidelines and verification commands
 
 ## Development Documentation
 
 Each application has its own README and development guidelines:
 
-- **[app/web/README.md](./app/web/README.md)** – Web frontend (Nuxt 4) setup, architecture, and component library
-- **[app/cms/README.md](./app/cms/README.md)** – CMS backend (Payload) setup, data model, and API
-- **[app/runner/README.md](./app/runner/README.md)** – Validation engine (Python) setup and usage  
+- **[app/web/README.md](./app/web/README.md)** – Web frontend (Nuxt 4) setup, architecture, and workflow editor
+- **[app/runner/README.md](./app/runner/README.md)** – Checking rule runner (Python) setup and usage
+- **[app/cms/README.md](./app/cms/README.md)** – CMS backend (Payload, not currently used)
 
-Code style and patterns are documented in `AGENTS.md` files within each module.
+Code style and patterns are documented in `AGENTS.md` (where present) and each module's README.
 
 ## License
 

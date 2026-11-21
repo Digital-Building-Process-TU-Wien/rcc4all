@@ -344,7 +344,7 @@ export const useFlowStore = defineStore('flow', () => {
     zoom: 1,
   })
   const workflowData = ref<ExportedWorkflow | null>(null)
-  // Path (relative to `web/.dev-files`) of the workflow file last loaded/saved.
+  // Path (relative to `app/web/.dev-files`) of the workflow file last loaded/saved.
   const activeWorkflowPath = ref<string | null>(null)
   // The `main` slot is always present but starts unassigned; no file is implied.
   const files = ref<ModelFile[]>([{ slug: 'main', path: '', hash: '' }])

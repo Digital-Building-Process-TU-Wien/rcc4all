@@ -568,8 +568,8 @@ def test_nested_layer_without_geometry_adversarial_order() -> None:
     - Layer-3 (212) -> Sub-layer-3a (228), Sub-layer-3b (246)
     - Layer-3 has NO own geometry; only sub-layers do.
 
-    Relations given in adversarial order (Wall before Layer-3) would fail
-    with the old single-pass implementation.
+    Relations are given in adversarial order (Wall before Layer-3) to verify
+    recursive synthesis handles arbitrary ordering.
 
     Parts are offset to test boolean union (not concatenate) — volumes must be
     correct after merging, and internal touching surfaces removed.

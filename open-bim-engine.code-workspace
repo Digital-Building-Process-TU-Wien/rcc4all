@@ -19,7 +19,6 @@
   ],
   "settings": {
     "i18n-ally.localesPaths": [
-      "app/web/i18n",
       "app/web/i18n/locales"
     ]
   }

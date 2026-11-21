@@ -61,7 +61,7 @@ class ExecutionContext:
 
     @property
     def ifc_model(self) -> ifcopenshell.file:
-        """The main IFC model (backward-compatible accessor)."""
+        """The main IFC model."""
         return self.models[self.main_model_id]
 
     def resolve_slug(self, slug: str | None = None) -> str:

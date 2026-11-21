@@ -1,15 +1,17 @@
 # Getting Started: How to Write a Node and Run the Workflow
 
-A simple guide for beginners to create custom nodes in the Open BIM Engine.
+A simple guide for beginners to create custom nodes in RCC4All.
 
 ## Quick Overview
 
-The Open BIM Engine has **two parts**:
+Node development in RCC4All touches **two parts**:
 
 1. **Web App (Vue/Nuxt)** - Visual node editor where you design workflows
 2. **Runner (Python)** - Executes the workflow and processes IFC files
 
 To create a new node, you implement it in **both** places.
+
+> **Prerequisites**: Node.js 24+ (`npm >= 11.7`), Python 3.11+, and [uv](https://github.com/astral-sh/uv). Run `uv sync` in `app/runner` and `npm ci` in `app/web` before starting.
 
 ---
 
@@ -114,25 +116,25 @@ async def template_node(
     settings: TemplateNodeSettings,
     inputs: TemplateNodeInputs,
 ) -> TemplateNodeResult:
-    """Print a greeting message."""
-    
-    # Create the greeting message
+    """Create a greeting message."""
+
+    # Note: Do not write to stdout with print() — stdout is reserved for the
+    # runner's JSON result payload. Write debug logs to sys.stderr if needed.
     message = f"{settings.greeting}, {inputs.name}!"
-    
-    # Print to console (visible in runner output)
-    print(message)
-    
+
     return TemplateNodeResult(message=message)
 ```
 
 ### 2.3 Create Documentation (Required!)
+
+Both `README.en.md` and `README.de.md` are required by `export-schema`. In German text, always use **"Node"/"Nodes"** (never "Knoten").
 
 **File**: `app/runner/src/openbim_runner/nodes/template_node/README.en.md`
 
 ```markdown
 ---
 title: Template Node
-description: A simple node that prints a greeting message.
+description: A simple node that builds a greeting message.
 categories: Demo
 ---
 
@@ -155,20 +157,20 @@ Use this node as a starting point for learning how to create new nodes, or as a 
 - **Message**: The final greeting message (e.g., "Hello, World!")
 ```
 
-**File**: `app/runner/src/openbim_runner/nodes/template_node/README.de.md` (Optional German translation)
+**File**: `app/runner/src/openbim_runner/nodes/template_node/README.de.md`
 
 ```markdown
 ---
-title: Template Knoten
-description: Ein einfacher Knoten, der eine Begrüßungsnachricht ausgibt.
+title: Template Node
+description: Ein einfacher Node, der eine Begrüßungsnachricht erstellt.
 categories: Demo
 ---
 
-Der `template_node` ist ein einfacher Beispielknoten, der die Grundstruktur eines Knotens demonstriert.
+Der `template_node` ist ein einfacher Beispiel-Node, der die Grundstruktur eines Nodes demonstriert.
 
 ## Anwendungsbeispiel
 
-Verwenden Sie diesen Knoten als Ausgangspunkt zum Erlernen der Erstellung neuer Knoten oder als Testknoten, um zu überprüfen, ob Ihr Workflow funktioniert.
+Verwenden Sie diesen Node als Ausgangspunkt zum Erlernen der Erstellung neuer Nodes oder als Test-Node, um zu überprüfen, ob Ihr Workflow funktioniert.
 
 ## Einstellungen
 
@@ -187,26 +189,14 @@ Verwenden Sie diesen Knoten als Ausgangspunkt zum Erlernen der Erstellung neuer 
 
 **File**: `app/runner/src/openbim_runner/nodes/__init__.py`
 
-Add your import and export:
+Import and export your node alongside the existing registered nodes:
 
 ```python
-from .base import ExecutionContext, NodeDefinition, NodeModel, dispatch, get_registry, get_registry_schema, node
-from .concat_string.concat_string import concat_string
-from .generate_3d_cube.generate_3d_cube import generate_3d_cube
-from .ifc_element_filter.ifc_element_filter import ifc_element_filter
+# ... existing imports ...
 from .template_node.template_node import template_node  # ← ADD THIS
 
 __all__ = [
-    "ExecutionContext",
-    "NodeDefinition",
-    "NodeModel",
-    "concat_string",
-    "dispatch",
-    "generate_3d_cube",
-    "get_registry",
-    "get_registry_schema",
-    "ifc_element_filter",
-    "node",
+    # ... existing exports ...
     "template_node",  # ← ADD THIS
 ]
 ```
@@ -260,16 +250,18 @@ def test_template_node_custom() -> None:
 ```vue
 <script setup lang="ts">
 import type { SchemaNodeType } from '~/utils/schema-helpers'
-import { useScopedNode } from '~/composables/useScopedNode'
 
 // 1. Define typed node using schema
 type TemplateNodeType = SchemaNodeType<'template_node'>
 
-const props = defineProps<{
+interface Props {
   node: TemplateNodeType
-}>()
+}
 
-// 2. Get scoped reactive reference to the node
+const props = defineProps<Props>()
+const { t } = useI18n()
+
+// 2. Get scoped reactive reference to the node (auto-imported composable)
 const node = useScopedNode<TemplateNodeType>(props.node.id)
 
 // 3. Initialize defaults if needed
@@ -281,36 +273,37 @@ if (!node.value.data.settings) {
 <template>
   <div class="px-2">
     <div class="text-sm font-bold text-slate-800 mb-2 uppercase tracking-wide">
-      Template Node
+      {{ t('node.TemplateNode.title') }}
     </div>
   </div>
 
   <div class="flex flex-col gap-2">
     <!-- Greeting Setting -->
-    <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Greeting</label>
+    <label class="text-xs text-slate-500 font-semibold uppercase tracking-tight">
+      {{ t('node.TemplateNode.greeting') }}
+    </label>
     <input
       v-model="node.data.settings!.greeting"
       type="text"
-      placeholder="Hello"
+      :placeholder="t('node.TemplateNode.greetingPlaceholder')"
       class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-    />
+    >
   </div>
 </template>
 ```
 
-### 3.2 Register the Component
+Add the matching `node.TemplateNode.*` keys to both `app/web/i18n/locales/en.json` and `app/web/i18n/locales/de.json` (see `app/web/AGENTS.md`).
+
+### 3.2 Register the Component (if non-standard name)
 
 **File**: `app/web/app/utils/nodes.ts`
 
-Add the mapping in `nodeNameToComponent`:
+Standard `snake_case` → `PascalCase` names (such as `template_node` → `TemplateNode`) resolve automatically. If your component folder/file name differs from the default PascalCase conversion, add an explicit entry to `nodeNameToComponent`:
 
 ```typescript
 const nodeNameToComponent: Record<string, string> = {
-  concat_string: 'ConcatString',
-  file_input: 'FileInput',
-  generate_3d_cube: 'Generate3DCube',
-  ifc_element_filter: 'IfcElementFilter',
-  template_node: 'TemplateNode',  // ← ADD THIS
+  // ... existing mappings ...
+  template_node: 'TemplateNode', // optional when PascalCase matches
 }
 ```
 
@@ -325,7 +318,8 @@ npm run generate:schema
 
 This single command:
 1. Exports the schema from Python runner → `scripts/schema.json`
-2. Generates TypeScript types → `scripts/schema.d.ts`
+2. Generates TypeScript node types → `scripts/schema.d.ts`
+3. Generates workflow types and Zod schema → `scripts/workflow-schema.d.ts`, `scripts/workflow-schema.zod.ts`
 
 ✅ Your node is now fully registered in both Python and TypeScript!
 
@@ -360,8 +354,8 @@ npm run dev
    - Use **Add IFC Model** in the editor model bar
    - Select `test.ifc`; it is stored in the workflow with the reserved slug `main`
 
-3. **Add an IFC Element Filter**:
-   - Drag `IFC Element Filter` to the canvas
+3. **Add an Ifc Element Filter**:
+   - Drag `Ifc Element Filter` to the canvas
    - Add a `File Input` node and select the `main` model
    - Connect File Input's `model_slug` output to the filter's `model_slug` input
    - The filter now scans the assigned main model
@@ -373,8 +367,8 @@ npm run dev
 
 5. **Run the workflow**:
    - Click "Run Workflow"
-   - Watch the console output in the results view
-   - You should see: `"Hi, World!"`
+   - Check the node output in the results view
+   - You should see `message`: `"Hi, World!"`
 
 ### 4.4 What Happens When You Run
 
@@ -391,10 +385,9 @@ npm run dev
 
 | Pattern | Settings | Inputs | Context | Example |
 |---------|----------|--------|---------|---------|
-| Settings + Inputs | ✓ | ✓ | ✗ | `template_node`, `concat_string` |
-| Settings + Inputs + Context | ✓ | ✓ | ✓ | `loi_check` |
-| Settings + Context | ✓ | ✗ | ✓ | `ifc_element_filter` |
-| Inputs + Context | ✗ | ✓ | ✓ | `generate_3d_cube` |
+| Settings only | ✓ | ✗ | ✗ | `file_input`, `set_3d_position_rotation` |
+| Settings + Inputs | ✓ | ✓ | ✗ | `template_node`, `concat_string`, `comparison` |
+| Settings + Inputs + Context | ✓ | ✓ | ✓ | `ifc_element_filter`, `generate_3d_cube`, `loi_check` |
 
 ### Function Signature Rules
 
@@ -410,22 +403,25 @@ async def my_node(
 
 **Rules**:
 
-- Must have at least `settings` OR `inputs`
+- Must have at least one parameter (`settings`, `inputs`, or `context`)
 - `context` must be the last parameter
 - Maximum 3 parameters
-- All models must inherit from `NodeModel`
-- Return type must be a `NodeModel` subclass
+- Settings, inputs, and return types should inherit from `NodeModel` (which enforces Pydantic `extra="forbid"`)
 
 ### Vue Component Template
 
 ```vue
 <script setup lang="ts">
 import type { SchemaNodeType } from '~/utils/schema-helpers'
-import { useScopedNode } from '~/composables/useScopedNode'
 
 type MyNode = SchemaNodeType<'my_node'>
 
-const props = defineProps<{ node: MyNode }>()
+interface Props {
+  node: MyNode
+}
+
+const props = defineProps<Props>()
+const { t } = useI18n()
 const node = useScopedNode<MyNode>(props.node.id)
 
 // Initialize defaults
@@ -436,12 +432,14 @@ if (!node.value.data.settings) {
 
 <template>
   <div class="px-2">
-    <div class="text-sm font-bold">Node Title</div>
+    <div class="text-sm font-bold">
+      {{ t('node.MyNode.title') }}
+    </div>
   </div>
-  
+
   <div class="flex flex-col gap-2">
     <!-- Bind to node.data.settings -->
-    <input v-model="node.data.settings!.myValue" />
+    <input v-model="node.data.settings!.myValue">
   </div>
 </template>
 ```
@@ -450,12 +448,13 @@ if (!node.value.data.settings) {
 
 ## Common Pitfalls
 
-1. ❌ **Forgetting to register the node** in `__init__.py`
-2. ❌ **Missing README.md** - The schema generator needs documentation
-3. ❌ **Type mismatch** - Ensure Python and Vue types match
-4. ❌ **Wrong function signature** - Follow the parameter order rules
-5. ❌ **Missing `@node()` decorator** - Node won't be registered
-6. ❌ **No IFC file in `.dev-files`** - Workflow will fail if no file is available
+1. ❌ **Forgetting to register the node** in `nodes/__init__.py`
+2. ❌ **Missing `README.en.md` / `README.de.md`** - The schema generator expects locale-suffixed READMEs (plain `README.md` is ignored)
+3. ❌ **Calling `print()` inside a node** - Writes to stdout and corrupts the runner's JSON output; use `sys.stderr` for debug logs
+4. ❌ **Type mismatch** - Ensure Python and Vue types match
+5. ❌ **Wrong function signature** - Follow the parameter order rules
+6. ❌ **Missing `@node()` decorator** - Node won't be registered
+7. ❌ **No IFC file in `.dev-files`** - Workflow will fail if no file is available
 
 ---
 
@@ -466,15 +465,23 @@ app/web/
 ├── .dev-files/               # Local development files (gitignored)
 │   ├── test.ifc             # Your IFC test files ← ADD HERE
 │   ├── workflow-*.json      # Generated workflow files
-│   └── results-*.json       # Generated results
+│   └── results-*.json       # Generated results (when run from web app)
 ├── app/nodes/MyNode/
 │   └── MyNode.vue           # Vue component
-└── app/utils/nodes.ts       # Component registration
+├── app/utils/nodes.ts       # Optional custom component mapping
+├── i18n/locales/
+│   ├── en.json              # English UI translations
+│   └── de.json              # German UI translations
+└── scripts/
+    ├── schema.json          # Generated node & workflow schema
+    ├── schema.d.ts          # Generated node TS types
+    ├── workflow-schema.d.ts # Generated workflow TS types
+    └── workflow-schema.zod.ts
 
 app/runner/src/openbim_runner/nodes/my_node/
 ├── my_node.py               # Implementation
 ├── README.en.md             # English docs (required)
-├── README.de.md             # German docs (optional)
+├── README.de.md             # German docs (required)
 └── tests/
     └── test_my_node.py      # Tests (recommended)
 
@@ -576,7 +583,6 @@ This workflow:
 2. Routes the `main` model slug into an IFC element filter
 3. Runs the template node with greeting "Hi" and the default name "World"
 4. Outputs: `"Hi, World!"`
-5. Prints the message to the console
-6. Saves results to `.dev-files/results-{timestamp}.json`
+5. Saves results to `.dev-files/results-{timestamp}.json` when executed from the web app (CLI runs print JSON to stdout)
 
 ---

@@ -117,7 +117,6 @@ export function isPortType(value: unknown): value is PortType {
 
 /**
  * A missing or malformed port type degrades to the explicit `any` wildcard.
- * There is no implicit "unknown" type any more; `any` is a real choice.
  */
 export function normalizePortType(value: unknown): PortType {
   return isPortType(value) ? value : { type: 'any' }

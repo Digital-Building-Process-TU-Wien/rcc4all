@@ -130,7 +130,7 @@ class WorkflowDefinition(NodeModel):
 
 
 # Keep in sync with the web validator below:
-# app/web/app/components/nodes/NodeLibrarySidebar.vue (MODEL_SLUG_RE).
+# app/web/app/components/nodes/ModelBar.vue (MODEL_SLUG_RE).
 MODEL_SLUG_PATTERN = r"^[a-z0-9][a-z0-9-_]*$"
 
 

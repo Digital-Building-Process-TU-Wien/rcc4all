@@ -62,12 +62,7 @@ class PreparedWorkflow:
 
 
 def prepare_definition(workflow: WorkflowDefinition) -> PreparedWorkflow:
-    """Run every static check and flatten a parsed workflow in one pass.
-
-    Validation used to expand and topologically sort, then execution repeated
-    both steps. Both now build this value instead, so there is one path and the
-    work happens once.
-    """
+    """Run all static checks, expand subworkflows, and compute execution order."""
     validate_model_files(workflow.files)
     _validate_scope(workflow.nodes, workflow.edges)
     expanded = expand_workflow(workflow)
