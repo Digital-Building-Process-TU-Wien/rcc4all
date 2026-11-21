@@ -10,12 +10,15 @@ graph allows.
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 
+from openbim_runner.workflow.graph import index_nodes, validate_edges
 from openbim_runner.workflow.model import (
     SUBWORKFLOW_INPUT_TYPE,
     SUBWORKFLOW_META_TYPES,
     SUBWORKFLOW_OUTPUT_TYPE,
     SUBWORKFLOW_TYPE,
+    SubworkflowDefinition,
     SubworkflowPort,
     WorkflowDefinition,
     WorkflowEdge,
@@ -24,9 +27,69 @@ from openbim_runner.workflow.model import (
     parse_input_reference,
     parse_reference,
     parse_single_port,
+    require_subworkflow_definition,
 )
 
 NAMESPACE_SEPARATOR = "::"
+
+
+@dataclass(frozen=True)
+class SubworkflowPorts:
+    """Validated input/output boundary ports declared inside a subworkflow."""
+
+    input_ports_by_id: dict[str, SubworkflowPort]
+    input_nodes_by_id: dict[str, WorkflowNode]
+    output_node: WorkflowNode | None
+    output_port: SubworkflowPort | None
+
+
+def collect_subworkflow_ports(
+    subworkflow_node: WorkflowNode,
+    definition: SubworkflowDefinition,
+) -> SubworkflowPorts:
+    """Collect and validate the input/output meta-nodes of a subworkflow."""
+    input_nodes = [
+        node for node in definition.nodes if node.type == SUBWORKFLOW_INPUT_TYPE
+    ]
+    output_nodes = [
+        node for node in definition.nodes if node.type == SUBWORKFLOW_OUTPUT_TYPE
+    ]
+    if len(output_nodes) > 1:
+        raise ValueError(
+            f"Subworkflow {describe_node(subworkflow_node)} allows at most one "
+            f"'{SUBWORKFLOW_OUTPUT_TYPE}' node (found {len(output_nodes)})."
+        )
+
+    output_node = output_nodes[0] if output_nodes else None
+    output_port = parse_single_port(output_node) if output_node is not None else None
+
+    input_ports_by_id: dict[str, SubworkflowPort] = {}
+    input_nodes_by_id: dict[str, WorkflowNode] = {}
+    for input_node in input_nodes:
+        if input_node.input_bindings:
+            raise ValueError(
+                f"Node {describe_node(input_node)} is a subworkflow input and cannot "
+                "define input bindings."
+            )
+        port = parse_single_port(input_node)
+        duplicate = next(
+            (other for other in input_ports_by_id.values() if other.name == port.name),
+            None,
+        )
+        if duplicate is not None:
+            raise ValueError(
+                f"Subworkflow {describe_node(subworkflow_node)} defines duplicate "
+                f"input port '{port.name}'."
+            )
+        input_ports_by_id[input_node.id] = port
+        input_nodes_by_id[input_node.id] = input_node
+
+    return SubworkflowPorts(
+        input_ports_by_id=input_ports_by_id,
+        input_nodes_by_id=input_nodes_by_id,
+        output_node=output_node,
+        output_port=output_port,
+    )
 
 
 def expand_workflow(workflow: WorkflowDefinition) -> WorkflowDefinition:
@@ -62,17 +125,12 @@ def _expand_scope(
         if subworkflow_node is None:
             return nodes, edges
 
-        definition = subworkflow_node.subworkflow
-        if definition is None:
-            raise ValueError(
-                f"Subworkflow node {describe_node(subworkflow_node)} is missing its "
-                "embedded definition."
-            )
+        definition = require_subworkflow_definition(subworkflow_node)
 
         inner_nodes, inner_edges = _expand_scope(definition.nodes, definition.edges)
         definition.nodes = inner_nodes
         definition.edges = inner_edges
-        nodes, edges = _inline_subworkflow(subworkflow_node, nodes, edges)
+        nodes, edges = _inline_subworkflow(subworkflow_node, definition, nodes, edges)
 
 
 def _warn_order_only_edge(edge: WorkflowEdge, subworkflow_node: WorkflowNode) -> None:
@@ -85,65 +143,28 @@ def _warn_order_only_edge(edge: WorkflowEdge, subworkflow_node: WorkflowNode) ->
 
 def _inline_subworkflow(
     subworkflow_node: WorkflowNode,
+    definition: SubworkflowDefinition,
     nodes: list[WorkflowNode],
     edges: list[WorkflowEdge],
 ) -> tuple[list[WorkflowNode], list[WorkflowEdge]]:
-    definition = subworkflow_node.subworkflow
-    if definition is None:
-        raise ValueError(
-            f"Subworkflow node {describe_node(subworkflow_node)} is missing its "
-            "embedded definition."
-        )
-
+    scope = f"Subworkflow {describe_node(subworkflow_node)}"
     inner_nodes = definition.nodes
     inner_edges = definition.edges
-    inner_node_ids = {node.id for node in inner_nodes}
-    if len(inner_node_ids) != len(inner_nodes):
-        raise ValueError(
-            f"Subworkflow {describe_node(subworkflow_node)} contains duplicate node IDs."
-        )
+    inner_node_ids = set(index_nodes(inner_nodes, scope=scope))
 
     for inner_node in inner_nodes:
         if inner_node.type == SUBWORKFLOW_TYPE:
             raise ValueError(
-                f"Subworkflow {describe_node(subworkflow_node)} still contains nested "
+                f"{scope} still contains nested "
                 f"subworkflow node {describe_node(inner_node)}."
             )
 
-    input_nodes = [node for node in inner_nodes if node.type == SUBWORKFLOW_INPUT_TYPE]
-    output_nodes = [
-        node for node in inner_nodes if node.type == SUBWORKFLOW_OUTPUT_TYPE
-    ]
-    if len(output_nodes) > 1:
-        raise ValueError(
-            f"Subworkflow {describe_node(subworkflow_node)} allows at most one "
-            f"'{SUBWORKFLOW_OUTPUT_TYPE}' node (found {len(output_nodes)})."
-        )
-
-    output_node = output_nodes[0] if output_nodes else None
+    ports = collect_subworkflow_ports(subworkflow_node, definition)
+    output_node = ports.output_node
     output_node_id = output_node.id if output_node is not None else None
-    output_port = parse_single_port(output_node) if output_node is not None else None
-
-    input_ports_by_id: dict[str, SubworkflowPort] = {}
-    input_nodes_by_id: dict[str, WorkflowNode] = {}
-    for input_node in input_nodes:
-        if input_node.input_bindings:
-            raise ValueError(
-                f"Node {describe_node(input_node)} is a subworkflow input and cannot "
-                "define input bindings."
-            )
-        port = parse_single_port(input_node)
-        duplicate = next(
-            (other for other in input_ports_by_id.values() if other.name == port.name),
-            None,
-        )
-        if duplicate is not None:
-            raise ValueError(
-                f"Subworkflow {describe_node(subworkflow_node)} defines duplicate "
-                f"input port '{port.name}'."
-            )
-        input_ports_by_id[input_node.id] = port
-        input_nodes_by_id[input_node.id] = input_node
+    output_port = ports.output_port
+    input_ports_by_id = ports.input_ports_by_id
+    input_nodes_by_id = ports.input_nodes_by_id
     input_port_names = {port.name for port in input_ports_by_id.values()}
 
     for port_name in sorted(input_port_names):
@@ -237,17 +258,7 @@ def _inline_subworkflow(
                     f"{describe_node(subworkflow_node)}."
                 )
 
-    for edge in inner_edges:
-        if edge.source not in inner_node_ids:
-            raise ValueError(
-                f"Subworkflow {describe_node(subworkflow_node)} has an edge with "
-                f"unknown source node '{edge.source}'."
-            )
-        if edge.target not in inner_node_ids:
-            raise ValueError(
-                f"Subworkflow {describe_node(subworkflow_node)} has an edge with "
-                f"unknown target node '{edge.target}'."
-            )
+    validate_edges(inner_edges, inner_node_ids, scope=scope)
 
     injected_nodes: list[WorkflowNode] = []
     consumers_by_port: dict[str, set[str]] = {}

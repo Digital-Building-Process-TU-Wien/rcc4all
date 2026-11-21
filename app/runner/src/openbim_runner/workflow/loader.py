@@ -20,22 +20,30 @@ from openbim_runner.port_types import (
     is_assignable,
     model_port_types,
 )
-from openbim_runner.workflow.graph import build_execution_order, build_node_lookup
+from openbim_runner.workflow.graph import (
+    build_execution_order,
+    build_node_lookup,
+    index_nodes,
+    validate_edges,
+)
 from openbim_runner.workflow.model import (
     SUBWORKFLOW_INPUT_TYPE,
     SUBWORKFLOW_META_TYPES,
     SUBWORKFLOW_OUTPUT_TYPE,
     SUBWORKFLOW_TYPE,
-    SubworkflowPort,
     WorkflowDefinition,
     WorkflowEdge,
     WorkflowNode,
     describe_node,
     parse_input_reference,
     parse_single_port,
+    require_subworkflow_definition,
     validate_model_files,
 )
-from openbim_runner.workflow.subworkflow import expand_workflow
+from openbim_runner.workflow.subworkflow import (
+    collect_subworkflow_ports,
+    expand_workflow,
+)
 
 
 def _read(workflow_path: Path) -> WorkflowDefinition:
@@ -64,7 +72,7 @@ def prepare_definition(workflow: WorkflowDefinition) -> PreparedWorkflow:
     _validate_scope(workflow.nodes, workflow.edges)
     expanded = expand_workflow(workflow)
     node_lookup = build_node_lookup(expanded)
-    execution_order = build_execution_order(expanded)
+    execution_order = build_execution_order(expanded, node_lookup=node_lookup)
     return PreparedWorkflow(
         workflow=expanded,
         node_lookup=node_lookup,
@@ -94,14 +102,6 @@ def validate_workflow(workflow: WorkflowDefinition) -> None:
     prepare_definition(workflow)
 
 
-def resolve_ifc_path(workflow_path: Path, ifc_path: str) -> Path:
-    candidate_path = Path(ifc_path)
-    if candidate_path.is_absolute():
-        return candidate_path
-
-    return workflow_path.parent / candidate_path
-
-
 def require_definition(node: WorkflowNode) -> NodeDefinition:
     """Return the registered definition for a node, naming the node on failure."""
     definition = get_registry().get(node.type)
@@ -110,57 +110,34 @@ def require_definition(node: WorkflowNode) -> NodeDefinition:
     return definition
 
 
-def _subworkflow_input_ports(node: WorkflowNode) -> dict[str, PortType]:
-    definition = node.subworkflow
-    if definition is None:
-        return {}
-    ports: dict[str, PortType] = {}
-    for inner_node in definition.nodes:
-        if inner_node.type == SUBWORKFLOW_INPUT_TYPE:
-            port = parse_single_port(inner_node)
-            ports[port.name] = port.type
-    return ports
-
-
-def _subworkflow_output_port(node: WorkflowNode) -> SubworkflowPort | None:
-    definition = node.subworkflow
-    if definition is None:
-        return None
-    for inner_node in definition.nodes:
-        if inner_node.type == SUBWORKFLOW_OUTPUT_TYPE:
-            return parse_single_port(inner_node)
-    return None
-
-
-def _node_input_ports(node: WorkflowNode) -> dict[str, PortType]:
-    """The ports a node accepts, as the type checker sees them in its scope."""
-    if node.type == SUBWORKFLOW_INPUT_TYPE:
-        return {}
-    if node.type == SUBWORKFLOW_OUTPUT_TYPE:
-        port = parse_single_port(node)
-        return {port.name: port.type}
-    if node.type == SUBWORKFLOW_TYPE:
-        return _subworkflow_input_ports(node)
-
-    definition = require_definition(node)
-    if not definition.takes_inputs or definition.inputs_model is None:
-        return {}
-    return model_port_types(definition.inputs_model, node=node.type)
-
-
-def _node_output_ports(node: WorkflowNode) -> dict[str, PortType]:
-    """The ports a node produces, as the type checker sees them in its scope."""
-    if node.type == SUBWORKFLOW_OUTPUT_TYPE:
-        return {}
+def _node_ports(
+    node: WorkflowNode,
+) -> tuple[dict[str, PortType], dict[str, PortType]]:
+    """Return ``(inputs, outputs)`` port maps for a node in its scope."""
     if node.type == SUBWORKFLOW_INPUT_TYPE:
         port = parse_single_port(node)
-        return {port.name: port.type}
+        return {}, {port.name: port.type}
+    if node.type == SUBWORKFLOW_OUTPUT_TYPE:
+        port = parse_single_port(node)
+        return {port.name: port.type}, {}
     if node.type == SUBWORKFLOW_TYPE:
-        port = _subworkflow_output_port(node)
-        return {} if port is None else {port.name: port.type}
+        ports = collect_subworkflow_ports(node, require_subworkflow_definition(node))
+        inputs = {port.name: port.type for port in ports.input_ports_by_id.values()}
+        outputs = (
+            {}
+            if ports.output_port is None
+            else {ports.output_port.name: ports.output_port.type}
+        )
+        return inputs, outputs
 
     definition = require_definition(node)
-    return model_port_types(definition.result_model, node=node.type)
+    inputs = (
+        model_port_types(definition.inputs_model, node=node.type)
+        if definition.takes_inputs and definition.inputs_model is not None
+        else {}
+    )
+    outputs = model_port_types(definition.result_model, node=node.type)
+    return inputs, outputs
 
 
 def _validate_required_inputs(node: WorkflowNode) -> None:
@@ -190,32 +167,21 @@ def _validate_scope(
     edges: list[WorkflowEdge],
 ) -> None:
     """Validate one scope: edge endpoints and every bound port pair."""
-    node_by_id = {node.id: node for node in nodes}
-    if len(node_by_id) != len(nodes):
-        raise ValueError("Workflow contains duplicate node IDs.")
+    node_by_id = index_nodes(nodes)
 
     for node in nodes:
         if node.type == SUBWORKFLOW_TYPE:
-            definition = node.subworkflow
-            if definition is None:
-                raise ValueError(
-                    f"Subworkflow node {describe_node(node)} is missing its "
-                    "embedded definition."
-                )
+            definition = require_subworkflow_definition(node)
             _validate_scope(definition.nodes, definition.edges)
             continue
         _validate_required_inputs(node)
 
-    for edge in edges:
-        if edge.source not in node_by_id:
-            raise ValueError(f"Edge references unknown source node '{edge.source}'.")
-        if edge.target not in node_by_id:
-            raise ValueError(f"Edge references unknown target node '{edge.target}'.")
+    validate_edges(edges, node_by_id)
 
     for node in nodes:
         if not node.input_bindings:
             continue
-        input_ports = _node_input_ports(node)
+        input_ports, _ = _node_ports(node)
         for input_name, reference in node.input_bindings.items():
             source_id, field_name = parse_input_reference(
                 reference, node=node, input_name=input_name
@@ -232,7 +198,7 @@ def _validate_scope(
                     f"Node {describe_node(node)} has no input port '{input_name}'."
                 )
 
-            output_ports = _node_output_ports(source)
+            _, output_ports = _node_ports(source)
             if field_name not in output_ports:
                 raise ValueError(
                     f"Node {describe_node(source)} has no output port '{field_name}'."

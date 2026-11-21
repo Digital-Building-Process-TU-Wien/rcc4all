@@ -1,26 +1,50 @@
-"""Graph queries over a flat workflow: node lookup and execution order."""
+"""Graph queries and basic invariants over a workflow scope."""
 
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Collection
 
 from openbim_runner.workflow.model import (
     WorkflowDefinition,
+    WorkflowEdge,
     WorkflowNode,
     describe_node,
     parse_input_reference,
 )
 
 
-def build_node_lookup(workflow: WorkflowDefinition) -> dict[str, WorkflowNode]:
-    node_lookup = {node.id: node for node in workflow.nodes}
-    if len(node_lookup) != len(workflow.nodes):
-        raise ValueError("Workflow contains duplicate node IDs.")
+def index_nodes(
+    nodes: list[WorkflowNode], *, scope: str = "Workflow"
+) -> dict[str, WorkflowNode]:
+    """Index nodes by ID, failing when a scope contains duplicates."""
+    node_lookup = {node.id: node for node in nodes}
+    if len(node_lookup) != len(nodes):
+        raise ValueError(f"{scope} contains duplicate node IDs.")
 
     return node_lookup
 
 
-def add_dependency(
+def validate_edges(
+    edges: list[WorkflowEdge],
+    node_ids: Collection[str],
+    *,
+    scope: str | None = None,
+) -> None:
+    """Ensure every edge in a scope connects existing nodes."""
+    prefix = "Edge references" if scope is None else f"{scope} has an edge with"
+    for edge in edges:
+        if edge.source not in node_ids:
+            raise ValueError(f"{prefix} unknown source node '{edge.source}'.")
+        if edge.target not in node_ids:
+            raise ValueError(f"{prefix} unknown target node '{edge.target}'.")
+
+
+def build_node_lookup(workflow: WorkflowDefinition) -> dict[str, WorkflowNode]:
+    return index_nodes(workflow.nodes)
+
+
+def _add_dependency(
     adjacency: dict[str, set[str]],
     indegree: dict[str, int],
     *,
@@ -32,18 +56,19 @@ def add_dependency(
         indegree[target] += 1
 
 
-def build_execution_order(workflow: WorkflowDefinition) -> list[str]:
-    node_lookup = build_node_lookup(workflow)
+def build_execution_order(
+    workflow: WorkflowDefinition,
+    *,
+    node_lookup: dict[str, WorkflowNode] | None = None,
+) -> list[str]:
+    if node_lookup is None:
+        node_lookup = build_node_lookup(workflow)
     adjacency: dict[str, set[str]] = {node_id: set() for node_id in node_lookup}
     indegree: dict[str, int] = dict.fromkeys(node_lookup, 0)
 
+    validate_edges(workflow.edges, node_lookup)
     for edge in workflow.edges:
-        if edge.source not in node_lookup:
-            raise ValueError(f"Edge references unknown source node '{edge.source}'.")
-        if edge.target not in node_lookup:
-            raise ValueError(f"Edge references unknown target node '{edge.target}'.")
-
-        add_dependency(adjacency, indegree, source=edge.source, target=edge.target)
+        _add_dependency(adjacency, indegree, source=edge.source, target=edge.target)
 
     for workflow_node in workflow.nodes:
         for input_name, reference in workflow_node.input_bindings.items():
@@ -56,7 +81,7 @@ def build_execution_order(workflow: WorkflowDefinition) -> list[str]:
                     f"to unknown node '{source_node_id}'."
                 )
 
-            add_dependency(
+            _add_dependency(
                 adjacency, indegree, source=source_node_id, target=workflow_node.id
             )
 

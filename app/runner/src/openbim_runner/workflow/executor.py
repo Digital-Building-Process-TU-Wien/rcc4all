@@ -22,9 +22,16 @@ from openbim_runner.workflow.bindings import resolve_input_bindings
 from openbim_runner.workflow.loader import (
     prepare_workflow,
     require_definition,
-    resolve_ifc_path,
 )
 from openbim_runner.workflow.model import ModelFile, WorkflowNode, describe_node
+
+
+def _resolve_ifc_path(workflow_path: Path, ifc_path: str) -> Path:
+    candidate_path = Path(ifc_path)
+    if candidate_path.is_absolute():
+        return candidate_path
+
+    return workflow_path.parent / candidate_path
 
 
 async def execute_workflow_async(
@@ -37,7 +44,7 @@ async def execute_workflow_async(
 
     models: dict[str, Any] = {}
     for model_file in workflow.files:
-        resolved_path = resolve_ifc_path(workflow_path, model_file.path)
+        resolved_path = _resolve_ifc_path(workflow_path, model_file.path)
         model = ifcopenshell.open(str(resolved_path))  # pyright: ignore[reportUnknownMemberType]
         models[model_file.slug] = model
         if model_file.hash:

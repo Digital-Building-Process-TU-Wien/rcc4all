@@ -226,6 +226,16 @@ def parse_input_reference(
         ) from error
 
 
+def require_subworkflow_definition(node: WorkflowNode) -> SubworkflowDefinition:
+    """Return the embedded definition of a ``subworkflow`` node, or fail clearly."""
+    definition = node.subworkflow
+    if definition is None:
+        raise ValueError(
+            f"Subworkflow node {describe_node(node)} is missing its embedded definition."
+        )
+    return definition
+
+
 def parse_single_port(node: WorkflowNode) -> SubworkflowPort:
     """Read the one port a ``subworkflow_input``/``subworkflow_output`` node owns."""
     raw_port = node.settings.get("port")

@@ -14,7 +14,7 @@ The runner uses a minimal function-based node structure under `src/openbim_runne
 src/
    openbim_runner/
       main.py
-      workflow.py
+      workflow/
       nodes/
          base.py
          an_example_node/
