@@ -41,41 +41,49 @@
                 "auto",
                 "manual"
               ],
+              "title": "Output mode",
               "type": "string"
             },
             "title_template": {
               "default": "",
               "description": "BCF topic title, resolved per failing check with Python string formatting. Placeholders: {id}, {guid}, {name}, {class_name} and check values keyed by the check's key, e.g. {key.expected}, {key.actual}.",
+              "title": "Title template",
               "type": "string"
             },
             "description_template": {
               "default": "",
               "description": "BCF topic description (sentence) resolved per failing check, same placeholders as the title template.",
+              "title": "Description template",
               "type": "string"
             },
             "project_name": {
               "default": "Default Project",
               "description": "Name written into the BCF project information. Empty means no project name.",
+              "title": "Project name",
               "type": "string"
             },
             "author": {
               "default": "Default Author",
               "description": "Author recorded on every BCF topic's creation data.",
+              "title": "Creation author",
               "type": "string"
             },
             "topic_type": {
               "default": "Model Check",
               "description": "BCF TopicType applied to every topic.",
+              "title": "Topic type",
               "type": "string"
             },
             "topic_status": {
               "default": "Open",
               "description": "BCF TopicStatus applied to every topic.",
+              "title": "Topic status",
               "type": "string"
             },
             "output_filename": {
               "default": "check-results.bcf",
               "description": "Filename (relative to the output directory) to write the BCF into. A '{timestamp}' placeholder is replaced with a per-run timestamp.",
+              "title": "Output filename",
               "type": "string"
             },
             "included_elements": {
@@ -86,9 +94,11 @@
                 "passed",
                 "all"
               ],
+              "title": "Included elements",
               "type": "string"
             }
           },
+          "title": "BcfOutputSettings",
           "type": "object"
         },
         "result": {
@@ -96,31 +106,38 @@
           "properties": {
             "output_path": {
               "description": "Filesystem path the BCF 3.0 file was written to.",
+              "title": "Output path",
               "type": "string"
             },
             "topic_count": {
               "description": "Number of BCF topics written.",
+              "title": "Topic count",
               "type": "integer"
             },
             "viewpoint_count": {
               "description": "Number of viewpoints written (one per resolvable failing element).",
+              "title": "Viewpoint count",
               "type": "integer"
             },
             "processed_result_count": {
               "description": "Total number of checks processed across all input elements.",
+              "title": "Processed result count",
               "type": "integer"
             },
             "element_count": {
               "description": "Number of input elements consumed from the upstream node.",
+              "title": "Element count",
               "type": "integer"
             },
             "failure_count": {
               "description": "Total number of failed checks found.",
+              "title": "Failure count",
               "type": "integer"
             },
             "skipped": {
               "default": 0,
               "description": "Number of elements (with reported checks) skipped because they could not be resolved to a BCF viewpoint: references whose IFC entity / GlobalId could not be resolved, plus elements whose raw references expand to no IFC members (helper/generated geometry).",
+              "title": "Skipped",
               "type": "integer"
             },
             "warnings": {
@@ -129,6 +146,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Warnings",
               "type": "array"
             },
             "topics": {
@@ -142,22 +160,27 @@
                     "items": {
                       "type": "string"
                     },
+                    "title": "GUIDs",
                     "type": "array"
                   },
                   "key": {
                     "description": "Key of the (first) failed check this topic reports.",
+                    "title": "Key",
                     "type": "string"
                   },
                   "element_count": {
                     "description": "Number of distinct failing elements this topic references.",
+                    "title": "Element count",
                     "type": "integer"
                   },
                   "title": {
                     "description": "Resolved topic title from the title template.",
+                    "title": "Title",
                     "type": "string"
                   },
                   "description": {
                     "description": "Resolved topic description from the description template.",
+                    "title": "Description",
                     "type": "string"
                   }
                 },
@@ -168,8 +191,10 @@
                   "title",
                   "description"
                 ],
+                "title": "BcfTopic",
                 "type": "object"
               },
+              "title": "Topics",
               "type": "array"
             }
           },
@@ -181,6 +206,7 @@
             "element_count",
             "failure_count"
           ],
+          "title": "BcfOutputResult",
           "type": "object"
         },
         "inputs": {
@@ -196,14 +222,17 @@
                     "items": {
                       "type": "string"
                     },
+                    "title": "Express IDs",
                     "type": "array"
                   },
                   "class_name": {
                     "description": "IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.",
+                    "title": "Class name",
                     "type": "string"
                   },
                   "failed": {
                     "description": "True if at least one check on this element failed.",
+                    "title": "Failed",
                     "type": "boolean"
                   },
                   "checks": {
@@ -214,49 +243,59 @@
                       "properties": {
                         "key": {
                           "description": "Stable identifier for this check (e.g. a property key or 'surface_0').",
+                          "title": "Key",
                           "type": "string"
                         },
                         "check_parameter": {
                           "description": "The parameter being checked (e.g. the property name, or 'angle').",
+                          "title": "Check parameter",
                           "type": "string"
                         },
                         "expected_value": {
                           "default": "",
                           "description": "Expected value as a string (empty for is_true / is_false and range checks).",
+                          "title": "Expected value",
                           "type": "string"
                         },
                         "actual_value": {
                           "default": "",
                           "description": "Measured/read value as a string, or empty if the value is missing.",
+                          "title": "Actual value",
                           "type": "string"
                         },
                         "unit": {
                           "default": "",
                           "description": "Measurement unit of the compared value, or empty when unknown.",
+                          "title": "Unit",
                           "type": "string"
                         },
                         "missing": {
                           "default": false,
                           "description": "True when the value is not present / could not be measured.",
+                          "title": "Missing",
                           "type": "boolean"
                         },
                         "passed": {
                           "description": "Whether the check passed.",
+                          "title": "Passed",
                           "type": "boolean"
                         },
                         "expected_value_condition": {
                           "default": "",
                           "description": "The comparison operator that was applied (empty for checks with none).",
+                          "title": "Expected value condition",
                           "type": "string"
                         },
                         "expected_value_min": {
                           "default": "",
                           "description": "Lower barrier used for numeric range checks, or empty for single-value checks.",
+                          "title": "Expected value min",
                           "type": "string"
                         },
                         "expected_value_max": {
                           "default": "",
                           "description": "Upper barrier used for numeric range checks, or empty for single-value checks.",
+                          "title": "Expected value max",
                           "type": "string"
                         }
                       },
@@ -265,8 +304,10 @@
                         "check_parameter",
                         "passed"
                       ],
+                      "title": "HarmonizedCheckResult",
                       "type": "object"
                     },
+                    "title": "Checks",
                     "type": "array"
                   }
                 },
@@ -275,14 +316,17 @@
                   "class_name",
                   "failed"
                 ],
+                "title": "HarmonizedElement",
                 "type": "object"
               },
+              "title": "Elements",
               "type": "array"
             }
           },
           "required": [
             "elements"
           ],
+          "title": "BcfOutputInputs",
           "type": "object"
         }
       },
@@ -333,9 +377,11 @@
                 "boolean",
                 "intersection_mesh"
               ],
+              "title": "Mode",
               "type": "string"
             }
           },
+          "title": "CollisionSettings",
           "type": "object"
         },
         "result": {
@@ -350,6 +396,7 @@
               },
               "default": {},
               "description": "Grouped by side-A cache key; each value lists the side-B cache keys it collides with. Only colliding pairs are included.",
+              "title": "Collisions",
               "type": "object"
             },
             "errors": {
@@ -360,14 +407,17 @@
                 "properties": {
                   "key_a": {
                     "description": "Cache key of the first geometry in the failed pair.",
+                    "title": "Key A",
                     "type": "string"
                   },
                   "key_b": {
                     "description": "Cache key of the second geometry in the failed pair.",
+                    "title": "Key B",
                     "type": "string"
                   },
                   "error": {
                     "description": "Error reason, e.g. 'non-watertight' or 'boolean failed: ...'.",
+                    "title": "Error",
                     "type": "string"
                   }
                 },
@@ -376,8 +426,10 @@
                   "key_b",
                   "error"
                 ],
+                "title": "CollisionError",
                 "type": "object"
               },
+              "title": "Errors",
               "type": "array"
             },
             "intersection_meshes": {
@@ -393,9 +445,11 @@
               },
               "default": {},
               "description": "Only populated in 'intersection_mesh' mode. Maps a pair key '{key_a}__{key_b}' to the geometry-cache key 'inter:intersection_{key_a}_{key_b}' under which the intersection mesh was stored. A null value signals an FCL-decided collision (mesh non-repairable or boolean failed) for which no intersection mesh could be generated. Empty in 'boolean' mode.",
+              "title": "Intersection Meshes",
               "type": "object"
             }
           },
+          "title": "CollisionResult",
           "type": "object"
         },
         "inputs": {
@@ -406,6 +460,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "List A",
               "type": "array"
             },
             "list_b": {
@@ -413,6 +468,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "List B",
               "type": "array"
             }
           },
@@ -420,6 +476,7 @@
             "list_a",
             "list_b"
           ],
+          "title": "CollisionInputs",
           "type": "object"
         }
       },
@@ -473,39 +530,47 @@
                 "between",
                 "outside"
               ],
+              "title": "Condition",
               "type": "string"
             },
             "target_value": {
               "default": 0.0,
               "description": "Target value for single-value operators (equals, not_equals, lt, le, gt, ge).",
+              "title": "Target value",
               "type": "number"
             },
             "target_min": {
               "default": 0.0,
               "description": "Lower barrier for between / outside operators.",
+              "title": "Target min",
               "type": "number"
             },
             "target_max": {
               "default": 0.0,
               "description": "Upper barrier for between / outside operators.",
+              "title": "Target max",
               "type": "number"
             },
             "inclusive_min": {
               "default": true,
               "description": "If True, the range includes values equal to the lower barrier (>=); otherwise strictly greater (>).",
+              "title": "Inclusive min",
               "type": "boolean"
             },
             "inclusive_max": {
               "default": true,
               "description": "If True, the range includes values equal to the upper barrier (<=); otherwise strictly less (<).",
+              "title": "Inclusive max",
               "type": "boolean"
             },
             "abs_tol": {
               "default": 0.001,
               "description": "Absolute tolerance for float comparisons. Negative values are treated as their absolute value.",
+              "title": "Absolute tolerance",
               "type": "number"
             }
           },
+          "title": "ComparisonSettings",
           "type": "object"
         },
         "result": {
@@ -513,18 +578,22 @@
           "properties": {
             "summary_element_count": {
               "description": "Number of elements processed.",
+              "title": "Element count",
               "type": "integer"
             },
             "summary_passed_count": {
               "description": "Number of elements whose check passed.",
+              "title": "Passed count",
               "type": "integer"
             },
             "summary_failed_count": {
               "description": "Number of elements with a failed check.",
+              "title": "Failed count",
               "type": "integer"
             },
             "summary_check_count": {
               "description": "Total number of checks (equals element count, one check per element).",
+              "title": "Check count",
               "type": "integer"
             },
             "passed_express_ids": {
@@ -533,6 +602,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Passed express IDs",
               "type": "array"
             },
             "failed_express_ids": {
@@ -541,6 +611,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Failed express IDs",
               "type": "array"
             },
             "elements": {
@@ -554,14 +625,17 @@
                     "items": {
                       "type": "string"
                     },
+                    "title": "Express IDs",
                     "type": "array"
                   },
                   "class_name": {
                     "description": "IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.",
+                    "title": "Class name",
                     "type": "string"
                   },
                   "failed": {
                     "description": "True if at least one check on this element failed.",
+                    "title": "Failed",
                     "type": "boolean"
                   },
                   "checks": {
@@ -572,49 +646,59 @@
                       "properties": {
                         "key": {
                           "description": "Stable identifier for this check (e.g. a property key or 'surface_0').",
+                          "title": "Key",
                           "type": "string"
                         },
                         "check_parameter": {
                           "description": "The parameter being checked (e.g. the property name, or 'angle').",
+                          "title": "Check parameter",
                           "type": "string"
                         },
                         "expected_value": {
                           "default": "",
                           "description": "Expected value as a string (empty for is_true / is_false and range checks).",
+                          "title": "Expected value",
                           "type": "string"
                         },
                         "actual_value": {
                           "default": "",
                           "description": "Measured/read value as a string, or empty if the value is missing.",
+                          "title": "Actual value",
                           "type": "string"
                         },
                         "unit": {
                           "default": "",
                           "description": "Measurement unit of the compared value, or empty when unknown.",
+                          "title": "Unit",
                           "type": "string"
                         },
                         "missing": {
                           "default": false,
                           "description": "True when the value is not present / could not be measured.",
+                          "title": "Missing",
                           "type": "boolean"
                         },
                         "passed": {
                           "description": "Whether the check passed.",
+                          "title": "Passed",
                           "type": "boolean"
                         },
                         "expected_value_condition": {
                           "default": "",
                           "description": "The comparison operator that was applied (empty for checks with none).",
+                          "title": "Expected value condition",
                           "type": "string"
                         },
                         "expected_value_min": {
                           "default": "",
                           "description": "Lower barrier used for numeric range checks, or empty for single-value checks.",
+                          "title": "Expected value min",
                           "type": "string"
                         },
                         "expected_value_max": {
                           "default": "",
                           "description": "Upper barrier used for numeric range checks, or empty for single-value checks.",
+                          "title": "Expected value max",
                           "type": "string"
                         }
                       },
@@ -623,8 +707,10 @@
                         "check_parameter",
                         "passed"
                       ],
+                      "title": "HarmonizedCheckResult",
                       "type": "object"
                     },
+                    "title": "Checks",
                     "type": "array"
                   }
                 },
@@ -633,8 +719,10 @@
                   "class_name",
                   "failed"
                 ],
+                "title": "HarmonizedElement",
                 "type": "object"
               },
+              "title": "Elements",
               "type": "array"
             }
           },
@@ -644,6 +732,7 @@
             "summary_failed_count",
             "summary_check_count"
           ],
+          "title": "ComparisonResult",
           "type": "object"
         },
         "inputs": {
@@ -657,6 +746,7 @@
                 "properties": {
                   "reference": {
                     "description": "Reference of the value's source element (e.g. `main:expr:1`, an `inter:intersection_...` helper key, or a `_`-joined distance pair).",
+                    "title": "Reference",
                     "type": "string"
                   },
                   "value": {
@@ -669,7 +759,8 @@
                       }
                     ],
                     "default": null,
-                    "description": "The numeric value to compare. Null if the value is missing or could not be computed."
+                    "description": "The numeric value to compare. Null if the value is missing or could not be computed.",
+                    "title": "Value"
                   },
                   "error": {
                     "anyOf": [
@@ -681,27 +772,33 @@
                       }
                     ],
                     "default": null,
-                    "description": "Error reason when the value could not be computed (e.g. 'no cached geometry')."
+                    "description": "Error reason when the value could not be computed (e.g. 'no cached geometry').",
+                    "title": "Error"
                   }
                 },
                 "required": [
                   "reference"
                 ],
+                "title": "ComparisonValueItem",
                 "type": "object"
               },
+              "title": "Values",
               "type": "array"
             },
             "unit": {
               "default": "",
               "description": "Unit of the compared values. Bind to a unit output of an upstream node, e.g. measurement.unit.",
+              "title": "Unit",
               "type": "string"
             },
             "check_parameter": {
               "default": "",
               "description": "Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. measurement.type.",
+              "title": "Check parameter",
               "type": "string"
             }
           },
+          "title": "ComparisonInputs",
           "type": "object"
         }
       },
@@ -745,9 +842,11 @@
             "separator": {
               "default": ", ",
               "description": "String inserted between the resolved input strings.",
+              "title": "Separator",
               "type": "string"
             }
           },
+          "title": "ConcatStringSettings",
           "type": "object"
         },
         "result": {
@@ -756,9 +855,11 @@
             "value": {
               "default": "",
               "description": "Final string assembled from the input strings.",
+              "title": "Concatenated string",
               "type": "string"
             }
           },
+          "title": "ConcatStringResult",
           "type": "object"
         },
         "inputs": {
@@ -777,9 +878,11 @@
                   }
                 ]
               },
+              "title": "Input values",
               "type": "array"
             }
           },
+          "title": "ConcatStringInputs",
           "type": "object"
         }
       },
@@ -823,9 +926,11 @@
             "slug": {
               "default": "main",
               "description": "Slug of the IFC model this File Input refers to. Defaults to the main model.",
+              "title": "Model",
               "type": "string"
             }
           },
+          "title": "FileInputSettings",
           "type": "object"
         },
         "result": {
@@ -834,9 +939,11 @@
             "model_slug": {
               "default": "main",
               "description": "Slug of the selected IFC model, for binding to a consumer's model input.",
+              "title": "Model slug",
               "type": "string"
             }
           },
+          "title": "FileInputResult",
           "type": "object"
         }
       },
@@ -886,6 +993,7 @@
               "items": {
                 "type": "number"
               },
+              "title": "Position Offset",
               "type": "array"
             },
             "rotation": {
@@ -898,6 +1006,7 @@
               "items": {
                 "type": "number"
               },
+              "title": "Rotation Offset",
               "type": "array"
             },
             "size": {
@@ -910,16 +1019,19 @@
               "items": {
                 "type": "number"
               },
+              "title": "Size",
               "type": "array"
             },
             "object_id": {
               "description": "Unique identifier for the generated cube, used to reference it e.g. in a collision node.",
+              "title": "Object ID",
               "type": "string"
             }
           },
           "required": [
             "object_id"
           ],
+          "title": "Generate3DCubeSettings",
           "type": "object"
         },
         "result": {
@@ -931,9 +1043,11 @@
               "items": {
                 "type": "string"
               },
+              "title": "Object IDs",
               "type": "array"
             }
           },
+          "title": "Generate3DCubeResult",
           "type": "object"
         },
         "inputs": {
@@ -943,9 +1057,11 @@
               "default": [],
               "description": "Elements from upstream node (e.g., set_3d_position_rotation or get_element_creation_position_door). First element is used for base position/rotation.",
               "items": {},
+              "title": "Base Elements",
               "type": "array"
             }
           },
+          "title": "Generate3DCubeInputs",
           "type": "object"
         }
       },
@@ -1001,9 +1117,11 @@
                 6,
                 7
               ],
+              "title": "Point index",
               "type": "integer"
             }
           },
+          "title": "GetElementCreationPositionDoorSettings",
           "type": "object"
         },
         "result": {
@@ -1017,14 +1135,17 @@
                 "properties": {
                   "element_type": {
                     "description": "IFC entity type (IfcDoor or IfcWall).",
+                    "title": "Element Type",
                     "type": "string"
                   },
                   "express_id": {
                     "description": "The qualified element reference (`<slug>:expr:<id>`).",
+                    "title": "Express ID",
                     "type": "string"
                   },
                   "point_index": {
                     "description": "Which point was returned (1-4 for corners, 5-6 for midpoints, 7 for centroid). P1-P6 require at least 4 bottom vertices.",
+                    "title": "Point index",
                     "type": "integer"
                   },
                   "position": {
@@ -1032,6 +1153,7 @@
                     "items": {
                       "type": "number"
                     },
+                    "title": "Position",
                     "type": "array"
                   },
                   "rotation": {
@@ -1041,14 +1163,17 @@
                         "properties": {
                           "rotation_x": {
                             "description": "Rotation about global X-axis in degrees (0-360).",
+                            "title": "Rotation X",
                             "type": "number"
                           },
                           "rotation_y": {
                             "description": "Rotation about global Y-axis in degrees (0-360).",
+                            "title": "Rotation Y",
                             "type": "number"
                           },
                           "rotation_z": {
                             "description": "Rotation about global Z-axis in degrees (0-360).",
+                            "title": "Rotation Z",
                             "type": "number"
                           }
                         },
@@ -1057,6 +1182,7 @@
                           "rotation_y",
                           "rotation_z"
                         ],
+                        "title": "ElementRotation",
                         "type": "object"
                       },
                       {
@@ -1064,7 +1190,8 @@
                       }
                     ],
                     "default": null,
-                    "description": "Euler rotation angles (X, Y, Z) in degrees (0-360). None if Placement is unavailable."
+                    "description": "Euler rotation angles (X, Y, Z) in degrees (0-360). None if Placement is unavailable.",
+                    "title": "Rotation"
                   }
                 },
                 "required": [
@@ -1073,11 +1200,14 @@
                   "point_index",
                   "position"
                 ],
+                "title": "ElementPositionResult",
                 "type": "object"
               },
+              "title": "Elements",
               "type": "array"
             }
           },
+          "title": "GetElementCreationPositionDoorResult",
           "type": "object"
         },
         "inputs": {
@@ -1089,9 +1219,11 @@
               "items": {
                 "type": "string"
               },
+              "title": "Express IDs",
               "type": "array"
             }
           },
+          "title": "GetElementCreationPositionDoorInputs",
           "type": "object"
         }
       },
@@ -1140,6 +1272,7 @@
                 "by_class",
                 "model"
               ],
+              "title": "Output mode",
               "type": "string"
             },
             "selections": {
@@ -1151,24 +1284,30 @@
                   "entity_type": {
                     "default": "",
                     "description": "Optional IFC entity type (e.g., IFCWALL, IFCDOOR). Empty means any entity type. Used for UI preselection only.",
+                    "title": "Entity type",
                     "type": "string"
                   },
                   "property_set": {
                     "default": "",
                     "description": "IFC PropertySet name (e.g., Pset_WallCommon) or custom property set name.",
+                    "title": "Property set",
                     "type": "string"
                   },
                   "property_name": {
                     "default": "",
                     "description": "Name of the property to read within the PropertySet.",
+                    "title": "Property name",
                     "type": "string"
                   }
                 },
+                "title": "PropertySelection",
                 "type": "object"
               },
+              "title": "Selections",
               "type": "array"
             }
           },
+          "title": "GetPropertySettings",
           "type": "object"
         },
         "result": {
@@ -1181,6 +1320,7 @@
                 "by_class",
                 "model"
               ],
+              "title": "Mode",
               "type": "string"
             },
             "elements": {
@@ -1191,6 +1331,7 @@
                     "properties": {
                       "express_id": {
                         "description": "The qualified element reference (`<slug>:expr:<id>`).",
+                        "title": "Express ID",
                         "type": "string"
                       },
                       "properties": {
@@ -1206,12 +1347,14 @@
                           ]
                         },
                         "default": {},
+                        "title": "Properties",
                         "description": "Dictionary of property values keyed by 'Pset.Property' format."
                       }
                     },
                     "required": [
                       "express_id"
                     ],
+                    "title": "ElementProperties",
                     "type": "object"
                   },
                   "type": "array"
@@ -1221,7 +1364,8 @@
                 }
               ],
               "default": null,
-              "description": "List of elements with their property values (output_mode = elements)."
+              "description": "List of elements with their property values (output_mode = elements).",
+              "title": "Elements"
             },
             "classes": {
               "anyOf": [
@@ -1231,6 +1375,7 @@
                     "properties": {
                       "id": {
                         "description": "IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.",
+                        "title": "Class",
                         "type": "string"
                       },
                       "properties": {
@@ -1241,10 +1386,12 @@
                             "properties": {
                               "value": {
                                 "description": "A distinct property value.",
+                                "title": "Value",
                                 "type": "string"
                               },
                               "count": {
                                 "description": "Number of occurrences of this value.",
+                                "title": "Count",
                                 "type": "integer"
                               }
                             },
@@ -1252,17 +1399,20 @@
                               "value",
                               "count"
                             ],
+                            "title": "ValueWithCount",
                             "type": "object"
                           },
                           "type": "array"
                         },
                         "default": {},
+                        "title": "Properties",
                         "description": "Distinct values with counts per property for this class."
                       }
                     },
                     "required": [
                       "id"
                     ],
+                    "title": "ClassGroup",
                     "type": "object"
                   },
                   "type": "array"
@@ -1272,7 +1422,8 @@
                 }
               ],
               "default": null,
-              "description": "Elements grouped by IFC class (output_mode = by_class)."
+              "description": "Elements grouped by IFC class (output_mode = by_class).",
+              "title": "Classes"
             },
             "properties": {
               "anyOf": [
@@ -1283,10 +1434,12 @@
                       "properties": {
                         "value": {
                           "description": "A distinct property value.",
+                          "title": "Value",
                           "type": "string"
                         },
                         "count": {
                           "description": "Number of occurrences of this value.",
+                          "title": "Count",
                           "type": "integer"
                         }
                       },
@@ -1294,6 +1447,7 @@
                         "value",
                         "count"
                       ],
+                      "title": "ValueWithCount",
                       "type": "object"
                     },
                     "type": "array"
@@ -1305,12 +1459,14 @@
                 }
               ],
               "default": null,
+              "title": "Properties",
               "description": "Distinct values with counts per property (output_mode = model)."
             }
           },
           "required": [
             "mode"
           ],
+          "title": "GetPropertyResult",
           "type": "object"
         },
         "inputs": {
@@ -1321,12 +1477,14 @@
               "items": {
                 "type": "string"
               },
+              "title": "Express IDs",
               "type": "array"
             }
           },
           "required": [
             "express_ids"
           ],
+          "title": "GetPropertyInputs",
           "type": "object"
         }
       },
@@ -1370,11 +1528,13 @@
             "ids_file": {
               "default": "",
               "description": "Path to the IDS specification file to validate against.",
+              "title": "IDS File",
               "type": "string"
             },
             "generate_detailed_report": {
               "default": false,
               "description": "Wenn aktiviert, werden die Ergebnisse zus\u00e4tzlich nach Specification gruppiert ausgegeben (f\u00fcr Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.",
+              "title": "Detaillierten Report generieren",
               "type": "boolean"
             },
             "report_format": {
@@ -1392,9 +1552,11 @@
                 }
               ],
               "default": null,
-              "description": "Format f\u00fcr den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist."
+              "description": "Format f\u00fcr den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.",
+              "title": "Report Format"
             }
           },
+          "title": "IdsCheckerSettings",
           "type": "object"
         },
         "result": {
@@ -1406,6 +1568,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Failed Express IDs",
               "type": "array"
             },
             "passed_express_ids": {
@@ -1414,6 +1577,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Passed Express IDs",
               "type": "array"
             },
             "specifications": {
@@ -1425,6 +1589,7 @@
                       "name": {
                         "default": "",
                         "description": "Name of the IDS specification.",
+                        "title": "Specification Name",
                         "type": "string"
                       },
                       "failed_express_ids": {
@@ -1433,6 +1598,7 @@
                         "items": {
                           "type": "string"
                         },
+                        "title": "Failed Express IDs",
                         "type": "array"
                       },
                       "passed_express_ids": {
@@ -1441,9 +1607,11 @@
                         "items": {
                           "type": "string"
                         },
+                        "title": "Passed Express IDs",
                         "type": "array"
                       }
                     },
+                    "title": "IdsCheckerSpecificationResult",
                     "type": "object"
                   },
                   "type": "array"
@@ -1453,7 +1621,8 @@
                 }
               ],
               "default": null,
-              "description": "Per-specification breakdown. Only included when generate_detailed_report is enabled."
+              "description": "Per-specification breakdown. Only included when generate_detailed_report is enabled.",
+              "title": "Specification Results"
             },
             "report_path": {
               "anyOf": [
@@ -1465,9 +1634,11 @@
                 }
               ],
               "default": null,
-              "description": "Path to the generated report file. Only included when generate_detailed_report and report_format are enabled."
+              "description": "Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.",
+              "title": "Report File Path"
             }
           },
+          "title": "IdsCheckerResult",
           "type": "object"
         },
         "inputs": {
@@ -1478,12 +1649,14 @@
               "items": {
                 "type": "string"
               },
+              "title": "Express IDs",
               "type": "array"
             }
           },
           "required": [
             "express_ids"
           ],
+          "title": "IdsCheckerInputs",
           "type": "object"
         }
       },
@@ -1544,26 +1717,31 @@
                       "exclude",
                       "disabled"
                     ],
+                    "title": "Mode",
                     "type": "string"
                   },
                   "entity_type": {
                     "default": "IFCWALL",
                     "description": "IFC entity type name, for example IFCWALL, IFCDOOR, or IFCSPACE.",
+                    "title": "Entity type",
                     "type": "string"
                   },
                   "predefined_type": {
                     "default": "",
                     "description": "Optional PredefinedType value. Empty means any predefined type.",
+                    "title": "Predefined type",
                     "type": "string"
                   },
                   "property_set": {
                     "default": "",
                     "description": "Optional IFC PropertySet name. Empty means direct attribute lookup or search all PropertySets.",
+                    "title": "Property set",
                     "type": "string"
                   },
                   "property_name": {
                     "default": "",
                     "description": "Optional IFC attribute or PropertySet property name to compare.",
+                    "title": "Property name",
                     "type": "string"
                   },
                   "operator": {
@@ -1580,19 +1758,24 @@
                       "starts_with",
                       "ends_with"
                     ],
+                    "title": "Operator",
                     "type": "string"
                   },
                   "value": {
                     "default": "",
                     "description": "Value to compare against when property_name is set.",
+                    "title": "Value",
                     "type": "string"
                   }
                 },
+                "title": "FilterRow",
                 "type": "object"
               },
+              "title": "Filter rows",
               "type": "array"
             }
           },
+          "title": "IfcElementFilterSettings",
           "type": "object"
         },
         "result": {
@@ -1604,6 +1787,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Express IDs",
               "type": "array"
             },
             "guids": {
@@ -1612,9 +1796,11 @@
               "items": {
                 "type": "string"
               },
+              "title": "GUIDs",
               "type": "array"
             }
           },
+          "title": "IfcElementFilterResult",
           "type": "object"
         },
         "inputs": {
@@ -1633,14 +1819,17 @@
                 }
               ],
               "default": null,
-              "description": "Optional list of qualified element references (`<slug>:expr:<id>`) to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result. Per-reference model slugs win over the model input."
+              "description": "Optional list of qualified element references (`<slug>:expr:<id>`) to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result. Per-reference model slugs win over the model input.",
+              "title": "Express IDs"
             },
             "model_slug": {
               "default": "main",
               "description": "Model slug to scan when no references are bound. Defaults to the main model.",
+              "title": "Model",
               "type": "string"
             }
           },
+          "title": "IfcElementFilterInputs",
           "type": "object"
         }
       },
@@ -1690,16 +1879,19 @@
                   "entity_type": {
                     "default": "",
                     "description": "Optional IFC entity type (e.g., IFCWALL, IFCDOOR). Empty means any entity type. Used for UI preselection only.",
+                    "title": "Entity type",
                     "type": "string"
                   },
                   "property_set": {
                     "default": "",
                     "description": "IFC PropertySet name (e.g., Pset_WallCommon) or custom property set name.",
+                    "title": "Property set",
                     "type": "string"
                   },
                   "property_name": {
                     "default": "",
                     "description": "Name of the property to compare within the PropertySet.",
+                    "title": "Property name",
                     "type": "string"
                   },
                   "condition": {
@@ -1718,11 +1910,13 @@
                       "between",
                       "outside"
                     ],
+                    "title": "Condition",
                     "type": "string"
                   },
                   "expected_value": {
                     "default": "",
                     "description": "Target value the property is compared against. Ignored for is_true / is_false and range checks.",
+                    "title": "Expected value",
                     "type": "string"
                   },
                   "allowed_values": {
@@ -1731,37 +1925,45 @@
                     "items": {
                       "type": "string"
                     },
+                    "title": "Allowed values",
                     "type": "array"
                   },
                   "range_min": {
                     "default": "",
                     "description": "Lower barrier for numeric range checks (condition = between / outside).",
+                    "title": "Range min",
                     "type": "string"
                   },
                   "range_max": {
                     "default": "",
                     "description": "Upper barrier for numeric range checks (condition = between / outside).",
+                    "title": "Range max",
                     "type": "string"
                   },
                   "inclusive_min": {
                     "default": true,
                     "description": "If True the range includes values equal to the lower barrier (>=); otherwise it is strictly greater (>).",
+                    "title": "Inclusive min",
                     "type": "boolean"
                   },
                   "inclusive_max": {
                     "default": true,
                     "description": "If True the range includes values equal to the upper barrier (<=); otherwise it is strictly less (<).",
+                    "title": "Inclusive max",
                     "type": "boolean"
                   }
                 },
                 "required": [
                   "condition"
                 ],
+                "title": "ComparisonRow",
                 "type": "object"
               },
+              "title": "Comparison rows",
               "type": "array"
             }
           },
+          "title": "LoiCheckSettings",
           "type": "object"
         },
         "result": {
@@ -1769,18 +1971,22 @@
           "properties": {
             "summary_element_count": {
               "description": "Number of elements processed.",
+              "title": "Element count",
               "type": "integer"
             },
             "summary_passed_count": {
               "description": "Number of checked elements whose checks all passed.",
+              "title": "Passed count",
               "type": "integer"
             },
             "summary_failed_count": {
               "description": "Number of checked elements with at least one failed check.",
+              "title": "Failed count",
               "type": "integer"
             },
             "summary_check_count": {
               "description": "Total number of property checks across all elements.",
+              "title": "Check count",
               "type": "integer"
             },
             "passed_express_ids": {
@@ -1789,6 +1995,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Passed express IDs",
               "type": "array"
             },
             "failed_express_ids": {
@@ -1797,6 +2004,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Failed express IDs",
               "type": "array"
             },
             "elements": {
@@ -1810,14 +2018,17 @@
                     "items": {
                       "type": "string"
                     },
+                    "title": "Express IDs",
                     "type": "array"
                   },
                   "class_name": {
                     "description": "IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.",
+                    "title": "Class name",
                     "type": "string"
                   },
                   "failed": {
                     "description": "True if at least one check on this element failed.",
+                    "title": "Failed",
                     "type": "boolean"
                   },
                   "checks": {
@@ -1828,49 +2039,59 @@
                       "properties": {
                         "key": {
                           "description": "Stable identifier for this check (e.g. a property key or 'surface_0').",
+                          "title": "Key",
                           "type": "string"
                         },
                         "check_parameter": {
                           "description": "The parameter being checked (e.g. the property name, or 'angle').",
+                          "title": "Check parameter",
                           "type": "string"
                         },
                         "expected_value": {
                           "default": "",
                           "description": "Expected value as a string (empty for is_true / is_false and range checks).",
+                          "title": "Expected value",
                           "type": "string"
                         },
                         "actual_value": {
                           "default": "",
                           "description": "Measured/read value as a string, or empty if the value is missing.",
+                          "title": "Actual value",
                           "type": "string"
                         },
                         "unit": {
                           "default": "",
                           "description": "Measurement unit of the compared value, or empty when unknown.",
+                          "title": "Unit",
                           "type": "string"
                         },
                         "missing": {
                           "default": false,
                           "description": "True when the value is not present / could not be measured.",
+                          "title": "Missing",
                           "type": "boolean"
                         },
                         "passed": {
                           "description": "Whether the check passed.",
+                          "title": "Passed",
                           "type": "boolean"
                         },
                         "expected_value_condition": {
                           "default": "",
                           "description": "The comparison operator that was applied (empty for checks with none).",
+                          "title": "Expected value condition",
                           "type": "string"
                         },
                         "expected_value_min": {
                           "default": "",
                           "description": "Lower barrier used for numeric range checks, or empty for single-value checks.",
+                          "title": "Expected value min",
                           "type": "string"
                         },
                         "expected_value_max": {
                           "default": "",
                           "description": "Upper barrier used for numeric range checks, or empty for single-value checks.",
+                          "title": "Expected value max",
                           "type": "string"
                         }
                       },
@@ -1879,8 +2100,10 @@
                         "check_parameter",
                         "passed"
                       ],
+                      "title": "HarmonizedCheckResult",
                       "type": "object"
                     },
+                    "title": "Checks",
                     "type": "array"
                   }
                 },
@@ -1889,8 +2112,10 @@
                   "class_name",
                   "failed"
                 ],
+                "title": "HarmonizedElement",
                 "type": "object"
               },
+              "title": "Elements",
               "type": "array"
             }
           },
@@ -1900,6 +2125,7 @@
             "summary_failed_count",
             "summary_check_count"
           ],
+          "title": "LoiCheckResult",
           "type": "object"
         },
         "inputs": {
@@ -1910,12 +2136,14 @@
               "items": {
                 "type": "string"
               },
+              "title": "Express IDs",
               "type": "array"
             }
           },
           "required": [
             "express_ids"
           ],
+          "title": "LoiCheckInputs",
           "type": "object"
         }
       },
@@ -1967,6 +2195,7 @@
                 "distance_between",
                 "distance_to_reference"
               ],
+              "title": "Measurement Type",
               "type": "string"
             },
             "projection_normal": {
@@ -1979,6 +2208,7 @@
               "items": {
                 "type": "number"
               },
+              "title": "Projection Normal",
               "type": "array"
             },
             "direction": {
@@ -1991,6 +2221,7 @@
               "items": {
                 "type": "number"
               },
+              "title": "Direction",
               "type": "array"
             },
             "reference_type": {
@@ -2000,6 +2231,7 @@
                 "point",
                 "plane"
               ],
+              "title": "Reference Type",
               "type": "string"
             },
             "reference_point": {
@@ -2012,6 +2244,7 @@
               "items": {
                 "type": "number"
               },
+              "title": "Reference Point",
               "type": "array"
             },
             "reference_normal": {
@@ -2024,9 +2257,11 @@
               "items": {
                 "type": "number"
               },
+              "title": "Reference Normal",
               "type": "array"
             }
           },
+          "title": "MeasurementSettings",
           "type": "object"
         },
         "result": {
@@ -2042,10 +2277,12 @@
                 "distance_between",
                 "distance_to_reference"
               ],
+              "title": "Type",
               "type": "string"
             },
             "unit": {
               "description": "The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).",
+              "title": "Unit",
               "type": "string"
             },
             "measurements": {
@@ -2056,6 +2293,7 @@
                 "properties": {
                   "reference": {
                     "description": "The geometry cache key (e.g., `main:expr:63`, `gen:mycube`, `inter:...`) of the measured element, or the raw input when no geometry was found.",
+                    "title": "Reference",
                     "type": "string"
                   },
                   "value": {
@@ -2068,7 +2306,8 @@
                       }
                     ],
                     "default": null,
-                    "description": "The measured value. Null if geometry is missing or measurement failed."
+                    "description": "The measured value. Null if geometry is missing or measurement failed.",
+                    "title": "Value"
                   },
                   "error": {
                     "anyOf": [
@@ -2080,14 +2319,17 @@
                       }
                     ],
                     "default": null,
-                    "description": "Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight')."
+                    "description": "Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight').",
+                    "title": "Error"
                   }
                 },
                 "required": [
                   "reference"
                 ],
+                "title": "MeasurementItem",
                 "type": "object"
               },
+              "title": "Measurements",
               "type": "array"
             }
           },
@@ -2095,6 +2337,7 @@
             "type",
             "unit"
           ],
+          "title": "MeasurementResult",
           "type": "object"
         },
         "inputs": {
@@ -2123,7 +2366,8 @@
                 }
               ],
               "default": [],
-              "description": "First list of fully qualified geometry cache keys \u2014 `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, `inter:<id>` for helper/intersection geometry \u2014 in the order to test. An empty list yields zero measurements. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are used."
+              "description": "First list of fully qualified geometry cache keys \u2014 `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, `inter:<id>` for helper/intersection geometry \u2014 in the order to test. An empty list yields zero measurements. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are used.",
+              "title": "List A"
             },
             "list_b": {
               "anyOf": [
@@ -2148,9 +2392,11 @@
                 }
               ],
               "default": [],
-              "description": "Second (optional) list of fully qualified geometry cache keys. When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys."
+              "description": "Second (optional) list of fully qualified geometry cache keys. When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.",
+              "title": "List B"
             }
           },
+          "title": "MeasurementInputs",
           "type": "object"
         }
       },
@@ -2201,6 +2447,7 @@
               "items": {
                 "type": "number"
               },
+              "title": "Position",
               "type": "array"
             },
             "rotation": {
@@ -2213,9 +2460,11 @@
               "items": {
                 "type": "number"
               },
+              "title": "Rotation",
               "type": "array"
             }
           },
+          "title": "Set3DPositionRotationSettings",
           "type": "object"
         },
         "result": {
@@ -2230,6 +2479,7 @@
                   "express_id": {
                     "default": "",
                     "description": "Empty string (no IFC element reference).",
+                    "title": "Express ID",
                     "type": "string"
                   },
                   "position": {
@@ -2237,6 +2487,7 @@
                     "items": {
                       "type": "number"
                     },
+                    "title": "Position",
                     "type": "array"
                   },
                   "rotation": {
@@ -2244,14 +2495,17 @@
                     "properties": {
                       "rotation_x": {
                         "description": "Rotation around global X-axis in degrees.",
+                        "title": "Rotation X",
                         "type": "number"
                       },
                       "rotation_y": {
                         "description": "Rotation around global Y-axis in degrees.",
+                        "title": "Rotation Y",
                         "type": "number"
                       },
                       "rotation_z": {
                         "description": "Rotation around global Z-axis in degrees.",
+                        "title": "Rotation Z",
                         "type": "number"
                       }
                     },
@@ -2260,18 +2514,23 @@
                       "rotation_y",
                       "rotation_z"
                     ],
-                    "type": "object"
+                    "title": "Rotation",
+                    "type": "object",
+                    "description": "Euler angles (X, Y, Z) in degrees."
                   }
                 },
                 "required": [
                   "position",
                   "rotation"
                 ],
+                "title": "ElementResult",
                 "type": "object"
               },
+              "title": "Elements",
               "type": "array"
             }
           },
+          "title": "Set3DPositionRotationResult",
           "type": "object"
         }
       },
@@ -2318,6 +2577,7 @@
                 "2d",
                 "1d"
               ],
+              "title": "Element category",
               "type": "string"
             },
             "comparison_method": {
@@ -2329,39 +2589,47 @@
                 "inside_interval",
                 "outside_interval"
               ],
+              "title": "Comparison method",
               "type": "string"
             },
             "lower_limit": {
               "default": 0.0,
               "description": "Tilt is flagged when it exceeds this value (comparison_method = greater_than_lower).",
+              "title": "Lower limit (\u00b0)",
               "type": "number"
             },
             "upper_limit": {
               "default": 90.0,
               "description": "Tilt is flagged when it is below this value (comparison_method = less_than_upper).",
+              "title": "Upper limit (\u00b0)",
               "type": "number"
             },
             "interval_lower": {
               "default": 0.0,
               "description": "Lower barrier used for inside_interval / outside_interval.",
+              "title": "Interval lower (\u00b0)",
               "type": "number"
             },
             "interval_upper": {
               "default": 90.0,
               "description": "Upper barrier used for inside_interval / outside_interval.",
+              "title": "Interval upper (\u00b0)",
               "type": "number"
             },
             "horizontal_separation_angle": {
               "default": 5.0,
               "description": "Maximum horizontal angle deviation between two triangles to still count as the same surface. Used to merge the facets of curved / round objects.",
+              "title": "Horizontal separation angle (\u00b0)",
               "type": "number"
             },
             "tolerance": {
               "default": 0.1,
               "description": "Shared tolerance added/subtracted to the limits when flagging.",
+              "title": "Tolerance (\u00b0)",
               "type": "number"
             }
           },
+          "title": "TiltOfComponentsSettings",
           "type": "object"
         },
         "result": {
@@ -2369,18 +2637,22 @@
           "properties": {
             "summary_element_count": {
               "description": "Number of elements processed.",
+              "title": "Element count",
               "type": "integer"
             },
             "summary_passed_count": {
               "description": "Number of checked elements with no flagged surface/axis.",
+              "title": "Passed count",
               "type": "integer"
             },
             "summary_failed_count": {
               "description": "Number of checked elements with at least one flagged surface/axis.",
+              "title": "Failed count",
               "type": "integer"
             },
             "summary_check_count": {
               "description": "Total number of surface/axis checks across all elements.",
+              "title": "Check count",
               "type": "integer"
             },
             "passed_express_ids": {
@@ -2389,6 +2661,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Passed express IDs",
               "type": "array"
             },
             "failed_express_ids": {
@@ -2397,6 +2670,7 @@
               "items": {
                 "type": "string"
               },
+              "title": "Failed express IDs",
               "type": "array"
             },
             "elements": {
@@ -2410,14 +2684,17 @@
                     "items": {
                       "type": "string"
                     },
+                    "title": "Express IDs",
                     "type": "array"
                   },
                   "class_name": {
                     "description": "IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.",
+                    "title": "Class name",
                     "type": "string"
                   },
                   "failed": {
                     "description": "True if at least one check on this element failed.",
+                    "title": "Failed",
                     "type": "boolean"
                   },
                   "checks": {
@@ -2428,49 +2705,59 @@
                       "properties": {
                         "key": {
                           "description": "Stable identifier for this check (e.g. a property key or 'surface_0').",
+                          "title": "Key",
                           "type": "string"
                         },
                         "check_parameter": {
                           "description": "The parameter being checked (e.g. the property name, or 'angle').",
+                          "title": "Check parameter",
                           "type": "string"
                         },
                         "expected_value": {
                           "default": "",
                           "description": "Expected value as a string (empty for is_true / is_false and range checks).",
+                          "title": "Expected value",
                           "type": "string"
                         },
                         "actual_value": {
                           "default": "",
                           "description": "Measured/read value as a string, or empty if the value is missing.",
+                          "title": "Actual value",
                           "type": "string"
                         },
                         "unit": {
                           "default": "",
                           "description": "Measurement unit of the compared value, or empty when unknown.",
+                          "title": "Unit",
                           "type": "string"
                         },
                         "missing": {
                           "default": false,
                           "description": "True when the value is not present / could not be measured.",
+                          "title": "Missing",
                           "type": "boolean"
                         },
                         "passed": {
                           "description": "Whether the check passed.",
+                          "title": "Passed",
                           "type": "boolean"
                         },
                         "expected_value_condition": {
                           "default": "",
                           "description": "The comparison operator that was applied (empty for checks with none).",
+                          "title": "Expected value condition",
                           "type": "string"
                         },
                         "expected_value_min": {
                           "default": "",
                           "description": "Lower barrier used for numeric range checks, or empty for single-value checks.",
+                          "title": "Expected value min",
                           "type": "string"
                         },
                         "expected_value_max": {
                           "default": "",
                           "description": "Upper barrier used for numeric range checks, or empty for single-value checks.",
+                          "title": "Expected value max",
                           "type": "string"
                         }
                       },
@@ -2479,8 +2766,10 @@
                         "check_parameter",
                         "passed"
                       ],
+                      "title": "HarmonizedCheckResult",
                       "type": "object"
                     },
+                    "title": "Checks",
                     "type": "array"
                   }
                 },
@@ -2489,8 +2778,10 @@
                   "class_name",
                   "failed"
                 ],
+                "title": "HarmonizedElement",
                 "type": "object"
               },
+              "title": "Elements",
               "type": "array"
             }
           },
@@ -2500,6 +2791,7 @@
             "summary_failed_count",
             "summary_check_count"
           ],
+          "title": "TiltOfComponentsResult",
           "type": "object"
         },
         "inputs": {
@@ -2510,12 +2802,14 @@
               "items": {
                 "type": "string"
               },
+              "title": "Express IDs",
               "type": "array"
             }
           },
           "required": [
             "express_ids"
           ],
+          "title": "TiltOfComponentsInputs",
           "type": "object"
         }
       },
@@ -2525,761 +2819,6 @@
         "inputs"
       ],
       "additionalProperties": false
-    }
-  },
-  "x-ports": {
-    "bcf_output": {
-      "inputs": [
-        {
-          "name": "elements",
-          "title": "Elements",
-          "description": "Harmonized check elements from an upstream checking node (LOI-Check.elements, Tilt-of-Components.elements or Comparison.elements).",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "output_path",
-          "title": "Output path",
-          "description": "Filesystem path the BCF 3.0 file was written to.",
-          "type": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "topic_count",
-          "title": "Topic count",
-          "description": "Number of BCF topics written.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "viewpoint_count",
-          "title": "Viewpoint count",
-          "description": "Number of viewpoints written (one per resolvable failing element).",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "processed_result_count",
-          "title": "Processed result count",
-          "description": "Total number of checks processed across all input elements.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "element_count",
-          "title": "Element count",
-          "description": "Number of input elements consumed from the upstream node.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "failure_count",
-          "title": "Failure count",
-          "description": "Total number of failed checks found.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "skipped",
-          "title": "Skipped",
-          "description": "Number of elements (with reported checks) skipped because they could not be resolved to a BCF viewpoint: references whose IFC entity / GlobalId could not be resolved, plus elements whose raw references expand to no IFC members (helper/generated geometry).",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "warnings",
-          "title": "Warnings",
-          "description": "Non-fatal notices collected while running.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "topics",
-          "title": "Topics",
-          "description": "Resolved topics (element GUID, check key, title, description).",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      ]
-    },
-    "collision": {
-      "inputs": [
-        {
-          "name": "list_a",
-          "title": "List A",
-          "description": "First list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`), in the order to test. Bind ifc_element_filter output here.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "list_b",
-          "title": "List B",
-          "description": "Second list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`) to test the first list against. Mixed-model lists are allowed; each reference resolves against its own model.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "collisions",
-          "title": "Collisions",
-          "description": "Grouped by side-A cache key; each value lists the side-B cache keys it collides with. Only colliding pairs are included.",
-          "type": {
-            "type": "object"
-          }
-        },
-        {
-          "name": "errors",
-          "title": "Errors",
-          "description": "Pairs whose collision could not be decided (e.g. non-watertight or boolean failure).",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        },
-        {
-          "name": "intersection_meshes",
-          "title": "Intersection Meshes",
-          "description": "Only populated in 'intersection_mesh' mode. Maps a pair key '{key_a}__{key_b}' to the geometry-cache key 'inter:intersection_{key_a}_{key_b}' under which the intersection mesh was stored. A null value signals an FCL-decided collision (mesh non-repairable or boolean failed) for which no intersection mesh could be generated. Empty in 'boolean' mode.",
-          "type": {
-            "type": "object"
-          }
-        }
-      ]
-    },
-    "comparison": {
-      "inputs": [
-        {
-          "name": "values",
-          "title": "Values",
-          "description": "List of values to compare. Each item has a `reference` to its source element and a `value`. Bind to a list output of an upstream node.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        },
-        {
-          "name": "unit",
-          "title": "Unit",
-          "description": "Unit of the compared values. Bind to a unit output of an upstream node, e.g. measurement.unit.",
-          "type": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "check_parameter",
-          "title": "Check parameter",
-          "description": "Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. measurement.type.",
-          "type": {
-            "type": "string"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "summary_element_count",
-          "title": "Element count",
-          "description": "Number of elements processed.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_passed_count",
-          "title": "Passed count",
-          "description": "Number of elements whose check passed.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_failed_count",
-          "title": "Failed count",
-          "description": "Number of elements with a failed check.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_check_count",
-          "title": "Check count",
-          "description": "Total number of checks (equals element count, one check per element).",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "passed_express_ids",
-          "title": "Passed express IDs",
-          "description": "Qualified references of elements whose check passed.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "failed_express_ids",
-          "title": "Failed express IDs",
-          "description": "Qualified references of elements with a failed check.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "elements",
-          "title": "Elements",
-          "description": "Ordered list of elements with their comparison check results.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      ]
-    },
-    "concat_string": {
-      "inputs": [
-        {
-          "name": "values",
-          "title": "Input values",
-          "description": "Resolved values to concatenate.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "value",
-          "title": "Concatenated string",
-          "description": "Final string assembled from the input strings.",
-          "type": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    "file_input": {
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "model_slug",
-          "title": "Model slug",
-          "description": "Slug of the selected IFC model, for binding to a consumer's model input.",
-          "type": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    "generate_3d_cube": {
-      "inputs": [
-        {
-          "name": "elements",
-          "title": "Base Elements",
-          "description": "Elements from upstream node (e.g., set_3d_position_rotation or get_element_creation_position_door). First element is used for base position/rotation.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "any"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "object_ids",
-          "title": "Object IDs",
-          "description": "1-element list with the qualified geometry cache key (`gen:<object_id>`) of the generated cube.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ]
-    },
-    "get_element_creation_position_door": {
-      "inputs": [
-        {
-          "name": "express_ids",
-          "title": "Express IDs",
-          "description": "Qualified element references (`<slug>:expr:<id>`) to get positions from. Bind ifc_element_filter output here.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "elements",
-          "title": "Elements",
-          "description": "List of element positions (P7) for all processed doors and walls.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      ]
-    },
-    "get_property": {
-      "inputs": [
-        {
-          "name": "express_ids",
-          "title": "Express IDs",
-          "description": "Qualified element references (`<slug>:expr:<id>`) to read property values from. Bind ifc_element_filter output here.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "mode",
-          "title": "Mode",
-          "description": "The output mode used to generate this result.",
-          "type": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "elements",
-          "title": "Elements",
-          "description": "List of elements with their property values (output_mode = elements).",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        },
-        {
-          "name": "classes",
-          "title": "Classes",
-          "description": "Elements grouped by IFC class (output_mode = by_class).",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        },
-        {
-          "name": "properties",
-          "title": "Properties",
-          "description": "Distinct values with counts per property (output_mode = model).",
-          "type": {
-            "type": "object"
-          }
-        }
-      ]
-    },
-    "ids_checker": {
-      "inputs": [
-        {
-          "name": "express_ids",
-          "title": "Express IDs",
-          "description": "Qualified element references (`<slug>:expr:<id>`) to validate against the IDS requirements. Mixed-model lists are grouped by model and each model is validated once. Bind ifc_element_filter output here.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "failed_express_ids",
-          "title": "Failed Express IDs",
-          "description": "Qualified references of entities that failed at least one IDS requirement (combined across all specifications).",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "passed_express_ids",
-          "title": "Passed Express IDs",
-          "description": "Qualified references of entities that passed all applicable IDS requirements (combined across all specifications).",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "specifications",
-          "title": "Specification Results",
-          "description": "Per-specification breakdown. Only included when generate_detailed_report is enabled.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        },
-        {
-          "name": "report_path",
-          "title": "Report File Path",
-          "description": "Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.",
-          "type": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    "ifc_element_filter": {
-      "inputs": [
-        {
-          "name": "express_ids",
-          "title": "Express IDs",
-          "description": "Optional list of qualified element references (`<slug>:expr:<id>`) to filter within. When the input is not connected, the whole model is scanned. When connected, an empty list yields an empty result. Per-reference model slugs win over the model input.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "model_slug",
-          "title": "Model",
-          "description": "Model slug to scan when no references are bound. Defaults to the main model.",
-          "type": {
-            "type": "string"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "express_ids",
-          "title": "Express IDs",
-          "description": "Qualified references (`<slug>:expr:<id>`) of all matching IFC entities.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "guids",
-          "title": "GUIDs",
-          "description": "Qualified GUID references (`<slug>:guid:<GlobalId>`) for all matching IFC entities in the same order as express_ids.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ]
-    },
-    "loi_check": {
-      "inputs": [
-        {
-          "name": "express_ids",
-          "title": "Express IDs",
-          "description": "Qualified element references (`<slug>:expr:<id>`) to run property comparisons against. Bind ifc_element_filter output here.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "summary_element_count",
-          "title": "Element count",
-          "description": "Number of elements processed.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_passed_count",
-          "title": "Passed count",
-          "description": "Number of checked elements whose checks all passed.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_failed_count",
-          "title": "Failed count",
-          "description": "Number of checked elements with at least one failed check.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_check_count",
-          "title": "Check count",
-          "description": "Total number of property checks across all elements.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "passed_express_ids",
-          "title": "Passed express IDs",
-          "description": "Qualified references of elements whose checks all passed. Only elements that were actually checked (had at least one applied check) are included.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "failed_express_ids",
-          "title": "Failed express IDs",
-          "description": "Qualified references of elements with at least one failed check. Only elements that were actually checked (had at least one applied check) are included.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "elements",
-          "title": "Elements",
-          "description": "Ordered list of elements with their property check results.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      ]
-    },
-    "measurement": {
-      "inputs": [
-        {
-          "name": "list_a",
-          "title": "List A",
-          "description": "First list of fully qualified geometry cache keys \u2014 `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, `inter:<id>` for helper/intersection geometry \u2014 in the order to test. An empty list yields zero measurements. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case, the dict's non-null values (intersection mesh cache keys) are used.",
-          "type": {
-            "type": "union",
-            "members": [
-              {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              {
-                "type": "object"
-              }
-            ]
-          }
-        },
-        {
-          "name": "list_b",
-          "title": "List B",
-          "description": "Second (optional) list of fully qualified geometry cache keys. When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.",
-          "type": {
-            "type": "union",
-            "members": [
-              {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              {
-                "type": "object"
-              }
-            ]
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "type",
-          "title": "Type",
-          "description": "The measurement type used to generate this result.",
-          "type": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "unit",
-          "title": "Unit",
-          "description": "The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).",
-          "type": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "measurements",
-          "title": "Measurements",
-          "description": "List of per-element measurements.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      ]
-    },
-    "set_3d_position_rotation": {
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "elements",
-          "title": "Elements",
-          "description": "List with one element containing position and rotation values.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      ]
-    },
-    "tilt_of_components": {
-      "inputs": [
-        {
-          "name": "express_ids",
-          "title": "Express IDs",
-          "description": "Qualified element references (`<slug>:expr:<id>`) to measure. Bind ifc_element_filter output here.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "summary_element_count",
-          "title": "Element count",
-          "description": "Number of elements processed.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_passed_count",
-          "title": "Passed count",
-          "description": "Number of checked elements with no flagged surface/axis.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_failed_count",
-          "title": "Failed count",
-          "description": "Number of checked elements with at least one flagged surface/axis.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "summary_check_count",
-          "title": "Check count",
-          "description": "Total number of surface/axis checks across all elements.",
-          "type": {
-            "type": "integer"
-          }
-        },
-        {
-          "name": "passed_express_ids",
-          "title": "Passed express IDs",
-          "description": "Qualified references of elements whose checks all passed. Only elements with at least one check are included.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "failed_express_ids",
-          "title": "Failed express IDs",
-          "description": "Qualified references of elements with at least one flagged check. Only elements with at least one check are included.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "name": "elements",
-          "title": "Elements",
-          "description": "Ordered list of elements with their tilt checks.",
-          "type": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      ]
     }
   },
   "x-workflows": {

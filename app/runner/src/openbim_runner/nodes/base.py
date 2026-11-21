@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -305,90 +306,42 @@ async def dispatch(
     return definition.result_model.model_validate(resolved_result)
 
 
-def _remove_titles_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
-    """Recursively remove title fields from a JSON schema to prevent named type generation."""
-    import copy
-
+def _inline_local_refs(schema: dict[str, Any]) -> dict[str, Any]:
+    """Recursively inline local ``#/$defs/...`` references and drop ``$defs``."""
     result = copy.deepcopy(schema)
     defs = cast(dict[str, object], result.get("$defs", {}))
 
-    def inline_local_refs(value: object) -> object:
+    def inline(value: object) -> object:
         if isinstance(value, dict):
             schema_node = cast(dict[str, object], value)
             ref = schema_node.get("$ref")
             if isinstance(ref, str) and ref.startswith("#/$defs/"):
                 def_name = ref.removeprefix("#/$defs/")
                 if def_name in defs:
-                    return inline_local_refs(copy.deepcopy(defs[def_name]))
+                    resolved = inline(copy.deepcopy(defs[def_name]))
+                    if isinstance(resolved, dict):
+                        siblings = {
+                            key: inline(item)
+                            for key, item in schema_node.items()
+                            if key not in {"$ref", "$defs"}
+                        }
+                        return {**cast(dict[str, object], resolved), **siblings}
+                    return resolved
 
             return {
-                key: inline_local_refs(item)
-                for key, item in schema_node.items()
-                if key != "$defs"
+                key: inline(item) for key, item in schema_node.items() if key != "$defs"
             }
 
         if isinstance(value, list):
-            return [inline_local_refs(item) for item in cast(list[object], value)]
+            return [inline(item) for item in cast(list[object], value)]
 
         return value
 
-    result = cast(dict[str, Any], inline_local_refs(result))
-    result.pop("title", None)
-
-    if "properties" in result:
-        properties = cast(dict[str, object], result["properties"])
-        result["properties"] = {
-            key: _remove_titles_from_schema(cast(dict[str, Any], value))
-            if isinstance(value, dict)
-            else value
-            for key, value in properties.items()
-        }
-
-    if "items" in result and isinstance(result["items"], dict):
-        result["items"] = _remove_titles_from_schema(
-            cast(dict[str, object], result["items"])
-        )
-
-    if "additionalProperties" in result and isinstance(
-        result["additionalProperties"], dict
-    ):
-        result["additionalProperties"] = _remove_titles_from_schema(
-            cast(dict[str, object], result["additionalProperties"])
-        )
-
-    if "anyOf" in result:
-        result["anyOf"] = [
-            _remove_titles_from_schema(cast(dict[str, Any], item))
-            if isinstance(item, dict)
-            else item
-            for item in cast(list[object], result["anyOf"])
-        ]
-
-    return result
-
-
-def _model_ports(model: type[NodeModel], node_name: str) -> list[dict[str, Any]]:
-    """Port descriptors for one settings/inputs/result model.
-
-    Types come from the Pydantic annotations through the shared mapper, so an
-    annotation without a faithful port representation fails ``export-schema``
-    instead of silently degrading to a wildcard.
-    """
-    port_types = model_port_types(model, node=node_name)
-    return [
-        {
-            "name": field_name,
-            "title": field_info.title or "",
-            "description": field_info.description or "",
-            "type": port_types[field_name].model_dump(mode="json"),
-        }
-        for field_name, field_info in model.model_fields.items()
-    ]
+    return cast(dict[str, Any], inline(result))
 
 
 def get_registry_schema() -> dict[str, Any]:
     nodes_schemas: dict[str, Any] = {}
-    ports_schemas: dict[str, Any] = {}
     # Sorted so the exported schema (and the generated types derived from it)
     # are deterministic regardless of node import/registration order.
     for name, definition in sorted(REGISTRY.items()):
@@ -396,31 +349,30 @@ def get_registry_schema() -> dict[str, Any]:
         required_fields = ["result"]
 
         node_properties: dict[str, Any] = {}
-        node_ports: dict[str, Any] = {"inputs": [], "outputs": []}
 
         if definition.takes_settings:
             if definition.settings_model is None:
                 raise ValueError(
                     f"Node '{name}' has takes_settings=True but no settings_model"
                 )
-            settings_schema = _remove_titles_from_schema(
+            settings_schema = _inline_local_refs(
                 definition.settings_model.model_json_schema()
             )
             node_properties["settings"] = settings_schema
             required_fields.append("settings")
 
-        result_schema = _remove_titles_from_schema(
-            definition.result_model.model_json_schema()
-        )
+        # Validate every input/result annotation through the shared port-type
+        # mapper so ``export-schema`` fails fast on unsupported annotations.
+        model_port_types(definition.result_model, node=name)
+        result_schema = _inline_local_refs(definition.result_model.model_json_schema())
         node_properties["result"] = result_schema
-        node_ports["outputs"] = _model_ports(definition.result_model, name)
 
         if definition.takes_inputs and definition.inputs_model:
-            inputs_schema = _remove_titles_from_schema(
+            model_port_types(definition.inputs_model, node=name)
+            inputs_schema = _inline_local_refs(
                 definition.inputs_model.model_json_schema()
             )
             node_properties["inputs"] = inputs_schema
-            node_ports["inputs"] = _model_ports(definition.inputs_model, name)
             required_fields.append("inputs")
 
         en_docs = all_locales.get("en")
@@ -452,7 +404,6 @@ def get_registry_schema() -> dict[str, Any]:
             "required": required_fields,
             "additionalProperties": False,
         }
-        ports_schemas[name] = node_ports
 
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -460,8 +411,4 @@ def get_registry_schema() -> dict[str, Any]:
         "type": "object",
         "additionalProperties": False,
         "properties": nodes_schemas,
-        # Port metadata lives outside ``properties`` so it never becomes a
-        # node type. The web reads it instead of re-deriving types from the
-        # per-node JSON Schema.
-        "x-ports": ports_schemas,
     }
