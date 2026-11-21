@@ -103,12 +103,14 @@ def annotation_to_port_type(annotation: Any, *, node: str, field: str) -> PortTy
         ) from error
 
 
-def annotation_to_port_type_or_none(annotation: Any) -> PortType | None:
-    """Best-effort variant for matching code paths that can simply skip a field."""
-    try:
-        return _map_annotation(annotation)
-    except UnsupportedPortTypeError:
-        return None
+def model_port_types(model: type[BaseModel], *, node: str) -> dict[str, PortType]:
+    """Map every field of a Pydantic model to its port type, keyed by field name."""
+    return {
+        field_name: annotation_to_port_type(
+            field_info.annotation, node=node, field=field_name
+        )
+        for field_name, field_info in model.model_fields.items()
+    }
 
 
 def _map_annotation(annotation: Any) -> PortType:

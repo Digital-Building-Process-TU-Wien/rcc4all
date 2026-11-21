@@ -1,6 +1,3 @@
-/**
- * Base interface for all node data
- */
 import type { NodeRegistrySchema } from '@@/scripts/schema'
 import type { SubworkflowPort } from '@@/scripts/workflow-schema'
 import schemaJson from '@@/scripts/schema.json'
@@ -23,6 +20,9 @@ export interface StoredEdge {
   targetHandle?: string | null
 }
 
+/**
+ * Base interface for all node data
+ */
 export interface NodeData {
   label: string
   noInput?: boolean

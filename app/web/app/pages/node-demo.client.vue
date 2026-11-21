@@ -121,7 +121,7 @@ function handleConnect(params: Connection) {
     : sourceOutputs[0]
 
   // A File Input node's output is a model slug; ifc_element_filter is the only
-  // node with a model input left, so it is the only valid auto-wire target.
+  // node with a model input, so it is the only valid auto-wire target.
   if (sourceNode.data.nodeName === 'file_input') {
     if (targetNode.data.nodeName !== 'ifc_element_filter')
       return

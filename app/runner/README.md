@@ -1,10 +1,10 @@
-# RCC4ALL - Python Nodes
+# RCC4All - Python Nodes
 
-**Core IFC checking logic for the RCC4ALL openBIM engine.**
+**Core IFC checking logic for RCC4All.**
 
 ## Overview
 
-This repository contains the Python-based node workflows and IFC checking logic for the openBIM engine. It provides a CLI interface designed to execute node-based workflows and return detailed checking results for building models.
+This package contains the Python-based node workflows and IFC checking logic for RCC4All. It provides a CLI interface designed to execute node-based workflows and return detailed checking results for building models.
 
 ## Minimal Node Layout
 
@@ -14,21 +14,29 @@ The runner uses a minimal function-based node structure under `src/openbim_runne
 src/
    openbim_runner/
       main.py
-      workflow.py
+      port_types.py
+      inspect_models.py
+      util/
+      workflow/
       nodes/
+         __init__.py
          base.py
          an_example_node/
             tests/
               test_an_example_node.py
             an_example_node.py
+            README.en.md
+            README.de.md
 tests/ <-- integration tests / multiple nodes / workflows
    testdata/
       demo.json
       test.ifc
 ```
 
-- `base.py` defines the shared Pydantic base model, the `@node()` decorator, and the dispatcher.
-- Each node is a plain function with one typed settings model, an optional typed inputs model, and one typed result model.
+- `base.py` defines the shared Pydantic base model (`NodeModel`), the `@node()` decorator, and the dispatcher.
+- `nodes/__init__.py` explicitly imports every node so its `@node()` decorator registers it.
+- Each node is a plain function with optional typed `settings`, `inputs`, and `context` parameters, and one typed result model.
+- Each node provides `README.en.md` and `README.de.md` (with YAML frontmatter `title`, `description`, optional `categories`) for `export-schema`.
 - `ifc_element_filter` filters IFC elements by entity type, predefined type, and property set values; it is the element source of the graph.
 - `concat_string` joins a string list that the workflow resolves before the node is called.
 
@@ -69,7 +77,7 @@ Ensure you have `uv` installed on your system for dependency management.
 
 1. Navigate to the project directory:
    ```bash
-   cd runner
+   cd app/runner
    ```
 
 2. Install the project dependencies:
@@ -129,7 +137,10 @@ async def evaluate(
       context,
       node="evaluate",
    ):
-      entity = model.by_id(element.express_id)
+      try:
+         entity = model.by_id(element.express_id)
+      except RuntimeError:
+         entity = None
       object_name = None if entity is None else getattr(entity, "Name", None)
       if object_name is None and not settings.allow_missing:
          raise ValueError(f"Could not resolve a name for {element.reference}.")
@@ -141,10 +152,10 @@ async def evaluate(
 
 The decorator derives the external contract directly from the type hints:
 
-- `settings` must be a Pydantic model.
-- `inputs` may be provided as a second Pydantic model.
+- `settings` (optional) must be a Pydantic model when provided.
+- `inputs` (optional) must be a Pydantic model when provided.
 - The return type must be a Pydantic model.
-- The runner may inject an optional `ExecutionContext` as the final parameter for access to runtime services such as the IFC model.
+- The runner may inject an optional `ExecutionContext` as the final parameter for access to runtime services such as the IFC models and geometry cache.
 
 ### Dispatcher Example
 
@@ -167,10 +178,11 @@ The minimal runnable prototype lives in `tests/testdata/demo.json` and currently
 
 - `ifc_element_filter -> concat_string`
 
-The demo fixture expects `test.ifc` in the same directory. Run it with:
+The demo fixture expects `test.ifc` in the same directory. Run or validate it with:
 
 ```bash
-uv run openbim-runner tests/testdata/demo.json
+uv run openbim-runner run tests/testdata/demo.json      # or omit `run`
+uv run openbim-runner validate tests/testdata/demo.json # static validation only
 ```
 
 To export the JSON schema for all registered nodes:
@@ -180,12 +192,13 @@ uv run openbim-runner export-schema
 uv run openbim-runner export-schema node-schema.json
 ```
 
-The runner currently performs only minimal validation:
+Before opening any IFC file, the runner runs static validation across the workflow:
 
-- it checks that edge endpoints exist
-- it uses both edges and `input_bindings` references to derive execution order
-- it resolves `input_bindings` references like `filter.express_ids` before executing each node
-- it executes the registered functions and prints their outputs as JSON
+- validates `files` slots and slugs (requiring the reserved `main` slot)
+- validates and expands nested subworkflows recursively
+- verifies edge endpoints, unique node IDs, registered node types, required `input_bindings`, and port-type assignability
+- detects cycles and derives topological execution order from edges and `input_bindings`
+- resolves `input_bindings` references like `filter.express_ids`, executes the registered functions, and prints their outputs as JSON (`{ label, type, result }`)
 
 Each node uses a `settings` object plus an optional `input_bindings` object. `settings` is validated against the node's settings model, and the resolved binding payload is validated against the node's inputs model.
 
@@ -215,7 +228,7 @@ uv run openbim-runner inspect-models --category rail
 uv run openbim-runner inspect-models --pattern simple_railway
 ```
 
-To export a single element of a specific model as its own OBJ, combine the name filter with its express ID:
+To export a single element of a specific model as its own OBJ, combine the name filter with its express ID (custom directories can also be passed via `--models-root` and `--artifacts-root`):
 
 ```bash
 uv run openbim-runner inspect-models --pattern simple_railway --express-id 252

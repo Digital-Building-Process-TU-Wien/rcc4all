@@ -1,5 +1,5 @@
 // Shared IFC 4.3 filter-index types, used by the IfcElementFilter,
-// GetProperty and PropertyComparison nodes. This is the single source of
+// GetProperty and LoiCheck nodes. This is the single source of
 // truth; node-specific types.ts re-export from here instead of re-declaring.
 
 export interface IfcAllowedValue {

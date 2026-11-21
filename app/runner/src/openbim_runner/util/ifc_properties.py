@@ -1,8 +1,6 @@
 """Shared helpers for reading, keying and comparing IFC property values.
 
-These were historically copy-pasted across the `get_property`,
-`property_comparison` (and related) nodes. Keeping them in one place means a
-change to property lookup semantics is applied once instead of in every node.
+Centralizes property lookup semantics across IFC property and checking nodes.
 """
 
 from __future__ import annotations
