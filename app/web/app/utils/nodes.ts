@@ -1,7 +1,10 @@
 import type { NodeRegistrySchema } from '@@/scripts/schema'
 import type { SubworkflowPort } from '@@/scripts/workflow-schema'
 import schemaJson from '@@/scripts/schema.json'
-import { nanoid } from 'nanoid'
+import {
+  createSubworkflowPortNode,
+  DEFAULT_SUBWORKFLOW_OUTPUT_PORT,
+} from './subworkflow-graph'
 
 export type { SubworkflowPort }
 
@@ -46,8 +49,6 @@ export interface SubworkflowDefinitionData {
   edges: StoredEdge[]
   viewport?: { x: number, y: number, zoom: number }
 }
-
-export const DEFAULT_SUBWORKFLOW_OUTPUT_PORT = 'result'
 
 export interface AvailableNode {
   label: string
@@ -123,30 +124,6 @@ const nodeNameToComponent: Record<string, string> = {
   tilt_of_components: 'TiltOfComponents',
 }
 
-const PORT_NAME_RE = /^[A-Z_]\w*$/i
-
-export function isValidPortName(name: string): boolean {
-  return PORT_NAME_RE.test(name)
-}
-
-/** Build one meta node. Each meta node owns exactly one port. */
-export function createSubworkflowPortNode(
-  kind: 'input' | 'output',
-  port: SubworkflowPort,
-  position: { x: number, y: number },
-  id: string = nanoid(),
-): StoredNode {
-  return {
-    id,
-    position,
-    data: {
-      label: port.name,
-      nodeName: kind === 'input' ? 'subworkflow_input' : 'subworkflow_output',
-      settings: { port },
-    },
-  }
-}
-
 export function createSubworkflowDefinition(): SubworkflowDefinitionData {
   return {
     name: '',
@@ -198,11 +175,6 @@ export function getNodeComponent(nodeName: string) {
 
 export function getNodeLabel(nodeName: string): string {
   return formatNodeLabel(nodeName)
-}
-
-/** Nodes that never accept an incoming edge; their inputs come from settings only. */
-export function nodeHasNoInput(nodeName: string): boolean {
-  return nodeName === 'file_input'
 }
 
 function toSnakeCase(str: string): string {

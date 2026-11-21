@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BreadcrumbItem } from '~/stores/flow'
+import type { BreadcrumbItem } from '~/utils/workflow-serialization'
 
 interface Props {
   items: BreadcrumbItem[]

@@ -12,8 +12,10 @@ import {
   getInputType,
   getNodeInputs,
   getOutputType,
+  getRequiredNodeInputs,
   isModelInput,
 } from '~/utils/schema-helpers'
+import { matchCompatibleOutput, splitReference } from '~/utils/workflow-bindings'
 
 interface Props {
   nodeId: string
@@ -26,11 +28,20 @@ const { t } = useI18n()
 const { getBindingOptions } = useFlowGraph()
 
 const nodeInputs = computed(() => getNodeInputs(node.value))
+const requiredInputs = computed(() => new Set(getRequiredNodeInputs(node.value)))
 const bindingOptions = computed(() => getBindingOptions(props.nodeId))
 
 // Sentinel for the explicit "None" entry in the binding dropdowns. Selecting it
 // removes the binding so the input falls back to its default.
 const NONE_VALUE = '__none__'
+
+// Keeps a user-selected source visible while they choose between ambiguous
+// outputs (or see why no outputs are compatible) without writing a guess.
+const pendingSourceByInput = ref<Record<string, string>>({})
+
+watch(() => props.nodeId, () => {
+  pendingSourceByInput.value = {}
+})
 
 const currentBindings = computed<Record<string, string>>(() => node.value.data!.input_bindings || {})
 
@@ -43,16 +54,18 @@ function resolveInputLabel(inputName: string): string {
 
 function getBindingSource(inputName: string): string | undefined {
   const binding = currentBindings.value[inputName]
-  if (!binding)
-    return undefined
-  return binding.includes('.') ? binding.split('.')[0] : binding
+  if (binding) {
+    const parsed = splitReference(binding)
+    return parsed ? parsed[0] : binding
+  }
+  return pendingSourceByInput.value[inputName]
 }
 
 function getBindingOutput(inputName: string): string | undefined {
   const binding = currentBindings.value[inputName]
-  if (!binding || !binding.includes('.'))
+  if (!binding)
     return undefined
-  return binding.split('.')[1]
+  return splitReference(binding)?.[1]
 }
 
 /** The source dropdown always offers an explicit "None" entry to clear the binding. */
@@ -84,7 +97,16 @@ function getOutputOptions(inputName: string): { label: string, value: string }[]
   ]
 }
 
+function clearPendingSource(inputName: string) {
+  if (inputName in pendingSourceByInput.value) {
+    const next = { ...pendingSourceByInput.value }
+    delete next[inputName]
+    pendingSourceByInput.value = next
+  }
+}
+
 function clearBinding(inputName: string) {
+  clearPendingSource(inputName)
   const bindings = { ...currentBindings.value }
   delete bindings[inputName]
   node.value.data!.input_bindings = bindings
@@ -103,42 +125,69 @@ function updateBinding(inputName: string, sourceId?: string, outputField?: strin
 
   if (newSource && !newOutput) {
     const sourceOption = bindingOptions.value.find(opt => opt.id === newSource)
-    const compatibleOutputs = sourceOption
-      ? sourceOption.outputs.filter(output =>
-          arePortsCompatible(node.value, inputName, sourceOption.node, output))
-      : []
-    newOutput = compatibleOutputs[0]
+    const match = sourceOption
+      ? matchCompatibleOutput(sourceOption.node, node.value, inputName, sourceOption.outputs)
+      : { kind: 'incompatible' as const }
+
+    if (match.kind === 'matched') {
+      newOutput = match.output
+    }
+    else {
+      // Leave the binding blank rather than guessing; keep the source selected
+      // so the user can pick an output right away.
+      pendingSourceByInput.value = { ...pendingSourceByInput.value, [inputName]: newSource }
+      delete bindings[inputName]
+      node.value.data!.input_bindings = bindings
+      return
+    }
   }
 
   if (newSource && newOutput) {
+    clearPendingSource(inputName)
     bindings[inputName] = `${newSource}.${newOutput}`
   }
   else {
-    // No source, or a source with no compatible output: the input stays unbound
-    // and falls back to its default.
+    clearPendingSource(inputName)
     delete bindings[inputName]
   }
 
   node.value.data!.input_bindings = bindings
 }
 
-function getTypeWarning(inputName: string): string | null {
+function getInputWarning(inputName: string): string | null {
   const binding = currentBindings.value[inputName]
-  if (!binding)
+  if (binding) {
+    const parsed = splitReference(binding)
+    if (!parsed)
+      return null
+    const [sourceId, outputField] = parsed
+    const sourceNode = bindingOptions.value.find(opt => opt.id === sourceId)?.node
+      ?? store.nodes.find(n => n.id === sourceId)
+    if (!sourceNode)
+      return null
+
+    if (!arePortsCompatible(node.value, inputName, sourceNode, outputField)) {
+      const outputType = getOutputType(sourceNode, outputField)
+      const inputType = getInputType(node.value, inputName)
+      return `${t('bindings.typeMismatch')}: ${describeType(outputType)} → ${describeType(inputType)}`
+    }
     return null
-
-  const [sourceId, outputField] = binding.split('.')
-  const sourceNode = bindingOptions.value.find(opt => opt.id === sourceId)?.node
-    ?? store.nodes.find(n => n.id === sourceId)
-  if (!sourceNode || !outputField)
-    return null
-
-  const outputType = getOutputType(sourceNode, outputField)
-  const inputType = getInputType(node.value, inputName)
-
-  if (!arePortsCompatible(node.value, inputName, sourceNode, outputField)) {
-    return `${t('bindings.typeMismatch')}: ${describeType(outputType)} → ${describeType(inputType)}`
   }
+
+  const pendingSource = pendingSourceByInput.value[inputName]
+  if (pendingSource) {
+    const sourceOption = bindingOptions.value.find(opt => opt.id === pendingSource)
+    const match = sourceOption
+      ? matchCompatibleOutput(sourceOption.node, node.value, inputName, sourceOption.outputs)
+      : { kind: 'incompatible' as const }
+    if (match.kind === 'ambiguous')
+      return t('bindings.ambiguousOutputs')
+    if (match.kind === 'incompatible')
+      return t('bindings.noCompatibleOutputs')
+  }
+
+  if (requiredInputs.value.has(inputName))
+    return t('bindings.required')
 
   return null
 }
@@ -153,6 +202,7 @@ function getTypeWarning(inputName: string): string | null {
     <div v-for="inputName in nodeInputs" :key="inputName" class="mb-4">
       <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
         {{ resolveInputLabel(inputName) }}
+        <span v-if="requiredInputs.has(inputName)" class="text-warning">*</span>
       </label>
 
       <div class="grid grid-cols-2 gap-2 mt-1">
@@ -176,9 +226,9 @@ function getTypeWarning(inputName: string): string | null {
         />
       </div>
 
-      <div v-if="getTypeWarning(inputName)" class="mt-1 flex items-center gap-1 text-xs text-warning">
+      <div v-if="getInputWarning(inputName)" class="mt-1 flex items-center gap-1 text-xs text-warning">
         <Icon name="i-lucide-triangle-alert" class="size-3" />
-        <span>{{ getTypeWarning(inputName) }}</span>
+        <span>{{ getInputWarning(inputName) }}</span>
       </div>
 
       <p class="mt-1 text-xs text-muted">

@@ -35,11 +35,10 @@ const { warnings, warningCount, warnedEdgeIds } = useWorkflowWarnings()
  * flow's `update:edges` handler strips it again before persisting.
  */
 const renderedEdges = computed<Edge[]>(() =>
-  props.edges.map(edge =>
-    warnedEdgeIds.value.has(edge.id)
-      ? { ...edge, class: 'edge-warning' }
-      : edge,
-  ),
+  props.edges.map(edge => ({
+    ...edge,
+    class: warnedEdgeIds.value.has(edge.id) ? 'edge-warning' : '',
+  })),
 )
 
 function stripEdgeDecoration(edge: Edge): Edge {
@@ -200,7 +199,7 @@ function handleDrop(event: DragEvent) {
             store.nodesById = newById
           }"
           @update:edges="(newEdges: Edge[]) => {
-            store.edges = newEdges.map(stripEdgeDecoration)
+            store.syncEdges(newEdges.map(stripEdgeDecoration))
           }"
           @update:viewport="(newViewport: { x: number, y: number, zoom: number }) => {
             store.viewport = newViewport

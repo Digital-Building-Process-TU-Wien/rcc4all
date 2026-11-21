@@ -4,8 +4,8 @@ import type { Node } from '@vue-flow/core'
 import type { NodeData, SubworkflowPort } from '~/utils/nodes'
 import { useScopedNode } from '~/composables/useScopedNode'
 import { useFlowStore } from '~/stores/flow'
-import { isValidPortName } from '~/utils/nodes'
 import { normalizePortType } from '~/utils/schema-helpers'
+import { isValidPortName } from '~/utils/subworkflow-graph'
 
 interface Props {
   nodeId: string
