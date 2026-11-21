@@ -6,6 +6,7 @@ import {
   getInputLabel,
   getNodeInputPorts,
   getNodeOutputPorts,
+  getOutputSocketTargets,
   jsonSchemaToPortType,
 } from '../app/utils/schema-helpers'
 import schemaJson from '../scripts/schema.json'
@@ -146,4 +147,23 @@ test('node ports are derived directly from node schemas without x-ports', () => 
   // Field(title=...) survives in schema.json and feeds port labels.
   assert.equal(getInputLabel(node('measurement'), 'list_a'), 'List A')
   assert.equal(getInputLabel(node('concat_string'), 'values'), 'Input values')
+})
+
+test('getOutputSocketTargets detects BCF-compatible outputs from bcf_output input schema', () => {
+  const targetsFor = (nodeName: string) =>
+    getOutputSocketTargets({ data: { label: nodeName, nodeName } })
+
+  assert.deepEqual(targetsFor('loi_check'), ['bcf'])
+  assert.deepEqual(targetsFor('tilt_of_components'), ['bcf'])
+  assert.deepEqual(targetsFor('comparison'), ['bcf'])
+
+  // Non-harmonized array<object> outputs and sinks must not be flagged as BCF-compatible.
+  assert.deepEqual(targetsFor('get_property'), [])
+  assert.deepEqual(targetsFor('set_3d_position_rotation'), [])
+  assert.deepEqual(targetsFor('get_element_creation_position_door'), [])
+  assert.deepEqual(targetsFor('ids_checker'), [])
+  assert.deepEqual(targetsFor('collision'), [])
+  assert.deepEqual(targetsFor('measurement'), [])
+  assert.deepEqual(targetsFor('file_input'), [])
+  assert.deepEqual(targetsFor('bcf_output'), [])
 })

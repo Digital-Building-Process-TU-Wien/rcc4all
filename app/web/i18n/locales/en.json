@@ -94,7 +94,8 @@
     "autoBindAmbiguousTitle": "Manual binding needed",
     "autoBindAmbiguousDescription": "Multiple compatible ports between {source} and {target} ({inputs}). Open {target} to choose input bindings.",
     "autoBindIncompatibleTitle": "No compatible ports",
-    "autoBindIncompatibleDescription": "{source} has no outputs compatible with {target}'s inputs."
+    "autoBindIncompatibleDescription": "{source} has no outputs compatible with {target}'s inputs.",
+    "bcfOutputCompatible": "Compatible with BCF Output"
   },
   "library": {
     "backHome": "Back Home",
