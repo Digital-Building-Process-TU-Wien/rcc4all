@@ -1,5 +1,5 @@
 import type { WorkflowDirectoryListing, WorkflowFileEntry } from '#shared/types/workflow-files'
-import type { ExportedWorkflow } from '~/stores/flow'
+import type { ExportedWorkflow } from '~/utils/workflow-serialization'
 
 export interface LoadedWorkflow {
   path: string

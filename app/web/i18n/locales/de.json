@@ -86,9 +86,15 @@
     "extractMetaNode": "Ein- und Ausgangs-Nodes bleiben in ihrem Subworkflow.",
     "extractEmpty": "Wählen Sie mindestens einen Node.",
     "warningCount": "{count} Warnung | {count} Warnungen",
-    "warningTitle": "Typ-Warnungen",
+    "warningTitle": "Workflow-Warnungen",
     "warningItem": "{target}: Eingang '{input}' erwartet {expected}, erhält aber {actual} von {source}.{output}",
-    "warningHint": "Diese Verbindungen werden gespeichert, aber der Runner lehnt den Workflow ab, bis sie korrigiert sind."
+    "warningMissingRequired": "{target}: Pflichteingang '{input}' ist nicht zugeteilt",
+    "warningUnboundEdge": "Verbindung von {source} zu {target} hat keine Eingangszuteilung",
+    "warningHint": "Diese Verbindungen werden gespeichert, aber der Runner lehnt den Workflow möglicherweise ab, bis sie behoben sind.",
+    "autoBindAmbiguousTitle": "Manuelle Zuteilung erforderlich",
+    "autoBindAmbiguousDescription": "Mehrere kompatible Ports zwischen {source} und {target} ({inputs}). Öffnen Sie {target}, um die Eingangszuteilungen auszuwählen.",
+    "autoBindIncompatibleTitle": "Keine kompatiblen Ports",
+    "autoBindIncompatibleDescription": "{source} hat keine Ausgaben, die zu den Eingängen von {target} passen."
   },
   "library": {
     "backHome": "Zurück zur Startseite",
@@ -154,7 +160,7 @@
     "existingFiles": "Vorhandene Dateien",
     "existingFilesHint": "Wählen Sie eine Datei zum Überschreiben oder geben Sie oben einen neuen Namen ein.",
     "noModelWarning": "Kein Hauptmodell zugewiesen. Der Runner benötigt eines, daher läuft dieser Workflow erst, wenn Sie eines zuweisen.",
-    "typeWarnings": "Dieser Workflow hat {count} Typ-Warnung. Der Runner lehnt ihn ab, bis die Warnung behoben ist. | Dieser Workflow hat {count} Typ-Warnungen. Der Runner lehnt ihn ab, bis die Warnungen behoben sind.",
+    "typeWarnings": "Dieser Workflow hat {count} Warnung. Der Runner lehnt ihn möglicherweise ab, bis die Warnung behoben ist. | Dieser Workflow hat {count} Warnungen. Der Runner lehnt ihn möglicherweise ab, bis die Warnungen behoben sind.",
     "searchFiles": "Workflow-Dateien durchsuchen...",
     "searchFolders": "Ordner durchsuchen...",
     "loading": "Wird geladen...",
@@ -192,11 +198,14 @@
     "resizePanel": "Panel-Breite anpassen"
   },
   "bindings": {
-    "title": "Eingangsbindungen",
+    "title": "Eingangszuteilungen",
     "selectSourceNode": "Quellnode auswählen...",
     "selectOutput": "Ausgabe auswählen...",
     "none": "Keine",
     "typeMismatch": "Typkonflikt",
+    "ambiguousOutputs": "Mehrere kompatible Ausgaben — bitte eine auswählen.",
+    "noCompatibleOutputs": "Dieser Quellnode hat keine kompatiblen Ausgaben.",
+    "required": "Pflichteingang — Quellnode und Ausgabe auswählen.",
     "model": "Modell",
     "noConfigurableInputs": "Dieser Node hat keine konfigurierbaren Eingänge"
   },

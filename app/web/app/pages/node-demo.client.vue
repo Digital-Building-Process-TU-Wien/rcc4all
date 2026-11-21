@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Connection, Edge, Node } from '@vue-flow/core'
+import type { Connection, Node } from '@vue-flow/core'
 import type { AvailableNode, NodeData, SupportedLocale } from '~/utils/nodes'
 import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
@@ -17,14 +17,6 @@ import {
   getAvailableNodeNames,
   getAvailableNodes,
 } from '~/utils/nodes'
-import {
-  getNodeInputs,
-  getNodeOutputs,
-  INPUT_HANDLE_PREFIX,
-  isModelInput,
-  OUTPUT_HANDLE_PREFIX,
-  parsePortHandle,
-} from '~/utils/schema-helpers'
 
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -88,70 +80,32 @@ if (!hasNodes.value) {
 }
 
 function handleConnect(params: Connection) {
-  const normalizedTargetHandle
-    = params.targetHandle === 'input-hitbox' ? 'input' : params.targetHandle
+  const result = store.connectNodes(params)
+  if (result.status !== 'ambiguous' && result.status !== 'incompatible')
+    return
 
-  const edge: Edge = {
-    id: nanoid(),
-    source: params.source,
-    target: params.target,
-    sourceHandle: params.sourceHandle,
-    targetHandle: normalizedTargetHandle,
-  }
-  store.addEdges(edge)
-
-  const targetNode = store.nodesById[params.target]
   const sourceNode = store.nodesById[params.source]
-  if (!targetNode || !sourceNode)
-    return
+  const targetNode = store.nodesById[params.target]
+  const source = sourceNode?.data?.label || sourceNode?.data?.nodeName || params.source
+  const target = targetNode?.data?.label || targetNode?.data?.nodeName || params.target
 
-  const sourceOutputs = getNodeOutputs(sourceNode)
-  if (sourceOutputs.length === 0)
-    return
-
-  const targetInputs = getNodeInputs(targetNode)
-  if (targetInputs.length === 0)
-    return
-
-  const currentBindings = targetNode.data.input_bindings || {}
-  const explicitOutput = parsePortHandle(params.sourceHandle, OUTPUT_HANDLE_PREFIX)
-  const explicitInput = parsePortHandle(params.targetHandle, INPUT_HANDLE_PREFIX)
-  const sourceOutput = explicitOutput && sourceOutputs.includes(explicitOutput)
-    ? explicitOutput
-    : sourceOutputs[0]
-
-  // A File Input node's output is a model slug; ifc_element_filter is the only
-  // node with a model input, so it is the only valid auto-wire target.
-  if (sourceNode.data.nodeName === 'file_input') {
-    if (targetNode.data.nodeName !== 'ifc_element_filter')
-      return
-
-    const modelInput = (explicitInput && isModelInput(explicitInput) ? explicitInput : undefined)
-      ?? targetInputs.find(name => isModelInput(name) && !currentBindings[name])
-      ?? targetInputs.find(name => isModelInput(name))
-    if (!modelInput)
-      return
-
-    store.updateNodeData(params.target, {
-      input_bindings: {
-        ...currentBindings,
-        [modelInput]: `${params.source}.model_slug`,
-      },
+  if (result.status === 'ambiguous') {
+    toast.add({
+      title: t('editor.autoBindAmbiguousTitle'),
+      description: t('editor.autoBindAmbiguousDescription', {
+        source,
+        target,
+        inputs: result.ambiguousInputs.join(', '),
+      }),
+      color: 'warning',
     })
     return
   }
 
-  const firstInput = explicitInput && targetInputs.includes(explicitInput)
-    ? explicitInput
-    : targetInputs.find(name => !isModelInput(name) && !currentBindings[name])
-  if (!firstInput)
-    return
-
-  store.updateNodeData(params.target, {
-    input_bindings: {
-      ...currentBindings,
-      [firstInput]: `${params.source}.${sourceOutput}`,
-    },
+  toast.add({
+    title: t('editor.autoBindIncompatibleTitle'),
+    description: t('editor.autoBindIncompatibleDescription', { source, target }),
+    color: 'warning',
   })
 }
 

@@ -190,6 +190,30 @@ export function getNodeInputs(node: PortNode): string[] {
   return getNodeInputPorts(node).map(port => port.name)
 }
 
+/**
+ * Input names that have no default in Python's input model. The runner rejects
+ * a workflow when any of these are left unbound.
+ */
+export function getRequiredNodeInputs(node: PortNode): string[] {
+  const nodeName = node.data?.nodeName
+  if (
+    !nodeName
+    || nodeName === 'subworkflow'
+    || nodeName === 'subworkflow_input'
+    || nodeName === 'subworkflow_output'
+  ) {
+    return []
+  }
+
+  const properties = schemaJson.properties as Record<string, {
+    properties?: { inputs?: { required?: unknown } }
+  }>
+  const required = properties[nodeName]?.properties?.inputs?.required
+  return Array.isArray(required)
+    ? required.filter((entry): entry is string => typeof entry === 'string')
+    : []
+}
+
 export function getInputLabel(node: PortNode, inputName: string): string {
   return getNodeInputPorts(node).find(port => port.name === inputName)?.label
     ?? formatLabel(inputName)

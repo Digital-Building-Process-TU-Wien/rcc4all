@@ -86,9 +86,15 @@
     "extractMetaNode": "Input and output nodes stay in their subworkflow.",
     "extractEmpty": "Select at least one node.",
     "warningCount": "{count} warning | {count} warnings",
-    "warningTitle": "Type warnings",
+    "warningTitle": "Workflow warnings",
     "warningItem": "{target} input '{input}' expects {expected} but receives {actual} from {source}.{output}",
-    "warningHint": "These connections are saved, but the runner rejects the workflow until they are fixed."
+    "warningMissingRequired": "{target}: required input '{input}' is not bound",
+    "warningUnboundEdge": "Connection from {source} to {target} has no input binding",
+    "warningHint": "These connections are saved, but the runner may reject the workflow until they are fixed.",
+    "autoBindAmbiguousTitle": "Manual binding needed",
+    "autoBindAmbiguousDescription": "Multiple compatible ports between {source} and {target} ({inputs}). Open {target} to choose input bindings.",
+    "autoBindIncompatibleTitle": "No compatible ports",
+    "autoBindIncompatibleDescription": "{source} has no outputs compatible with {target}'s inputs."
   },
   "library": {
     "backHome": "Back Home",
@@ -154,7 +160,7 @@
     "existingFiles": "Existing files",
     "existingFilesHint": "Pick a file to overwrite it, or type a new name above.",
     "noModelWarning": "No main model assigned. The runner needs one, so this workflow will not run until you assign it.",
-    "typeWarnings": "This workflow has {count} type warning. The runner will reject it until the warning is fixed. | This workflow has {count} type warnings. The runner will reject it until the warnings are fixed.",
+    "typeWarnings": "This workflow has {count} warning. The runner may reject it until the warning is fixed. | This workflow has {count} warnings. The runner may reject it until the warnings are fixed.",
     "searchFiles": "Search workflow files...",
     "searchFolders": "Search folders...",
     "loading": "Loading...",
@@ -197,6 +203,9 @@
     "selectOutput": "Select output...",
     "none": "None",
     "typeMismatch": "Type mismatch",
+    "ambiguousOutputs": "Multiple compatible outputs — select one.",
+    "noCompatibleOutputs": "This source has no compatible outputs.",
+    "required": "Required input — select a source and output.",
     "model": "Model",
     "noConfigurableInputs": "This node has no configurable inputs"
   },

@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { ExportedWorkflow } from '~/stores/flow'
+import type { ExportedWorkflow } from '~/utils/workflow-serialization'
 
 const LINE_BREAK_RE = /\r?\n/
 const EVENT_SEPARATOR_RE = /\r?\n\r?\n/

@@ -1,336 +1,55 @@
 import type {
   ModelFile,
   PortType,
-  SubworkflowDefinition,
   SubworkflowPort,
-  WorkflowDefinition,
   WorkflowEdge,
   WorkflowNode,
 } from '@@/scripts/workflow-schema'
-import type { Edge, Node } from '@vue-flow/core'
+import type { Connection, Edge, Node } from '@vue-flow/core'
 import type { Ref } from 'vue'
-import type { NodeData, StoredEdge, StoredNode, SubworkflowDefinitionData } from '~/utils/nodes'
-import { WorkflowDefinitionSchema } from '@@/scripts/workflow-schema.zod'
+import type { NodeData } from '~/utils/nodes'
+import type { ExtractResult } from '~/utils/subworkflow-graph'
+import type { AutoBindResult } from '~/utils/workflow-bindings'
+import type {
+  BreadcrumbItem,
+  ExportedWorkflow,
+  ScopeFrame,
+  Viewport,
+} from '~/utils/workflow-serialization'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import {
+  INPUT_HANDLE_PREFIX,
+  OUTPUT_HANDLE_PREFIX,
+  parsePortHandle,
+} from '~/utils/schema-helpers'
 import {
   createSubworkflowPortNode,
   DEFAULT_SUBWORKFLOW_OUTPUT_PORT,
+  extractSubworkflowGraph,
   isValidPortName,
-  nodeHasNoInput,
-} from '~/utils/nodes'
+  metaNodeKind,
+  nextPortPosition,
+  readPort,
+  uniquePortName,
+  writePort,
+} from '~/utils/subworkflow-graph'
 import {
-  getNodeInputPorts,
-  getNodeOutputPorts,
-  getOutputType,
-  normalizePortType,
-} from '~/utils/schema-helpers'
-
-interface Viewport {
-  x: number
-  y: number
-  zoom: number
-}
+  clearBindingsFrom,
+  moveBindingReference,
+  pruneBindingsForRemovedEdges,
+  removeBindingReference,
+  resolveAutoBindings,
+} from '~/utils/workflow-bindings'
+import {
+  cloneSubworkflow,
+  cloneValue,
+  hydrateWorkflow,
+  serializeScope,
+  toStoredData,
+} from '~/utils/workflow-serialization'
 
 export type { ModelFile }
-
-/**
- * The runnable workflow payload: assigned model files plus the serialized graph.
- * `openbim_runner` forbids unknown keys, so this is also exactly what is written
- * to `.dev-files` by the save dialog.
- */
-export type ExportedWorkflow = WorkflowDefinition
-
-function hydrateModelFiles(raw: ModelFile[] | undefined): ModelFile[] {
-  const valid = (raw ?? [])
-    .filter(entry => entry.slug.length > 0)
-    .map(entry => ({
-      slug: entry.slug,
-      path: entry.path,
-      hash: entry.hash ?? '',
-    }))
-
-  const main = valid.find(file => file.slug === 'main')
-  return [
-    { slug: 'main', path: main?.path ?? '', hash: main?.hash ?? '' },
-    ...valid.filter(file => file.slug !== 'main'),
-  ]
-}
-
-export interface ScopeFrame {
-  nodeId: string | null
-  label: string
-  nodes: StoredNode[]
-  edges: StoredEdge[]
-  viewport: Viewport
-}
-
-export interface BreadcrumbItem {
-  index: number
-  nodeId: string | null
-  label: string
-}
-
-function cloneValue<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T
-}
-
-function toStoredData(data: NodeData): NodeData {
-  return {
-    label: data.label,
-    nodeName: data.nodeName,
-    ...(data.noInput ? { noInput: true } : {}),
-    ...(data.noOutput ? { noOutput: true } : {}),
-    settings: data.settings ? cloneValue(data.settings) : {},
-    input_bindings: { ...(data.input_bindings ?? {}) },
-    ...(data.subworkflow ? { subworkflow: cloneSubworkflow(data.subworkflow) } : {}),
-  }
-}
-
-function cloneSubworkflow(definition: SubworkflowDefinitionData): SubworkflowDefinitionData {
-  return {
-    name: definition.name,
-    nodes: definition.nodes.map(node => ({
-      id: node.id,
-      position: { ...node.position },
-      data: toStoredData(node.data),
-    })),
-    edges: definition.edges.map(edge => ({ ...edge })),
-    ...(definition.viewport ? { viewport: { ...definition.viewport } } : {}),
-  }
-}
-
-function serializeScope(nodes: StoredNode[], edges: StoredEdge[]): {
-  nodes: WorkflowNode[]
-  edges: WorkflowEdge[]
-} {
-  const keptNodes = nodes.filter(node => node.data.nodeName.toLowerCase() !== 'jsonoutput')
-  const keptIds = new Set(keptNodes.map(node => node.id))
-
-  return {
-    nodes: keptNodes.map(serializeStoredNode),
-    edges: edges
-      .filter(edge => keptIds.has(edge.source) && keptIds.has(edge.target))
-      .map(edge => ({ source: edge.source, target: edge.target })),
-  }
-}
-
-function serializeStoredNode(node: StoredNode): WorkflowNode {
-  const data = node.data
-  return {
-    id: node.id,
-    type: data.nodeName.toLowerCase(),
-    label: data.label || '',
-    settings: data.settings ?? {},
-    input_bindings: data.input_bindings ?? {},
-    position: { x: node.position.x, y: node.position.y },
-    ...(data.subworkflow ? { subworkflow: serializeSubworkflow(data.subworkflow, data.label) } : {}),
-  }
-}
-
-function serializeSubworkflow(
-  definition: SubworkflowDefinitionData,
-  nodeLabel: string,
-): SubworkflowDefinition {
-  const scope = serializeScope(definition.nodes, definition.edges)
-  return { name: definition.name || nodeLabel, nodes: scope.nodes, edges: scope.edges }
-}
-
-function hydrateNode(raw: WorkflowNode): StoredNode {
-  const nodeName = raw.type
-  return {
-    id: raw.id,
-    position: { x: raw.position?.x ?? 0, y: raw.position?.y ?? 0 },
-    data: {
-      label: raw.label ?? '',
-      nodeName,
-      settings: raw.settings ?? {},
-      input_bindings: raw.input_bindings ?? {},
-      // The runner payload has no editor flags, so derive the one fixed by the
-      // node type.
-      ...(nodeHasNoInput(nodeName) ? { noInput: true } : {}),
-      ...(raw.subworkflow ? { subworkflow: hydrateSubworkflow(raw.subworkflow) } : {}),
-    },
-  }
-}
-
-/** Nodes whose handles are named after a port (`output:<port>`), not fixed. */
-function usesPortHandles(node: StoredNode | undefined): boolean {
-  const name = node?.data.nodeName
-  return name === 'subworkflow'
-    || name === 'subworkflow_input'
-    || name === 'subworkflow_output'
-}
-
-/**
- * The binding on the target that consumes this edge. Saved files carry no
- * handles, so the binding's port names are the only source of truth for which
- * port a reloaded edge was attached to.
- */
-function boundPorts(
-  sourceId: string,
-  target: StoredNode | undefined,
-): { inputPort: string, outputPort: string } | null {
-  for (const [inputPort, reference] of Object.entries(target?.data.input_bindings ?? {})) {
-    if (reference.startsWith(`${sourceId}.`))
-      return { inputPort, outputPort: reference.slice(sourceId.length + 1) }
-  }
-  return null
-}
-
-function hydrateSourceHandle(
-  node: StoredNode | undefined,
-  boundOutput: string | undefined,
-): string {
-  if (!node || !usesPortHandles(node))
-    return 'output'
-  const name = boundOutput ?? getNodeOutputPorts({ data: node.data })[0]?.name
-  return name ? `output:${name}` : 'output'
-}
-
-function hydrateTargetHandle(
-  node: StoredNode | undefined,
-  boundInput: string | undefined,
-): string {
-  if (!node || !usesPortHandles(node))
-    return 'input'
-  const name = boundInput ?? getNodeInputPorts({ data: node.data })[0]?.name
-  return name ? `input:${name}` : 'input'
-}
-
-function hydrateEdge(
-  raw: WorkflowEdge,
-  index: number,
-  nodeById: Map<string, StoredNode>,
-): StoredEdge {
-  const target = nodeById.get(raw.target)
-  const binding = boundPorts(raw.source, target)
-  return {
-    id: `edge-${index}-${raw.source}-${raw.target}`,
-    source: raw.source,
-    target: raw.target,
-    // Handles are editor state, not part of the runner payload. Recompute a
-    // handle that the node actually renders.
-    sourceHandle: hydrateSourceHandle(nodeById.get(raw.source), binding?.outputPort),
-    targetHandle: hydrateTargetHandle(target, binding?.inputPort),
-  }
-}
-
-function hydrateSubworkflow(raw: SubworkflowDefinition): SubworkflowDefinitionData {
-  const nodes = (raw.nodes ?? []).map(hydrateNode)
-  const nodeById = new Map(nodes.map(node => [node.id, node]))
-  return {
-    name: raw.name ?? '',
-    nodes,
-    edges: (raw.edges ?? []).map((edge, index) => hydrateEdge(edge, index, nodeById)),
-    viewport: { x: 0, y: 0, zoom: 1 },
-  }
-}
-
-function moveBindingReference(
-  node: Node<NodeData> | StoredNode,
-  sourceId: string,
-  oldField: string,
-  newField: string,
-) {
-  const bindings = node.data?.input_bindings
-  if (!bindings)
-    return
-  for (const [inputName, reference] of Object.entries(bindings)) {
-    const [source, field] = reference.split('.')
-    if (source === sourceId && field === oldField)
-      bindings[inputName] = `${source}.${newField}`
-  }
-}
-
-function removeBindingReference(
-  node: Node<NodeData> | StoredNode,
-  sourceId: string,
-  fieldName: string,
-) {
-  const bindings = node.data?.input_bindings
-  if (!bindings)
-    return
-  for (const [inputName, reference] of Object.entries(bindings)) {
-    const [source, field] = reference.split('.')
-    if (source === sourceId && field === fieldName)
-      delete bindings[inputName]
-  }
-}
-
-/** Every binding on `node` that points at `sourceId` is dropped. */
-function clearBindingsFrom(node: Node<NodeData> | StoredNode, sourceId: string) {
-  const bindings = node.data?.input_bindings
-  if (!bindings)
-    return
-  for (const [inputName, reference] of Object.entries(bindings)) {
-    if (reference.split('.')[0] === sourceId)
-      delete bindings[inputName]
-  }
-}
-
-function splitReference(reference: string): [string, string] | null {
-  const index = reference.indexOf('.')
-  if (index <= 0 || index === reference.length - 1)
-    return null
-  return [reference.slice(0, index), reference.slice(index + 1)]
-}
-
-function readPort(data: NodeData | undefined | null): SubworkflowPort | null {
-  const raw = data?.settings?.port
-  if (!raw || typeof raw !== 'object' || typeof raw.name !== 'string' || raw.name.length === 0)
-    return null
-  return { name: raw.name, type: normalizePortType(raw.type) }
-}
-
-function writePort(node: Node<NodeData> | StoredNode, port: SubworkflowPort) {
-  if (!node.data)
-    node.data = {} as NodeData
-  node.data.settings = { ...(node.data.settings ?? {}), port: { name: port.name, type: port.type } }
-  node.data.label = port.name
-}
-
-function metaNodeKind(node: Node<NodeData> | StoredNode | undefined): 'input' | 'output' | null {
-  const nodeName = node?.data?.nodeName
-  if (nodeName === 'subworkflow_input')
-    return 'input'
-  if (nodeName === 'subworkflow_output')
-    return 'output'
-  return null
-}
-
-const NON_WORD_RE = /\W/g
-const LEADING_DIGIT_RE = /^(\d)/
-
-/** Port names must be usable as `<port>.field` binding references. */
-function toPortName(raw: string, fallback = 'port'): string {
-  const cleaned = raw.replace(NON_WORD_RE, '_').replace(LEADING_DIGIT_RE, '_$1')
-  return isValidPortName(cleaned) ? cleaned : fallback
-}
-
-function uniquePortName(base: string, taken: Set<string>): string {
-  if (!taken.has(base))
-    return base
-  let suffix = 2
-  while (taken.has(`${base}_${suffix}`))
-    suffix += 1
-  return `${base}_${suffix}`
-}
-
-export type ExtractFailureReason = 'empty' | 'meta-node' | 'output-conflict' | 'duplicate-id'
-
-export type ExtractResult
-  = | { ok: true, nodeId: string }
-    | { ok: false, reason: ExtractFailureReason, details: string[] }
-
-interface IncomingPort {
-  sourceId: string
-  field: string
-  portName: string
-  inputNodeId: string
-  consumers: string[]
-}
 
 export const useFlowStore = defineStore('flow', () => {
   const nodesById = ref<Record<string, Node>>({})
@@ -338,11 +57,7 @@ export const useFlowStore = defineStore('flow', () => {
   // `Edge[]` directly instead of expanding `UnwrapRef<Edge[]>` (whose self-referential
   // `GraphEdge` callbacks blow TS's instantiation depth limit). Runtime semantics unchanged.
   const edges = ref<Edge[]>([]) as unknown as Ref<Edge[]>
-  const viewport = ref<Viewport>({
-    x: 0,
-    y: 0,
-    zoom: 1,
-  })
+  const viewport = ref<Viewport>({ x: 0, y: 0, zoom: 1 })
   const workflowData = ref<ExportedWorkflow | null>(null)
   // Path (relative to `app/web/.dev-files`) of the workflow file last loaded/saved.
   const activeWorkflowPath = ref<string | null>(null)
@@ -419,18 +134,72 @@ export const useFlowStore = defineStore('flow', () => {
     edges.value = [...newEdges]
   }
 
+  /**
+   * Persist canvas edge updates from Vue Flow and drop stale input bindings
+   * whenever the user removes an edge.
+   */
+  function syncEdges(newEdges: Edge[]) {
+    const remainingIds = new Set(newEdges.map(edge => edge.id))
+    const removedEdges = edges.value.filter(edge => !remainingIds.has(edge.id))
+    if (removedEdges.length > 0) {
+      pruneBindingsForRemovedEdges(
+        nodesById.value as Record<string, Node<NodeData>>,
+        removedEdges,
+        newEdges,
+      )
+    }
+    edges.value = [...newEdges]
+  }
+
+  /**
+   * Create an edge from a canvas connection and apply strictly unambiguous
+   * auto-bindings derived from Python's exported port schema.
+   */
+  function connectNodes(params: Connection): AutoBindResult {
+    const normalizedTargetHandle
+      = params.targetHandle === 'input-hitbox' ? 'input' : params.targetHandle
+
+    addEdges({
+      id: nanoid(),
+      source: params.source,
+      target: params.target,
+      sourceHandle: params.sourceHandle,
+      targetHandle: normalizedTargetHandle,
+    })
+
+    const sourceNode = nodesById.value[params.source] as Node<NodeData> | undefined
+    const targetNode = nodesById.value[params.target] as Node<NodeData> | undefined
+    if (!sourceNode || !targetNode) {
+      return { bindings: {}, status: 'no-op', ambiguousInputs: [], ambiguousOutputs: [] }
+    }
+
+    const result = resolveAutoBindings(params.source, sourceNode, targetNode, {
+      explicitOutput: parsePortHandle(params.sourceHandle, OUTPUT_HANDLE_PREFIX),
+      explicitInput: parsePortHandle(normalizedTargetHandle, INPUT_HANDLE_PREFIX),
+    })
+
+    if (Object.keys(result.bindings).length > 0) {
+      updateNodeData(params.target, {
+        input_bindings: {
+          ...(targetNode.data?.input_bindings ?? {}),
+          ...result.bindings,
+        },
+      })
+    }
+
+    return result
+  }
+
   function updateNodeData(nodeId: string, data: Partial<Node['data']>) {
     const node = nodesById.value[nodeId]
-    if (node) {
+    if (node)
       node.data = { ...node.data, ...data }
-    }
   }
 
   function updateNodePosition(nodeId: string, position: Node['position']) {
     const node = nodesById.value[nodeId]
-    if (node) {
+    if (node)
       node.position = position
-    }
   }
 
   function updateViewport(viewportUpdate: Partial<Viewport>) {
@@ -525,29 +294,17 @@ export const useFlowStore = defineStore('flow', () => {
 
   function serializeWorkflow(): { nodes: WorkflowNode[], edges: WorkflowEdge[] } {
     syncActiveScope()
-    for (let index = scopeStack.value.length - 1; index > 0; index--) {
+    for (let index = scopeStack.value.length - 1; index > 0; index--)
       persistChildIntoParent(scopeStack.value[index - 1]!, scopeStack.value[index]!)
-    }
     return serializeScope(scopeStack.value[0]!.nodes, scopeStack.value[0]!.edges)
   }
 
   function hydrate(rawWorkflow: unknown) {
-    const workflow = WorkflowDefinitionSchema.parse(rawWorkflow)
-    const nodes = (workflow.nodes ?? []).map(hydrateNode)
-    const nodeById = new Map(nodes.map(node => [node.id, node]))
-
-    const rootFrame: ScopeFrame = {
-      nodeId: null,
-      label: '',
-      nodes,
-      edges: (workflow.edges ?? []).map((edge, index) => hydrateEdge(edge, index, nodeById)),
-      viewport: { x: 0, y: 0, zoom: 1 },
-    }
-
-    scopeStack.value = [rootFrame]
-    loadScope(rootFrame)
+    const hydrated = hydrateWorkflow(rawWorkflow)
+    scopeStack.value = [hydrated.rootFrame]
+    loadScope(hydrated.rootFrame)
     // Loading a file replaces the canvas, so inherited model slots must not linger.
-    files.value = hydrateModelFiles(workflow.files)
+    files.value = hydrated.files
   }
 
   function collectPortNames(exceptNodeId?: string): string[] {
@@ -564,20 +321,6 @@ export const useFlowStore = defineStore('flow', () => {
     return names
   }
 
-  function nextPortPosition(kind: 'input' | 'output'): { x: number, y: number } {
-    const placed = nodes.value
-    if (placed.length === 0)
-      return kind === 'input' ? { x: 40, y: 140 } : { x: 560, y: 140 }
-
-    const minX = Math.min(...placed.map(node => node.position.x))
-    const maxX = Math.max(...placed.map(node => node.position.x))
-    const maxY = Math.max(...placed.map(node => node.position.y))
-    return {
-      x: kind === 'input' ? minX - 280 : maxX + 320,
-      y: maxY + 80,
-    }
-  }
-
   /** Add one meta node. Each meta node owns exactly one port. */
   function addSubworkflowPort(
     kind: 'input' | 'output',
@@ -589,7 +332,11 @@ export const useFlowStore = defineStore('flow', () => {
       name: uniquePortName(base, taken),
       type: { type: 'any' },
     }
-    const created = createSubworkflowPortNode(kind, port, position ?? nextPortPosition(kind))
+    const created = createSubworkflowPortNode(
+      kind,
+      port,
+      position ?? nextPortPosition(nodes.value, kind),
+    )
     addNodes({
       id: created.id,
       type: created.data.nodeName,
@@ -641,6 +388,10 @@ export const useFlowStore = defineStore('flow', () => {
           bindings[newName] = bindings[oldName]!
           delete bindings[oldName]
         }
+        for (const edge of parentFrame.edges) {
+          if (edge.target === parentNodeId && edge.targetHandle === `input:${oldName}`)
+            edge.targetHandle = `input:${newName}`
+        }
       }
       for (const edge of edges.value) {
         if (edge.source === metaNodeId && edge.sourceHandle === `output:${oldName}`)
@@ -657,6 +408,10 @@ export const useFlowStore = defineStore('flow', () => {
     if (parentFrame && parentNodeId) {
       for (const other of parentFrame.nodes)
         moveBindingReference(other, parentNodeId, oldName, newName)
+      for (const edge of parentFrame.edges) {
+        if (edge.source === parentNodeId && edge.sourceHandle === `output:${oldName}`)
+          edge.sourceHandle = `output:${newName}`
+      }
     }
     for (const edge of edges.value) {
       if (edge.target === metaNodeId && edge.targetHandle === `input:${oldName}`)
@@ -681,275 +436,32 @@ export const useFlowStore = defineStore('flow', () => {
       parentNode.data.subworkflow.name = name
   }
 
-  /**
-   * Move the selected nodes into a new subworkflow.
-   *
-   * Incoming references become one input node each. Exactly one distinct outgoing
-   * value becomes the output; several are refused so nothing is silently dropped.
-   */
   function extractToSubworkflow(selectedIds: string[], label: string): ExtractResult {
-    const selection = new Set(selectedIds)
-    const selectedNodes = nodes.value.filter(node => selection.has(node.id))
-    if (selectedNodes.length === 0)
-      return { ok: false, reason: 'empty', details: [] }
-
-    const metaNodes = selectedNodes.filter(node => metaNodeKind(node as Node<NodeData>) !== null)
-    if (metaNodes.length > 0)
-      return { ok: false, reason: 'meta-node', details: metaNodes.map(node => node.id) }
-
-    const incoming = new Map<string, IncomingPort>()
-    for (const node of selectedNodes) {
-      for (const reference of Object.values<string>(node.data?.input_bindings ?? {})) {
-        const parsed = splitReference(reference)
-        if (!parsed)
-          continue
-        const [sourceId, field] = parsed
-        if (selection.has(sourceId) || !nodesById.value[sourceId])
-          continue
-        const key = `${sourceId}.${field}`
-        const entry = incoming.get(key)
-        if (entry)
-          entry.consumers.push(node.id)
-        else
-          incoming.set(key, { sourceId, field, portName: '', inputNodeId: '', consumers: [node.id] })
-      }
-    }
-
-    const outgoing = new Set<string>()
-    for (const node of nodes.value) {
-      if (selection.has(node.id))
-        continue
-      for (const reference of Object.values<string>(node.data?.input_bindings ?? {})) {
-        const parsed = splitReference(reference)
-        if (parsed && selection.has(parsed[0]))
-          outgoing.add(reference)
-      }
-    }
-    if (outgoing.size > 1)
-      return { ok: false, reason: 'output-conflict', details: [...outgoing].sort() }
-
-    const takenPorts = new Set<string>()
-    const incomingPorts = [...incoming.values()].sort(
-      (left, right) => left.sourceId.localeCompare(right.sourceId) || left.field.localeCompare(right.field),
+    const result = extractSubworkflowGraph(
+      nodes.value as Node<NodeData>[],
+      edges.value,
+      selectedIds,
+      label,
     )
-    for (const entry of incomingPorts) {
-      const consumer = nodesById.value[entry.consumers[0]!]
-      const consumerInput = consumer
-        ? Object.entries(consumer.data.input_bindings ?? {})
-          .find(([, reference]) => reference === `${entry.sourceId}.${entry.field}`)?.[0]
-        : undefined
-      entry.portName = uniquePortName(toPortName(consumerInput ?? entry.field), takenPorts)
-      takenPorts.add(entry.portName)
-    }
+    if (!result.ok)
+      return result
 
-    const outputRef = outgoing.size === 1 ? [...outgoing][0]! : null
-    const outputParsed = outputRef ? splitReference(outputRef) : null
-    const outputPortName = outputParsed
-      ? uniquePortName(toPortName(outputParsed[1]), takenPorts)
-      : null
-
-    const minX = Math.min(...selectedNodes.map(node => node.position.x))
-    const minY = Math.min(...selectedNodes.map(node => node.position.y))
-    const maxX = Math.max(...selectedNodes.map(node => node.position.x))
-    const offsetX = 320
-    const offsetY = 120
-
-    const innerNodes: StoredNode[] = []
-    const innerEdges: StoredEdge[] = []
-    const innerPosition = new Map<string, { x: number, y: number }>()
-    for (const node of selectedNodes) {
-      innerPosition.set(node.id, {
-        x: node.position.x - minX + offsetX,
-        y: node.position.y - minY + offsetY,
-      })
-    }
-
-    for (const entry of incomingPorts) {
-      entry.inputNodeId = nanoid()
-      const source = nodesById.value[entry.sourceId] as Node<NodeData> | undefined
-      const firstConsumerY = innerPosition.get(entry.consumers[0]!)?.y ?? offsetY
-      innerNodes.push(
-        createSubworkflowPortNode(
-          'input',
-          {
-            name: entry.portName,
-            type: source ? getOutputType(source, entry.field) : { type: 'any' },
-          },
-          { x: 0, y: firstConsumerY },
-          entry.inputNodeId,
-        ),
-      )
-      for (const consumerId of entry.consumers) {
-        innerEdges.push({
-          id: nanoid(),
-          source: entry.inputNodeId,
-          target: consumerId,
-          sourceHandle: `output:${entry.portName}`,
-          targetHandle: null,
-        })
-      }
-    }
-
-    for (const node of selectedNodes) {
-      const copy: StoredNode = {
-        id: node.id,
-        position: innerPosition.get(node.id)!,
-        data: toStoredData(node.data as NodeData),
-      }
-      const bindings: Record<string, string> = {}
-      for (const [inputName, reference] of Object.entries(copy.data.input_bindings ?? {})) {
-        const parsed = splitReference(reference)
-        if (!parsed)
-          continue
-        if (selection.has(parsed[0])) {
-          bindings[inputName] = reference
-          continue
-        }
-        const entry = incoming.get(reference)
-        if (!entry)
-          continue
-        bindings[inputName] = `${entry.inputNodeId}.${entry.portName}`
-      }
-      copy.data.input_bindings = bindings
-      innerNodes.push(copy)
-    }
-
-    for (const edge of edges.value) {
-      if (!selection.has(edge.source) || !selection.has(edge.target))
-        continue
-      innerEdges.push({ ...edge })
-    }
-
-    if (outputParsed && outputPortName) {
-      const [producerId, producerField] = outputParsed
-      const outputNodeId = nanoid()
-      const producer = nodesById.value[producerId] as Node<NodeData> | undefined
-      const outputY = innerPosition.get(producerId)?.y ?? offsetY
-      innerNodes.push({
-        id: outputNodeId,
-        position: { x: maxX - minX + offsetX + 320, y: outputY },
-        data: {
-          label: outputPortName,
-          nodeName: 'subworkflow_output',
-          settings: {
-            port: {
-              name: outputPortName,
-              type: producer ? getOutputType(producer, producerField) : { type: 'any' },
-            },
-          },
-          input_bindings: { [outputPortName]: `${producerId}.${producerField}` },
-        },
-      })
-      innerEdges.push({
-        id: nanoid(),
-        source: producerId,
-        target: outputNodeId,
-        sourceHandle: null,
-        targetHandle: `input:${outputPortName}`,
-      })
-    }
-
-    const newNodeId = nanoid()
-    const parentBindings: Record<string, string> = {}
-    for (const entry of incomingPorts)
-      parentBindings[entry.portName] = `${entry.sourceId}.${entry.field}`
-
-    for (const id of selection)
+    for (const id of result.removedNodeIds)
       delete nodesById.value[id]
-    for (const node of nodes.value) {
-      const bindings = node.data?.input_bindings
-      if (!bindings)
-        continue
-      for (const [inputName, reference] of Object.entries<string>(bindings)) {
-        const parsed = splitReference(reference)
-        if (!parsed || !selection.has(parsed[0]))
-          continue
-        if (outputPortName)
-          bindings[inputName] = `${newNodeId}.${outputPortName}`
-        else
-          delete bindings[inputName]
-      }
-    }
-
-    // A source outside the selection may feed several input ports. Key by
-    // source *and* field so each boundary edge gets the right handle.
-    const portsBySource = new Map<string, IncomingPort[]>()
-    for (const entry of incomingPorts) {
-      const entries = portsBySource.get(entry.sourceId) ?? []
-      entries.push(entry)
-      portsBySource.set(entry.sourceId, entries)
-    }
-
-    const remainingEdges: Edge[] = []
-    const boundary: Edge[] = []
-    for (const edge of edges.value) {
-      const sourceInside = selection.has(edge.source)
-      const targetInside = selection.has(edge.target)
-      if (sourceInside && targetInside)
-        continue
-      if (sourceInside) {
-        boundary.push({
-          id: nanoid(),
-          source: newNodeId,
-          target: edge.target,
-          sourceHandle: outputPortName ? `output:${outputPortName}` : null,
-          targetHandle: edge.targetHandle ?? null,
-        })
-        continue
-      }
-      if (targetInside) {
-        const entries = portsBySource.get(edge.source) ?? []
-        if (entries.length === 0) {
-          boundary.push({
-            id: nanoid(),
-            source: edge.source,
-            target: newNodeId,
-            sourceHandle: edge.sourceHandle ?? null,
-            targetHandle: null,
-          })
-          continue
-        }
-        for (const entry of entries) {
-          boundary.push({
-            id: nanoid(),
-            source: edge.source,
-            target: newNodeId,
-            sourceHandle: edge.sourceHandle ?? null,
-            targetHandle: `input:${entry.portName}`,
-          })
-        }
-        continue
-      }
-      remainingEdges.push(edge)
-    }
-
-    const seenBoundary = new Set<string>()
-    for (const edge of boundary) {
-      const key = `${edge.source}->${edge.target}->${edge.sourceHandle}->${edge.targetHandle}`
-      if (seenBoundary.has(key))
-        continue
-      seenBoundary.add(key)
-      remainingEdges.push(edge)
+    for (const rebound of result.reboundParents) {
+      const target = nodesById.value[rebound.nodeId]
+      if (target?.data)
+        target.data.input_bindings = rebound.bindings
     }
 
     addNodes({
-      id: newNodeId,
-      type: 'subworkflow',
-      position: { x: minX, y: minY },
-      data: {
-        label,
-        nodeName: 'subworkflow',
-        input_bindings: parentBindings,
-        subworkflow: {
-          name: label,
-          nodes: innerNodes,
-          edges: innerEdges,
-          viewport: { x: 0, y: 0, zoom: 1 },
-        },
-      },
+      id: result.subworkflowNode.id,
+      type: result.subworkflowNode.data.nodeName,
+      position: result.subworkflowNode.position,
+      data: result.subworkflowNode.data,
     })
-    edges.value = remainingEdges
-    return { ok: true, nodeId: newNodeId }
+    edges.value = result.remainingEdges as Edge[]
+    return { ok: true, nodeId: result.subworkflowNode.id }
   }
 
   /** The runnable workflow payload: assigned model files plus the serialized graph. */
@@ -993,12 +505,10 @@ export const useFlowStore = defineStore('flow', () => {
    */
   function addFile(file: ModelFile) {
     const index = files.value.findIndex(entry => entry.slug === file.slug)
-    if (index >= 0) {
+    if (index >= 0)
       files.value = files.value.map((entry, i) => (i === index ? { ...entry, ...file } : entry))
-    }
-    else {
+    else
       files.value = [...files.value, file]
-    }
   }
 
   /**
@@ -1029,9 +539,8 @@ export const useFlowStore = defineStore('flow', () => {
   }
 
   function fitView(padding?: number) {
-    if (nodes.value.length === 0) {
+    if (nodes.value.length === 0)
       return
-    }
 
     const nodePadding = padding ?? 0.2
     let minX = Infinity
@@ -1083,6 +592,8 @@ export const useFlowStore = defineStore('flow', () => {
     removeNode,
     addEdges,
     setEdges,
+    syncEdges,
+    connectNodes,
     updateNodeData,
     updateNodePosition,
     updateViewport,
