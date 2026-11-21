@@ -1,7 +1,7 @@
 import type { PortType, WorkflowDefinition } from '../scripts/workflow-schema'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { areTypesCompatible } from '../app/utils/schema-helpers'
+import { areTypesCompatible, getOutputSocketTargets } from '../app/utils/schema-helpers'
 import schemaJson from '../scripts/schema.json'
 import { SubworkflowPortSchema, WorkflowDefinitionSchema } from '../scripts/workflow-schema.zod'
 
@@ -59,4 +59,23 @@ test('rule function gives the same answers as the exported table', () => {
   const arrayOf = (name: typeof SCALAR_NAMES[number]): PortType => ({ type: 'array', items: scalar(name) })
   assert.equal(areTypesCompatible(arrayOf('string'), arrayOf('string')), true)
   assert.equal(areTypesCompatible(arrayOf('string'), arrayOf('integer')), false)
+})
+
+test('getOutputSocketTargets detects BCF-compatible outputs from bcf_output input schema', () => {
+  const targetsFor = (nodeName: string) =>
+    getOutputSocketTargets({ data: { label: nodeName, nodeName } })
+
+  assert.deepEqual(targetsFor('loi_check'), ['bcf'])
+  assert.deepEqual(targetsFor('tilt_of_components'), ['bcf'])
+  assert.deepEqual(targetsFor('comparison'), ['bcf'])
+
+  // Non-harmonized array<object> outputs and sinks must not be flagged as BCF-compatible.
+  assert.deepEqual(targetsFor('get_property'), [])
+  assert.deepEqual(targetsFor('set_3d_position_rotation'), [])
+  assert.deepEqual(targetsFor('get_element_creation_position_door'), [])
+  assert.deepEqual(targetsFor('ids_checker'), [])
+  assert.deepEqual(targetsFor('collision'), [])
+  assert.deepEqual(targetsFor('measurement'), [])
+  assert.deepEqual(targetsFor('file_input'), [])
+  assert.deepEqual(targetsFor('bcf_output'), [])
 })

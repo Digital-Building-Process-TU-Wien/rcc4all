@@ -2,7 +2,7 @@
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
 import { Handle, Position } from '@vue-flow/core'
-import { ref } from 'vue'
+import { useNodeSockets } from '~/composables/useNodeSockets'
 import { useWorkflowWarnings } from '~/composables/useWorkflowWarnings'
 import { useFlowStore } from '~/stores/flow'
 
@@ -13,6 +13,7 @@ const { nodeWarningCounts } = useWorkflowWarnings()
 const showConfirm = ref(false)
 
 const warningCount = computed(() => nodeWarningCounts.value[props.id] ?? 0)
+const { inputSocket, outputSocket } = useNodeSockets(() => props.data)
 
 function handleDeleteClick() {
   showConfirm.value = true
@@ -34,21 +35,21 @@ function handleCancel() {
     :class="{ 'border-amber-300': warningCount > 0 }"
   >
     <Handle
-      v-if="!props.data?.noInput"
+      v-if="inputSocket"
       id="input-hitbox"
       type="target"
       :position="Position.Left"
       class="node-hitbox"
     />
 
-    <Handle
-      v-if="!props.data?.noInput"
+    <component
+      :is="inputSocket"
+      v-if="inputSocket"
       id="input"
       type="target"
       :position="Position.Left"
       :connectable="false"
-      class="w-4! h-4! border-2! border-white! -left-2! shadow-sm"
-      :class="warningCount > 0 ? 'bg-amber-500!' : 'bg-blue-600!'"
+      :warning="warningCount > 0"
     />
     <div class="group flex items-center justify-between gap-2 px-3 py-2">
       <span class="font-medium truncate">{{ props.data.label }}</span>
@@ -83,21 +84,17 @@ function handleCancel() {
         <UIcon name="i-heroicons-trash" class="w-4 h-4" />
       </button>
     </div>
-    <Handle
-      v-if="data?.nodeName !== 'JsonOutput' && data?.nodeName !== 'bcf_output'"
+    <component
+      :is="outputSocket"
+      v-if="outputSocket"
       id="output"
       type="source"
       :position="Position.Right"
-      class="w-4! h-4! bg-green-600! border-2! border-white! -right-2! shadow-sm"
     />
   </div>
 </template>
 
 <style scoped>
-.vue-flow__handle {
-  border-radius: 4px;
-}
-
 .vue-flow__handle.node-hitbox {
   position: absolute;
   inset: 0;

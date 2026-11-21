@@ -94,7 +94,8 @@
     "autoBindAmbiguousTitle": "Manuelle Zuteilung erforderlich",
     "autoBindAmbiguousDescription": "Mehrere kompatible Ports zwischen {source} und {target} ({inputs}). Öffnen Sie {target}, um die Eingangszuteilungen auszuwählen.",
     "autoBindIncompatibleTitle": "Keine kompatiblen Ports",
-    "autoBindIncompatibleDescription": "{source} hat keine Ausgaben, die zu den Eingängen von {target} passen."
+    "autoBindIncompatibleDescription": "{source} hat keine Ausgaben, die zu den Eingängen von {target} passen.",
+    "bcfOutputCompatible": "Kompatibel mit BCF-Ausgabe"
   },
   "library": {
     "backHome": "Zurück zur Startseite",

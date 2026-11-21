@@ -51,6 +51,17 @@ export interface PortInfo {
   description: string
 }
 
+export type OutputSocketTarget = 'bcf'
+
+interface JsonSchemaNode {
+  type?: string
+  items?: JsonSchemaNode
+  properties?: Record<string, JsonSchemaNode>
+  required?: string[]
+  anyOf?: JsonSchemaNode[]
+  oneOf?: JsonSchemaNode[]
+}
+
 /**
  * Convert a schema type to a Vue Flow Node type.
  * Schema types (e.g., ConcatenateStrings) have { settings, result, inputs } at the root,
@@ -302,6 +313,88 @@ export function parsePortHandle(
     return undefined
   const name = handle.slice(prefix.length)
   return name.length > 0 ? name : undefined
+}
+
+function nonNullBranches(node: JsonSchemaNode): JsonSchemaNode[] | null {
+  const branches = node.anyOf ?? node.oneOf
+  if (!branches)
+    return null
+  return branches.filter(branch => branch.type !== 'null')
+}
+
+function isJsonSchemaAssignable(output: JsonSchemaNode, input: JsonSchemaNode): boolean {
+  const outputBranches = nonNullBranches(output)
+  if (outputBranches)
+    return outputBranches.length > 0 && outputBranches.every(branch => isJsonSchemaAssignable(branch, input))
+
+  const inputBranches = nonNullBranches(input)
+  if (inputBranches)
+    return inputBranches.length > 0 && inputBranches.some(branch => isJsonSchemaAssignable(output, branch))
+
+  if (output.type === 'array' && input.type === 'array') {
+    if (!input.items)
+      return true
+    if (!output.items)
+      return false
+    return isJsonSchemaAssignable(output.items, input.items)
+  }
+
+  if (output.type === 'object' && input.type === 'object') {
+    if (!input.properties)
+      return true
+    if (!output.properties)
+      return false
+
+    const outputProps = output.properties
+    const outputRequired = new Set(output.required ?? [])
+    for (const req of input.required ?? []) {
+      if (!(req in outputProps) || !outputRequired.has(req))
+        return false
+    }
+
+    for (const [propName, inputPropSchema] of Object.entries(input.properties)) {
+      const outputPropSchema = outputProps[propName]
+      if (!outputPropSchema || !isJsonSchemaAssignable(outputPropSchema, inputPropSchema))
+        return false
+    }
+
+    return true
+  }
+
+  return (COMPATIBILITY[output.type ?? ''] ?? []).includes(input.type ?? '')
+}
+
+function getNodeSchemaSection(nodeName: string, section: 'inputs' | 'result'): Record<string, JsonSchemaNode> {
+  const properties = schemaJson.properties as Record<string, {
+    properties?: Record<string, { properties?: Record<string, JsonSchemaNode> }>
+  }>
+  return properties[nodeName]?.properties?.[section]?.properties ?? {}
+}
+
+/**
+ * Derive output socket target badges (e.g. `'bcf'`) directly from the target
+ * node's input JSON Schema in `schema.json`, without extra metadata.
+ */
+export function getOutputSocketTargets(node: PortNode): OutputSocketTarget[] {
+  const nodeName = node.data?.nodeName
+  if (!nodeName || nodeName === 'bcf_output')
+    return []
+
+  const outputSchemas = Object.values(getNodeSchemaSection(nodeName, 'result'))
+  if (outputSchemas.length === 0)
+    return []
+
+  const bcfInputSchemas = getNodeSchemaSection('bcf_output', 'inputs')
+  const requiredBcfInputs = getRequiredNodeInputs({ data: { nodeName: 'bcf_output', label: 'bcf_output' } })
+  const bcfSchemas = requiredBcfInputs
+    .map(name => bcfInputSchemas[name])
+    .filter((schema): schema is JsonSchemaNode => schema !== undefined)
+
+  const matchesBcf = bcfSchemas.some(inputSchema =>
+    outputSchemas.some(outputSchema => isJsonSchemaAssignable(outputSchema, inputSchema)),
+  )
+
+  return matchesBcf ? ['bcf'] : []
 }
 
 export function formatLabel(str: string): string {

@@ -269,7 +269,7 @@ function handleDrop(event: DragEvent) {
   stroke-dasharray: 6 4;
 }
 
-.vue-flow__handle:not(.node-hitbox) {
+.vue-flow__handle:not(.node-hitbox):not(.node-socket) {
   width: 12px !important;
   height: 12px !important;
 }
