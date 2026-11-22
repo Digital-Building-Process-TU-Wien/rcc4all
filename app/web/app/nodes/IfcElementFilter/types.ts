@@ -1,4 +1,4 @@
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 export type IfcElementFilterNode = SchemaNodeType<'ifc_element_filter'>
 export type FilterRows = NonNullable<NonNullable<IfcElementFilterNode['data']['settings']>['filter_rows']>

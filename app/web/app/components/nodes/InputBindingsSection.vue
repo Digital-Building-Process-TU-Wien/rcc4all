@@ -6,15 +6,15 @@ import { useFlowGraph } from '~/composables/useFlowGraph'
 import { useScopedNode } from '~/composables/useScopedNode'
 import {
   arePortsCompatible,
-  describeType,
+  describeSchema,
+  findPortMismatchSchemas,
   getInputDescription,
   getInputLabel,
-  getInputType,
   getNodeInputs,
-  getOutputType,
   getRequiredNodeInputs,
   isModelInput,
-} from '~/utils/schema-helpers'
+  resolveScopeContext,
+} from '~/schemas'
 import { matchCompatibleOutput, splitReference } from '~/utils/workflow-bindings'
 
 interface Props {
@@ -30,6 +30,12 @@ const { getBindingOptions } = useFlowGraph()
 const nodeInputs = computed(() => getNodeInputs(node.value))
 const requiredInputs = computed(() => new Set(getRequiredNodeInputs(node.value)))
 const bindingOptions = computed(() => getBindingOptions(props.nodeId))
+const scopeContext = computed(() =>
+  resolveScopeContext(
+    store.scopeStack,
+    store.nodes.map(entry => ({ id: entry.id, data: entry.data as NodeData })),
+  ),
+)
 
 // Sentinel for the explicit "None" entry in the binding dropdowns. Selecting it
 // removes the binding so the input falls back to its default.
@@ -92,7 +98,7 @@ function getOutputOptions(inputName: string): { label: string, value: string }[]
   return [
     { label: t('bindings.none'), value: NONE_VALUE },
     ...option.outputs
-      .filter(output => arePortsCompatible(node.value, inputName, option.node, output))
+      .filter(output => arePortsCompatible(node.value, inputName, option.node, output, scopeContext.value))
       .map(output => ({ label: output, value: output })),
   ]
 }
@@ -126,7 +132,7 @@ function updateBinding(inputName: string, sourceId?: string, outputField?: strin
   if (newSource && !newOutput) {
     const sourceOption = bindingOptions.value.find(opt => opt.id === newSource)
     const match = sourceOption
-      ? matchCompatibleOutput(sourceOption.node, node.value, inputName, sourceOption.outputs)
+      ? matchCompatibleOutput(sourceOption.node, node.value, inputName, sourceOption.outputs, scopeContext.value)
       : { kind: 'incompatible' as const }
 
     if (match.kind === 'matched') {
@@ -166,10 +172,17 @@ function getInputWarning(inputName: string): string | null {
     if (!sourceNode)
       return null
 
-    if (!arePortsCompatible(node.value, inputName, sourceNode, outputField)) {
-      const outputType = getOutputType(sourceNode, outputField)
-      const inputType = getInputType(node.value, inputName)
-      return `${t('bindings.typeMismatch')}: ${describeType(outputType)} → ${describeType(inputType)}`
+    if (!arePortsCompatible(node.value, inputName, sourceNode, outputField, scopeContext.value)) {
+      const { sourceSchema, targetSchema } = findPortMismatchSchemas(
+        node.value,
+        inputName,
+        sourceNode,
+        outputField,
+        scopeContext.value,
+      )
+      const actualLabel = sourceSchema ? describeSchema(sourceSchema) : 'unknown'
+      const expectedLabel = targetSchema ? describeSchema(targetSchema) : 'unknown'
+      return `${t('bindings.typeMismatch')}: ${actualLabel} → ${expectedLabel}`
     }
     return null
   }
@@ -178,7 +191,7 @@ function getInputWarning(inputName: string): string | null {
   if (pendingSource) {
     const sourceOption = bindingOptions.value.find(opt => opt.id === pendingSource)
     const match = sourceOption
-      ? matchCompatibleOutput(sourceOption.node, node.value, inputName, sourceOption.outputs)
+      ? matchCompatibleOutput(sourceOption.node, node.value, inputName, sourceOption.outputs, scopeContext.value)
       : { kind: 'incompatible' as const }
     if (match.kind === 'ambiguous')
       return t('bindings.ambiguousOutputs')

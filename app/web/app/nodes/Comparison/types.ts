@@ -1,4 +1,4 @@
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 export type ComparisonNode = SchemaNodeType<'comparison'>
 export type ComparisonSettings = NonNullable<ComparisonNode['data']['settings']>

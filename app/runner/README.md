@@ -8,13 +8,13 @@ This package contains the Python-based node workflows and IFC checking logic for
 
 ## Minimal Node Layout
 
-The runner uses a minimal function-based node structure under `src/openbim_runner/`:
+The runner uses a minimal function-based node structure under `src/rcc4all_runner/`:
 
 ```text
 src/
-   openbim_runner/
+   rcc4all_runner/
       main.py
-      port_types.py
+      schemas.py
       inspect_models.py
       util/
       workflow/
@@ -107,9 +107,9 @@ Ruff's settings (line length, target version) live in the `[tool.ruff]` section 
 ```python
 from pydantic import Field
 
-from openbim_runner.nodes import ExecutionContext, node
-from openbim_runner.nodes.base import NodeModel
-from openbim_runner.util.references import iter_resolved_elements
+from rcc4all_runner.nodes import ExecutionContext, node
+from rcc4all_runner.nodes.base import NodeModel
+from rcc4all_runner.util.references import iter_resolved_elements
 
 
 class EvaluateSettings(NodeModel):
@@ -160,7 +160,7 @@ The decorator derives the external contract directly from the type hints:
 ### Dispatcher Example
 
 ```python
-from openbim_runner.nodes import dispatch
+from rcc4all_runner.nodes import dispatch
 
 result = await dispatch(
    "evaluate",
@@ -181,15 +181,15 @@ The minimal runnable prototype lives in `tests/testdata/demo.json` and currently
 The demo fixture expects `test.ifc` in the same directory. Run or validate it with:
 
 ```bash
-uv run openbim-runner run tests/testdata/demo.json      # or omit `run`
-uv run openbim-runner validate tests/testdata/demo.json # static validation only
+uv run rcc4all-runner run tests/testdata/demo.json      # or omit `run`
+uv run rcc4all-runner validate tests/testdata/demo.json # static validation only
 ```
 
-To export the JSON schema for all registered nodes:
+To export the per-node and workflow JSON Schemas into a target directory (defaults to `../../shared/schemas`, writing `index.json`, `workflow.schema.json`, and `nodes/<name>.schema.json`):
 
 ```bash
-uv run openbim-runner export-schema
-uv run openbim-runner export-schema node-schema.json
+uv run rcc4all-runner export-schema
+uv run rcc4all-runner export-schema path/to/schemas-dir
 ```
 
 Before opening any IFC file, the runner runs static validation across the workflow:
@@ -218,20 +218,20 @@ Test IFC models live in `tests/testdata/models/`, grouped by category folder (e.
 To tessellate every model and export OBJ inspection artifacts:
 
 ```bash
-uv run openbim-runner inspect-models
+uv run rcc4all-runner inspect-models
 ```
 
 For each model this writes a combined `<model>_all.obj` and a `report.json` (mesh/element stats) under `tests/artifacts/<model>/`. Filter by category or name:
 
 ```bash
-uv run openbim-runner inspect-models --category rail
-uv run openbim-runner inspect-models --pattern simple_railway
+uv run rcc4all-runner inspect-models --category rail
+uv run rcc4all-runner inspect-models --pattern simple_railway
 ```
 
 To export a single element of a specific model as its own OBJ, combine the name filter with its express ID (custom directories can also be passed via `--models-root` and `--artifacts-root`):
 
 ```bash
-uv run openbim-runner inspect-models --pattern simple_railway --express-id 252
+uv run rcc4all-runner inspect-models --pattern simple_railway --express-id 252
 ```
 
 The command exits non-zero if any model fails to process, doubling as a batch sanity check. Headless/assertable checks live in `tests/test_*.py` and run with `uv run pytest`.

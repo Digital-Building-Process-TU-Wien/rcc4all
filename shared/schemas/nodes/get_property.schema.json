@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/get_property.schema.json",
+  "type": "object",
+  "title": "Get Property",
+  "description": "Read property values from IFC entities for downstream processing.",
+  "categories": [
+    "IFC"
+  ],
+  "markdownDescription": "The `get_property` node reads property values from IFC entities. Each selection specifies an optional entity type, an optional property set, and a required property name. The node outputs property values in one of three modes: per explicit element, per element class, or without element class distinction.\n\n## Use case example\n\n- Read `FireRating` from `Pset_WallCommon` for all walls filtered by an `ifc_element_filter`\n- Extract `LoadBearing` status from multiple element classes for analysis\n- Gather distinct property values with occurrence counts across the selection\n\n## Settings\n\n### Output mode\n\nDetermines the granularity of the output.\n\n| Value | Label | When to use |\n|-------|-------|-------------|\n| `elements` | **Per explicit element** | Each element in the input gets its own entry with resolved property values. Use when you need to process each element individually downstream. Requires an input binding. |\n| `by_class` | **Per element class** | The given elements are grouped by their actual runtime class (e.g., `IFCWALL`, `IFCDOOR`). Each class shows distinct property values with occurrence counts. Use when you want statistics per element type. |\n| `model` | **Without element class distinction** | Distinct property values with occurrence counts aggregated over the given input elements and property sets (no file scan). Property keys use a wildcard `Pset_*.PropertyName` to merge counts from different psets. Use when you want overall statistics across the selection. |\n\n### Selections table\n\n| Column | Description |\n|--------|-------------|\n| **Entity** (optional) | IFC entity type (e.g., `IFCWALL`, `IFCDOOR`). Placeholder: \"Any Element\". When set, only entities matching this type contribute to the property output (acts as a filter). Empty means any entity type. |\n| **Pset** (optional) | IFC PropertySet name (e.g., `Pset_WallCommon`) or a custom property set name. Placeholder: \"Any PSET\". When set, restricts lookup to that property set. When empty, searches across all property sets for the property name. |\n| **Property** (required) | The name of the property to read from the model. Placeholder: \"Required\". |\n\n## Inputs\n\n- **Express IDs** (required): a list of fully qualified element references\n  (`<slug>:expr:<id>`) to read property values from. Typically connected to the\n  output of an `ifc_element_filter`. Each reference resolves against the model\n  named inside it, so mixed-model lists are allowed. An unbound required input\n  fails input validation; an empty bound list yields an empty result (no\n  elements to read from).\n\n## Outputs\n\nOutput structure depends on **Output mode**:\n\n### Per explicit element\n\nList of elements with their qualified references and property values. Each element contains:\n- `express_id`: the element's fully qualified reference (`<slug>:expr:<id>`)\n- `properties`: Dictionary of property values keyed by `PropertySet.PropertyName`. Values are strings, or `null` for missing model values.\n\n### Per element class\n\nAggregated by IFC class. Output contains:\n- `classes`: Array of class groups, each with:\n  - `id`: IFC class name (e.g., `IFCWALL`, `IFCDOOR`, or `unknown` for missing entities)\n  - `properties`: Dictionary of distinct values with counts per property, sorted by count (descending) then value (ascending). Missing/null values are excluded.\n\n### Without element class distinction\n\nDistinct values with counts per property, aggregated over the given elements across all property sets and classes. Output contains:\n- `properties`: Dictionary keyed by `Pset_*.PropertyName` (wildcard pset to aggregate across psets), each containing:\n  - Array of `{ value, count }` objects sorted by count (descending) then value (ascending)\n  - Missing/null values are excluded from the count\n\n## Example Configuration\n\n### Example 1: Read property values from elements\n\n**Selections:**\n1. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `IsExternal`\n\n**Output** for a wall with qualified reference `main:expr:101` (model has FireRating=\"F90\", IsExternal=false):\n\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": \"main:expr:101\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": \"F90\",\n        \"Pset_WallCommon.IsExternal\": \"false\"\n      }\n    }\n  ]\n}\n```\n\n### Example 2: Missing property returns null\n\nIf the model doesn't have a property, the value is `null`.\n\n**Selection:** Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `AcousticRating` (not present in model)\n\n**Output:**\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": \"main:expr:101\",\n      \"properties\": {\n        \"Pset_WallCommon.AcousticRating\": null\n      }\n    }\n  ]\n}\n```\n\n### Example 3: Output mode \u2014 Per element class\n\n**Scenario:** Three entities (two IFCWALL with FireRating F90, one IFCDOOR with IsExternal true).\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `IFCDOOR`, Pset: `Pset_DoorCommon`, Property: `IsExternal`\n\n**Output:**\n```json\n{\n  \"mode\": \"by_class\",\n  \"classes\": [\n    {\n      \"id\": \"IFCDOOR\",\n      \"properties\": {\n        \"Pset_DoorCommon.IsExternal\": [{\"value\": \"true\", \"count\": 1}]\n      }\n    },\n    {\n      \"id\": \"IFCWALL\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": [{\"value\": \"F90\", \"count\": 2}]\n      }\n    }\n  ]\n}\n```\n\n### Example 4: Output mode \u2014 Without element class distinction (with cross-pset aggregation)\n\n**Scenario:** Multiple walls and slabs with `Compartmentation` property. Walls store it in `Pset_WallCommon`, slabs in `Pset_SlabCommon`. You want overall counts across the given elements.\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `Compartmentation`\n2. Entity: `IFCSLAB`, Pset: `Pset_SlabCommon`, Property: `Compartmentation`\n\n**Output:**\n```json\n{\n  \"mode\": \"model\",\n  \"properties\": {\n    \"Pset_*.Compartmentation\": [\n      { \"value\": \"true\", \"count\": 20 },\n      { \"value\": \"false\", \"count\": 5 }\n    ]\n  }\n}\n```\n\nNote how counts from both property sets are merged into `Pset_*.Compartmentation`. This is the key difference from **Per element class** mode.\n\n## CSV Import/Export\n\nProperty selections can be imported and exported as CSV files. The CSV format includes the following columns:\n\n```csv\nentity_type,property_set,property_name\nIFCWALL,Pset_WallCommon,FireRating\nIFCWALL,Pset_WallCommon,IsExternal\n```\n\n- **entity_type**: Optional. Used primarily for UI preselection and entity filtering.\n- **property_set**: Optional. Leave empty to search across all property sets.\n- **property_name**: Required.",
+  "locales": {
+    "de": {
+      "title": "Get Property",
+      "description": "Liest Eigenschaftswerte aus IFC-Elementen f\u00fcr die Weiterverarbeitung.",
+      "categories": [
+        "IFC"
+      ],
+      "markdownDescription": "Der `get_property` Node liest Eigenschaftswerte aus IFC-Elementen. Jede Auswahl spezifiziert einen optionalen Entity-Typ, einen optionalen PropertySet und einen erforderlichen Property-Namen. Der Node gibt Eigenschaftswerte in einem von drei Modi aus: Per explicit element, Per element class oder Without element class distinction.\n\n## Anwendungsbeispiel\n\n- `FireRating` aus `Pset_WallCommon` f\u00fcr alle W\u00e4nde lesen, die von einem `ifc_element_filter` gefiltert wurden\n- `LoadBearing`-Status von mehreren Elementklassen f\u00fcr die Analyse extrahieren\n- Unterschiedliche Eigenschaftswerte mit Vorkommensz\u00e4hlern f\u00fcr Gesamtstatistiken \u00fcber die Eingabereferenzen sammeln\n\n## Einstellungen\n\n### Output mode\n\nBestimmt die Granularit\u00e4t der Ausgabe.\n\n| Wert | Label | Wann verwenden |\n|------|-------|----------------|\n| `elements` | **Per explicit element** | Jedes Element im Eingang erh\u00e4lt einen eigenen Eintrag mit aufgel\u00f6sten Eigenschaftswerten. Verwenden, wenn Sie jedes Element einzeln nachgelagert verarbeiten m\u00f6chten. Erfordert eine Input-Bindung. |\n| `by_class` | **Per element class** | Die gegebenen Referenzen werden nach ihrer tats\u00e4chlichen Laufzeitklasse gruppiert (z.B. `IFCWALL`, `IFCDOOR`). Jede Klasse zeigt unterschiedliche Eigenschaftswerte mit Vorkommensz\u00e4hlern. Verwenden, wenn Sie Statistiken pro Elementtyp m\u00f6chten. |\n| `model` | **Without element class distinction** | Unterschiedliche Eigenschaftswerte mit Vorkommensz\u00e4hlern, aggregiert \u00fcber die gegebenen Referenzen und deren PropertySets hinweg (kein Datei-Scan). Eigenschaftsschl\u00fcssel verwenden einen Wildcard `Pset_*.PropertyName`, um Z\u00e4hler aus verschiedenen PropertySets zusammenzuf\u00fchren. Verwenden, wenn Sie gesamtstatistische Auswertungen \u00fcber die Eingabereferenzen m\u00f6chten. |\n\n### Selections Tabelle\n\n| Spalte | Beschreibung |\n|--------|--------------|\n| **Entity** (optional) | IFC-Elementtyp (z.B. `IFCWALL`, `IFCDOOR`). Platzhalter: \"Any Element\". Wenn gesetzt, tragen nur Elemente dieses Typs zur Eigenschaftsausgabe bei (wirkt als Filter). Leer bedeutet jeden Elementtyp. |\n| **Pset** (optional) | IFC PropertySet-Name (z.B. `Pset_WallCommon`) oder ein benutzerdefinierter PropertySet-Name. Platzhalter: \"Any PSET\". Wenn gesetzt, beschr\u00e4nkt die Suche auf diesen PropertySet. Wenn leer, durchsucht alle PropertySets nach dem Property-Namen. |\n| **Property** (erforderlich) | Der Name der zu lesenden Eigenschaft aus dem Modell. Platzhalter: \"Required\". |\n\n## Inputs\n\n- **Express IDs** (erforderlich): Liste voll qualifizierter Referenzen\n  (`<slug>:expr:<id>`), von denen Eigenschaftswerte gelesen werden sollen.\n  Typischerweise mit `ifc_element_filter.express_ids` verbunden. Jede Referenz\n  wird gegen das in ihr genannte Modell aufgel\u00f6st; gemischte Listen aus\n  mehreren Modellen sind erlaubt. Ohne Verbindung schl\u00e4gt die\n  Eingabevalidierung fehl.\n\n## Outputs\n\nAusgabestruktur h\u00e4ngt vom **Output mode** ab:\n\n### Per explicit element\n\nListe von Elementen mit ihren voll qualifizierten Referenzen und Eigenschaftswerten. Jedes Element enth\u00e4lt:\n- `express_id`: Die voll qualifizierte Referenz (`<slug>:expr:<id>`) des IFC-Elements\n- `properties`: W\u00f6rterbuch von Eigenschaftswerten, geschl\u00fcsselt nach `PropertySet.PropertyName`. Werte sind Strings oder `null` f\u00fcr fehlende Modellwerte.\n\n### Per element class\n\nAggregiert nach IFC-Klasse. Ausgabe enth\u00e4lt:\n- `classes`: Array von Klassengruppen, jede mit:\n  - `id`: IFC-Klassenname (z.B. `IFCWALL`, `IFCDOOR` oder `unknown` f\u00fcr fehlende Entit\u00e4ten)\n  - `properties`: W\u00f6rterbuch von unterschiedlichen Werten mit Z\u00e4hlern pro Eigenschaft, sortiert nach Anzahl (absteigend) dann Wert (aufsteigend). Fehlende/null-Werte sind ausgeschlossen.\n\n### Without element class distinction\n\nUnterschiedliche Werte mit Z\u00e4hlern pro Eigenschaft, aggregiert \u00fcber alle PropertySets und Klassen hinweg. Ausgabe enth\u00e4lt:\n- `properties`: W\u00f6rterbuch geschl\u00fcsselt nach `Pset_*.PropertyName` (Wildcard-PropertySet zur Aggregation \u00fcber PropertySets hinweg), jedes enthaltend:\n  - Array von `{ value, count }` Objekten, sortiert nach Anzahl (absteigend) dann Wert (aufsteigend)\n  - Fehlende/null-Werte sind von der Z\u00e4hlung ausgeschlossen\n\n## Beispielkonfiguration\n\n### Beispiel 1: Eigenschaftswerte aus Elementen lesen\n\n**Selections:**\n1. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `IsExternal`\n\n**Ausgabe** f\u00fcr eine Wand mit Referenz `main:expr:101` (Modell hat FireRating=\"F90\", IsExternal=false):\n\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": \"main:expr:101\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": \"F90\",\n        \"Pset_WallCommon.IsExternal\": \"false\"\n      }\n    }\n  ]\n}\n```\n\n### Beispiel 2: Fehlende Eigenschaft gibt null zur\u00fcck\n\nWenn das Modell eine Eigenschaft nicht hat, ist der Wert `null`.\n\n**Selection:** Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `AcousticRating` (im Modell nicht vorhanden)\n\n**Ausgabe:**\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": \"main:expr:101\",\n      \"properties\": {\n        \"Pset_WallCommon.AcousticRating\": null\n      }\n    }\n  ]\n}\n```\n\n### Beispiel 3: Output mode \u2014 Per element class\n\n**Szenario:** Drei Entit\u00e4ten (zwei IFCWALL mit FireRating F90, eine IFCDOOR mit IsExternal true).\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `IFCDOOR`, Pset: `Pset_DoorCommon`, Property: `IsExternal`\n\n**Ausgabe:**\n```json\n{\n  \"mode\": \"by_class\",\n  \"classes\": [\n    {\n      \"id\": \"IFCDOOR\",\n      \"properties\": {\n        \"Pset_DoorCommon.IsExternal\": [{\"value\": \"true\", \"count\": 1}]\n      }\n    },\n    {\n      \"id\": \"IFCWALL\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": [{\"value\": \"F90\", \"count\": 2}]\n      }\n    }\n  ]\n}\n```\n\n### Beispiel 4: Output mode \u2014 Without element class distinction (mit \u00fcbergreifender PropertySet-Aggregation)\n\n**Szenario:** Mehrere W\u00e4nde und Platten mit `Compartmentation` Eigenschaft. W\u00e4nde speichern sie in `Pset_WallCommon`, Platten in `Pset_SlabCommon`. Sie m\u00f6chten modellweite Gesamtz\u00e4hler.\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `Compartmentation`\n2. Entity: `IFCSLAB`, Pset: `Pset_SlabCommon`, Property: `Compartmentation`\n\n**Ausgabe:**\n```json\n{\n  \"mode\": \"model\",\n  \"properties\": {\n    \"Pset_*.Compartmentation\": [\n      { \"value\": \"true\", \"count\": 20 },\n      { \"value\": \"false\", \"count\": 5 }\n    ]\n  }\n}\n```\n\nBeachten Sie wie Z\u00e4hler aus beiden PropertySets in `Pset_*.Compartmentation` zusammengef\u00fchrt werden. Dies ist der Hauptunterschied zum **Per element class** Modus.\n\n## CSV Import/Export\n\nEigenschaftsauswahlen k\u00f6nnen als CSV-Dateien importiert und exportiert werden. Das CSV-Format umfasst die folgenden Spalten:\n\n```csv\nentity_type,property_set,property_name\nIFCWALL,Pset_WallCommon,FireRating\nIFCWALL,Pset_WallCommon,IsExternal\n```\n\n- **entity_type**: Optional. Dient haupts\u00e4chlich der UI-Vorauswahl und Elementfilterung.\n- **property_set**: Optional. Leer lassen, um \u00fcber alle PropertySets zu suchen.\n- **property_name**: Erforderlich."
+    },
+    "en": {
+      "title": "Get Property",
+      "description": "Read property values from IFC entities for downstream processing.",
+      "categories": [
+        "IFC"
+      ],
+      "markdownDescription": "The `get_property` node reads property values from IFC entities. Each selection specifies an optional entity type, an optional property set, and a required property name. The node outputs property values in one of three modes: per explicit element, per element class, or without element class distinction.\n\n## Use case example\n\n- Read `FireRating` from `Pset_WallCommon` for all walls filtered by an `ifc_element_filter`\n- Extract `LoadBearing` status from multiple element classes for analysis\n- Gather distinct property values with occurrence counts across the selection\n\n## Settings\n\n### Output mode\n\nDetermines the granularity of the output.\n\n| Value | Label | When to use |\n|-------|-------|-------------|\n| `elements` | **Per explicit element** | Each element in the input gets its own entry with resolved property values. Use when you need to process each element individually downstream. Requires an input binding. |\n| `by_class` | **Per element class** | The given elements are grouped by their actual runtime class (e.g., `IFCWALL`, `IFCDOOR`). Each class shows distinct property values with occurrence counts. Use when you want statistics per element type. |\n| `model` | **Without element class distinction** | Distinct property values with occurrence counts aggregated over the given input elements and property sets (no file scan). Property keys use a wildcard `Pset_*.PropertyName` to merge counts from different psets. Use when you want overall statistics across the selection. |\n\n### Selections table\n\n| Column | Description |\n|--------|-------------|\n| **Entity** (optional) | IFC entity type (e.g., `IFCWALL`, `IFCDOOR`). Placeholder: \"Any Element\". When set, only entities matching this type contribute to the property output (acts as a filter). Empty means any entity type. |\n| **Pset** (optional) | IFC PropertySet name (e.g., `Pset_WallCommon`) or a custom property set name. Placeholder: \"Any PSET\". When set, restricts lookup to that property set. When empty, searches across all property sets for the property name. |\n| **Property** (required) | The name of the property to read from the model. Placeholder: \"Required\". |\n\n## Inputs\n\n- **Express IDs** (required): a list of fully qualified element references\n  (`<slug>:expr:<id>`) to read property values from. Typically connected to the\n  output of an `ifc_element_filter`. Each reference resolves against the model\n  named inside it, so mixed-model lists are allowed. An unbound required input\n  fails input validation; an empty bound list yields an empty result (no\n  elements to read from).\n\n## Outputs\n\nOutput structure depends on **Output mode**:\n\n### Per explicit element\n\nList of elements with their qualified references and property values. Each element contains:\n- `express_id`: the element's fully qualified reference (`<slug>:expr:<id>`)\n- `properties`: Dictionary of property values keyed by `PropertySet.PropertyName`. Values are strings, or `null` for missing model values.\n\n### Per element class\n\nAggregated by IFC class. Output contains:\n- `classes`: Array of class groups, each with:\n  - `id`: IFC class name (e.g., `IFCWALL`, `IFCDOOR`, or `unknown` for missing entities)\n  - `properties`: Dictionary of distinct values with counts per property, sorted by count (descending) then value (ascending). Missing/null values are excluded.\n\n### Without element class distinction\n\nDistinct values with counts per property, aggregated over the given elements across all property sets and classes. Output contains:\n- `properties`: Dictionary keyed by `Pset_*.PropertyName` (wildcard pset to aggregate across psets), each containing:\n  - Array of `{ value, count }` objects sorted by count (descending) then value (ascending)\n  - Missing/null values are excluded from the count\n\n## Example Configuration\n\n### Example 1: Read property values from elements\n\n**Selections:**\n1. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `IsExternal`\n\n**Output** for a wall with qualified reference `main:expr:101` (model has FireRating=\"F90\", IsExternal=false):\n\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": \"main:expr:101\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": \"F90\",\n        \"Pset_WallCommon.IsExternal\": \"false\"\n      }\n    }\n  ]\n}\n```\n\n### Example 2: Missing property returns null\n\nIf the model doesn't have a property, the value is `null`.\n\n**Selection:** Entity: `Any Element`, Pset: `Pset_WallCommon`, Property: `AcousticRating` (not present in model)\n\n**Output:**\n```json\n{\n  \"mode\": \"elements\",\n  \"elements\": [\n    {\n      \"express_id\": \"main:expr:101\",\n      \"properties\": {\n        \"Pset_WallCommon.AcousticRating\": null\n      }\n    }\n  ]\n}\n```\n\n### Example 3: Output mode \u2014 Per element class\n\n**Scenario:** Three entities (two IFCWALL with FireRating F90, one IFCDOOR with IsExternal true).\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `FireRating`\n2. Entity: `IFCDOOR`, Pset: `Pset_DoorCommon`, Property: `IsExternal`\n\n**Output:**\n```json\n{\n  \"mode\": \"by_class\",\n  \"classes\": [\n    {\n      \"id\": \"IFCDOOR\",\n      \"properties\": {\n        \"Pset_DoorCommon.IsExternal\": [{\"value\": \"true\", \"count\": 1}]\n      }\n    },\n    {\n      \"id\": \"IFCWALL\",\n      \"properties\": {\n        \"Pset_WallCommon.FireRating\": [{\"value\": \"F90\", \"count\": 2}]\n      }\n    }\n  ]\n}\n```\n\n### Example 4: Output mode \u2014 Without element class distinction (with cross-pset aggregation)\n\n**Scenario:** Multiple walls and slabs with `Compartmentation` property. Walls store it in `Pset_WallCommon`, slabs in `Pset_SlabCommon`. You want overall counts across the given elements.\n\n**Selections:**\n1. Entity: `IFCWALL`, Pset: `Pset_WallCommon`, Property: `Compartmentation`\n2. Entity: `IFCSLAB`, Pset: `Pset_SlabCommon`, Property: `Compartmentation`\n\n**Output:**\n```json\n{\n  \"mode\": \"model\",\n  \"properties\": {\n    \"Pset_*.Compartmentation\": [\n      { \"value\": \"true\", \"count\": 20 },\n      { \"value\": \"false\", \"count\": 5 }\n    ]\n  }\n}\n```\n\nNote how counts from both property sets are merged into `Pset_*.Compartmentation`. This is the key difference from **Per element class** mode.\n\n## CSV Import/Export\n\nProperty selections can be imported and exported as CSV files. The CSV format includes the following columns:\n\n```csv\nentity_type,property_set,property_name\nIFCWALL,Pset_WallCommon,FireRating\nIFCWALL,Pset_WallCommon,IsExternal\n```\n\n- **entity_type**: Optional. Used primarily for UI preselection and entity filtering.\n- **property_set**: Optional. Leave empty to search across all property sets.\n- **property_name**: Required."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "output_mode": {
+          "default": "elements",
+          "description": "Output granularity: 'elements' (per entity), 'by_class' (grouped by element class), or 'model' (distinct values across all entities).",
+          "enum": [
+            "elements",
+            "by_class",
+            "model"
+          ],
+          "title": "Output mode",
+          "type": "string"
+        },
+        "selections": {
+          "default": [],
+          "description": "List of properties to read from each entity.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "entity_type": {
+                "default": "",
+                "description": "Optional IFC entity type (e.g., IFCWALL, IFCDOOR). Empty means any entity type. Used for UI preselection only.",
+                "title": "Entity type",
+                "type": "string"
+              },
+              "property_set": {
+                "default": "",
+                "description": "IFC PropertySet name (e.g., Pset_WallCommon) or custom property set name.",
+                "title": "Property set",
+                "type": "string"
+              },
+              "property_name": {
+                "default": "",
+                "description": "Name of the property to read within the PropertySet.",
+                "title": "Property name",
+                "type": "string"
+              }
+            },
+            "title": "PropertySelection",
+            "type": "object"
+          },
+          "title": "Selections",
+          "type": "array"
+        }
+      },
+      "title": "GetPropertySettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "description": "The output mode used to generate this result.",
+          "enum": [
+            "elements",
+            "by_class",
+            "model"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "elements": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "express_id": {
+                    "description": "The qualified element reference (`<slug>:expr:<id>`).",
+                    "title": "Express ID",
+                    "type": "string"
+                  },
+                  "properties": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "default": {},
+                    "title": "Properties",
+                    "description": "Dictionary of property values keyed by 'Pset.Property' format."
+                  }
+                },
+                "required": [
+                  "express_id"
+                ],
+                "title": "ElementProperties",
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of elements with their property values (output_mode = elements).",
+          "title": "Elements"
+        },
+        "classes": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "description": "IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.",
+                    "title": "Class",
+                    "type": "string"
+                  },
+                  "properties": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "value": {
+                            "description": "A distinct property value.",
+                            "title": "Value",
+                            "type": "string"
+                          },
+                          "count": {
+                            "description": "Number of occurrences of this value.",
+                            "title": "Count",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "value",
+                          "count"
+                        ],
+                        "title": "ValueWithCount",
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "default": {},
+                    "title": "Properties",
+                    "description": "Distinct values with counts per property for this class."
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "title": "ClassGroup",
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Elements grouped by IFC class (output_mode = by_class).",
+          "title": "Classes"
+        },
+        "properties": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "value": {
+                      "description": "A distinct property value.",
+                      "title": "Value",
+                      "type": "string"
+                    },
+                    "count": {
+                      "description": "Number of occurrences of this value.",
+                      "title": "Count",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "title": "ValueWithCount",
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Properties",
+          "description": "Distinct values with counts per property (output_mode = model)."
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "GetPropertyResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "express_ids": {
+          "description": "Qualified element references (`<slug>:expr:<id>`) to read property values from. Bind ifc_element_filter output here.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Express IDs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "express_ids"
+      ],
+      "title": "GetPropertyInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

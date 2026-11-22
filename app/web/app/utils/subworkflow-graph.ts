@@ -1,8 +1,8 @@
-import type { SubworkflowPort } from '@@/scripts/workflow-schema'
 import type { Edge, Node } from '@vue-flow/core'
 import type { NodeData, StoredEdge, StoredNode } from './nodes'
+import type { SubworkflowPort } from '~/schemas'
 import { nanoid } from 'nanoid'
-import { getOutputType, normalizePortType } from './schema-helpers'
+import { getNodeOutputPorts, OUTPUT_HANDLE_PREFIX } from '~/schemas'
 import { splitReference } from './workflow-bindings'
 import { toStoredData } from './workflow-serialization'
 
@@ -62,13 +62,13 @@ export function readPort(data: NodeData | undefined | null): SubworkflowPort | n
   const raw = data?.settings?.port
   if (!raw || typeof raw !== 'object' || typeof raw.name !== 'string' || raw.name.length === 0)
     return null
-  return { name: raw.name, type: normalizePortType(raw.type) }
+  return { name: raw.name }
 }
 
 export function writePort(node: Node<NodeData> | StoredNode, port: SubworkflowPort): void {
   if (!node.data)
     node.data = {} as NodeData
-  node.data.settings = { ...(node.data.settings ?? {}), port: { name: port.name, type: port.type } }
+  node.data.settings = { ...(node.data.settings ?? {}), port: { name: port.name } }
   node.data.label = port.name
 }
 
@@ -165,6 +165,21 @@ export function extractSubworkflowGraph(
         outgoing.add(reference)
     }
   }
+  if (outgoing.size === 0) {
+    for (const edge of allEdges) {
+      if (!selection.has(edge.source) || selection.has(edge.target))
+        continue
+      const sourceNode = nodesById.get(edge.source)
+      if (!sourceNode)
+        continue
+      const explicitOutput = edge.sourceHandle?.startsWith(OUTPUT_HANDLE_PREFIX)
+        ? edge.sourceHandle.slice(OUTPUT_HANDLE_PREFIX.length)
+        : undefined
+      const fallbackOutput = explicitOutput ?? getNodeOutputPorts({ data: sourceNode.data as NodeData })[0]?.name
+      if (fallbackOutput)
+        outgoing.add(`${edge.source}.${fallbackOutput}`)
+    }
+  }
   if (outgoing.size > 1)
     return { ok: false, reason: 'output-conflict', details: [...outgoing].sort() }
 
@@ -206,15 +221,11 @@ export function extractSubworkflowGraph(
 
   for (const entry of incomingPorts) {
     entry.inputNodeId = createId()
-    const source = nodesById.get(entry.sourceId)
     const firstConsumerY = innerPosition.get(entry.consumers[0]!)?.y ?? offsetY
     innerNodes.push(
       createSubworkflowPortNode(
         'input',
-        {
-          name: entry.portName,
-          type: source ? getOutputType(source, entry.field) : { type: 'any' },
-        },
+        { name: entry.portName },
         { x: 0, y: firstConsumerY },
         entry.inputNodeId,
       ),
@@ -269,7 +280,6 @@ export function extractSubworkflowGraph(
   if (outputParsed && outputPortName) {
     const [producerId, producerField] = outputParsed
     const outputNodeId = createId()
-    const producer = nodesById.get(producerId)
     const outputY = innerPosition.get(producerId)?.y ?? offsetY
     innerNodes.push({
       id: outputNodeId,
@@ -278,10 +288,7 @@ export function extractSubworkflowGraph(
         label: outputPortName,
         nodeName: 'subworkflow_output',
         settings: {
-          port: {
-            name: outputPortName,
-            type: producer ? getOutputType(producer, producerField) : { type: 'any' },
-          },
+          port: { name: outputPortName },
         },
         input_bindings: { [outputPortName]: `${producerId}.${producerField}` },
       },

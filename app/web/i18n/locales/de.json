@@ -321,7 +321,6 @@
       "inputPortTitle": "Eingangsport",
       "outputPortTitle": "Ausgangsport",
       "portName": "Port-Name",
-      "portType": "Typ",
       "noPorts": "Noch keine Ports. Öffnen Sie den Subworkflow, um Eingänge hinzuzufügen.",
       "invalidPortName": "Nur Buchstaben, Ziffern und Unterstriche, beginnend mit einem Buchstaben.",
       "duplicatePortName": "Port-Namen müssen im Subworkflow eindeutig sein.",
@@ -330,18 +329,7 @@
       "editInsideHint": "Fassen Sie Nodes in einer verschachtelten Arbeitsfläche zusammen. Doppelklicken Sie auf den Node in der Arbeitsfläche, um ihn zu öffnen.",
       "open": "Subworkflow öffnen",
       "settings": "Subworkflow-Einstellungen",
-      "root": "Workflow",
-      "types": {
-        "any": "Beliebig",
-        "string": "Zeichenkette",
-        "number": "Zahl",
-        "integer": "Ganzzahl",
-        "boolean": "Boolesch",
-        "object": "Objekt",
-        "arrayString": "Liste von Zeichenketten",
-        "arrayNumber": "Liste von Zahlen",
-        "arrayObject": "Liste von Objekten"
-      }
+      "root": "Workflow"
     },
     "property": {
       "noSelectionsAdded": "Keine Auswahlen hinzugefügt",

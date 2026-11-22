@@ -72,7 +72,7 @@ Before coding, define:
 ### 2.1 Create Node Directory
 
 ```bash
-cd app/runner/src/openbim_runner/nodes
+cd app/runner/src/rcc4all_runner/nodes
 mkdir template_node
 cd template_node
 mkdir tests
@@ -80,11 +80,11 @@ mkdir tests
 
 ### 2.2 Create the Node Implementation
 
-**File**: `app/runner/src/openbim_runner/nodes/template_node/template_node.py`
+**File**: `app/runner/src/rcc4all_runner/nodes/template_node/template_node.py`
 
 ```python
 from pydantic import Field
-from openbim_runner.nodes.base import NodeModel, node
+from rcc4all_runner.nodes.base import NodeModel, node
 
 # 1. Define Settings Model (user configuration)
 class TemplateNodeSettings(NodeModel):
@@ -127,9 +127,9 @@ async def template_node(
 
 ### 2.3 Create Documentation (Required!)
 
-Both `README.en.md` and `README.de.md` are required by `export-schema`. In German text, always use **"Node"/"Nodes"** (never "Knoten").
+Provide both `README.en.md` and `README.de.md` (`export-schema` logs a warning if either locale is missing). In German text, always use **"Node"/"Nodes"** (never "Knoten").
 
-**File**: `app/runner/src/openbim_runner/nodes/template_node/README.en.md`
+**File**: `app/runner/src/rcc4all_runner/nodes/template_node/README.en.md`
 
 ```markdown
 ---
@@ -157,7 +157,7 @@ Use this node as a starting point for learning how to create new nodes, or as a 
 - **Message**: The final greeting message (e.g., "Hello, World!")
 ```
 
-**File**: `app/runner/src/openbim_runner/nodes/template_node/README.de.md`
+**File**: `app/runner/src/rcc4all_runner/nodes/template_node/README.de.md`
 
 ```markdown
 ---
@@ -187,7 +187,7 @@ Verwenden Sie diesen Node als Ausgangspunkt zum Erlernen der Erstellung neuer No
 
 ### 2.4 Register the Node
 
-**File**: `app/runner/src/openbim_runner/nodes/__init__.py`
+**File**: `app/runner/src/rcc4all_runner/nodes/__init__.py`
 
 Import and export your node alongside the existing registered nodes:
 
@@ -203,11 +203,11 @@ __all__ = [
 
 ### 2.5 Write Tests (Recommended)
 
-**File**: `app/runner/src/openbim_runner/nodes/template_node/tests/test_template_node.py`
+**File**: `app/runner/src/rcc4all_runner/nodes/template_node/tests/test_template_node.py`
 
 ```python
 import asyncio
-from openbim_runner.nodes.template_node.template_node import (
+from rcc4all_runner.nodes.template_node.template_node import (
     TemplateNodeSettings,
     TemplateNodeInputs,
     TemplateNodeResult,
@@ -249,7 +249,7 @@ def test_template_node_custom() -> None:
 
 ```vue
 <script setup lang="ts">
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 // 1. Define typed node using schema
 type TemplateNodeType = SchemaNodeType<'template_node'>
@@ -317,9 +317,8 @@ npm run generate:schema
 ```
 
 This single command:
-1. Exports the schema from Python runner → `scripts/schema.json`
-2. Generates TypeScript node types → `scripts/schema.d.ts`
-3. Generates workflow types and Zod schema → `scripts/workflow-schema.d.ts`, `scripts/workflow-schema.zod.ts`
+1. Exports per-node and workflow JSON Schemas from Python runner → `shared/schemas/`
+2. Generates per-node TypeScript types, static schema registry, workflow types, and Zod schemas → `app/web/app/schemas/generated/`
 
 ✅ Your node is now fully registered in both Python and TypeScript!
 
@@ -412,7 +411,7 @@ async def my_node(
 
 ```vue
 <script setup lang="ts">
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 type MyNode = SchemaNodeType<'my_node'>
 
@@ -468,24 +467,30 @@ app/web/
 │   └── results-*.json       # Generated results (when run from web app)
 ├── app/nodes/MyNode/
 │   └── MyNode.vue           # Vue component
+├── app/schemas/
+│   ├── index.ts             # Single TS entry point for schemas, types & port checks
+│   └── generated/           # Generated per-node .d.ts, registry.ts, workflow.d.ts, workflow.zod.ts
 ├── app/utils/nodes.ts       # Optional custom component mapping
 ├── i18n/locales/
 │   ├── en.json              # English UI translations
 │   └── de.json              # German UI translations
 └── scripts/
-    ├── schema.json          # Generated node & workflow schema
-    ├── schema.d.ts          # Generated node TS types
-    ├── workflow-schema.d.ts # Generated workflow TS types
-    └── workflow-schema.zod.ts
+    └── generate-schemas.ts  # Generates app/schemas/generated/ from shared/schemas/
 
-app/runner/src/openbim_runner/nodes/my_node/
+shared/schemas/
+├── index.json               # Manifest listing workflow + per-node schemas
+├── workflow.schema.json     # Standalone workflow JSON Schema
+└── nodes/
+    └── <node>.schema.json   # One standalone JSON Schema per node
+
+app/runner/src/rcc4all_runner/nodes/my_node/
 ├── my_node.py               # Implementation
 ├── README.en.md             # English docs (required)
 ├── README.de.md             # German docs (required)
 └── tests/
     └── test_my_node.py      # Tests (recommended)
 
-app/runner/src/openbim_runner/nodes/__init__.py  # Python registration
+app/runner/src/rcc4all_runner/nodes/__init__.py  # Python registration
 ```
 
 ---
@@ -499,7 +504,7 @@ npm run generate:schema
 
 # Run a workflow (from runner directory)
 cd app/runner
-uv run openbim-runner run path/to/workflow.json
+uv run rcc4all-runner run path/to/workflow.json
 
 # Run tests (from runner directory)
 cd app/runner

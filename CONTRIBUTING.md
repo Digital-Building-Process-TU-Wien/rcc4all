@@ -93,7 +93,7 @@ When the runner's node types or workflow models change, regenerate the committed
 npm run generate:schema
 ```
 
-`scripts/schema.json`, `scripts/schema.d.ts`, `scripts/workflow-schema.d.ts`, and `scripts/workflow-schema.zod.ts` are generated files and are committed; CI fails if they drift from the runner's registry.
+`shared/schemas/` and `app/web/app/schemas/generated/` contain generated files and are committed; CI fails if they drift from the runner's registry.
 
 ### CMS (`app/cms`) — Payload *(not currently used)*
 

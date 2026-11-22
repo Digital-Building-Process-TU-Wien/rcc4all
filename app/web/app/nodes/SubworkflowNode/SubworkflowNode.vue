@@ -6,8 +6,8 @@ import NodeDeleteButton from '~/components/nodes/NodeDeleteButton.vue'
 import { useOpenNodeSettings } from '~/composables/useNodeSettings'
 import { useScopedNode } from '~/composables/useScopedNode'
 import { useWorkflowWarnings } from '~/composables/useWorkflowWarnings'
+import { getNodeInputPorts, getNodeOutputPorts } from '~/schemas'
 import { useFlowStore } from '~/stores/flow'
-import { getNodeInputPorts, getNodeOutputPorts } from '~/utils/schema-helpers'
 
 const props = defineProps<NodeProps<NodeData>>()
 const { t } = useI18n()

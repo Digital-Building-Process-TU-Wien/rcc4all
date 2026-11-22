@@ -1,6 +1,6 @@
 import type { Node } from '@vue-flow/core'
 import type { NodeData, StoredEdge, StoredNode } from './nodes'
-import type { PortNode } from './schema-helpers'
+import type { PortNode, PortResolutionContext } from '~/schemas'
 import {
   arePortsCompatible,
   getNodeInputs,
@@ -8,7 +8,7 @@ import {
   INPUT_HANDLE_PREFIX,
   isModelInput,
   parsePortHandle,
-} from './schema-helpers'
+} from '~/schemas'
 
 export type BindingNode = Node<NodeData> | StoredNode
 
@@ -29,6 +29,7 @@ export interface AutoBindResult {
 export interface AutoBindOptions {
   explicitOutput?: string
   explicitInput?: string
+  context?: PortResolutionContext
 }
 
 export function splitReference(reference: string): [string, string] | null {
@@ -94,9 +95,10 @@ export function matchCompatibleOutput(
   targetNode: PortNode,
   inputName: string,
   candidateOutputs: string[] = getNodeOutputs(sourceNode),
+  context?: PortResolutionContext,
 ): OutputMatch {
   const compatible = candidateOutputs.filter(output =>
-    arePortsCompatible(targetNode, inputName, sourceNode, output),
+    arePortsCompatible(targetNode, inputName, sourceNode, output, context),
   )
   if (compatible.length === 0)
     return { kind: 'incompatible' }
@@ -145,7 +147,7 @@ export function resolveAutoBindings(
 
   // Target handle names a specific port (subworkflow / subworkflow_output).
   if (explicitInput) {
-    const match = matchCompatibleOutput(sourceNode, targetNode, explicitInput, candidateOutputs)
+    const match = matchCompatibleOutput(sourceNode, targetNode, explicitInput, candidateOutputs, options.context)
     if (match.kind === 'matched') {
       return {
         bindings: { [explicitInput]: `${sourceId}.${match.output}` },
@@ -204,7 +206,7 @@ export function resolveAutoBindings(
         ambiguousOutputs: candidateOutputs,
       }
     }
-    const match = matchCompatibleOutput(sourceNode, targetNode, pool[0]!, candidateOutputs)
+    const match = matchCompatibleOutput(sourceNode, targetNode, pool[0]!, candidateOutputs, options.context)
     if (match.kind === 'matched') {
       return {
         bindings: { [pool[0]!]: `${sourceId}.${match.output}` },
@@ -236,7 +238,7 @@ export function resolveAutoBindings(
   for (const inputName of eligibleInputs) {
     if (
       candidateOutputs.includes(inputName)
-      && arePortsCompatible(targetNode, inputName, sourceNode, inputName)
+      && arePortsCompatible(targetNode, inputName, sourceNode, inputName, options.context)
     ) {
       bindings[inputName] = `${sourceId}.${inputName}`
       usedInputs.add(inputName)
@@ -253,7 +255,7 @@ export function resolveAutoBindings(
 
   for (const inputName of remainingInputs) {
     for (const outputName of remainingOutputs) {
-      if (!arePortsCompatible(targetNode, inputName, sourceNode, outputName))
+      if (!arePortsCompatible(targetNode, inputName, sourceNode, outputName, options.context))
         continue
       pairs.push([inputName, outputName])
       inputDegree.set(inputName, (inputDegree.get(inputName) ?? 0) + 1)

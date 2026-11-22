@@ -1,13 +1,12 @@
+import type { NodeData, StoredEdge, StoredNode, SubworkflowDefinitionData } from './nodes'
 import type {
   ModelFile,
   SubworkflowDefinition,
   WorkflowDefinition,
   WorkflowEdge,
   WorkflowNode,
-} from '@@/scripts/workflow-schema'
-import type { NodeData, StoredEdge, StoredNode, SubworkflowDefinitionData } from './nodes'
-import { WorkflowDefinitionSchema } from '@@/scripts/workflow-schema.zod'
-import { getNodeInputPorts, getNodeOutputPorts } from './schema-helpers'
+} from '~/schemas'
+import { getNodeInputPorts, getNodeOutputPorts, WorkflowDefinitionSchema } from '~/schemas'
 
 export interface Viewport {
   x: number
@@ -17,7 +16,7 @@ export interface Viewport {
 
 /**
  * The runnable workflow payload: assigned model files plus the serialized graph.
- * `openbim_runner` forbids unknown keys, so this is also exactly what is written
+ * `rcc4all_runner` forbids unknown keys, so this is also exactly what is written
  * to `.dev-files` by the save dialog.
  */
 export type ExportedWorkflow = WorkflowDefinition
@@ -103,11 +102,17 @@ export function serializeScope(nodes: StoredNode[], edges: StoredEdge[]): {
 
 function serializeStoredNode(node: StoredNode): WorkflowNode {
   const data = node.data
+  const isPortMeta = data.nodeName === 'subworkflow_input' || data.nodeName === 'subworkflow_output'
+  const rawSettings = data.settings ?? {}
+  const settings = isPortMeta && rawSettings.port && typeof rawSettings.port === 'object'
+    ? { ...rawSettings, port: { name: String((rawSettings.port as { name?: unknown }).name ?? '') } }
+    : rawSettings
+
   return {
     id: node.id,
     type: data.nodeName.toLowerCase(),
     label: data.label || '',
-    settings: data.settings ?? {},
+    settings,
     input_bindings: data.input_bindings ?? {},
     position: { x: node.position.x, y: node.position.y },
     ...(data.subworkflow ? { subworkflow: serializeSubworkflow(data.subworkflow, data.label) } : {}),

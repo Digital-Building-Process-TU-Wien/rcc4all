@@ -1,0 +1,19 @@
+{
+  "workflow": "workflow.schema.json",
+  "nodes": {
+    "bcf_output": "nodes/bcf_output.schema.json",
+    "collision": "nodes/collision.schema.json",
+    "comparison": "nodes/comparison.schema.json",
+    "concat_string": "nodes/concat_string.schema.json",
+    "file_input": "nodes/file_input.schema.json",
+    "generate_3d_cube": "nodes/generate_3d_cube.schema.json",
+    "get_element_creation_position_door": "nodes/get_element_creation_position_door.schema.json",
+    "get_property": "nodes/get_property.schema.json",
+    "ids_checker": "nodes/ids_checker.schema.json",
+    "ifc_element_filter": "nodes/ifc_element_filter.schema.json",
+    "loi_check": "nodes/loi_check.schema.json",
+    "measurement": "nodes/measurement.schema.json",
+    "set_3d_position_rotation": "nodes/set_3d_position_rotation.schema.json",
+    "tilt_of_components": "nodes/tilt_of_components.schema.json"
+  }
+}

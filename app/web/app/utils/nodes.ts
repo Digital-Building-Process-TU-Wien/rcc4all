@@ -1,6 +1,8 @@
-import type { NodeRegistrySchema } from '@@/scripts/schema'
-import type { SubworkflowPort } from '@@/scripts/workflow-schema'
-import schemaJson from '@@/scripts/schema.json'
+import type { NodeRegistrySchema, SubworkflowPort } from '~/schemas'
+import {
+  getNodeLocaleMetadata,
+  getRegisteredNodeNames,
+} from '~/schemas'
 import {
   createSubworkflowPortNode,
   DEFAULT_SUBWORKFLOW_OUTPUT_PORT,
@@ -14,7 +16,7 @@ export type SupportedLocale = 'en' | 'de'
 // deliberately hand-written: the editor graph carries concerns the stored
 // workflow file does not (the `viewport` on a subworkflow definition, Vue
 // Flow handles on edges, and the runtime `label` on node data). The stored
-// file types stay generated in `scripts/workflow-schema.d.ts`.
+// file types stay generated in `app/schemas/generated/workflow.d.ts`.
 export interface StoredEdge {
   id: string
   source: string
@@ -130,7 +132,7 @@ export function createSubworkflowDefinition(): SubworkflowDefinitionData {
     nodes: [
       createSubworkflowPortNode(
         'output',
-        { name: DEFAULT_SUBWORKFLOW_OUTPUT_PORT, type: { type: 'any' } },
+        { name: DEFAULT_SUBWORKFLOW_OUTPUT_PORT },
         { x: 480, y: 140 },
       ),
     ],
@@ -177,49 +179,16 @@ export function getNodeLabel(nodeName: string): string {
   return formatNodeLabel(nodeName)
 }
 
-function toSnakeCase(str: string): string {
-  return str
-    .replace(CAMEL_BOUNDARY_RE, '$1_$2')
-    .toLowerCase()
-}
-
-function getNodeCategories(nodeName: string, locale: SupportedLocale = 'en'): string[] {
-  const _key = toSnakeCase(nodeName)
-  const nodeData = (schemaJson.properties as any)[nodeName]
-  if (!nodeData)
-    return []
-
-  const localeData = nodeData.locales?.[locale] || nodeData.locales?.en
-  return localeData?.categories || nodeData.categories || []
-}
-
-function getNodeDescription(nodeName: string, locale: SupportedLocale = 'en'): { description?: string, markdownDescription?: string } {
-  const _key = toSnakeCase(nodeName)
-  const nodeData = (schemaJson.properties as any)[nodeName]
-  if (!nodeData)
-    return {}
-
-  const localeData = nodeData.locales?.[locale] || nodeData.locales?.en
-  return {
-    description: localeData?.description,
-    markdownDescription: localeData?.markdownDescription,
-  }
-}
-
 export function getAvailableNodes(locale: SupportedLocale = 'en'): AvailableNode[] {
-  const nodeNames = Object.keys(schemaJson.properties || {})
-
-  return nodeNames
+  return getRegisteredNodeNames()
     .map((nodeName) => {
-      const nodeData = (schemaJson.properties as any)[nodeName]
-      const localeData = nodeData?.locales?.[locale] || nodeData?.locales?.en
-      const title = localeData?.title || nodeData?.title || getNodeLabel(nodeName)
-
+      const metadata = getNodeLocaleMetadata(nodeName, locale)
       return {
         nodeName,
-        label: title,
-        categories: getNodeCategories(nodeName, locale),
-        ...getNodeDescription(nodeName, locale),
+        label: metadata.title || getNodeLabel(nodeName),
+        categories: metadata.categories,
+        description: metadata.description,
+        markdownDescription: metadata.markdownDescription,
       }
     })
     .sort((left, right) => left.label.localeCompare(right.label))
@@ -230,7 +199,7 @@ export function getAvailableNodes(locale: SupportedLocale = 'en'): AvailableNode
  * @returns Array of available node names
  */
 export function getAvailableNodeNames(): string[] {
-  return Object.keys(schemaJson.properties || {})
+  return getRegisteredNodeNames()
 }
 
 /**

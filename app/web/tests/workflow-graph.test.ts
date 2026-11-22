@@ -22,7 +22,7 @@ function makeNode(
   }
 }
 
-test('serializeScope and hydrateWorkflow round-trip graphs and subworkflow handles', () => {
+test('serializeScope strips UI-only nodes and hydrateWorkflow restores defaults and handles', () => {
   const nodes: StoredNode[] = [
     makeNode('file1', 'file_input', 0),
     makeNode('f1', 'ifc_element_filter', 240, { model_slug: 'file1.model_slug' }),
@@ -48,7 +48,7 @@ test('serializeScope and hydrateWorkflow round-trip graphs and subworkflow handl
   assert.equal(hydrated.rootFrame.edges[0]?.targetHandle, 'input')
 })
 
-test('extractSubworkflowGraph extracts selected nodes with typed boundary ports', () => {
+test('extractSubworkflowGraph extracts selected nodes with name-only boundary ports', () => {
   const nodes: StoredNode[] = [
     makeNode('f1', 'ifc_element_filter', 0),
     makeNode('l1', 'loi_check', 240, { express_ids: 'f1.express_ids' }),
@@ -77,8 +77,10 @@ test('extractSubworkflowGraph extracts selected nodes with typed boundary ports'
   assert.equal(result.remainingEdges[1]?.sourceHandle, 'output:elements')
 
   const inner = result.subworkflowNode.data.subworkflow!
-  assert.equal(inner.nodes.some(n => n.data.nodeName === 'subworkflow_input'), true)
-  assert.equal(inner.nodes.some(n => n.data.nodeName === 'subworkflow_output'), true)
+  const inputPortNode = inner.nodes.find(n => n.data.nodeName === 'subworkflow_input')
+  const outputPortNode = inner.nodes.find(n => n.data.nodeName === 'subworkflow_output')
+  assert.deepEqual(inputPortNode?.data.settings?.port, { name: 'express_ids' })
+  assert.deepEqual(outputPortNode?.data.settings?.port, { name: 'elements' })
 })
 
 test('extractSubworkflowGraph rejects empty selection and multi-output conflicts', () => {
@@ -99,4 +101,29 @@ test('extractSubworkflowGraph rejects empty selection and multi-output conflicts
     assert.equal(conflict.reason, 'output-conflict')
     assert.deepEqual(conflict.details, ['l1.elements', 'l1.failed_express_ids'])
   }
+})
+
+test('extractSubworkflowGraph infers output port for edges to binding-less nodes like JsonOutput', () => {
+  const nodes: StoredNode[] = [
+    makeNode('f1', 'ifc_element_filter', 0),
+    makeNode('l1', 'loi_check', 240, { express_ids: 'f1.express_ids' }),
+    makeNode('preview', 'JsonOutput', 480),
+  ]
+  const edges: StoredEdge[] = [
+    { id: 'e1', source: 'f1', target: 'l1', sourceHandle: 'output', targetHandle: 'input' },
+    { id: 'e2', source: 'l1', target: 'preview', sourceHandle: 'output', targetHandle: 'input' },
+  ]
+
+  let seq = 0
+  const result = extractSubworkflowGraph(nodes, edges, ['l1'], 'Preview Sub', () => `gen-${++seq}`)
+  assert.equal(result.ok, true)
+  if (!result.ok)
+    return
+
+  const inner = result.subworkflowNode.data.subworkflow!
+  const inputPortNode = inner.nodes.find(n => n.data.nodeName === 'subworkflow_input')
+  const outputPortNode = inner.nodes.find(n => n.data.nodeName === 'subworkflow_output')
+  assert.ok(inputPortNode)
+  assert.ok(outputPortNode)
+  assert.equal(result.remainingEdges[1]?.sourceHandle, `output:${(outputPortNode.data.settings?.port as { name: string }).name}`)
 })

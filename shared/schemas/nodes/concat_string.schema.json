@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/concat_string.schema.json",
+  "type": "object",
+  "title": "Concatenate Strings",
+  "description": "Join a list of resolved string values into one output string.",
+  "categories": [
+    "Demo"
+  ],
+  "markdownDescription": "The `concat_string` node combines the incoming `values` list into a single string.\n\nUse this node when a workflow needs to turn several upstream values into a readable label, summary, or message.\n\n## Use case example\n\nCombine object names from an earlier lookup step into a comma-separated sentence for display in the UI or for downstream reporting.",
+  "locales": {
+    "de": {
+      "title": "Strings verketten",
+      "description": "Verkettet eine Liste von aufgel\u00f6sten String-Werten zu einem Ausgabe-String.",
+      "categories": [
+        "Demo"
+      ],
+      "markdownDescription": "Der `concat_string` Node kombiniert die eingehende `values` Liste zu einem einzigen String.\n\nVerwenden Sie diesen Node, wenn ein Workflow mehrere Upstream-Werte in eine lesbare Beschriftung, Zusammenfassung oder Nachricht umwandeln muss.\n\n## Anwendungsbeispiel\n\nKombinieren Sie Objektnamen aus einem fr\u00fcheren Nachschrittschritt zu einem durch Kommas getrennten Satz f\u00fcr die Anzeige in der Benutzeroberfl\u00e4che oder f\u00fcr nachgelagerte Berichte."
+    },
+    "en": {
+      "title": "Concatenate Strings",
+      "description": "Join a list of resolved string values into one output string.",
+      "categories": [
+        "Demo"
+      ],
+      "markdownDescription": "The `concat_string` node combines the incoming `values` list into a single string.\n\nUse this node when a workflow needs to turn several upstream values into a readable label, summary, or message.\n\n## Use case example\n\nCombine object names from an earlier lookup step into a comma-separated sentence for display in the UI or for downstream reporting."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "separator": {
+          "default": ", ",
+          "description": "String inserted between the resolved input strings.",
+          "title": "Separator",
+          "type": "string"
+        }
+      },
+      "title": "ConcatStringSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "default": "",
+          "description": "Final string assembled from the input strings.",
+          "title": "Concatenated string",
+          "type": "string"
+        }
+      },
+      "title": "ConcatStringResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "default": [],
+          "description": "Resolved values to concatenate.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Input values",
+          "type": "array"
+        }
+      },
+      "title": "ConcatStringInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

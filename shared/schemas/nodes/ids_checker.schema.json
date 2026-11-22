@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/ids_checker.schema.json",
+  "type": "object",
+  "title": "IDS Checker",
+  "description": "Validates the IFC model against one or more IDS specifications.",
+  "categories": [
+    "validation"
+  ],
+  "markdownDescription": "The `ids_checker` node validates IFC elements against an IDS (Information Delivery Specification) file. Each specification defines entity types, properties, and classifications to check. The node supports multiple specifications within a single IDS file and aggregates results across all of them.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[str]` | Required list of fully qualified element references (`<slug>:expr:<id>`) to validate, typically bound to `ifc_element_filter`. Mixed-model lists are allowed: references are grouped by slug and each model is validated once against the IDS file, with results filtered to the given references per group. An empty bound list validates zero elements. |\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `ids_file` | `str` | Path to the IDS specification file (required). |\n| `generate_detailed_report` | `bool` (default: `false`) | Adds a per-specification breakdown to the result. Combined lists are always created. Generating a report file also requires `report_format` and references from a single model. |\n| `report_format` | `\"json\" \\| \"html\" \\| null` (default: `null`) | Format for the generated report file. A report is written only when both `generate_detailed_report` and `report_format` are enabled. The file is saved as `ids_report-{timestamp}.{format}` in the output directory. |\n\n## Output Behavior\n\nThe combined lists (`failed_express_ids`, `passed_express_ids`) are always created. When `generate_detailed_report` is enabled, results are also grouped by specification. A report file is written only when both `generate_detailed_report` and `report_format` are enabled.\n\n## Result\n\n`IdsCheckerResult` contains four fields:\n\n- `failed_express_ids: list[str]` \u2014 Qualified references (`<slug>:expr:<id>`) of elements that failed at least one IDS requirement. Always populated.\n- `passed_express_ids: list[str]` \u2014 Qualified references of elements that passed all applicable IDS requirements. Always populated.\n- `specifications: list[SpecificationResult] | null` \u2014 Per-specification breakdown (its per-spec lists also hold qualified references). Populated when `generate_detailed_report` is enabled; otherwise `null`.\n- `report_path: str | null` \u2014 Path to the generated report file. Populated only when both `generate_detailed_report` and `report_format` are enabled; otherwise `null`.\n\nAn entity not applicable to any specification is silently excluded from both lists.\n\n## Notes\n\n- An empty `ids_file` raises a `ValueError`.\n- The IDS file must be valid XML.\n- Multiple specifications within one IDS are all checked; an entity fails if it violates **any** specification.",
+  "locales": {
+    "de": {
+      "title": "IDS Checker",
+      "description": "Validiert das IFC-Modell gegen eine oder mehrere IDS-Spezifikationen.",
+      "categories": [
+        "validation"
+      ],
+      "markdownDescription": "Der `ids_checker` Node validiert IFC-Elemente gegen eine IDS-Datei (Information Delivery Specification). Jede Spezifikation definiert IFC-Entit\u00e4tstypen, Eigenschaften und Klassifikationen zur Pr\u00fcfung. Der Node unterst\u00fctzt mehrere Spezifikationen in einer einzigen IDS-Datei und aggregiert die Ergebnisse \u00fcber alle Spezifikationen hinweg.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[str]` | Erforderliche Liste voll qualifizierter Referenzen (`<slug>:expr:<id>`) der zu validierenden Elemente. Bei gemischten Listen aus mehreren Modellen werden die Referenzen nach Slug gruppiert: jedes Modell wird einmalig gegen die IDS-Datei validiert und die Ergebnisse auf die Referenzen der jeweiligen Gruppe gefiltert. Jede Referenz wird gegen das in ihr genannte Modell aufgel\u00f6st. |\n\n## Settings\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `ids_file` | `str` | Pfad zur IDS-Spezifikationsdatei (erforderlich). |\n| `generate_detailed_report` | `bool` (Standard: `false`) | Erg\u00e4nzt das Ergebnis um eine Gruppierung nach Specification. Die kombinierten Listen werden immer erstellt. F\u00fcr eine Report-Datei sind zus\u00e4tzlich `report_format` und Referenzen aus einem einzigen Modell erforderlich. |\n| `report_format` | `\"json\" \\| \"html\" \\| null` (Standard: `null`) | Format f\u00fcr die generierte Report-Datei. Ein Report wird nur geschrieben, wenn `generate_detailed_report` und `report_format` aktiviert sind. Die Datei wird als `ids_report-{timestamp}.{format}` im Output-Verzeichnis gespeichert. |\n\n## Ausgabe-Verhalten\n\nDie kombinierten Listen (`failed_express_ids`, `passed_express_ids`) werden immer erstellt. Bei aktivierter Checkbox gibt es zus\u00e4tzlich eine Gruppierung nach Specification. Eine Report-Datei wird nur geschrieben, wenn `generate_detailed_report` und `report_format` aktiviert sind.\n\n## Result\n\n`IdsCheckerResult` enth\u00e4lt vier Felder:\n\n- `failed_express_ids: list[str]` \u2014 voll qualifizierte Referenzen (`<slug>:expr:<id>`) der Elemente, die mindestens eine IDS-Anforderung nicht erf\u00fcllt haben. Wird immer erstellt.\n- `passed_express_ids: list[str]` \u2014 voll qualifizierte Referenzen der Elemente, die alle anwendbaren IDS-Anforderungen erf\u00fcllt haben. Wird immer erstellt.\n- `specifications: list[SpecificationResult] | null` \u2014 Pro-Spezifikation-Aufschl\u00fcsselung. Ist gef\u00fcllt, wenn `generate_detailed_report` aktiviert ist; andernfalls `null`.\n- `report_path: str | null` \u2014 Pfad zur generierten Report-Datei. Ist nur gef\u00fcllt, wenn `generate_detailed_report` und `report_format` aktiviert sind; andernfalls `null`.\n\nEine Entit\u00e4t, die auf keine Spezifikation passt, wird stillschweigend aus beiden Listen ausgeschlossen.\n\n## Notes\n\n- Ein leerer `ids_file`-Wert l\u00f6st einen `ValueError` aus.\n- Die IDS-Datei muss g\u00fcltiges XML sein.\n- Mehrere Spezifikationen in einer IDS-Datei werden alle gepr\u00fcft; eine Entit\u00e4t gilt als fehlgeschlagen, wenn sie **irgendeine** Spezifikation verletzt."
+    },
+    "en": {
+      "title": "IDS Checker",
+      "description": "Validates the IFC model against one or more IDS specifications.",
+      "categories": [
+        "validation"
+      ],
+      "markdownDescription": "The `ids_checker` node validates IFC elements against an IDS (Information Delivery Specification) file. Each specification defines entity types, properties, and classifications to check. The node supports multiple specifications within a single IDS file and aggregates results across all of them.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `express_ids` | `list[str]` | Required list of fully qualified element references (`<slug>:expr:<id>`) to validate, typically bound to `ifc_element_filter`. Mixed-model lists are allowed: references are grouped by slug and each model is validated once against the IDS file, with results filtered to the given references per group. An empty bound list validates zero elements. |\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `ids_file` | `str` | Path to the IDS specification file (required). |\n| `generate_detailed_report` | `bool` (default: `false`) | Adds a per-specification breakdown to the result. Combined lists are always created. Generating a report file also requires `report_format` and references from a single model. |\n| `report_format` | `\"json\" \\| \"html\" \\| null` (default: `null`) | Format for the generated report file. A report is written only when both `generate_detailed_report` and `report_format` are enabled. The file is saved as `ids_report-{timestamp}.{format}` in the output directory. |\n\n## Output Behavior\n\nThe combined lists (`failed_express_ids`, `passed_express_ids`) are always created. When `generate_detailed_report` is enabled, results are also grouped by specification. A report file is written only when both `generate_detailed_report` and `report_format` are enabled.\n\n## Result\n\n`IdsCheckerResult` contains four fields:\n\n- `failed_express_ids: list[str]` \u2014 Qualified references (`<slug>:expr:<id>`) of elements that failed at least one IDS requirement. Always populated.\n- `passed_express_ids: list[str]` \u2014 Qualified references of elements that passed all applicable IDS requirements. Always populated.\n- `specifications: list[SpecificationResult] | null` \u2014 Per-specification breakdown (its per-spec lists also hold qualified references). Populated when `generate_detailed_report` is enabled; otherwise `null`.\n- `report_path: str | null` \u2014 Path to the generated report file. Populated only when both `generate_detailed_report` and `report_format` are enabled; otherwise `null`.\n\nAn entity not applicable to any specification is silently excluded from both lists.\n\n## Notes\n\n- An empty `ids_file` raises a `ValueError`.\n- The IDS file must be valid XML.\n- Multiple specifications within one IDS are all checked; an entity fails if it violates **any** specification."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "ids_file": {
+          "default": "",
+          "description": "Path to the IDS specification file to validate against.",
+          "title": "IDS File",
+          "type": "string"
+        },
+        "generate_detailed_report": {
+          "default": false,
+          "description": "Wenn aktiviert, werden die Ergebnisse zus\u00e4tzlich nach Specification gruppiert ausgegeben (f\u00fcr Report-Generierung). Die kombinierten Listen (failed_express_ids, passed_express_ids) werden immer erstellt.",
+          "title": "Detaillierten Report generieren",
+          "type": "boolean"
+        },
+        "report_format": {
+          "anyOf": [
+            {
+              "enum": [
+                "json",
+                "html",
+                "bcf"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Format f\u00fcr den generierten Report. Nur wirksam wenn generate_detailed_report aktiviert ist.",
+          "title": "Report Format"
+        }
+      },
+      "title": "IdsCheckerSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "failed_express_ids": {
+          "default": [],
+          "description": "Qualified references of entities that failed at least one IDS requirement (combined across all specifications).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Failed Express IDs",
+          "type": "array"
+        },
+        "passed_express_ids": {
+          "default": [],
+          "description": "Qualified references of entities that passed all applicable IDS requirements (combined across all specifications).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Passed Express IDs",
+          "type": "array"
+        },
+        "specifications": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "default": "",
+                    "description": "Name of the IDS specification.",
+                    "title": "Specification Name",
+                    "type": "string"
+                  },
+                  "failed_express_ids": {
+                    "default": [],
+                    "description": "Qualified references of entities that failed this specification's requirements.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Failed Express IDs",
+                    "type": "array"
+                  },
+                  "passed_express_ids": {
+                    "default": [],
+                    "description": "Qualified references of entities that passed this specification's requirements.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Passed Express IDs",
+                    "type": "array"
+                  }
+                },
+                "title": "IdsCheckerSpecificationResult",
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Per-specification breakdown. Only included when generate_detailed_report is enabled.",
+          "title": "Specification Results"
+        },
+        "report_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to the generated report file. Only included when generate_detailed_report and report_format are enabled.",
+          "title": "Report File Path"
+        }
+      },
+      "title": "IdsCheckerResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "express_ids": {
+          "description": "Qualified element references (`<slug>:expr:<id>`) to validate against the IDS requirements. Mixed-model lists are grouped by model and each model is validated once. Bind ifc_element_filter output here.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Express IDs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "express_ids"
+      ],
+      "title": "IdsCheckerInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

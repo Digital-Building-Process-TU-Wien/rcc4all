@@ -66,6 +66,7 @@ function openNodeSettings(nodeId: string) {
 
 provide(openNodeSettingsKey, openNodeSettings)
 
+const route = useRoute()
 const router = useRouter()
 const store = useFlowStore()
 const toast = useToast()
@@ -139,6 +140,85 @@ async function handleNodeDoubleClick(params: { node: Node<NodeData> }) {
   }
 }
 
+function parseScopeQuery(raw: unknown): string[] {
+  if (typeof raw !== 'string' || !raw.trim())
+    return []
+  return raw.split(',').map(id => id.trim()).filter(Boolean)
+}
+
+function currentScopePath(): string[] {
+  return breadcrumbs.value
+    .slice(1)
+    .map(item => item.nodeId)
+    .filter((id): id is string => Boolean(id))
+}
+
+let isSyncingRouteScope = false
+
+watch(
+  () => breadcrumbs.value.map(item => item.nodeId ?? '').join(','),
+  async () => {
+    if (isSyncingRouteScope)
+      return
+    const nextPath = currentScopePath()
+    const currentQueryPath = parseScopeQuery(route.query.scope)
+    if (nextPath.join(',') === currentQueryPath.join(','))
+      return
+
+    isSyncingRouteScope = true
+    try {
+      const nextQuery = { ...route.query }
+      if (nextPath.length > 0)
+        nextQuery.scope = nextPath.join(',')
+      else
+        delete nextQuery.scope
+      await router.push({ query: nextQuery })
+    }
+    finally {
+      isSyncingRouteScope = false
+    }
+  },
+)
+
+watch(
+  () => route.query.scope,
+  async (rawScope) => {
+    if (isSyncingRouteScope)
+      return
+    const targetPath = parseScopeQuery(rawScope)
+    const currentPath = currentScopePath()
+    if (targetPath.join(',') === currentPath.join(','))
+      return
+
+    isSyncingRouteScope = true
+    try {
+      slideover.close()
+      let common = 0
+      while (
+        common < currentPath.length
+        && common < targetPath.length
+        && currentPath[common] === targetPath[common]
+      ) {
+        common++
+      }
+
+      if (common < currentPath.length)
+        store.goToScope(common)
+
+      for (let i = common; i < targetPath.length; i++) {
+        if (!store.enterSubworkflow(targetPath[i]!))
+          break
+      }
+
+      await nextTick()
+      fitView(0.24)
+    }
+    finally {
+      isSyncingRouteScope = false
+    }
+  },
+)
+
 async function handleBreadcrumb(index: number) {
   if (index === breadcrumbs.value.length - 1)
     return
@@ -191,8 +271,8 @@ function getNextNodePosition() {
   }
 
   return {
-    x: basePosition.x + (nodeIndex % 3) * 56,
-    y: basePosition.y + Math.floor(nodeIndex / 3) * 108,
+    x: basePosition.x + (nodeIndex % 3) * 240,
+    y: basePosition.y + Math.floor(nodeIndex / 3) * 120,
   }
 }
 

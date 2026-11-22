@@ -25,7 +25,7 @@ export interface WorkflowDirectoryListing {
 }
 
 /**
- * The runner payload. `openbim_runner` forbids unknown keys, so this is also the
+ * The runner payload. `rcc4all_runner` forbids unknown keys, so this is also the
  * exact shape that may be written to disk.
  */
 export interface WorkflowPayload {

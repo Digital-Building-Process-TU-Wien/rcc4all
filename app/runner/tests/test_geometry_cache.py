@@ -6,8 +6,8 @@ import ifcopenshell
 import pytest
 import trimesh
 
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.util.geometry import (
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.util.geometry import (
     GEOMETRY_LIBRARY,
     build_geometry_cache,
     cache_mesh,
@@ -426,7 +426,7 @@ def test_composite_parent_with_all_parts_cached_is_synthesized() -> None:
     rel.RelatedObjects = [FakePart(165), FakePart(180)]
     fake_model = FakeAggregateModel([rel])
 
-    from openbim_runner.util.geometry import _merge_decomposed_parents
+    from rcc4all_runner.util.geometry import _merge_decomposed_parents
 
     cache = _merge_decomposed_parents(fake_model, cache)
 
@@ -449,7 +449,7 @@ def test_composite_parent_with_missing_part_is_not_synthesized() -> None:
     rel.RelatedObjects = [FakePart(165), FakePart(999)]
     fake_model = FakeAggregateModel([rel])
 
-    from openbim_runner.util.geometry import _merge_decomposed_parents
+    from rcc4all_runner.util.geometry import _merge_decomposed_parents
 
     cache = _merge_decomposed_parents(fake_model, cache)
 
@@ -477,7 +477,7 @@ def test_composite_parent_with_own_geometry_is_not_overwritten() -> None:
     rel.RelatedObjects = [FakePart(165), FakePart(180)]
     fake_model = FakeAggregateModel([rel])
 
-    from openbim_runner.util.geometry import _merge_decomposed_parents
+    from rcc4all_runner.util.geometry import _merge_decomposed_parents
 
     cache = _merge_decomposed_parents(fake_model, cache)
 
@@ -493,7 +493,7 @@ def test_non_ifc_model_returns_cache_unchanged() -> None:
         shape_iterator=fake.iterator,
     )
 
-    from openbim_runner.util.geometry import _merge_decomposed_parents
+    from rcc4all_runner.util.geometry import _merge_decomposed_parents
 
     cache = _merge_decomposed_parents(object(), cache)
 
@@ -612,7 +612,7 @@ def test_nested_layer_without_geometry_adversarial_order() -> None:
     rel_wall.RelatingObject = FakePart(170)
     rel_wall.RelatedObjects = [FakePart(186), FakePart(204), FakePart(212)]
 
-    from openbim_runner.util.geometry import _merge_decomposed_parents
+    from rcc4all_runner.util.geometry import _merge_decomposed_parents
 
     cache = _merge_decomposed_parents(FakeAggregateModel([rel_wall, rel_l3]), cache)
 
@@ -728,7 +728,7 @@ def test_ifc_member_without_geometry_nested_sublayers() -> None:
     rel_wall.RelatingObject = FakePart(261)
     rel_wall.RelatedObjects = [FakePart(277), FakePart(347)]
 
-    from openbim_runner.util.geometry import _merge_decomposed_parents
+    from rcc4all_runner.util.geometry import _merge_decomposed_parents
 
     cache = _merge_decomposed_parents(FakeAggregateModel([rel_member, rel_wall]), cache)
 
@@ -755,7 +755,7 @@ def test_merged_multilayer_surface_area_correct() -> None:
     boundary only, not the sum of individual surface areas (which would
     include internal faces).
     """
-    from openbim_runner.util.geometry import _merge_part_meshes
+    from rcc4all_runner.util.geometry import _merge_part_meshes
 
     cube1 = trimesh.creation.box()
     cube2 = trimesh.creation.box().apply_translation([1.0, 0.0, 0.0])
@@ -778,7 +778,7 @@ def test_union_fallback_to_concatenate() -> None:
     """
     from unittest.mock import patch
 
-    from openbim_runner.util.geometry import _merge_part_meshes
+    from rcc4all_runner.util.geometry import _merge_part_meshes
 
     cube1 = trimesh.creation.box()
     cube2 = trimesh.creation.box().apply_translation([2.0, 0.0, 0.0])
@@ -807,7 +807,7 @@ class FakeAlignmentShape:
 
 def test_add_alignment_geometry_di_unit() -> None:
     """DI unit test: fake model with IfcAlignment + fake shape_creator."""
-    from openbim_runner.util.geometry import _add_alignment_geometry
+    from rcc4all_runner.util.geometry import _add_alignment_geometry
 
     align_id = 166
     verts = (0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0)
@@ -834,7 +834,7 @@ def test_add_alignment_geometry_di_unit() -> None:
 
 def test_add_alignment_geometry_non_ifc_noop() -> None:
     """Non-IFC model or by_type failure should be a no-op."""
-    from openbim_runner.util.geometry import _add_alignment_geometry
+    from rcc4all_runner.util.geometry import _add_alignment_geometry
 
     cache: dict[str, trimesh.Trimesh] = {}
     fake_settings = FakeSettings()
@@ -848,7 +848,7 @@ def test_add_alignment_geometry_real_models() -> None:
     """Real-model test: both rail fixtures have alignment tubes cached."""
     import pathlib
 
-    from openbim_runner.util.geometry import build_geometry_cache
+    from rcc4all_runner.util.geometry import build_geometry_cache
 
     base = pathlib.Path(__file__).parent / "testdata" / "models" / "rail"
     fixtures = ["simple_railway.ifc", "Simple_Railway-Civil_3D.ifc"]

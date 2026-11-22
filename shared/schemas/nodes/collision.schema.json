@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/collision.schema.json",
+  "type": "object",
+  "title": "Collision Detection",
+  "description": "Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.",
+  "categories": [
+    "geometry",
+    "collision"
+  ],
+  "markdownDescription": "The `collision` node detects clashes between two lists of cached geometries. References are **fully qualified geometry cache keys**: `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, or `inter:<id>` for helper/intersection geometry. IFC references resolve against the model named inside them, while `gen:` and `inter:` keys are read directly from the shared geometry cache. The two lists may therefore come from different IFC files. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:\n\n1. **AABB prefilter** \u2014 skip pairs with non-overlapping bounding boxes.\n2. **Boolean intersection** \u2014 repair both meshes to watertight, compute the intersection. A pair collides when the intersection has positive volume.\n3. **FCL fallback** \u2014 when repair or boolean fails, use FCL triangle-based collision detection on the raw meshes. FCL-decided collisions are reported but cannot produce intersection meshes.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `list_a` | `list[str]` | First list of fully qualified geometry cache keys (required) |\n| `list_b` | `list[str]` | Second list of fully qualified geometry cache keys (required) |\n\nBoth inputs are required and unbound inputs fail input validation. An empty list means zero geometry keys, so no pairs are tested. A malformed reference or one with no cached geometry raises an error.\n\n## Pairing\n\n- **Self-pairs** are skipped. Ancestor/descendant pairs via `IfcRelAggregates`/`IfcRelNests` are also skipped (intra-model only). Pairs are not deduplicated: both `X\u2194Y` and `Y\u2194X` are emitted.\n\n## Mode\n\n- **`boolean`** (default): reports which pairs collide, no intersection geometry stored.\n- **`intersection_mesh`**: additionally stores each colliding pair's intersection mesh in the geometry cache under a deterministic key.\n\n## Result\n\n`CollisionResult` contains three fields:\n\n- `collisions: dict[key_a, list[key_b]]` \u2014 colliding pairs, grouped by side-A key.\n- `errors: list[{key_a, key_b, error}]` \u2014 pairs that could not be decided (both boolean and FCL failed, or FCL unavailable).\n- `intersection_meshes: dict[pair_key, cache_key | null]` \u2014 only in `intersection_mesh` mode. Maps `\"{key_a}__{key_b}\"` to the cache key `inter:intersection_{key_a}_{key_b}`. `null` for FCL-decided collisions (no mesh generated). Empty in `boolean` mode.\n\nNon-colliding pairs are absent from the result.\n\n## Intersection-mesh keys\n\nIn `intersection_mesh` mode, each boolean-decided colliding pair is cached under:\n\n```\ninter:intersection_{key_a}_{key_b}\n```\n\nIt is an `inter:` key and can be passed to geometry consumers such as the measurement node. Because pairs are not deduplicated, `X\u2194Y` and `Y\u2194X` each get their own key. FCL-decided collisions appear with a `null` value; no mesh is stored.\n\n## Notes\n\n- Non-watertight meshes are repaired best-effort (vertex welding, hole filling, pymeshfix). When repair or boolean fails, FCL (Flexible Collision Library) provides triangle-based collision detection on raw triangle soups. Pairs reach `errors` only when both boolean and FCL fail (requires `python-fcl`).\n- Face-touching pairs produce zero-volume intersections and count as non-colliding.",
+  "locales": {
+    "de": {
+      "title": "Kollisionserkennung",
+      "description": "Clash-Detection zwischen zwei Geometrielisten \u00fcber AABB-Pr\u00e4filter, Boolesche Schnittmenge und FCL-Fallback f\u00fcr nicht reparierbare Netze.",
+      "categories": [
+        "geometry",
+        "collision"
+      ],
+      "markdownDescription": "Der `collision`-Node erkennt Kollisionen zwischen zwei Listen zwischengespeicherter Geometrien. Referenzen sind **voll qualifizierte Geometrie-Cache-Keys**: `<slug>:expr:<id>` (z. B. `main:expr:63`) f\u00fcr IFC-Elemente, `gen:<object_id>` f\u00fcr generierte Geometrie oder `inter:<id>` f\u00fcr Hilfsgeometrie. IFC-Referenzen werden gegen das darin genannte Modell aufgel\u00f6st. `gen:`- und `inter:`-Keys werden direkt aus dem gemeinsamen Geometrie-Cache gelesen. Die beiden Listen d\u00fcrfen daher aus unterschiedlichen IFC-Dateien stammen. Jedes Element der Liste A wird gegen jedes Element der Liste B getestet (kartesisches Produkt). Jedes Paar durchl\u00e4uft eine dreistufige Pipeline:\n\n1. **AABB-Pr\u00e4filter** \u2014 Paare ohne \u00fcberlappende Bounding-Boxes \u00fcberspringen.\n2. **Boolesche Schnittmenge** \u2014 beide Netze zu wasserdichten Netzen reparieren, Schnittmenge berechnen. Eine Kollision liegt vor, wenn die Schnittmenge positives Volumen hat.\n3. **FCL-Fallback** \u2014 wenn Reparatur oder Boolesche Operation fehlschlagen, FCL dreiecksbasierte Kollisionserkennung auf den rohen Netzen verwenden. \u00dcber FCL entschiedene Kollisionen werden gemeldet, erzeugen aber kein Schnittmengennetz.\n\n## Eingaben\n\n| Name | Typ | Beschreibung |\n|------|-----|--------------|\n| `list_a` | `list[string]` | Erste Liste von Geometrie-Cache-Keys \u2014 `<slug>:expr:<id>`, `gen:<object_id>` oder `inter:<id>` (erforderlich) |\n| `list_b` | `list[string]` | Zweite Liste von Geometrie-Cache-Keys \u2014 gleiche Kodierung (erforderlich) |\n\nBeide Listen sind erforderlich. Eine leere Liste bedeutet null Elemente \u2014 es werden keine Paare getestet (kein Ganzmodell-Fallback). Eine missgebildete Referenz oder eine Referenz ohne zwischengespeicherte Geometrie l\u00f6st einen Fehler aus.\n\n## Paarbildung\n\n- **Selbstpaare** sowie Vorfahr-/Nachfahr-Paare \u00fcber `IfcRelAggregates`/`IfcRelNests` (nur innerhalb desselben Modells) werden \u00fcbersprungen. Paare werden nicht dedupliziert: sowohl `X\u2194Y` als auch `Y\u2194X` werden ausgegeben.\n\n## Modus\n\n- **`boolean`** (Standard): meldet, welche Paare kollidieren, ohne Schnittmengengeometrie zu speichern.\n- **`intersection_mesh`**: speichert zus\u00e4tzlich das Schnittmengennetz jedes kollidierenden Paares unter einer deterministischen ID im Geometrie-Cache.\n\n## Ergebnis\n\n`CollisionResult` enth\u00e4lt drei Felder:\n\n- `collisions: dict[key_a, list[key_b]]` \u2014 kollidierende Paare, gruppiert nach Seiten-A-ID.\n- `errors: list[{key_a, key_b, error}]` \u2014 Paare, die nicht entschieden werden konnten (sowohl Boolesche Operation als auch FCL fehlgeschlagen, oder FCL nicht verf\u00fcgbar).\n- `intersection_meshes: dict[paar_id, cache_id | null]` \u2014 nur im Modus `intersection_mesh`. Ordnet `\"{key_a}__{key_b}\"` die Cache-ID `inter:intersection_{key_a}_{key_b}` zu. `null` f\u00fcr \u00fcber FCL entschiedene Kollisionen (kein Netz erzeugt). Im Modus `boolean` leer.\n\nNicht kollidierende Paare fehlen im Ergebnis.\n\n## IDs der Schnittmengennetze\n\nIm Modus `intersection_mesh` wird jedes \u00fcber die Boolesche Operation entschiedene kollidierende Paar unter folgender ID gespeichert:\n\n```\ninter:intersection_{key_a}_{key_b}\n```\n\nDie `inter:`-ID ist ein g\u00fcltiger Geometrie-Cache-Key und kann an Geometrieknoten wie den measurement-Node \u00fcbergeben werden. Da Paare nicht dedupliziert werden, erhalten `X\u2194Y` und `Y\u2194X` jeweils eine eigene ID. \u00dcber FCL entschiedene Kollisionen erscheinen mit einem `null`-Wert; es wird kein Netz gespeichert.\n\n## Hinweise\n\n- Nicht wasserdichte Netze werden bestm\u00f6glich repariert (vertex welding, hole filling, pymeshfix). Wenn Reparatur oder Boolesche Operation fehlschlagen, bietet FCL (Flexible Collision Library) dreiecksbasierte Kollisionserkennung auf rohen Dreiecksnetzen. Paare landen nur dann in `errors`, wenn sowohl Boolesche Operation als auch FCL fehlschlagen.\n- Sich ber\u00fchrende Paare erzeugen Schnittmengen mit null Volumen und gelten als nicht kollidierend."
+    },
+    "en": {
+      "title": "Collision Detection",
+      "description": "Clash detection between two geometry lists via AABB prefilter, boolean intersection, and FCL fallback for non-repairable meshes.",
+      "categories": [
+        "geometry",
+        "collision"
+      ],
+      "markdownDescription": "The `collision` node detects clashes between two lists of cached geometries. References are **fully qualified geometry cache keys**: `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, or `inter:<id>` for helper/intersection geometry. IFC references resolve against the model named inside them, while `gen:` and `inter:` keys are read directly from the shared geometry cache. The two lists may therefore come from different IFC files. Every element of list A is tested against every element of list B (cartesian product). Each pair goes through a three-stage pipeline:\n\n1. **AABB prefilter** \u2014 skip pairs with non-overlapping bounding boxes.\n2. **Boolean intersection** \u2014 repair both meshes to watertight, compute the intersection. A pair collides when the intersection has positive volume.\n3. **FCL fallback** \u2014 when repair or boolean fails, use FCL triangle-based collision detection on the raw meshes. FCL-decided collisions are reported but cannot produce intersection meshes.\n\n## Inputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `list_a` | `list[str]` | First list of fully qualified geometry cache keys (required) |\n| `list_b` | `list[str]` | Second list of fully qualified geometry cache keys (required) |\n\nBoth inputs are required and unbound inputs fail input validation. An empty list means zero geometry keys, so no pairs are tested. A malformed reference or one with no cached geometry raises an error.\n\n## Pairing\n\n- **Self-pairs** are skipped. Ancestor/descendant pairs via `IfcRelAggregates`/`IfcRelNests` are also skipped (intra-model only). Pairs are not deduplicated: both `X\u2194Y` and `Y\u2194X` are emitted.\n\n## Mode\n\n- **`boolean`** (default): reports which pairs collide, no intersection geometry stored.\n- **`intersection_mesh`**: additionally stores each colliding pair's intersection mesh in the geometry cache under a deterministic key.\n\n## Result\n\n`CollisionResult` contains three fields:\n\n- `collisions: dict[key_a, list[key_b]]` \u2014 colliding pairs, grouped by side-A key.\n- `errors: list[{key_a, key_b, error}]` \u2014 pairs that could not be decided (both boolean and FCL failed, or FCL unavailable).\n- `intersection_meshes: dict[pair_key, cache_key | null]` \u2014 only in `intersection_mesh` mode. Maps `\"{key_a}__{key_b}\"` to the cache key `inter:intersection_{key_a}_{key_b}`. `null` for FCL-decided collisions (no mesh generated). Empty in `boolean` mode.\n\nNon-colliding pairs are absent from the result.\n\n## Intersection-mesh keys\n\nIn `intersection_mesh` mode, each boolean-decided colliding pair is cached under:\n\n```\ninter:intersection_{key_a}_{key_b}\n```\n\nIt is an `inter:` key and can be passed to geometry consumers such as the measurement node. Because pairs are not deduplicated, `X\u2194Y` and `Y\u2194X` each get their own key. FCL-decided collisions appear with a `null` value; no mesh is stored.\n\n## Notes\n\n- Non-watertight meshes are repaired best-effort (vertex welding, hole filling, pymeshfix). When repair or boolean fails, FCL (Flexible Collision Library) provides triangle-based collision detection on raw triangle soups. Pairs reach `errors` only when both boolean and FCL fail (requires `python-fcl`).\n- Face-touching pairs produce zero-volume intersections and count as non-colliding."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "default": "boolean",
+          "description": "'boolean' reports which pairs collide without storing intersection geometry. 'intersection_mesh' additionally stores each collision's intersection mesh in the geometry cache under a deterministic key (documented in the README).",
+          "enum": [
+            "boolean",
+            "intersection_mesh"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "title": "CollisionSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "collisions": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "Grouped by side-A cache key; each value lists the side-B cache keys it collides with. Only colliding pairs are included.",
+          "title": "Collisions",
+          "type": "object"
+        },
+        "errors": {
+          "default": [],
+          "description": "Pairs whose collision could not be decided (e.g. non-watertight or boolean failure).",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "key_a": {
+                "description": "Cache key of the first geometry in the failed pair.",
+                "title": "Key A",
+                "type": "string"
+              },
+              "key_b": {
+                "description": "Cache key of the second geometry in the failed pair.",
+                "title": "Key B",
+                "type": "string"
+              },
+              "error": {
+                "description": "Error reason, e.g. 'non-watertight' or 'boolean failed: ...'.",
+                "title": "Error",
+                "type": "string"
+              }
+            },
+            "required": [
+              "key_a",
+              "key_b",
+              "error"
+            ],
+            "title": "CollisionError",
+            "type": "object"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "intersection_meshes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": {},
+          "description": "Only populated in 'intersection_mesh' mode. Maps a pair key '{key_a}__{key_b}' to the geometry-cache key 'inter:intersection_{key_a}_{key_b}' under which the intersection mesh was stored. A null value signals an FCL-decided collision (mesh non-repairable or boolean failed) for which no intersection mesh could be generated. Empty in 'boolean' mode.",
+          "title": "Intersection Meshes",
+          "type": "object"
+        }
+      },
+      "title": "CollisionResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "list_a": {
+          "description": "First list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`), in the order to test. Bind ifc_element_filter output here.",
+          "items": {
+            "type": "string"
+          },
+          "title": "List A",
+          "type": "array"
+        },
+        "list_b": {
+          "description": "Second list of geometry cache references (`<slug>:expr:<id>`, `gen:<object_id>` or `inter:<id>`) to test the first list against. Mixed-model lists are allowed; each reference resolves against its own model.",
+          "items": {
+            "type": "string"
+          },
+          "title": "List B",
+          "type": "array"
+        }
+      },
+      "required": [
+        "list_a",
+        "list_b"
+      ],
+      "title": "CollisionInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

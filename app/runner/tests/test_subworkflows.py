@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from openbim_runner.workflow import (
+from rcc4all_runner.workflow import (
     ModelFile,
     NodePosition,
     SubworkflowDefinition,
@@ -21,7 +21,7 @@ def _files() -> list[ModelFile]:
 
 
 def _port(name: str) -> dict[str, Any]:
-    return {"name": name, "type": {"type": "array", "items": {"type": "string"}}}
+    return {"name": name}
 
 
 def _input(node_id: str = "in", port_name: str = "elements") -> WorkflowNode:
@@ -797,3 +797,101 @@ def test_rejects_invalid_subworkflows(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         expand_workflow(_workflow(nodes, edges))
+
+
+def test_passthrough_subworkflow_validates_concrete_types() -> None:
+    from rcc4all_runner.workflow import validate_workflow
+
+    # Outer `get_property.mode` (string) -> subworkflow input -> inner `concat_string.values` (array<string>) fails.
+    mismatch = _workflow(
+        [
+            WorkflowNode(id="filter", type="ifc_element_filter"),
+            WorkflowNode(
+                id="props",
+                type="get_property",
+                input_bindings={"express_ids": "filter.express_ids"},
+            ),
+            WorkflowNode(
+                id="sw",
+                type="subworkflow",
+                input_bindings={"vals": "props.mode"},
+                subworkflow=_inner(
+                    [
+                        _input("in", "vals"),
+                        WorkflowNode(
+                            id="join",
+                            type="concat_string",
+                            input_bindings={"values": "in.vals"},
+                        ),
+                        _output("out", "text", producer="join.value"),
+                    ],
+                    [("in", "join"), ("join", "out")],
+                ),
+            ),
+        ],
+        [("filter", "props"), ("props", "sw")],
+    )
+    with pytest.raises(ValueError, match="Type mismatch"):
+        validate_workflow(mismatch)
+
+    # Outer `ifc_element_filter.express_ids` (array<string>) -> subworkflow -> `concat_string.values` passes.
+    valid = _workflow(
+        [
+            WorkflowNode(id="filter", type="ifc_element_filter"),
+            WorkflowNode(
+                id="sw",
+                type="subworkflow",
+                input_bindings={"vals": "filter.express_ids"},
+                subworkflow=_inner(
+                    [
+                        _input("in", "vals"),
+                        WorkflowNode(
+                            id="join",
+                            type="concat_string",
+                            input_bindings={"values": "in.vals"},
+                        ),
+                        _output("out", "text", producer="join.value"),
+                    ],
+                    [("in", "join"), ("join", "out")],
+                ),
+            ),
+        ],
+        [("filter", "sw")],
+    )
+    validate_workflow(valid)
+
+
+def test_subworkflow_port_rejects_legacy_type_field() -> None:
+    from rcc4all_runner.workflow import validate_workflow
+
+    legacy = _workflow(
+        [
+            WorkflowNode(id="filter", type="ifc_element_filter"),
+            WorkflowNode(
+                id="sw",
+                type="subworkflow",
+                input_bindings={"vals": "filter.express_ids"},
+                subworkflow=_inner(
+                    [
+                        WorkflowNode(
+                            id="in",
+                            type="subworkflow_input",
+                            settings={
+                                "port": {"name": "vals", "type": {"type": "string"}}
+                            },
+                        ),
+                        WorkflowNode(
+                            id="join",
+                            type="concat_string",
+                            input_bindings={"values": "in.vals"},
+                        ),
+                        _output("out", "text", producer="join.value"),
+                    ],
+                    [("in", "join"), ("join", "out")],
+                ),
+            ),
+        ],
+        [("filter", "sw")],
+    )
+    with pytest.raises(ValueError, match="invalid port definition"):
+        validate_workflow(legacy)
