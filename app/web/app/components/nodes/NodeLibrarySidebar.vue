@@ -65,6 +65,7 @@ const filteredNodes = computed(() => {
 const nodesByCategory = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   const result: Record<string, AvailableNode[]> = {}
+  const categoryLabels = new Map<string, string>()
 
   availableNodes.value.forEach((node) => {
     let nodeMatches = true
@@ -76,20 +77,27 @@ const nodesByCategory = computed(() => {
     if (!nodeMatches)
       return
 
-    const hasCategories = node.categories.length > 0
+    const normalizedCategories = node.categories
+      .map(cat => cat.trim())
+      .filter(Boolean)
 
-    if (hasCategories) {
-      node.categories.forEach((cat) => {
+    if (normalizedCategories.length > 0) {
+      normalizedCategories.forEach((cat) => {
+        const key = cat.toLowerCase()
+        const displayLabel = categoryLabels.get(key) ?? cat
+        if (!categoryLabels.has(key))
+          categoryLabels.set(key, displayLabel)
+
         let categoryMatches = true
         if (query) {
-          categoryMatches = cat.toLowerCase().includes(query)
+          categoryMatches = key.includes(query)
         }
 
         if (categoryMatches || nodeMatches) {
-          if (!result[cat])
-            result[cat] = []
-          if (!result[cat].some(n => n.nodeName === node.nodeName)) {
-            result[cat].push(node)
+          if (!result[displayLabel])
+            result[displayLabel] = []
+          if (!result[displayLabel].some(n => n.nodeName === node.nodeName)) {
+            result[displayLabel].push(node)
           }
         }
       })
@@ -236,9 +244,12 @@ function handleAddNode(node: AvailableNode) {
         </div>
 
         <UInput
+          id="node-library-search"
           v-model="searchQuery"
+          name="node-library-search"
           icon="i-lucide-search"
           :placeholder="t('library.filterNodes')"
+          :aria-label="t('library.filterNodes')"
           size="sm"
           clearable
         />

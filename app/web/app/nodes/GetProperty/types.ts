@@ -1,4 +1,4 @@
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 export type GetPropertyNode = SchemaNodeType<'get_property'>
 export type GetPropertySettings = NonNullable<GetPropertyNode['data']['settings']>

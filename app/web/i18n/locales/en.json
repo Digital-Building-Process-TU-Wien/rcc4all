@@ -321,7 +321,6 @@
       "inputPortTitle": "Input port",
       "outputPortTitle": "Output port",
       "portName": "Port name",
-      "portType": "Type",
       "noPorts": "No ports yet. Open the subworkflow to add inputs.",
       "invalidPortName": "Use letters, digits and underscores, starting with a letter.",
       "duplicatePortName": "Port names must be unique inside the subworkflow.",
@@ -330,18 +329,7 @@
       "editInsideHint": "Group nodes into a nested canvas. Double-click the node on the canvas to open it.",
       "open": "Open subworkflow",
       "settings": "Subworkflow settings",
-      "root": "Workflow",
-      "types": {
-        "any": "Any",
-        "string": "String",
-        "number": "Number",
-        "integer": "Integer",
-        "boolean": "Boolean",
-        "object": "Object",
-        "arrayString": "Array of strings",
-        "arrayNumber": "Array of numbers",
-        "arrayObject": "Array of objects"
-      }
+      "root": "Workflow"
     },
     "property": {
       "noSelectionsAdded": "No selections added",

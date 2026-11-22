@@ -3,7 +3,7 @@ import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
 import { Handle, Position } from '@vue-flow/core'
 import NodeDeleteButton from '~/components/nodes/NodeDeleteButton.vue'
-import { getNodeOutputPorts } from '~/utils/schema-helpers'
+import { getNodeOutputPorts } from '~/schemas'
 
 const props = defineProps<NodeProps<NodeData>>()
 const { t } = useI18n()

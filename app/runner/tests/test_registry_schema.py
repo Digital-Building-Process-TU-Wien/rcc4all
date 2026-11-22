@@ -1,35 +1,30 @@
 from __future__ import annotations
 
-from openbim_runner.nodes import get_registry_schema
+from pathlib import Path
+
+from rcc4all_runner.schemas import (
+    export_schemas,
+    load_schemas,
+)
 
 
-def test_registry_schema_includes_node_readme_metadata() -> None:
-    schema = get_registry_schema()
+def test_export_and_load_schemas_round_trip_and_prune_stale(tmp_path: Path) -> None:
+    stale = tmp_path / "nodes" / "removed_node.schema.json"
+    stale.parent.mkdir(parents=True, exist_ok=True)
+    stale.write_text("{}\n", encoding="utf-8")
 
-    concat_string_schema = schema["properties"]["concat_string"]
-    assert concat_string_schema["title"] == "Concatenate Strings"
-    assert (
-        concat_string_schema["description"]
-        == "Join a list of resolved string values into one output string."
-    )
-    assert "Use case example" in concat_string_schema["markdownDescription"]
+    written = export_schemas(tmp_path)
+    assert not stale.exists()
+    assert (tmp_path / "index.json") in written
+    assert (tmp_path / "workflow.schema.json") in written
 
-    for node_name in ["concat_string", "ifc_element_filter", "loi_check"]:
-        node_schema = schema["properties"][node_name]
-        assert node_schema["markdownDescription"]
-
-
-def test_registry_schema_node_keys_are_sorted() -> None:
-    schema = get_registry_schema()
-
-    node_names = list(schema["properties"].keys())
-    assert node_names == sorted(node_names)
-
-
-def test_registry_schema_locales_are_sorted() -> None:
-    schema = get_registry_schema()
-
-    for node_schema in schema["properties"].values():
+    loaded = load_schemas(tmp_path)
+    assert loaded.manifest["workflow"] == "workflow.schema.json"
+    assert list(loaded.nodes.keys()) == sorted(loaded.nodes.keys())
+    assert loaded.nodes
+    for node_schema in loaded.nodes.values():
         locales = list(node_schema["locales"].keys())
-        assert locales == sorted(locales), node_schema["title"]
-        assert "en" in locales
+        assert locales == sorted(locales)
+
+    assert "SubworkflowPort" in loaded.workflow["$defs"]
+    assert list(loaded.workflow["$defs"]["SubworkflowPort"]["properties"]) == ["name"]

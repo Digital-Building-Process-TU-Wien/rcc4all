@@ -1,27 +1,20 @@
-import type { PortType, WorkflowDefinition } from '../scripts/workflow-schema'
+import type { JsonSchema, WorkflowDefinition } from '../app/schemas'
+import type { StoredNode } from '../app/utils/nodes'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  areTypesCompatible,
-  getInputLabel,
-  getNodeInputPorts,
-  getNodeOutputPorts,
+  arePortsCompatible,
+  findPortMismatchSchemas,
+  getOutputSchema,
   getOutputSocketTargets,
-  jsonSchemaToPortType,
-} from '../app/utils/schema-helpers'
-import schemaJson from '../scripts/schema.json'
-import { SubworkflowPortSchema, WorkflowDefinitionSchema } from '../scripts/workflow-schema.zod'
+  getRegisteredNodeNames,
+  isSchemaAssignable,
+  resolveScopeContext,
+  SubworkflowPortSchema,
+  WorkflowDefinitionSchema,
+} from '../app/schemas'
 
-const WORKFLOW_SECTION = schemaJson as { 'x-workflows'?: { compatibility?: Record<string, string[]> } }
-const COMPATIBILITY = WORKFLOW_SECTION['x-workflows']?.compatibility ?? {}
-
-const SCALAR_NAMES = ['string', 'integer', 'number', 'boolean', 'object', 'any'] as const
-
-function scalar(name: typeof SCALAR_NAMES[number]): PortType {
-  return { type: name }
-}
-
-test('generated zod accepts a valid workflow and rejects a bad port type', () => {
+test('generated zod accepts a valid workflow and name-only subworkflow ports', () => {
   const workflow = {
     files: [{ path: 'model.ifc', slug: 'main' }],
     nodes: [
@@ -35,135 +28,210 @@ test('generated zod accepts a valid workflow and rejects a bad port type', () =>
     edges: [{ source: 'files-1', target: 'concat-1' }],
   } satisfies WorkflowDefinition
 
-  const valid = WorkflowDefinitionSchema.safeParse(workflow)
-  assert.equal(valid.success, true)
+  assert.equal(WorkflowDefinitionSchema.safeParse(workflow).success, true)
+  assert.equal(WorkflowDefinitionSchema.safeParse({ ...workflow, nope: true }).success, false)
 
-  // Unknown top-level keys are rejected (the runner forbids them too).
-  const unknownKey = WorkflowDefinitionSchema.safeParse({ ...workflow, nope: true })
-  assert.equal(unknownKey.success, false)
-
-  // A malformed port type never passes the generated schema.
-  const badPort = SubworkflowPortSchema.safeParse({ name: 'value', type: { type: 'nonsense' } })
-  assert.equal(badPort.success, false)
-
-  const goodPort = SubworkflowPortSchema.safeParse({ name: 'value', type: { type: 'array', items: { type: 'string' } } })
-  assert.equal(goodPort.success, true)
+  // SubworkflowPort is name-only; extra keys like `type` are rejected strictly.
+  assert.equal(SubworkflowPortSchema.safeParse({ name: 'value' }).success, true)
+  assert.equal(SubworkflowPortSchema.safeParse({ name: 'value', type: { type: 'string' } }).success, false)
+  assert.equal(SubworkflowPortSchema.safeParse({}).success, false)
 })
 
-test('rule function gives the same answers as the exported table', () => {
-  for (const source of SCALAR_NAMES) {
-    const targets = COMPATIBILITY[source] ?? []
-    for (const target of SCALAR_NAMES) {
-      assert.equal(
-        areTypesCompatible(scalar(source), scalar(target)),
-        targets.includes(target),
-        `table row '${source}': expected ${source} -> ${target} to be ${targets.includes(target)}`,
-      )
-    }
-  }
+test('isSchemaAssignable enforces JSON Schema structural assignability rules', () => {
+  const cases: Array<[JsonSchema, JsonSchema, boolean, string]> = [
+    [{ type: 'string' }, { type: 'string' }, true, 'string -> string'],
+    [{ type: 'integer' }, { type: 'number' }, true, 'integer -> number'],
+    [{ type: 'number' }, { type: 'integer' }, false, 'number -> integer'],
+    [{ type: 'string' }, { type: 'integer' }, false, 'string -> integer'],
+    [{}, { type: 'array', items: { type: 'string' } }, true, 'any -> string[]'],
+    [{ type: 'array', items: { type: 'string' } }, { type: 'array', items: {} }, true, 'string[] -> any[]'],
+    [{ type: 'array', items: { type: 'integer' } }, { type: 'array', items: { type: 'number' } }, true, 'integer[] -> number[]'],
+    [{ type: 'array', items: { type: 'number' } }, { type: 'array', items: { type: 'integer' } }, false, 'number[] -> integer[]'],
+    [{ anyOf: [{ type: 'string' }, { type: 'null' }] }, { type: 'string' }, true, 'string | null -> string'],
+    [{ anyOf: [{ type: 'integer' }, { type: 'number' }] }, { type: 'number' }, true, 'integer | number -> number'],
+    [{ type: 'string' }, { anyOf: [{ type: 'integer' }, { type: 'string' }] }, true, 'string -> integer | string'],
+    [{ enum: ['volume', 'area'] }, { type: 'string' }, true, 'string enum -> string'],
+    [{ enum: ['volume'] }, { enum: ['volume', 'area'] }, true, 'subset enum -> superset enum'],
+    [{ type: 'string' }, { enum: ['volume', 'area'] }, false, 'string -> narrow enum'],
+    [{ const: true }, { type: 'integer' }, false, 'boolean const -> integer'],
+    [
+      { type: 'object', properties: { id: { type: 'string' }, value: { type: 'integer' } }, required: ['id', 'value'] },
+      { type: 'object', properties: { id: { type: 'string' }, value: { type: 'number' } }, required: ['id'] },
+      true,
+      'object with superset required fields and widened property',
+    ],
+    [
+      { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+      { type: 'object', properties: { id: { type: 'string' }, value: { type: 'number' } }, required: ['id', 'value'] },
+      false,
+      'object missing required field',
+    ],
+    [
+      { type: 'object', properties: { id: { type: 'string' }, value: { type: 'string' } }, required: ['id', 'value'] },
+      { type: 'object', properties: { id: { type: 'string' }, value: { type: 'number' } }, required: ['id', 'value'] },
+      false,
+      'object with incompatible property type',
+    ],
+    [
+      { type: 'object', additionalProperties: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
+      {
+        anyOf: [
+          { type: 'array', items: { type: 'string' } },
+          { type: 'object', additionalProperties: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
+        ],
+      },
+      true,
+      'record -> array | record union',
+    ],
+  ]
 
-  // The 'array' row is applied item-wise, like the runner does.
-  const arrayOf = (name: typeof SCALAR_NAMES[number]): PortType => ({ type: 'array', items: scalar(name) })
-  assert.equal(areTypesCompatible(arrayOf('string'), arrayOf('string')), true)
-  assert.equal(areTypesCompatible(arrayOf('string'), arrayOf('integer')), false)
+  for (const [output, input, expected, label] of cases)
+    assert.equal(isSchemaAssignable(output, input), expected, label)
 })
 
-test('jsonSchemaToPortType maps JSON Schema shapes to PortType', () => {
-  assert.deepEqual(jsonSchemaToPortType({}), { type: 'any' })
-  assert.deepEqual(jsonSchemaToPortType({ type: 'string' }), { type: 'string' })
-  assert.deepEqual(jsonSchemaToPortType({ type: 'integer' }), { type: 'integer' })
-  assert.deepEqual(jsonSchemaToPortType({ type: 'number' }), { type: 'number' })
-  assert.deepEqual(jsonSchemaToPortType({ type: 'boolean' }), { type: 'boolean' })
-  assert.deepEqual(jsonSchemaToPortType({ type: 'object', additionalProperties: { type: 'string' } }), { type: 'object' })
-
-  assert.deepEqual(jsonSchemaToPortType({ type: 'array', items: { type: 'string' } }), {
-    type: 'array',
-    items: { type: 'string' },
-  })
-  assert.deepEqual(jsonSchemaToPortType({ type: 'array' }), {
-    type: 'array',
-    items: { type: 'any' },
-  })
-
-  // Nullable unions drop null and unwrap singletons.
-  assert.deepEqual(jsonSchemaToPortType({ anyOf: [{ type: 'string' }, { type: 'null' }] }), { type: 'string' })
-  assert.deepEqual(jsonSchemaToPortType({ type: ['integer', 'null'] }), { type: 'integer' })
-
-  // Multi-branch unions deduplicate structurally and preserve distinct members.
-  assert.deepEqual(
-    jsonSchemaToPortType({
-      anyOf: [
-        { type: 'array', items: { type: 'string' } },
-        { type: 'object', additionalProperties: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
-        { type: 'array', items: { type: 'string' } },
-        { type: 'null' },
-      ],
-    }),
-    {
-      type: 'union',
-      members: [
-        { type: 'array', items: { type: 'string' } },
-        { type: 'object' },
-      ],
-    },
-  )
-
-  // Const and untyped enums collapse or union by JSON value type.
-  assert.deepEqual(jsonSchemaToPortType({ const: 'auto' }), { type: 'string' })
-  assert.deepEqual(jsonSchemaToPortType({ enum: ['a', 'b', null] }), { type: 'string' })
-  assert.deepEqual(jsonSchemaToPortType({ enum: [1, 'a'] }), {
-    type: 'union',
-    members: [{ type: 'integer' }, { type: 'string' }],
-  })
-})
-
-test('node ports are derived directly from node schemas without x-ports', () => {
-  assert.equal('x-ports' in schemaJson, false)
+test('arePortsCompatible resolves per-node schemas and rejects missing ports', () => {
+  assert.ok(getRegisteredNodeNames().length > 0)
 
   const node = (nodeName: string) => ({ data: { label: nodeName, nodeName } })
 
-  // Nullable output: get_property.elements (list[Element] | None -> array<object>)
-  const getPropElements = getNodeOutputPorts(node('get_property')).find(port => port.name === 'elements')
-  assert.deepEqual(getPropElements?.type, { type: 'array', items: { type: 'object' } })
-
-  // Nullable list items: concat_string.values (list[str | None] -> array<string>)
-  const concatValues = getNodeInputPorts(node('concat_string')).find(port => port.name === 'values')
-  assert.deepEqual(concatValues?.type, { type: 'array', items: { type: 'string' } })
-
-  // Wildcard list items: generate_3d_cube.elements (list[Any] -> array<any>)
-  const cubeElements = getNodeInputPorts(node('generate_3d_cube')).find(port => port.name === 'elements')
-  assert.deepEqual(cubeElements?.type, { type: 'array', items: { type: 'any' } })
-
-  // Union input: measurement.list_a (list[str] | dict[str, str | None] | None)
-  const measurementListA = getNodeInputPorts(node('measurement')).find(port => port.name === 'list_a')
-  assert.deepEqual(measurementListA?.type, {
-    type: 'union',
-    members: [
-      { type: 'array', items: { type: 'string' } },
-      { type: 'object' },
-    ],
-  })
-
-  // Field(title=...) survives in schema.json and feeds port labels.
-  assert.equal(getInputLabel(node('measurement'), 'list_a'), 'List A')
-  assert.equal(getInputLabel(node('concat_string'), 'values'), 'Input values')
+  assert.equal(arePortsCompatible(node('bcf_output'), 'elements', node('loi_check'), 'elements'), true)
+  assert.equal(arePortsCompatible(node('bcf_output'), 'elements', node('get_property'), 'elements'), false)
+  assert.equal(arePortsCompatible(node('bcf_output'), 'elements', node('get_property'), 'does_not_exist'), false)
+  assert.equal(arePortsCompatible(node('bcf_output'), 'does_not_exist', node('loi_check'), 'elements'), false)
 })
 
-test('getOutputSocketTargets detects BCF-compatible outputs from bcf_output input schema', () => {
-  const targetsFor = (nodeName: string) =>
-    getOutputSocketTargets({ data: { label: nodeName, nodeName } })
+test('pass-through subworkflow ports stay permissive when unwired and resolve from concrete endpoints when wired', () => {
+  const filter: StoredNode = {
+    id: 'f1',
+    position: { x: 0, y: 0 },
+    data: { label: 'Filter', nodeName: 'ifc_element_filter' },
+  }
+  const bcf: StoredNode = {
+    id: 'b1',
+    position: { x: 0, y: 0 },
+    data: { label: 'BCF', nodeName: 'bcf_output' },
+  }
+  const concat: StoredNode = {
+    id: 'c1',
+    position: { x: 0, y: 0 },
+    data: { label: 'Concat', nodeName: 'concat_string' },
+  }
 
-  assert.deepEqual(targetsFor('loi_check'), ['bcf'])
-  assert.deepEqual(targetsFor('tilt_of_components'), ['bcf'])
-  assert.deepEqual(targetsFor('comparison'), ['bcf'])
+  // Unwired pass-through ports accept any concrete connection until wired.
+  const unwiredSub: StoredNode = {
+    id: 'unwired',
+    position: { x: 0, y: 0 },
+    data: {
+      label: 'Unwired',
+      nodeName: 'subworkflow',
+      subworkflow: {
+        name: 'Unwired',
+        nodes: [
+          { id: 'u-in', position: { x: 0, y: 0 }, data: { label: 'x', nodeName: 'subworkflow_input', settings: { port: { name: 'x' } } } },
+          { id: 'u-out', position: { x: 200, y: 0 }, data: { label: 'y', nodeName: 'subworkflow_output', settings: { port: { name: 'y' } } } },
+        ],
+        edges: [],
+      },
+    },
+  }
+  assert.equal(arePortsCompatible(unwiredSub, 'x', concat, 'value'), true)
+  assert.equal(arePortsCompatible(bcf, 'elements', unwiredSub, 'y'), true)
 
-  // Non-harmonized array<object> outputs and sinks must not be flagged as BCF-compatible.
-  assert.deepEqual(targetsFor('get_property'), [])
-  assert.deepEqual(targetsFor('set_3d_position_rotation'), [])
-  assert.deepEqual(targetsFor('get_element_creation_position_door'), [])
-  assert.deepEqual(targetsFor('ids_checker'), [])
-  assert.deepEqual(targetsFor('collision'), [])
-  assert.deepEqual(targetsFor('measurement'), [])
-  assert.deepEqual(targetsFor('file_input'), [])
-  assert.deepEqual(targetsFor('bcf_output'), [])
+  const subworkflow: StoredNode = {
+    id: 'sw1',
+    position: { x: 0, y: 0 },
+    data: {
+      label: 'Check Sub',
+      nodeName: 'subworkflow',
+      input_bindings: { ids: 'c1.value' },
+      subworkflow: {
+        name: 'Check Sub',
+        nodes: [
+          {
+            id: 'in1',
+            position: { x: 0, y: 0 },
+            data: { label: 'ids', nodeName: 'subworkflow_input', settings: { port: { name: 'ids' } } },
+          },
+          {
+            id: 'loi1',
+            position: { x: 200, y: 0 },
+            data: {
+              label: 'LOI',
+              nodeName: 'loi_check',
+              input_bindings: { express_ids: 'in1.ids' },
+            },
+          },
+          {
+            id: 'out1',
+            position: { x: 400, y: 0 },
+            data: {
+              label: 'checked',
+              nodeName: 'subworkflow_output',
+              settings: { port: { name: 'checked' } },
+              input_bindings: { checked: 'loi1.elements' },
+            },
+          },
+        ],
+        edges: [],
+      },
+    },
+  }
+
+  // Outer -> subworkflow input checks against concrete inner consumer (`loi_check.express_ids`).
+  assert.equal(arePortsCompatible(subworkflow, 'ids', filter, 'express_ids'), true)
+  assert.equal(arePortsCompatible(subworkflow, 'ids', concat, 'value'), false)
+
+  const mismatch = findPortMismatchSchemas(subworkflow, 'ids', concat, 'value')
+  assert.ok(mismatch.sourceSchema && mismatch.targetSchema)
+  assert.equal(isSchemaAssignable(mismatch.sourceSchema, mismatch.targetSchema), false)
+
+  // Subworkflow output resolves through `subworkflow_output` to `loi_check.elements`.
+  assert.ok(getOutputSchema(subworkflow, 'checked'))
+  assert.equal(arePortsCompatible(bcf, 'elements', subworkflow, 'checked'), true)
+  assert.equal(arePortsCompatible(concat, 'values', subworkflow, 'checked'), false)
+  assert.deepEqual(getOutputSocketTargets(subworkflow), ['bcf'])
+
+  // Inside the subworkflow, scope context propagates the parent's concrete outer schema.
+  const scopeContext = resolveScopeContext([
+    { nodeId: null, nodes: [concat, subworkflow] },
+    { nodeId: 'sw1', nodes: subworkflow.data.subworkflow!.nodes },
+  ])
+  const innerInput = subworkflow.data.subworkflow!.nodes[0]!
+  const innerLoi = subworkflow.data.subworkflow!.nodes[1]!
+  assert.equal(arePortsCompatible(innerLoi, 'express_ids', innerInput, 'ids', scopeContext), false)
+
+  // Pure pass-through subworkflow (`subworkflow_input -> subworkflow_output`) resolves outer producer via siblingNodes.
+  const passthrough: StoredNode = {
+    id: 'pt1',
+    position: { x: 0, y: 0 },
+    data: {
+      label: 'Pass',
+      nodeName: 'subworkflow',
+      input_bindings: { x: 'f1.express_ids' },
+      subworkflow: {
+        name: 'Pass',
+        nodes: [
+          {
+            id: 'pt-in',
+            position: { x: 0, y: 0 },
+            data: { label: 'x', nodeName: 'subworkflow_input', settings: { port: { name: 'x' } } },
+          },
+          {
+            id: 'pt-out',
+            position: { x: 200, y: 0 },
+            data: {
+              label: 'y',
+              nodeName: 'subworkflow_output',
+              settings: { port: { name: 'y' } },
+              input_bindings: { y: 'pt-in.x' },
+            },
+          },
+        ],
+        edges: [],
+      },
+    },
+  }
+  const rootContext = { siblingNodes: [filter, passthrough, bcf, concat] }
+  assert.equal(arePortsCompatible(concat, 'values', passthrough, 'y', rootContext), true)
+  assert.equal(arePortsCompatible(bcf, 'elements', passthrough, 'y', rootContext), false)
 })

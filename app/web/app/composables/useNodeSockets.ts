@@ -1,10 +1,10 @@
 import type { HandleType, Position } from '@vue-flow/core'
 import type { Component } from 'vue'
+import type { OutputSocketTarget } from '~/schemas'
 import type { NodeData } from '~/utils/nodes'
-import type { OutputSocketTarget } from '~/utils/schema-helpers'
 import BcfSocket from '~/components/nodes/sockets/BcfSocket.vue'
 import NodeSocket from '~/components/nodes/sockets/NodeSocket.vue'
-import { getOutputSocketTargets } from '~/utils/schema-helpers'
+import { getOutputSocketTargets } from '~/schemas'
 
 export interface NodeSocketProps {
   id: string

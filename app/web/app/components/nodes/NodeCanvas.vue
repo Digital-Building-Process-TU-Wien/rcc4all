@@ -188,7 +188,7 @@ function handleDrop(event: DragEvent) {
           :edges="renderedEdges"
           :viewport="viewport"
           :node-types="nodeTypes"
-          :selection-key-code="isSelectMode ? true : 'Shift'"
+          :selection-key-code="isSelectMode ? true : undefined"
           :pan-on-drag="isSelectMode ? false : [0, 1, 2]"
           class="h-full bg-default"
           @update:nodes="(newNodes: Node[]) => {

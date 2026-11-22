@@ -1,4 +1,4 @@
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 export type LoiCheckNode = SchemaNodeType<'loi_check'>
 export type LoiCheckSettings = NonNullable<LoiCheckNode['data']['settings']>

@@ -65,11 +65,11 @@ import { computed, ref } from 'vue'
 
 ### Node Types
 
-Use `SchemaNodeType<K>` from `~/utils/schema-helpers` for Vue Flow node components. This reuses the generated schema types from `scripts/schema.d.ts` (source of truth from Python).
+Use `SchemaNodeType<K>` from `~/schemas` for Vue Flow node components. This reuses the generated per-node schema types from `app/schemas/generated/` (derived from `shared/schemas/`).
 
 **✅ Do:**
 ```typescript
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 type ConcatNode = SchemaNodeType<'concat_string'>
 const node = useScopedNode<ConcatNode>(props.node.id)

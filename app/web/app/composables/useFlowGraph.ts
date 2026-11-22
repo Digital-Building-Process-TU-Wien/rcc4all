@@ -1,7 +1,7 @@
 import type { Node } from '@vue-flow/core'
 import type { NodeData } from '~/utils/nodes'
 import { useFlowStore } from '@/stores/flow'
-import { formatLabel, getNodeOutputs } from '~/utils/schema-helpers'
+import { formatLabel, getNodeOutputs } from '~/schemas'
 
 export interface BindingOption {
   id: string

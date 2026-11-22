@@ -165,7 +165,7 @@ export function useWorkflowExecution(workflow: Ref<WorkflowData | null>) {
               }
               else if (eventType === 'complete') {
                 const completeData = eventData as CompleteResult
-                status.value = 'complete'
+                status.value = completeData.success ? 'complete' : 'error'
                 isRunning.value = false
                 results.value = completeData.results
                 parseError.value = completeData.parseError

@@ -4,7 +4,7 @@ import type { NodeData } from '~/utils/nodes'
 import { Handle, Position } from '@vue-flow/core'
 import NodeDeleteButton from '~/components/nodes/NodeDeleteButton.vue'
 import { useWorkflowWarnings } from '~/composables/useWorkflowWarnings'
-import { getNodeInputPorts } from '~/utils/schema-helpers'
+import { getNodeInputPorts } from '~/schemas'
 
 const props = defineProps<NodeProps<NodeData>>()
 const { t } = useI18n()
@@ -21,6 +21,14 @@ const warning = computed(() =>
   <div
     class="group bg-slate-50 text-slate-900 border-2 border-green-200 rounded-lg min-w-45 shadow-sm relative cursor-pointer hover:shadow-md transition-shadow"
   >
+    <Handle
+      v-if="port"
+      id="input-hitbox"
+      type="target"
+      :position="Position.Left"
+      class="node-hitbox"
+    />
+
     <Handle
       v-if="port"
       :id="`input:${port.name}`"
@@ -50,3 +58,18 @@ const warning = computed(() =>
     </div>
   </div>
 </template>
+
+<style scoped>
+.vue-flow__handle.node-hitbox {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none;
+  border: none;
+  background: transparent;
+  opacity: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+</style>

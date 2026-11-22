@@ -68,7 +68,7 @@ Optional Payload CMS integration is configured in [composables/usePayloadSDK.ts]
    ```bash
    npm run generate:schema
    ```
-   Exports the Python node and workflow schema from `../runner` and regenerates `scripts/schema.json`, `scripts/schema.d.ts`, `scripts/workflow-schema.d.ts`, and `scripts/workflow-schema.zod.ts`.
+   Exports the Python per-node and workflow JSON Schemas from `../runner` into `../../shared/schemas/` and regenerates `app/schemas/generated/`.
 
 3. **Run checks and tests**:
    ```bash

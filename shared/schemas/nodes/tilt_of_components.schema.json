@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/tilt_of_components.schema.json",
+  "type": "object",
+  "title": "Tilt of Components",
+  "description": "Measures the tilt of building components (walls/slabs as 2D surfaces, columns/beams as 1D axes) and flags components whose tilt violates the configured comparison threshold.",
+  "categories": [
+    "geometry"
+  ],
+  "markdownDescription": "The `tilt_of_components` node measures the tilt of IFC building components relative\nto the horizontal plane and flags components that fall outside a configured limit.\nThe tilt value always represents the **smaller angle between the component's\ndominant surface/axis and the horizontal plane**: a vertical wall or column\nmeasures `90\u00b0`, a horizontal slab or beam measures `0\u00b0`.\n\nAn **element category** selector decides which algorithm is used for every input\nelement:\n\n- **2D (walls & slabs):** the mesh triangles are grouped into surfaces by their\n  normal vectors. The two largest surfaces (front/back) are measured. Each\n  surface's tilt is the average angle of its triangle normals against the\n  horizontal plane (complemented to stay under `90\u00b0`).\n- **1D (columns & beams):** the mesh triangles are grouped into surfaces. The\n  area-weighted centroid of each surface is computed, the two centroids furthest\n  apart define the element's longitudinal axis, and the axis's deviation from the\n  horizontal plane is measured.\n\n## Use case example\n\n- Check whether all walls in a model are vertical (2D category, \"greater than\n  lower limit\" with lower limit `89\u00b0`).\n- Check whether all columns are plumb (1D category).\n- Verify that beams are horizontal rather than sagging.\n\n## Settings\n\n| Setting | Type | Default | Description |\n|---------|------|---------|-------------|\n| Element category | `2d` / `1d` | `2d` | `2d` measures walls & slabs (two largest surfaces); `1d` measures columns & beams (longitudinal axis). |\n| Comparison method | enum | `greater_than_lower` | How the measured tilt is checked against the limits (see below). |\n| Lower limit (\u00b0) | `number` | `0` | Tilt is flagged when it is greater than this value (method `greater_than_lower`). |\n| Upper limit (\u00b0) | `number` | `90` | Tilt is flagged when it is below this value (method `less_than_upper`). |\n| Interval lower (\u00b0) | `number` | `0` | Lower barrier for the interval methods. |\n| Interval upper (\u00b0) | `number` | `90` | Upper barrier for the interval methods. |\n| Horizontal separation angle (\u00b0) | `number` | `5` | Maximum horizontal angle deviation between two triangles to still count as the same surface (merges facets of curved/round objects). |\n| Tolerance (\u00b0) | `number` | `0.1` | Shared tolerance added to/subtracted from the limits when flagging. |\n\n### Comparison methods\n\n| Value | Flags when |\n|-------|-----------|\n| `greater_than_lower` | `tilt > lower_limit + tolerance` |\n| `less_than_upper` | `tilt < upper_limit - tolerance` |\n| `inside_interval` | `interval_lower - tolerance < tilt < interval_upper + tolerance` |\n| `outside_interval` | `tilt < interval_lower - tolerance` or `tilt > interval_upper + tolerance` |\n\nA single interval pair is reused by both interval methods because only one\ncomparison method is active at a time.\n\n## Inputs\n\n- **Express IDs** (required): a list of fully qualified element references\n  (`<slug>:expr:<id>`). Typically connected to the output of an\n  `ifc_element_filter`. Each reference resolves against the model named inside\n  it, so mixed-model lists are allowed. An unbound required input fails input\n  validation; an empty bound list processes zero elements.\n\n## Outputs\n\nThe result is a slim, structured check per element. The executor wraps every\nnode result in an envelope `{ label, type, result }`, where `label`\n(runtime-assigned name) and `type` (`\"tilt_of_components\"`) live on the outer\nenvelope \u2014 the node's `result` object itself carries only the fields below:\n\n- `summary_element_count` (elements processed), `summary_passed_count` /\n  `summary_failed_count` (element-level: elements with at least one flagged\n  surface/axis vs. none), and `summary_check_count` (total number of\n  surface/axis checks across all elements).\n- `passed_express_ids`, `failed_express_ids`: flat lists of qualified references\n  partitioning the measured elements.\n- `elements`: ordered list of\n  - `express_ids` (list, normally a single qualified reference), `class_name`\n    (IFC class or `unknown`)\n  - `failed`: true when at least one check was flagged\n  - `checks`: list of `TiltCheck`:\n    - `key`: `\"surface_0\"` / `\"surface_1\"` (2D) or `\"axis\"` (1D)\n    - `check_parameter`: `\"angle\"`\n    - `expected_value`: human-readable pass condition combined from the\n      comparison method and limits (e.g. \"less than or equal to X\")\n    - `actual_value` (\u00b0, as string), `unit` (`\"deg\"`), `missing` (always\n      `false`), `passed`\n    - `expected_value_condition`, `expected_value_min`, `expected_value_max`:\n      always `\"\"` (the whole expectation is captured in `expected_value`)\n\nA 2D element yields up to two checks (front/back surfaces); a 1D element yields\none check (its axis). `summary_check_count` counts individual checks, not\nelements.\n\n## Helper geometry\n\nFlagged checks store a helper geometry in the geometry cache for visualization:\n\n- 2D: the flagged surface triangles under `inter:tilt_surface_<ref>_<index>`\n- 1D: a thin axis cylinder under `inter:tilt_axis_<ref>`\n\nwhere `<ref>` is the element's full qualified reference (`<slug>:expr:<id>`).\n\nThese are `inter:` helper keys and can be passed to geometry consumers such as the collision and measurement nodes.\n\n## Notes on openings\n\nFor walls containing window/door openings, the opening void is already subtracted\nfrom the wall mesh, so the two-largest-surfaces approach still identifies the\ncorrect front/back faces. Dedicated openings (`IfcRelVoidsElement`) handling is\nnot implemented in this version.\n\n## Composite / decomposed elements\n\nSome models express a composite element (e.g. a multi-layer wall) as an element\ndecomposed via `IfcRelAggregates` into `IfcBuildingElementPart` sub-elements, each\nwith its own Body geometry. When such an element has no own tessellated `Body`\nmesh, its tilt is measured as a whole by combining the geometry of all its parts\n(recursively through the aggregation). The parts themselves remain listed and\nmeasured independently, so a whole wall and its layers both appear in the result.",
+  "locales": {
+    "de": {
+      "title": "Neigung von Bauteilen",
+      "description": "Misst die Neigung von Bauteilen (W\u00e4nde/Decken als 2D-Fl\u00e4chen, St\u00fctzen/Tr\u00e4ger als 1D-Achsen) und kennzeichnet Bauteile, deren Neigung den konfigurierten Vergleichsgrenzwert verletzt.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "Der `tilt_of_components`-Node misst die Neigung von IFC-Bauteilen relativ zur\nhorizontalen Ebene und kennzeichnet Bauteile, die au\u00dferhalb eines konfigurierten\nGrenzwerts liegen. Der Neigungswert entspricht stets dem **kleineren Winkel zwischen\nder dominanten Fl\u00e4che/Achse des Bauteils und der horizontalen Ebene**: eine vertikale\nWand oder St\u00fctze misst `90\u00b0`, eine horizontale Decke oder ein Tr\u00e4ger `0\u00b0`.\n\nEin **Element-Kategorie**-Auswahlfeld entscheidet, welcher Algorithmus f\u00fcr jedes\nEingabe-Element verwendet wird:\n\n- **2D (W\u00e4nde & Decken):** Die Dreiecke des Netzes werden anhand ihrer\n  Normalenvektoren zu Fl\u00e4chen gruppiert. Die beiden gr\u00f6\u00dften Fl\u00e4chen (Vorder- und\n  R\u00fcckseite) werden gemessen. Die Neigung jeder Fl\u00e4che ist der Durchschnittswinkel\n  ihrer Dreiecks-Normalen zur horizontalen Ebene (komplementiert, um unter `90\u00b0`\n  zu bleiben).\n- **1D (St\u00fctzen & Tr\u00e4ger):** Die Dreiecke des Netzes werden zu Fl\u00e4chen gruppiert.\n  Der fl\u00e4chengewichtete Schwerpunkt jeder Fl\u00e4che wird berechnet; die beiden am\n  weitesten voneinander entfernten Schwerpunkte definieren die L\u00e4ngsachse des\n  Bauteils, und die Abweichung der Achse von der horizontalen Ebene wird gemessen.\n\n## Anwendungsbeispiel\n\n- Pr\u00fcfen, ob alle W\u00e4nde im Modell vertikal sind (2D-Kategorie, \"gr\u00f6\u00dfer als\n  Untergrenze\" mit Untergrenze `89\u00b0`).\n- Pr\u00fcfen, ob alle St\u00fctzen lotrecht sind (1D-Kategorie).\n- Pr\u00fcfen, ob Tr\u00e4ger horizontal und nicht durchh\u00e4ngend sind.\n\n## Einstellungen\n\n| Einstellung | Typ | Standard | Beschreibung |\n|-------------|-----|----------|--------------|\n| Element-Kategorie | `2d` / `1d` | `2d` | `2d` misst W\u00e4nde & Decken (zwei gr\u00f6\u00dfte Fl\u00e4chen); `1d` misst St\u00fctzen & Tr\u00e4ger (L\u00e4ngsachse). |\n| Vergleichsmethode | Auswahl | `greater_than_lower` | Wie die gemessene Neigung mit den Grenzwerten verglichen wird (siehe unten). |\n| Untergrenze (\u00b0) | Zahl | `0` | Bauteil wird gekennzeichnet, wenn die Neigung gr\u00f6\u00dfer als dieser Wert ist (Methode `greater_than_lower`). |\n| Obergrenze (\u00b0) | Zahl | `90` | Bauteil wird gekennzeichnet, wenn die Neigung unter diesem Wert liegt (Methode `less_than_upper`). |\n| Intervall-Untergrenze (\u00b0) | Zahl | `0` | Untere Grenze f\u00fcr die Intervallmethoden. |\n| Intervall-Obergrenze (\u00b0) | Zahl | `90` | Obere Grenze f\u00fcr die Intervallmethoden. |\n| Horizontaler Trennungswinkel (\u00b0) | Zahl | `5` | Maximale horizontale Winkelabweichung zwischen zwei Dreiecken, um noch als dieselbe Fl\u00e4che zu gelten (fasst Facetten gekr\u00fcmmter/runder Objekte zusammen). |\n| Toleranz (\u00b0) | Zahl | `0.1` | Gemeinsame Toleranz, die beim Kennzeichnen zu den Grenzwerten addiert bzw. subtrahiert wird. |\n\n### Vergleichsmethoden\n\n| Wert | Kennzeichnet, wenn |\n|------|--------------------|\n| `greater_than_lower` | `Neigung > Untergrenze + Toleranz` |\n| `less_than_upper` | `Neigung < Obergrenze - Toleranz` |\n| `inside_interval` | `Intervall-Untergrenze - Toleranz < Neigung < Intervall-Obergrenze + Toleranz` |\n| `outside_interval` | `Neigung < Intervall-Untergrenze - Toleranz` oder `Neigung > Intervall-Obergrenze + Toleranz` |\n\nEin Intervallpaar wird von beiden Intervallmethoden wiederverwendet, da jeweils\nnur eine Vergleichsmethode aktiv ist.\n\n## Eingaben\n\n- **Express-IDs** (erforderlich): Liste voll qualifizierter Referenzen\n  (`<slug>:expr:<id>`) der zu messenden IFC-Elemente. \u00dcblicherweise mit\n  `ifc_element_filter.express_ids` verbunden. Jede Referenz wird gegen das in\n  ihr genannte Modell aufgel\u00f6st; gemischte Listen aus mehreren Modellen sind\n  erlaubt. Ohne Verbindung schl\u00e4gt die Eingabevalidierung fehl.\n\n## Ausgaben\n\nDas Ergebnis ist eine schlanke, strukturierte Pr\u00fcfung pro Element. Der Executor\numh\u00fcllt jede Node-Ausgabe mit `{ label, type, result }`, wobei `label`\n(Laufzeitname) und `type` (`\"tilt_of_components\"`) im \u00e4u\u00dferen Envelope liegen \u2014\ndas `result`-Objekt der Node selbst enth\u00e4lt nur die folgenden Felder:\n\n- `summary_element_count` (verarbeitete Elemente), `summary_passed_count` /\n  `summary_failed_count` (auf Elementebene: Elemente mit mindestens\n  einer gekennzeichneten Fl\u00e4che/Achse bzw. ohne) und `summary_check_count`\n  (Gesamtzahl der Fl\u00e4chen-/Achsenpr\u00fcfungen \u00fcber alle Elemente).\n- `passed_express_ids`, `failed_express_ids`: flache Listen der voll\n  qualifizierten Referenzen, die die gemessenen Elemente partitionieren.\n- `elements`: geordnete Liste aus\n  - `express_ids` (Liste, meist eine einzelne voll qualifizierte Referenz\n    `<slug>:expr:<id>`), `class_name` (IFC-Klasse oder `unknown`)\n  - `failed`: true, wenn mindestens eine Pr\u00fcfung gekennzeichnet wurde\n  - `checks`: Liste von `TiltCheck`:\n    - `key`: `\"surface_0\"` / `\"surface_1\"` (2D) oder `\"axis\"` (1D)\n    - `check_parameter`: `\"angle\"`\n    - `expected_value`: lesbare Soll-Bedingung, aus Vergleichsmethode und\n      Grenzwerten kombiniert (z. B. \u201ekleiner oder gleich X\")\n    - `actual_value` (\u00b0, als String), `unit` (`\"deg\"`), `missing` (immer\n      `false`), `passed`\n    - `expected_value_condition`, `expected_value_min`, `expected_value_max`:\n      immer `\"\"` (die gesamte Erwartung steckt in `expected_value`)\n\nEin 2D-Element liefert bis zu zwei Pr\u00fcfungen (Vorder-/R\u00fcckseite); ein\n1D-Element eine Pr\u00fcfung (seine Achse). `summary_check_count` z\u00e4hlt einzelne\nPr\u00fcfungen, nicht Elemente.\n\n## Hilfsgeometrie\n\nGekennzeichnete Pr\u00fcfungen speichern eine Hilfsgeometrie im Geometrie-Cache zur\nVisualisierung:\n\n- 2D: die gekennzeichneten Fl\u00e4chen-Dreiecke unter `inter:tilt_surface_<ref>_<index>`\n- 1D: einen d\u00fcnnen Achszylinder unter `inter:tilt_axis_<ref>`\n\nDabei ist `<ref>` die voll qualifizierte Element-Referenz des betreffenden\nBauteils. Dies sind `inter:`-Schl\u00fcssel \u2014 g\u00fcltige Geometrie-Cache-Keys, aber\nkeine Element-Referenzen und nie zu einer Entit\u00e4t aufgel\u00f6st.\n\n## Hinweise zu \u00d6ffnungen\n\nBei W\u00e4nden mit Fenster-/T\u00fcr\u00f6ffnungen ist die \u00d6ffnungsaussparung bereits vom\nWandnetz subtrahiert, sodass der Ansatz der zwei gr\u00f6\u00dften Fl\u00e4chen weiterhin die\nkorrekten Vorder-/R\u00fcckseiten findet. Eine dedizierte Verarbeitung von \u00d6ffnungen\n(`IfcRelVoidsElement`) ist in dieser Version nicht umgesetzt.\n\n## Verbund- / zerlegte Elemente\n\nManche Modelle bilden ein Verbundelement (z. B. eine mehrschichtige Wand) als ein\n\u00fcber `IfcRelAggregates` in `IfcBuildingElementPart`-Teilelemente zerlegtes Element\nab, wobei jeder Teil eine eigene Body-Geometrie besitzt. Hat ein solches Element\nkein eigenes tesseliertes `Body`-Netz, wird seine Neigung als Ganzes gemessen,\nindem die Geometrie aller seiner Teile (rekursiv durch die Aggregation) kombiniert\nwird. Die Teile selbst bleiben dabei gelistet und werden unabh\u00e4ngig gemessen, sodass\nsowohl die gesamte Wand als auch ihre Schichten im Ergebnis erscheinen."
+    },
+    "en": {
+      "title": "Tilt of Components",
+      "description": "Measures the tilt of building components (walls/slabs as 2D surfaces, columns/beams as 1D axes) and flags components whose tilt violates the configured comparison threshold.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "The `tilt_of_components` node measures the tilt of IFC building components relative\nto the horizontal plane and flags components that fall outside a configured limit.\nThe tilt value always represents the **smaller angle between the component's\ndominant surface/axis and the horizontal plane**: a vertical wall or column\nmeasures `90\u00b0`, a horizontal slab or beam measures `0\u00b0`.\n\nAn **element category** selector decides which algorithm is used for every input\nelement:\n\n- **2D (walls & slabs):** the mesh triangles are grouped into surfaces by their\n  normal vectors. The two largest surfaces (front/back) are measured. Each\n  surface's tilt is the average angle of its triangle normals against the\n  horizontal plane (complemented to stay under `90\u00b0`).\n- **1D (columns & beams):** the mesh triangles are grouped into surfaces. The\n  area-weighted centroid of each surface is computed, the two centroids furthest\n  apart define the element's longitudinal axis, and the axis's deviation from the\n  horizontal plane is measured.\n\n## Use case example\n\n- Check whether all walls in a model are vertical (2D category, \"greater than\n  lower limit\" with lower limit `89\u00b0`).\n- Check whether all columns are plumb (1D category).\n- Verify that beams are horizontal rather than sagging.\n\n## Settings\n\n| Setting | Type | Default | Description |\n|---------|------|---------|-------------|\n| Element category | `2d` / `1d` | `2d` | `2d` measures walls & slabs (two largest surfaces); `1d` measures columns & beams (longitudinal axis). |\n| Comparison method | enum | `greater_than_lower` | How the measured tilt is checked against the limits (see below). |\n| Lower limit (\u00b0) | `number` | `0` | Tilt is flagged when it is greater than this value (method `greater_than_lower`). |\n| Upper limit (\u00b0) | `number` | `90` | Tilt is flagged when it is below this value (method `less_than_upper`). |\n| Interval lower (\u00b0) | `number` | `0` | Lower barrier for the interval methods. |\n| Interval upper (\u00b0) | `number` | `90` | Upper barrier for the interval methods. |\n| Horizontal separation angle (\u00b0) | `number` | `5` | Maximum horizontal angle deviation between two triangles to still count as the same surface (merges facets of curved/round objects). |\n| Tolerance (\u00b0) | `number` | `0.1` | Shared tolerance added to/subtracted from the limits when flagging. |\n\n### Comparison methods\n\n| Value | Flags when |\n|-------|-----------|\n| `greater_than_lower` | `tilt > lower_limit + tolerance` |\n| `less_than_upper` | `tilt < upper_limit - tolerance` |\n| `inside_interval` | `interval_lower - tolerance < tilt < interval_upper + tolerance` |\n| `outside_interval` | `tilt < interval_lower - tolerance` or `tilt > interval_upper + tolerance` |\n\nA single interval pair is reused by both interval methods because only one\ncomparison method is active at a time.\n\n## Inputs\n\n- **Express IDs** (required): a list of fully qualified element references\n  (`<slug>:expr:<id>`). Typically connected to the output of an\n  `ifc_element_filter`. Each reference resolves against the model named inside\n  it, so mixed-model lists are allowed. An unbound required input fails input\n  validation; an empty bound list processes zero elements.\n\n## Outputs\n\nThe result is a slim, structured check per element. The executor wraps every\nnode result in an envelope `{ label, type, result }`, where `label`\n(runtime-assigned name) and `type` (`\"tilt_of_components\"`) live on the outer\nenvelope \u2014 the node's `result` object itself carries only the fields below:\n\n- `summary_element_count` (elements processed), `summary_passed_count` /\n  `summary_failed_count` (element-level: elements with at least one flagged\n  surface/axis vs. none), and `summary_check_count` (total number of\n  surface/axis checks across all elements).\n- `passed_express_ids`, `failed_express_ids`: flat lists of qualified references\n  partitioning the measured elements.\n- `elements`: ordered list of\n  - `express_ids` (list, normally a single qualified reference), `class_name`\n    (IFC class or `unknown`)\n  - `failed`: true when at least one check was flagged\n  - `checks`: list of `TiltCheck`:\n    - `key`: `\"surface_0\"` / `\"surface_1\"` (2D) or `\"axis\"` (1D)\n    - `check_parameter`: `\"angle\"`\n    - `expected_value`: human-readable pass condition combined from the\n      comparison method and limits (e.g. \"less than or equal to X\")\n    - `actual_value` (\u00b0, as string), `unit` (`\"deg\"`), `missing` (always\n      `false`), `passed`\n    - `expected_value_condition`, `expected_value_min`, `expected_value_max`:\n      always `\"\"` (the whole expectation is captured in `expected_value`)\n\nA 2D element yields up to two checks (front/back surfaces); a 1D element yields\none check (its axis). `summary_check_count` counts individual checks, not\nelements.\n\n## Helper geometry\n\nFlagged checks store a helper geometry in the geometry cache for visualization:\n\n- 2D: the flagged surface triangles under `inter:tilt_surface_<ref>_<index>`\n- 1D: a thin axis cylinder under `inter:tilt_axis_<ref>`\n\nwhere `<ref>` is the element's full qualified reference (`<slug>:expr:<id>`).\n\nThese are `inter:` helper keys and can be passed to geometry consumers such as the collision and measurement nodes.\n\n## Notes on openings\n\nFor walls containing window/door openings, the opening void is already subtracted\nfrom the wall mesh, so the two-largest-surfaces approach still identifies the\ncorrect front/back faces. Dedicated openings (`IfcRelVoidsElement`) handling is\nnot implemented in this version.\n\n## Composite / decomposed elements\n\nSome models express a composite element (e.g. a multi-layer wall) as an element\ndecomposed via `IfcRelAggregates` into `IfcBuildingElementPart` sub-elements, each\nwith its own Body geometry. When such an element has no own tessellated `Body`\nmesh, its tilt is measured as a whole by combining the geometry of all its parts\n(recursively through the aggregation). The parts themselves remain listed and\nmeasured independently, so a whole wall and its layers both appear in the result."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "element_category": {
+          "default": "2d",
+          "description": "'2d' measures the two largest flat surfaces (walls & slabs); '1d' measures the longitudinal axis of the element (columns & beams).",
+          "enum": [
+            "2d",
+            "1d"
+          ],
+          "title": "Element category",
+          "type": "string"
+        },
+        "comparison_method": {
+          "default": "greater_than_lower",
+          "description": "How the measured tilt is checked against the limits. 'greater_than_lower' / 'less_than_upper' use the single lower / upper limit; 'inside_interval' / 'outside_interval' use the interval barriers.",
+          "enum": [
+            "greater_than_lower",
+            "less_than_upper",
+            "inside_interval",
+            "outside_interval"
+          ],
+          "title": "Comparison method",
+          "type": "string"
+        },
+        "lower_limit": {
+          "default": 0.0,
+          "description": "Tilt is flagged when it exceeds this value (comparison_method = greater_than_lower).",
+          "title": "Lower limit (\u00b0)",
+          "type": "number"
+        },
+        "upper_limit": {
+          "default": 90.0,
+          "description": "Tilt is flagged when it is below this value (comparison_method = less_than_upper).",
+          "title": "Upper limit (\u00b0)",
+          "type": "number"
+        },
+        "interval_lower": {
+          "default": 0.0,
+          "description": "Lower barrier used for inside_interval / outside_interval.",
+          "title": "Interval lower (\u00b0)",
+          "type": "number"
+        },
+        "interval_upper": {
+          "default": 90.0,
+          "description": "Upper barrier used for inside_interval / outside_interval.",
+          "title": "Interval upper (\u00b0)",
+          "type": "number"
+        },
+        "horizontal_separation_angle": {
+          "default": 5.0,
+          "description": "Maximum horizontal angle deviation between two triangles to still count as the same surface. Used to merge the facets of curved / round objects.",
+          "title": "Horizontal separation angle (\u00b0)",
+          "type": "number"
+        },
+        "tolerance": {
+          "default": 0.1,
+          "description": "Shared tolerance added/subtracted to the limits when flagging.",
+          "title": "Tolerance (\u00b0)",
+          "type": "number"
+        }
+      },
+      "title": "TiltOfComponentsSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "summary_element_count": {
+          "description": "Number of elements processed.",
+          "title": "Element count",
+          "type": "integer"
+        },
+        "summary_passed_count": {
+          "description": "Number of checked elements with no flagged surface/axis.",
+          "title": "Passed count",
+          "type": "integer"
+        },
+        "summary_failed_count": {
+          "description": "Number of checked elements with at least one flagged surface/axis.",
+          "title": "Failed count",
+          "type": "integer"
+        },
+        "summary_check_count": {
+          "description": "Total number of surface/axis checks across all elements.",
+          "title": "Check count",
+          "type": "integer"
+        },
+        "passed_express_ids": {
+          "default": [],
+          "description": "Qualified references of elements whose checks all passed. Only elements with at least one check are included.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Passed express IDs",
+          "type": "array"
+        },
+        "failed_express_ids": {
+          "default": [],
+          "description": "Qualified references of elements with at least one flagged check. Only elements with at least one check are included.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Failed express IDs",
+          "type": "array"
+        },
+        "elements": {
+          "default": [],
+          "description": "Ordered list of elements with their tilt checks.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "express_ids": {
+                "description": "The element reference(s) this element carries. Usually a single raw reference (`<slug>:expr:<id>`, an `inter:intersection_...` helper key, or a `_`-joined distance pair) that bcf_output expands into IFC member objects for viewpoints.",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Express IDs",
+                "type": "array"
+              },
+              "class_name": {
+                "description": "IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.",
+                "title": "Class name",
+                "type": "string"
+              },
+              "failed": {
+                "description": "True if at least one check on this element failed.",
+                "title": "Failed",
+                "type": "boolean"
+              },
+              "checks": {
+                "default": [],
+                "description": "List of check results for this element.",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": {
+                      "description": "Stable identifier for this check (e.g. a property key or 'surface_0').",
+                      "title": "Key",
+                      "type": "string"
+                    },
+                    "check_parameter": {
+                      "description": "The parameter being checked (e.g. the property name, or 'angle').",
+                      "title": "Check parameter",
+                      "type": "string"
+                    },
+                    "expected_value": {
+                      "default": "",
+                      "description": "Expected value as a string (empty for is_true / is_false and range checks).",
+                      "title": "Expected value",
+                      "type": "string"
+                    },
+                    "actual_value": {
+                      "default": "",
+                      "description": "Measured/read value as a string, or empty if the value is missing.",
+                      "title": "Actual value",
+                      "type": "string"
+                    },
+                    "unit": {
+                      "default": "",
+                      "description": "Measurement unit of the compared value, or empty when unknown.",
+                      "title": "Unit",
+                      "type": "string"
+                    },
+                    "missing": {
+                      "default": false,
+                      "description": "True when the value is not present / could not be measured.",
+                      "title": "Missing",
+                      "type": "boolean"
+                    },
+                    "passed": {
+                      "description": "Whether the check passed.",
+                      "title": "Passed",
+                      "type": "boolean"
+                    },
+                    "expected_value_condition": {
+                      "default": "",
+                      "description": "The comparison operator that was applied (empty for checks with none).",
+                      "title": "Expected value condition",
+                      "type": "string"
+                    },
+                    "expected_value_min": {
+                      "default": "",
+                      "description": "Lower barrier used for numeric range checks, or empty for single-value checks.",
+                      "title": "Expected value min",
+                      "type": "string"
+                    },
+                    "expected_value_max": {
+                      "default": "",
+                      "description": "Upper barrier used for numeric range checks, or empty for single-value checks.",
+                      "title": "Expected value max",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "check_parameter",
+                    "passed"
+                  ],
+                  "title": "HarmonizedCheckResult",
+                  "type": "object"
+                },
+                "title": "Checks",
+                "type": "array"
+              }
+            },
+            "required": [
+              "express_ids",
+              "class_name",
+              "failed"
+            ],
+            "title": "HarmonizedElement",
+            "type": "object"
+          },
+          "title": "Elements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary_element_count",
+        "summary_passed_count",
+        "summary_failed_count",
+        "summary_check_count"
+      ],
+      "title": "TiltOfComponentsResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "express_ids": {
+          "description": "Qualified element references (`<slug>:expr:<id>`) to measure. Bind ifc_element_filter output here.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Express IDs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "express_ids"
+      ],
+      "title": "TiltOfComponentsInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

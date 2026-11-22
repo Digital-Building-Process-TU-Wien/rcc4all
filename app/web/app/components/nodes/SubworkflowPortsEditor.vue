@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import type { PortType } from '@@/scripts/workflow-schema'
 import type { Node } from '@vue-flow/core'
 import type { NodeData, SubworkflowPort } from '~/utils/nodes'
 import { useScopedNode } from '~/composables/useScopedNode'
 import { useFlowStore } from '~/stores/flow'
-import { normalizePortType } from '~/utils/schema-helpers'
 import { isValidPortName } from '~/utils/subworkflow-graph'
 
 interface Props {
@@ -15,18 +13,6 @@ const props = defineProps<Props>()
 const { t } = useI18n()
 const store = useFlowStore()
 const node = useScopedNode<Node<NodeData>>(props.nodeId)
-
-const TYPE_MAP: Record<string, PortType> = {
-  any: { type: 'any' },
-  string: { type: 'string' },
-  number: { type: 'number' },
-  integer: { type: 'integer' },
-  boolean: { type: 'boolean' },
-  object: { type: 'object' },
-  arrayString: { type: 'array', items: { type: 'string' } },
-  arrayNumber: { type: 'array', items: { type: 'number' } },
-  arrayObject: { type: 'array', items: { type: 'object' } },
-}
 
 const kind = computed<'input' | 'output' | null>(() => {
   const nodeName = node.value?.data?.nodeName
@@ -41,7 +27,7 @@ const port = computed<SubworkflowPort | null>(() => {
   const raw = node.value?.data?.settings?.port
   if (!raw || typeof raw !== 'object' || typeof raw.name !== 'string')
     return null
-  return { name: raw.name, type: normalizePortType(raw.type) }
+  return { name: raw.name }
 })
 
 const draftName = ref('')
@@ -55,29 +41,6 @@ watch(
   },
   { immediate: true },
 )
-
-const typeOptions = computed(() =>
-  Object.keys(TYPE_MAP).map(key => ({
-    label: t(`node.subworkflow.types.${key}`),
-    value: key,
-  })),
-)
-
-function typeToKey(type: PortType | undefined): string {
-  if (!type || type.type === 'union')
-    return 'any'
-  if (type.type === 'array') {
-    const itemType = type.items?.type
-    if (itemType === 'string')
-      return 'arrayString'
-    if (itemType === 'number' || itemType === 'integer')
-      return 'arrayNumber'
-    if (itemType === 'object')
-      return 'arrayObject'
-    return 'any'
-  }
-  return type.type in TYPE_MAP ? type.type : 'any'
-}
 
 function commitName() {
   const current = port.value?.name
@@ -101,10 +64,6 @@ function commitName() {
     return
   }
   error.value = ''
-}
-
-function setType(key: string) {
-  store.setSubworkflowPortType(props.nodeId, TYPE_MAP[key] ?? { type: 'any' })
 }
 
 /** Inside a subworkflow, an input port is silent unless the parent binds it. */
@@ -132,31 +91,16 @@ const outputUnbound = computed(() =>
       {{ kind === 'input' ? t('node.subworkflow.inputPortTitle') : t('node.subworkflow.outputPortTitle') }}
     </h3>
 
-    <div v-if="port" class="flex items-end gap-2">
-      <div class="flex-1">
-        <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
-          {{ t('node.subworkflow.portName') }}
-        </label>
-        <UInput
-          v-model="draftName"
-          class="mt-1"
-          @blur="commitName"
-          @keydown.enter="commitName"
-        />
-      </div>
-      <div class="flex-1">
-        <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
-          {{ t('node.subworkflow.portType') }}
-        </label>
-        <USelect
-          :model-value="typeToKey(port.type)"
-          :items="typeOptions"
-          value-key="value"
-          label-key="label"
-          class="mt-1"
-          @update:model-value="setType"
-        />
-      </div>
+    <div v-if="port">
+      <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
+        {{ t('node.subworkflow.portName') }}
+      </label>
+      <UInput
+        v-model="draftName"
+        class="mt-1 w-full"
+        @blur="commitName"
+        @keydown.enter="commitName"
+      />
     </div>
 
     <p v-if="error" class="mt-2 flex items-center gap-1 text-xs text-error">

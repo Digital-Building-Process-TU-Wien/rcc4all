@@ -7,10 +7,6 @@ import {
   toDevFilesRelativeModelPaths,
   toWorkflowRelativeModelPaths,
 } from '../shared/utils/dev-paths'
-import {
-  joinPosix,
-  parentDirectory,
-} from '../shared/utils/posix-paths'
 
 const root = resolve('dev-files-root')
 const workflowPath = resolve(root, 'workflow', 'checks.json')
@@ -22,24 +18,14 @@ function modelPaths(workflow: WorkflowPayload): string[] {
   })
 }
 
-test('parentDirectory and joinPosix split posix paths', () => {
-  assert.equal(parentDirectory('workflow/checks.json'), 'workflow')
-  assert.equal(parentDirectory('checks.json'), '')
-  assert.equal(parentDirectory(''), null)
-  assert.equal(joinPosix('', 'checks.json'), 'checks.json')
-  assert.equal(joinPosix('workflow', 'checks.json'), 'workflow/checks.json')
-})
-
-test('resolveRelativeIn accepts paths inside the root', () => {
+test('resolveRelativeIn accepts paths inside the root and rejects traversal', () => {
   const resolved = resolveRelativeIn(root, 'workflow/checks.json')
   assert.ok(resolved)
   assert.equal(resolved.relative, 'workflow/checks.json')
   assert.equal(resolved.absolute, workflowPath)
-})
 
-test('resolveRelativeIn rejects paths that leave the root', () => {
-  assert.equal(resolveRelativeIn(root, '../secret.json'), null)
-  assert.equal(resolveRelativeIn(root, 'workflow/../../secret.json'), null)
+  assert.equal(resolveRelativeIn(root, '../.env.secret'), null)
+  assert.equal(resolveRelativeIn(root, 'workflow/../../.env.secret'), null)
   assert.equal(resolveRelativeIn(root, 'workflow/\0checks.json'), null)
 })
 

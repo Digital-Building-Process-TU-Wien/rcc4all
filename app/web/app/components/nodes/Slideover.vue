@@ -118,6 +118,7 @@ function handleResizeKeydown(event: KeyboardEvent) {
     :title="t('slideover.nodeDetails')"
     :description="t('slideover.description')"
     :ui="{ content: 'sm:w-(--node-details-panel-width) sm:max-w-full' }"
+    @update:open="(open: boolean) => { if (!open) emit('close') }"
     @close="emit('close')"
   >
     <template #body>
@@ -139,11 +140,13 @@ function handleResizeKeydown(event: KeyboardEvent) {
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
           <template v-if="node && component">
             <div class="mb-4">
-              <label class="text-xs font-semibold uppercase tracking-tight text-slate-500">
+              <label for="node-label-input" class="text-xs font-semibold uppercase tracking-tight text-slate-500">
                 {{ t('slideover.nodeLabel') }}
               </label>
               <UInput
+                id="node-label-input"
                 v-model="labelModel"
+                name="node-label"
                 :placeholder="t('slideover.customLabelPlaceholder')"
                 class="mt-1"
               />

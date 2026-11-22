@@ -1,17 +1,19 @@
-import type { PortType } from '@@/scripts/workflow-schema'
+import type { JsonSchema, PortResolutionContext } from '~/schemas'
 import type { NodeData, StoredEdge } from '~/utils/nodes'
-import { useFlowStore } from '~/stores/flow'
 import {
   arePortsCompatible,
-  describeType,
-  getInputType,
+  describeSchema,
+  findPortMismatchSchemas,
+  getInputSchema,
   getNodeInputs,
   getNodeOutputs,
-  getOutputType,
   getRequiredNodeInputs,
   INPUT_HANDLE_PREFIX,
   parsePortHandle,
-} from '~/utils/schema-helpers'
+  resolveScopeContext,
+  resolveSubworkflowParentContext,
+} from '~/schemas'
+import { useFlowStore } from '~/stores/flow'
 import { splitReference } from '~/utils/workflow-bindings'
 
 export type WorkflowWarningKind = 'type-mismatch' | 'missing-required' | 'unbound-edge'
@@ -24,11 +26,11 @@ export interface WorkflowWarning {
   sourceNodeId?: string
   sourceNodeLabel?: string
   sourcePort?: string
-  sourceType?: PortType
+  sourceSchema?: JsonSchema
   targetNodeId: string
   targetNodeLabel: string
   targetPort?: string
-  targetType?: PortType
+  targetSchema?: JsonSchema
   /** Localized one-line description for badges and the canvas popover. */
   message: string
 }
@@ -50,9 +52,11 @@ function collectWarnings(
   edges: GraphEdge[],
   warnings: RawWarning[],
   path: string[],
+  context: PortResolutionContext,
 ): void {
   const nodeById = new Map(nodes.map(node => [node.id, node]))
   const scopeKey = path.length > 0 ? `${path.join('::')}::` : ''
+  const scopedContext: PortResolutionContext = { ...context, siblingNodes: nodes }
 
   for (const node of nodes) {
     const bindings = node.data.input_bindings ?? {}
@@ -67,8 +71,16 @@ function collectWarnings(
       if (!source)
         continue
 
-      if (arePortsCompatible({ data: node.data }, targetPort, { data: source.data }, sourcePort))
+      if (arePortsCompatible({ data: node.data }, targetPort, { data: source.data }, sourcePort, scopedContext))
         continue
+
+      const { sourceSchema, targetSchema } = findPortMismatchSchemas(
+        { data: node.data },
+        targetPort,
+        { data: source.data },
+        sourcePort,
+        scopedContext,
+      )
 
       warnings.push({
         key: `${scopeKey}mismatch:${node.id}:${targetPort}`,
@@ -76,11 +88,11 @@ function collectWarnings(
         sourceNodeId: source.id,
         sourceNodeLabel: portLabel(source.data),
         sourcePort,
-        sourceType: getOutputType({ data: source.data }, sourcePort),
+        sourceSchema,
         targetNodeId: node.id,
         targetNodeLabel: portLabel(node.data),
         targetPort,
-        targetType: getInputType({ data: node.data }, targetPort),
+        targetSchema,
       })
     }
 
@@ -93,7 +105,7 @@ function collectWarnings(
         targetNodeId: node.id,
         targetNodeLabel: portLabel(node.data),
         targetPort: requiredInput,
-        targetType: getInputType({ data: node.data }, requiredInput),
+        targetSchema: getInputSchema({ data: node.data }, requiredInput),
       })
     }
   }
@@ -130,11 +142,13 @@ function collectWarnings(
 
   for (const node of nodes) {
     if (node.data.subworkflow) {
+      const innerContext = resolveSubworkflowParentContext(node, nodes, context)
       collectWarnings(
         node.data.subworkflow.nodes,
         node.data.subworkflow.edges,
         warnings,
         [...path, node.id],
+        innerContext,
       )
     }
   }
@@ -165,8 +179,8 @@ export function useWorkflowWarnings() {
     return t('editor.warningItem', {
       target: warning.targetNodeLabel,
       input: warning.targetPort,
-      expected: describeType(warning.targetType!),
-      actual: describeType(warning.sourceType!),
+      expected: warning.targetSchema ? describeSchema(warning.targetSchema) : 'unknown',
+      actual: warning.sourceSchema ? describeSchema(warning.sourceSchema) : 'unknown',
       source: warning.sourceNodeLabel,
       output: warning.sourcePort,
     })
@@ -174,11 +188,13 @@ export function useWorkflowWarnings() {
 
   const warnings = computed<WorkflowWarning[]>(() => {
     const collected: RawWarning[] = []
+    const scopeContext = resolveScopeContext(store.scopeStack)
     collectWarnings(
       store.nodes.map(node => ({ id: node.id, data: node.data as NodeData })),
       store.edges,
       collected,
       [],
+      scopeContext,
     )
     return collected.map(warning => ({ ...warning, message: describeWarning(warning) }))
   })

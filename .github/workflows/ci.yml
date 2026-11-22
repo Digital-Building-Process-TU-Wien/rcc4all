@@ -88,4 +88,5 @@ jobs:
       - name: Generated schema is up to date
         run: |
           npm run generate:schema
-          git diff --exit-code -- scripts/schema.json scripts/schema.d.ts scripts/workflow-schema.d.ts scripts/workflow-schema.zod.ts
+          git diff --exit-code -- ../../shared/schemas app/schemas/generated
+          test -z "$(git status --porcelain -- ../../shared/schemas app/schemas/generated)"

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/file_input.schema.json",
+  "type": "object",
+  "title": "File Input",
+  "description": "Refers to an IFC model assigned in the editor and outputs its slug.",
+  "categories": [
+    "Other"
+  ],
+  "markdownDescription": "The `file_input` node selects one of the IFC models assigned to the workflow and outputs its slug. Connect its `model_slug` output to an `ifc_element_filter`'s `model_slug` input to make the filter scan that model \u2014 this is the only model port in the graph.\n\nAll other nodes consume **fully qualified element references** (`<slug>:expr:<id>`); each reference names its own model, so consumers of element references have no model inputs.\n\nWithout a `file_input`, `ifc_element_filter` scans the main model.\n\n## Use case example\n\nAdd a `file_input` for a secondary model, then bind its `model_slug` output to an `ifc_element_filter` so the filter scans that model instead of the main one. The filter's qualified references (`<secondary-slug>:expr:<id>`) carry the model with them, so downstream nodes resolve them against the right file automatically.\n\n## Settings\n\n- **Model**: Slug of the IFC model this File Input refers to. Defaults to the main model.\n\n## Outputs\n\n- **Model slug**: Slug of the selected IFC model, for binding to `ifc_element_filter`'s `model_slug` input.",
+  "locales": {
+    "de": {
+      "title": "Datei-Eingabe",
+      "description": "Verweist auf ein im Editor zugewiesenes IFC-Modell und gibt dessen Slug aus.",
+      "categories": [
+        "Other"
+      ],
+      "markdownDescription": "Der `file_input` Node w\u00e4hlt eines der dem Workflow zugewiesenen IFC-Modelle aus und gibt dessen Slug aus. Sein `model_slug`-Ausgang speist den `model_slug`-Eingang des `ifc_element_filter` \u2014 der einzige Modell-Eingang im Graphen. Alle anderen Nodes konsumieren **voll qualifizierte Element-Referenzen** (`<slug>:expr:<id>`): jede Referenz wie `main:expr:63` nennt ihr eigenes Modell und wird von den Verbrauchern gegen genau dieses aufgel\u00f6st.\n\nOhne einen `file_input` durchsucht der `ifc_element_filter` standardm\u00e4\u00dfig das Hauptmodell.\n\n## Anwendungsbeispiel\n\nF\u00fcgen Sie einen `file_input` f\u00fcr ein sekund\u00e4res Modell hinzu und binden Sie dessen `model_slug`-Ausgang an den `model_slug`-Eingang eines `ifc_element_filter`, damit dessen Scan-Modus dieses Modell statt des Hauptmodells durchsucht. Der Filter gibt qualifizierte Referenzen des sekund\u00e4ren Modells aus, die sich in nachgelagerten Verbraucher-Nodes frei mit Referenzen anderer Modelle mischen lassen.\n\n## Einstellungen\n\n- **Modell**: Slug des IFC-Modells, auf das sich dieser Dateieingang bezieht. Standardm\u00e4\u00dfig das Hauptmodell.\n\n## Ausgaben\n\n- **Modell-Slug**: Slug des ausgew\u00e4hlten IFC-Modells zur Bindung an den `model_slug`-Eingang des `ifc_element_filter`."
+    },
+    "en": {
+      "title": "File Input",
+      "description": "Refers to an IFC model assigned in the editor and outputs its slug.",
+      "categories": [
+        "Other"
+      ],
+      "markdownDescription": "The `file_input` node selects one of the IFC models assigned to the workflow and outputs its slug. Connect its `model_slug` output to an `ifc_element_filter`'s `model_slug` input to make the filter scan that model \u2014 this is the only model port in the graph.\n\nAll other nodes consume **fully qualified element references** (`<slug>:expr:<id>`); each reference names its own model, so consumers of element references have no model inputs.\n\nWithout a `file_input`, `ifc_element_filter` scans the main model.\n\n## Use case example\n\nAdd a `file_input` for a secondary model, then bind its `model_slug` output to an `ifc_element_filter` so the filter scans that model instead of the main one. The filter's qualified references (`<secondary-slug>:expr:<id>`) carry the model with them, so downstream nodes resolve them against the right file automatically.\n\n## Settings\n\n- **Model**: Slug of the IFC model this File Input refers to. Defaults to the main model.\n\n## Outputs\n\n- **Model slug**: Slug of the selected IFC model, for binding to `ifc_element_filter`'s `model_slug` input."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "slug": {
+          "default": "main",
+          "description": "Slug of the IFC model this File Input refers to. Defaults to the main model.",
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "title": "FileInputSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "model_slug": {
+          "default": "main",
+          "description": "Slug of the selected IFC model, for binding to a consumer's model input.",
+          "title": "Model slug",
+          "type": "string"
+        }
+      },
+      "title": "FileInputResult",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings"
+  ],
+  "additionalProperties": false
+}

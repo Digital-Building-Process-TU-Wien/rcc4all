@@ -1,12 +1,11 @@
+import type { Connection, Edge, Node } from '@vue-flow/core'
+import type { Ref } from 'vue'
 import type {
   ModelFile,
-  PortType,
   SubworkflowPort,
   WorkflowEdge,
   WorkflowNode,
-} from '@@/scripts/workflow-schema'
-import type { Connection, Edge, Node } from '@vue-flow/core'
-import type { Ref } from 'vue'
+} from '~/schemas'
 import type { NodeData } from '~/utils/nodes'
 import type { ExtractResult } from '~/utils/subworkflow-graph'
 import type { AutoBindResult } from '~/utils/workflow-bindings'
@@ -22,7 +21,8 @@ import {
   INPUT_HANDLE_PREFIX,
   OUTPUT_HANDLE_PREFIX,
   parsePortHandle,
-} from '~/utils/schema-helpers'
+  resolveScopeContext,
+} from '~/schemas'
 import {
   createSubworkflowPortNode,
   DEFAULT_SUBWORKFLOW_OUTPUT_PORT,
@@ -156,8 +156,14 @@ export const useFlowStore = defineStore('flow', () => {
    * auto-bindings derived from Python's exported port schema.
    */
   function connectNodes(params: Connection): AutoBindResult {
-    const normalizedTargetHandle
-      = params.targetHandle === 'input-hitbox' ? 'input' : params.targetHandle
+    const sourceNode = nodesById.value[params.source] as Node<NodeData> | undefined
+    const targetNode = nodesById.value[params.target] as Node<NodeData> | undefined
+    const targetPort = targetNode?.data?.nodeName === 'subworkflow_output'
+      ? readPort(targetNode.data)
+      : null
+    const normalizedTargetHandle = params.targetHandle === 'input-hitbox'
+      ? (targetPort ? `${INPUT_HANDLE_PREFIX}${targetPort.name}` : 'input')
+      : params.targetHandle
 
     addEdges({
       id: nanoid(),
@@ -167,8 +173,6 @@ export const useFlowStore = defineStore('flow', () => {
       targetHandle: normalizedTargetHandle,
     })
 
-    const sourceNode = nodesById.value[params.source] as Node<NodeData> | undefined
-    const targetNode = nodesById.value[params.target] as Node<NodeData> | undefined
     if (!sourceNode || !targetNode) {
       return { bindings: {}, status: 'no-op', ambiguousInputs: [], ambiguousOutputs: [] }
     }
@@ -176,6 +180,10 @@ export const useFlowStore = defineStore('flow', () => {
     const result = resolveAutoBindings(params.source, sourceNode, targetNode, {
       explicitOutput: parsePortHandle(params.sourceHandle, OUTPUT_HANDLE_PREFIX),
       explicitInput: parsePortHandle(normalizedTargetHandle, INPUT_HANDLE_PREFIX),
+      context: resolveScopeContext(
+        scopeStack.value,
+        nodes.value.map(entry => ({ id: entry.id, data: entry.data as NodeData })),
+      ),
     })
 
     if (Object.keys(result.bindings).length > 0) {
@@ -330,7 +338,6 @@ export const useFlowStore = defineStore('flow', () => {
     const base = kind === 'input' ? 'input' : DEFAULT_SUBWORKFLOW_OUTPUT_PORT
     const port: SubworkflowPort = {
       name: uniquePortName(base, taken),
-      type: { type: 'any' },
     }
     const created = createSubworkflowPortNode(
       kind,
@@ -344,14 +351,6 @@ export const useFlowStore = defineStore('flow', () => {
       data: created.data,
     })
     return created.id
-  }
-
-  function setSubworkflowPortType(metaNodeId: string, type: PortType): void {
-    const node = nodesById.value[metaNodeId] as Node<NodeData> | undefined
-    const port = readPort(node?.data)
-    if (!node || !port)
-      return
-    writePort(node, { name: port.name, type })
   }
 
   /**
@@ -371,7 +370,7 @@ export const useFlowStore = defineStore('flow', () => {
     if (collectPortNames(metaNodeId).includes(newName))
       return false
 
-    writePort(node, { name: newName, type: port.type })
+    writePort(node, { name: newName })
 
     const parentFrame = scopeStack.value.length > 1 ? scopeStack.value.at(-2)! : null
     const parentNodeId = currentScope.value.nodeId
@@ -604,7 +603,6 @@ export const useFlowStore = defineStore('flow', () => {
     exportWorkflow,
     hydrate,
     addSubworkflowPort,
-    setSubworkflowPortType,
     renameSubworkflowPort,
     renameActiveSubworkflow,
     extractToSubworkflow,

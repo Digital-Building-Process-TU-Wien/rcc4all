@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from openbim_runner.inspect_models import MODELS_ROOT, discover_models, process_model
+from rcc4all_runner.inspect_models import MODELS_ROOT, discover_models, process_model
 
 
 def _railway() -> Path:
