@@ -15,6 +15,9 @@ const node = useScopedNode<OpeningSurfaceNode>(props.node.id)
 const { t } = useI18n()
 
 const openingCount = computed(() => node.value.data.result?.opening_count)
+const watertightCount = computed(
+  () => node.value.data.result?.openings?.filter(opening => opening.watertight).length,
+)
 </script>
 
 <template>
@@ -36,12 +39,16 @@ const openingCount = computed(() => node.value.data.result?.opening_count)
       <div v-if="openingCount === undefined" class="text-xs text-slate-400">
         {{ t('node.openingSurface.noOutputYet') }}
       </div>
-      <div
-        v-else
-        class="rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 w-fit"
-      >
-        {{ t('node.openingSurface.openingCount', { count: openingCount }) }}
-      </div>
+      <template v-else>
+        <div
+          class="rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 w-fit"
+        >
+          {{ t('node.openingSurface.openingCount', { count: openingCount }) }}
+        </div>
+        <div class="text-xs text-slate-500">
+          {{ t('node.openingSurface.watertightCount', { count: watertightCount ?? 0 }) }}
+        </div>
+      </template>
     </div>
   </div>
 </template>

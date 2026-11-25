@@ -1,42 +1,44 @@
 ---
 title: Opening Surface
-description: Retrieves the surfaces of openings that lie in the plane of the host surface (walls, slabs, roofs) and caches them as generated geometry for downstream nodes.
+description: Retrieves a watertight closed surface per opening by closing the host's cut-surface tube for a through-bore, or by lofting the opening's cap faces into a solid for an open ring, and caches it as generated geometry.
 categories: geometry
 ---
 
 The `opening_surface` node retrieves, for every opening of the input building
-elements, the void faces that lie in the plane of the host surface — the two cap
-faces of the opening — and caches them as generated geometry for downstream
-nodes such as measurement or collision.
+elements, one **watertight closed surface** that fills the opening void. It
+closes the host's cut-surface tube for a through-bore, or lofts the opening's cap
+faces into a solid for an open ring, so both end up as a closed, positive-volume
+solid.
 
 ## How it works
 
-For each input element, the openings (`IfcRelVoidsElement`) and their cached
-Body meshes are resolved. The opening mesh triangles are grouped into planar
-surfaces: triangles join a group when their normal deviates by less than ~1°
-and they lie on the same plane. The two largest groups with opposing normals
-are the cap faces in the plane of the host surface; the remaining groups (the
-reveal band cut into the host) are dropped.
+For each input element, the openings (`IfcRelVoidsElement`) and their cached Body
+meshes are resolved, along with the host element's mesh. Then:
 
-Because an `IfcOpeningElement` is a cutting solid that often extends far beyond
-the element it voids, the largest opposing faces are not always the hole in the
-host. The node therefore clips the opening solid to the host's surface slab and
-selects its host-parallel faces, so the retrieved area is the true hole, the cap
-faces lie in the host surface plane, and `depth` is the host surface thickness.
-The host's dominant (largest) opposing surface pair defines the slab; when an
-opening sits in a different surface of a multi-face host (e.g. the secondary
-pitch of a gable roof), the neighbouring surface pair the opening actually
-pierces is used instead. When the host cannot be analysed (no cached mesh, no
-dominant opposing pair) or clipping cuts no through-void (a recess, a single-cap
-void), the two-largest-opposing heuristic is used as a fallback.
+- **Closed ring (through-bore / window, planar rims):** the host's cut-surface
+  tube is built and closed. When it closes watertight, it is emitted unchanged
+  (`method = "closed_cut_surface"`).
+- **Open ring (door / non-planar rim / curved host):** the cut-surface tube stays
+  open. The opening's cap faces are analysed from the host surface planes
+  instead. When **two** caps are found, both are used; when **only one** cap is
+  found, a second cap is synthesised by copying the found cap across the wall by
+  its thickness and clipping the copy against the tube reveal faces. The two caps
+  are then **lofted** (connected by new side faces between corresponding boundary
+  points in 3D) into one watertight volume (`method = "lofted_caps"`).
+- **No volume:** when neither a closed tube nor two loftable caps can be built,
+  the cap/tube geometry is emitted unchanged (`method = "caps_only"`,
+  `watertight = false`); no fabricated geometry is produced.
+
+The loft connects corresponding boundary points in 3D, so it tolerates hosts
+whose two dominant surfaces are not parallel (a wall or slab of linearly varying
+thickness) and curved hosts.
 
 ## Use case example
 
-- Measure the window opening area of exterior walls for daylight or fire-safety
-  checks: connect `ifc_element_filter` (walls) → `opening_surface` →
-  `measurement` (surface area) via the `geometry_keys` output.
-- Retrieve the opening geometry of roofs and slabs (skylights, shafts) for
-  clash or clearance checks against other elements.
+- Cross-section / fire-compartment checks: extract the closed volume of a door,
+  window or shaft so it can be measured and compared against the host element.
+- Clash or clearance checks against the actual void an opening cuts in a wall,
+  slab or roof.
 
 ## Inputs
 
@@ -52,30 +54,29 @@ void), the two-largest-opposing heuristic is used as a fallback.
 The result is a flat list with one entry per opening:
 
 - `opening_count`: number of openings found on the input elements
-- `surface_count`: number of openings whose surfaces were retrieved into the
+- `surface_count`: number of openings whose closed surface was retrieved into the
   geometry cache
 - `geometry_keys`: the `gen:` geometry-cache keys of the retrieved opening
-  surfaces, in opening order — bind directly to geometry consumers such as
-  measurement or collision
+  closed surfaces, in opening order
 - `openings`: ordered list of
   - `express_id` (the qualified opening reference), `guid` (GlobalId of the
     opening), `host_express_id` (the qualified host reference)
-  - `geometry_key`: geometry-cache key of the retrieved cap faces
-  - `area`: opening area in the plane of the host surface (the larger cap face;
-    both caps are congruent for straight through-openings)
-  - `width` / `height`: extents of the opening surfaces within the host plane
-    (horizontal / vertical for wall openings)
-  - `depth`: distance between the two cap faces along the host surface normal;
-    `None` when the void exposes only one dominant flat face
-  - `error`: reason when the surfaces could not be retrieved (e.g. "no cached
-    geometry")
+  - `geometry_key`: geometry-cache key of the retrieved opening closed surface
+  - `method`: `"closed_cut_surface"`, `"lofted_caps"` or `"caps_only"`
+  - `watertight`: whether the emitted geometry is a closed, winding-consistent,
+    positive-volume solid
+  - `area` / `width` / `height`: opening extent in the plane of the host surface
+    (the larger cap face)
+  - `depth`: distance between the two cap faces along the host surface normal
+  - `error`: reason when the closed surface could not be retrieved
 
 ## Generated geometry
 
-Each retrieved opening surface is cached as generated geometry under
-`gen:opening_surface_<slug>_<express_id>`, where `<express_id>` is the opening
-element's express ID. These are user-referencable `gen:` keys — valid geometry
-cache keys for the measurement and collision nodes.
+Each retrieved opening closed surface is cached as generated geometry under
+`gen:opening_surface_<slug>_<express_id>`. The cached mesh is a watertight solid
+when `watertight` is true; a `caps_only` entry is the cap geometry unchanged. The
+keys are user-referencable `gen:` keys, so they can be bound to geometry
+consumers such as measurement or collision.
 
 ## Notes and limitations
 
@@ -83,22 +84,14 @@ cache keys for the measurement and collision nodes.
   tessellated geometry are reported with an error entry instead.
 - Each opening appears once, even when its host element is passed multiple
   times. References that resolve to no entity contribute no openings.
-- The two-largest-opposing-surfaces heuristic matches openings whose cap faces
-  dominate the void. Strongly tapered voids report the larger (outer) cap as
-  `area`; niches whose back face rivals the cap (e.g. deep rectangular
-  recesses) can pick up the back face as the second cap.
-- Openings are oversized cutting solids, so the retrieved opening surface is
-  always clipped to the host surface slab it voids and lies in the plane of that
-  surface. The dominant surface pair (the two largest opposing faces) gives the
-  slab for the common case (wall thickness, roof/slab thickness); for a multi-face
-  host such as a multi-slope roof the surface pair the opening actually pierces is
-  used instead. The enlarged faces that fall outside the host are dropped, so
-  `area` is the physical hole and `depth` is the host surface thickness at the
-  opening. The clip is a no-op for openings that already fit within the host slab
-  (recesses, shallow windows). When the host mesh is unavailable, or the clip
-  cuts no through-void (a recess or single-cap void), the two-largest heuristic is
-  used as a fallback.
-- Curved cap faces (e.g. arched openings) are grouped with a fixed ~1° normal
-  tolerance, so the largest flat portion of the curve is retrieved.
-- Openings are only collected from the input elements themselves, not from
-  parts of decomposed elements.
+- The `closed_cut_surface` path is used only for a genuinely watertight closed
+  tube, so the old incorrect door closure (a floor-reaching door forced shut)
+  is never produced. An open ring falls through to the lofted-cap path instead.
+- When exactly one cap face is found, the second cap is a thickness offset of the
+  first, clipped against the tube reveal faces. If no tube or no reliable wall
+  thickness is available, or the loft cannot be made watertight, the node degrades
+  to `caps_only` rather than fabricating a volume.
+- Curved hosts are analysed with surface-region logic; a round wall that exposes
+  only one cap gets its opposing cap synthesised.
+- Openings are only collected from the input elements themselves, not from parts
+  of decomposed elements.

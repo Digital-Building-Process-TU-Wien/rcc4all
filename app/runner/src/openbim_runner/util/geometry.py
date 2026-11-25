@@ -160,6 +160,11 @@ def resolve_side(
 
 
 def _is_watertight(mesh: trimesh.Trimesh) -> bool:
+    # Guard against degenerate/empty meshes: trimesh would raise on a 1-D faces
+    # array and is_watertight is vacuously true for an empty one.
+    faces = getattr(mesh, "faces", None)
+    if faces is None or getattr(faces, "ndim", 0) != 2 or faces.shape[0] == 0:
+        return False
     return bool(mesh.is_watertight and mesh.is_winding_consistent and mesh.volume > 0)
 
 

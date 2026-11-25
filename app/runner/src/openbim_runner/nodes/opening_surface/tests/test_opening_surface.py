@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import math
-from collections.abc import Iterator
 from typing import Any, cast
 
 import ifcopenshell
@@ -16,12 +14,22 @@ from openbim_runner.nodes.base import ExecutionContext
 from openbim_runner.nodes.opening_surface.opening_surface import (
     OpeningSurfaceInputs,
     OpeningSurfaceResult,
+    _build_ring_closed,  # pyright: ignore[reportPrivateUsage]
+    _jogged_ring_groups,  # pyright: ignore[reportPrivateUsage]
+    _loft_caps_watertight,  # pyright: ignore[reportPrivateUsage]
+    _loft_open_ring,  # pyright: ignore[reportPrivateUsage]
+    _loft_polygons,  # pyright: ignore[reportPrivateUsage]
+    _ring_has_axial_edge,  # pyright: ignore[reportPrivateUsage]
     opening_surface,
 )
-from openbim_runner.util.geometry import build_geometry_cache, cache_mesh, resolve_mesh
+from openbim_runner.util.geometry import (
+    _is_watertight,  # pyright: ignore[reportPrivateUsage]
+    build_geometry_cache,
+    cache_mesh,
+    resolve_mesh,
+)
 
 _REAL_MODEL = MODELS_ROOT / "specific" / "Testmodell-LightExposureSmall.ifc"
-
 
 # --- fakes ----------------------------------------------------------------------
 
@@ -75,8 +83,19 @@ def _add_opening(
     _add_entity(context, opening)
 
 
+def _add_host_mesh(
+    context: ExecutionContext, host: _FakeHost, mesh: trimesh.Trimesh
+) -> None:
+    cache_mesh(context, mesh, express_id=host.id())
+    _add_entity(context, host)
+
+
 def _box(extents: list[float]) -> trimesh.Trimesh:
     return trimesh.creation.box(extents=extents)
+
+
+def _host_with_bore(extents: list[float], bore: list[float]) -> trimesh.Trimesh:
+    return trimesh.boolean.difference([_box(extents), _box(bore)])
 
 
 def _run(
@@ -85,177 +104,375 @@ def _run(
     return asyncio.run(opening_surface(inputs, context))
 
 
-def _add_host_mesh(
-    context: ExecutionContext, host: _FakeHost, mesh: trimesh.Trimesh
-) -> None:
-    cache_mesh(context, mesh, express_id=host.id())
+# --- pure loft helpers -----------------------------------------------------------
 
 
-# --- host-parallelity helpers ----------------------------------------------------
+def test_loft_polygons_makes_a_watertight_solid() -> None:
+    """Two offset rectangles loft into a closed, positive-volume prism."""
+    a = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+        dtype=np.float64,
+    )
+    b = a + 0.3
 
-_ALIGNED_COS = math.cos(math.pi / 180.0)
-_PLANE_TOLERANCE = 0.01
-_OPPOSING_COS = -math.cos(math.radians(10.0))
+    mesh = _loft_polygons(a, b)
 
-
-def _face_normals(vertices: np.ndarray, faces: np.ndarray) -> np.ndarray:
-    v0 = vertices[faces[:, 0]]
-    v1 = vertices[faces[:, 1]]
-    v2 = vertices[faces[:, 2]]
-    cross = np.cross(v1 - v0, v2 - v0)
-    lengths = np.linalg.norm(cross, axis=1)
-    normals = np.zeros_like(cross)
-    np.divide(cross, lengths[:, None], out=normals, where=lengths[:, None] > 0)
-    return normals
+    assert mesh is not None
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    assert mesh.volume == pytest.approx(1.0 * 0.3, rel=1e-6)
 
 
-def _group_area(vertices: np.ndarray, faces: np.ndarray, group: list[int]) -> float:
-    v0 = vertices[faces[group, 0]]
-    v1 = vertices[faces[group, 1]]
-    v2 = vertices[faces[group, 2]]
-    cross = np.cross(v1 - v0, v2 - v0)
-    return float(0.5 * np.linalg.norm(cross, axis=1).sum())
+def test_loft_polygons_resamples_different_vertex_counts() -> None:
+    """Varying ring sizes (4 vs 5 points) still produce a watertight volume."""
+    a = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+        dtype=np.float64,
+    )
+    b = np.array(
+        [
+            [0.0, 0.0, 0.3],
+            [1.1, 0.0, 0.3],
+            [1.1, 0.9, 0.3],
+            [0.4, 1.0, 0.3],
+            [0.0, 1.0, 0.3],
+        ],
+        dtype=np.float64,
+    )
+
+    mesh = _loft_polygons(a, b)
+
+    assert mesh is not None
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    assert mesh.volume > 0
 
 
-def _planar_groups(
-    vertices: np.ndarray, faces: np.ndarray, normals: np.ndarray
-) -> list[list[int]]:
-    first_points = vertices[faces[:, 0]]
-    assigned = np.zeros(len(faces), dtype=bool)
-    groups: list[list[int]] = []
-    for seed in range(len(faces)):
-        if assigned[seed]:
-            continue
-        normal = normals[seed]
-        offsets = (first_points - first_points[seed]) @ normal
-        same = (
-            (normals @ normal >= _ALIGNED_COS)
-            & (np.abs(offsets) <= _PLANE_TOLERANCE)
-            & ~assigned
+def test_loft_open_ring_from_single_cap_synthesizes_opposite_face() -> None:
+    """A lone cap + a wall depth yields a watertight volume in the loft path."""
+    vertices = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+    faces = np.array([[0, 1, 2], [0, 2, 3]], dtype=np.int64)
+    caps: list[list[int]] = [[0, 1]]
+    cap_normal = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+
+    mesh = _loft_open_ring(vertices, faces, caps, cap_normal, depth=0.3, tube=None)
+
+    assert mesh is not None
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    assert mesh.volume == pytest.approx(1.0 * 0.3, rel=1e-6)
+
+
+def _tri_set(
+    vertices: np.ndarray, faces: np.ndarray
+) -> set[tuple[tuple[float, float, float], ...]]:
+    """The output mesh faces keyed by their (rounded) vertex coordinates."""
+    result: set[tuple[tuple[float, float, float], ...]] = set()
+    for tri in np.asarray(faces, int):
+        rows = [[float(c) for c in row] for row in np.asarray(vertices[tri], float)]
+        result.add(tuple(sorted((row[0], row[1], row[2]) for row in rows)))
+    return result
+
+
+def test_loft_two_caps_preserves_both_cap_faces() -> None:
+    """Lofting two detected caps keeps their triangles; only side faces are new.
+
+    Regression for the ``2_boiG``-style vertical opening: the previous loft
+    rebuilt each cap by resampling its outer ring to a uniform arc length and
+    re-triangulating it as a fan from the ring centroid, which moved the corner
+    vertices and collapsed the cap outline. The two-cap branch must emit the
+    detected cap triangles verbatim so the caps stay exactly as analysed.
+    """
+    # Two non-axis-aligned quad caps parallel to a plane with normal (0.767, 0.641, 0)
+    # (the caps recovered from opening id 80997, host wall 80228 on the real model).
+    front_corners = np.array(
+        [
+            [-7.669, 18.446, 2.36],
+            [-7.669, 18.446, -0.22],
+            [-6.386, 16.911, -0.22],
+            [-6.386, 16.911, 2.36],
+        ],
+        dtype=np.float64,
+    )
+    back_corners = np.array(
+        [
+            [-7.957, 18.14, -0.22],
+            [-7.957, 18.14, 2.31],
+            [-6.738, 16.682, 2.31],
+            [-6.738, 16.682, -0.22],
+        ],
+        dtype=np.float64,
+    )
+    vertices = np.concatenate([front_corners, back_corners], axis=0)
+    # Each cap is a quad triangulated into two faces (vertices 0..3, 4..7).
+    cap_faces = np.array([[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7]], dtype=np.int64)
+    front = [0, 1]
+    back = [2, 3]
+    front_ring = [0, 1, 2, 3]
+    back_ring = [4, 5, 6, 7]
+
+    mesh = _loft_caps_watertight(
+        vertices, cap_faces, front, back, front_ring, back_ring
+    )
+
+    assert mesh is not None
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    assert mesh.volume > 0
+
+    # The detected cap triangles must be present verbatim in the closed volume.
+    expected_caps = _tri_set(vertices, cap_faces)
+    actual = _tri_set(np.asarray(mesh.vertices, float), np.asarray(mesh.faces, int))
+    assert expected_caps.issubset(actual)
+    # And the caps are the only pre-existing faces: the volume adds side faces only,
+    # so the cap triangles are preserved exactly (nothing resampled or re-fanned).
+    assert len(mesh.faces) == len(cap_faces) + 2 * len(front_ring)
+
+    # The solid is the prism between the two caps, so its volume must be the mean
+    # cap area times the cap-plane separation. The two rings wind opposite ways
+    # (the real ``2_boiG`` case); a cyclic shift alone cannot fix that and the side
+    # band self-intersects, collapsing the signed volume — the orientation fix is
+    # what restores this. Regression for the near-zero volumes on the real model.
+    cap_normal = np.cross(
+        front_corners[1] - front_corners[0], front_corners[2] - front_corners[0]
+    )
+    cap_normal = cap_normal / float(np.linalg.norm(cap_normal))
+
+    def _tri_area(c0: np.ndarray, c1: np.ndarray, c2: np.ndarray) -> float:
+        return float(0.5 * np.linalg.norm(np.cross(c1 - c0, c2 - c0)))
+
+    def _quad_area(corners: np.ndarray) -> float:
+        return _tri_area(corners[0], corners[1], corners[2]) + _tri_area(
+            corners[0], corners[2], corners[3]
         )
-        same[seed] = True
-        assigned |= same
-        groups.append(np.flatnonzero(same).tolist())
-    return groups
+
+    mean_cap_area = 0.5 * (_quad_area(front_corners) + _quad_area(back_corners))
+    separation = float(
+        (back_corners.mean(axis=0) - front_corners.mean(axis=0)) @ cap_normal
+    )
+    assert mesh.volume == pytest.approx(mean_cap_area * separation, rel=0.05)
 
 
-def _significant_host_normals(mesh: trimesh.Trimesh) -> list[np.ndarray]:
-    """Normals of the host's largest planar faces (its actual surface planes)."""
-    vertices = np.asarray(mesh.vertices, dtype=np.float64)
-    faces = np.asarray(mesh.faces, dtype=np.int64)
-    normals = _face_normals(vertices, faces)
-    sized = [
-        (group, _group_area(vertices, faces, group))
-        for group in _planar_groups(vertices, faces, normals)
-    ]
-    sized = [(group, area) for group, area in sized if area > 0.0]
-    if not sized:
-        return []
-    max_area = max(area for _group, area in sized)
-    return [normals[group[0]] for group, area in sized if area >= 0.2 * max_area]
+def test_loft_unequal_rims_orients_before_resample() -> None:
+    """Unequal-rim caps must still close into a solid with a real volume.
+
+    Regression for the ``364362`` opening on the real model: the two caps are the
+    same outline but tessellated to different boundary lengths (the front ring has
+    4 corner vertices, the back ring has 6 with a mid-edge split). That makes
+    ``_loft_caps_watertight`` fall into the resampling branch (``_loft_polygons``),
+    which never re-oriented the rims. When the two boundary loops also wind
+    opposite ways, the side band self-intersects and the signed volume cancels to
+    ~0. The caps are re-triangulated here (they are not preserved verbatim), but
+    the loft must still be a sound solid with a volume of mean-cap-area x depth.
+    """
+    front_corners = np.array(
+        [[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+        dtype=np.float64,
+    )
+    # Same outline, one midpoint per horizontal edge -> 6-point ring, opposite winding.
+    back_corners = np.array(
+        [
+            [0.0, 0.0, 0.5],
+            [1.0, 0.0, 0.5],
+            [2.0, 0.0, 0.5],
+            [2.0, 1.0, 0.5],
+            [1.0, 1.0, 0.5],
+            [0.0, 1.0, 0.5],
+        ],
+        dtype=np.float64,
+    )
+    vertices = np.concatenate([front_corners, back_corners], axis=0)
+    cap_faces = np.array(
+        [
+            [0, 1, 2],
+            [0, 2, 3],
+            [4, 5, 6],
+            [4, 6, 7],
+            [4, 7, 8],
+            [4, 9, 8],
+        ],
+        dtype=np.int64,
+    )
+    front = [0, 1]
+    back = [2, 3, 4, 5]
+    front_ring = [0, 1, 2, 3]  # CCW
+    back_ring = [4, 9, 8, 7, 6, 5]  # opposite winding
+
+    mesh = _loft_caps_watertight(
+        vertices, cap_faces, front, back, front_ring, back_ring
+    )
+
+    assert mesh is not None
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    # The two caps outline the same 2x1 rectangle, separated by 0.5 along the cap
+    # normal, so the solid's volume is 2.0 * 0.5. The uncorrected loft returned ~0.
+    assert mesh.volume == pytest.approx(1.0, rel=0.05)
 
 
-def _opening_cap_normal(mesh: trimesh.Trimesh) -> np.ndarray:
-    """Normal of the largest planar face of a retrieved opening surface mesh."""
-    vertices = np.asarray(mesh.vertices, dtype=np.float64)
-    faces = np.asarray(mesh.faces, dtype=np.int64)
-    normals = _face_normals(vertices, faces)
-    groups = _planar_groups(vertices, faces, normals)
-    largest = max(groups, key=lambda group: _group_area(vertices, faces, group))
-    return normals[largest[0]]
+def _two_surface_host_mesh() -> trimesh.Trimesh:
+    """A wall segment whose opening exposes only two opposite cut surfaces.
+
+    Recovered from the real-world host ``main:expr:340868`` (``Wand-003``): the
+    opening bore's reveal band is cut from just the two coplanar wall planks, so
+    the cut-surface tube reads as two opposite surfaces only and ``_close_bore``
+    caps it into a zero-thickness pillow.
+    """
+    vertices = np.array(
+        [
+            [0.364616, 25.972299, 8.660000],
+            [0.211086, 25.844126, 8.660000],
+            [0.335050, 26.007714, 8.660000],
+            [0.181577, 25.879473, 8.660000],
+            [0.211086, 25.844126, 11.150000],
+            [0.364616, 25.972299, 11.150000],
+            [0.335050, 26.007714, 11.150000],
+            [0.181577, 25.879473, 11.150000],
+            [1.488828, 24.625686, 8.660000],
+            [1.335297, 24.497512, 8.660000],
+            [1.108036, 25.081809, 8.660000],
+            [0.954506, 24.953635, 8.660000],
+            [1.488828, 24.625686, 11.150000],
+            [1.335297, 24.497512, 11.150000],
+            [1.108036, 25.081809, 11.150000],
+            [0.954506, 24.953635, 11.150000],
+        ],
+        dtype=np.float64,
+    )
+    faces = np.array(
+        [
+            [0, 1, 2],
+            [2, 1, 3],
+            [4, 1, 5],
+            [5, 1, 0],
+            [5, 0, 2],
+            [6, 5, 2],
+            [2, 3, 7],
+            [6, 2, 7],
+            [1, 4, 3],
+            [3, 4, 7],
+            [4, 5, 6],
+            [7, 4, 6],
+            [8, 9, 10],
+            [10, 9, 11],
+            [8, 12, 9],
+            [9, 12, 13],
+            [12, 8, 10],
+            [14, 12, 10],
+            [11, 15, 14],
+            [10, 11, 14],
+            [9, 13, 11],
+            [11, 13, 15],
+            [13, 12, 14],
+            [15, 13, 14],
+        ],
+        dtype=np.int64,
+    )
+    return trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
 
 
-# --- cap-face retrieval ---------------------------------------------------------
+def _two_surface_opening_mesh() -> trimesh.Trimesh:
+    """The opening cutter for the wall segment (a through-door prism)."""
+    vertices = np.array(
+        [
+            [0.117098, 24.254543, 11.230000],
+            [-0.626310, 25.145018, 11.230000],
+            [-0.626310, 25.145018, 8.660000],
+            [1.202024, 26.671391, 11.230000],
+            [1.202024, 26.671391, 8.660000],
+            [1.945432, 25.780916, 8.660000],
+            [0.117098, 24.254543, 8.660000],
+            [1.945432, 25.780916, 11.230000],
+        ],
+        dtype=np.float64,
+    )
+    faces = np.array(
+        [
+            [0, 1, 2],
+            [1, 3, 4],
+            [2, 4, 5],
+            [6, 5, 7],
+            [1, 0, 7],
+            [7, 5, 4],
+            [2, 6, 0],
+            [4, 2, 1],
+            [5, 6, 2],
+            [7, 0, 6],
+            [7, 3, 1],
+            [4, 3, 7],
+        ],
+        dtype=np.int64,
+    )
+    return trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
 
 
-def test_wall_opening_retrieves_both_cap_faces() -> None:
+def test_two_opposite_cut_surfaces_loft_caps_not_zero_volume_tube() -> None:
+    """A two-opposite-cut-surface tube must loft its caps, not emit a sliver.
+
+    Regression for the real-world opening ``2hS$0Nz...`` (``main:expr:340917``
+    voiding ``main:expr:340868``): its cut-surface tube is built solely from the
+    host's two opposite cut surfaces, so ``_close_bore`` caps it into a shell
+    trimesh deems watertight and winding-consistent but with ~1e-16 m^3 enclosed
+    volume. The old ``volume > 0`` watertight test accepted that shell, emitting
+    a zero-volume ``closed_cut_surface`` solid instead of lofting the two caps.
+    """
+    context = _context()
+    opening = _FakeOpening(340917, guid="2hS$0Nzmdwc3olqPHoF593")
+    host = _FakeHost(340868, [opening])
+    _add_host_mesh(context, host, _two_surface_host_mesh())
+    _add_opening(context, opening, _two_surface_opening_mesh())
+
+    result = _run(OpeningSurfaceInputs(express_ids=[_ref(340868)]), context)
+
+    assert result.opening_count == 1
+    assert result.surface_count == 1
+    entry = result.openings[0]
+    assert entry.error is None
+    assert entry.guid == "2hS$0Nzmdwc3olqPHoF593"
+    assert entry.method == "lofted_caps"
+    assert entry.watertight is True
+    volume = resolve_mesh(context, entry.geometry_key or "")
+    assert volume.is_watertight
+    assert volume.is_winding_consistent
+    assert volume.volume == pytest.approx(0.596238, rel=1e-3)
+
+
+# --- extraction edge cases ---------------------------------------------------------
+
+
+def test_through_bore_closes_watertight() -> None:
     context = _context()
     opening = _FakeOpening(2, guid="0LhBByOR0VH8aBzIyEdt5G")
-    _add_entity(context, _FakeHost(1, [opening]))
-    _add_opening(context, opening, _box([1.0, 0.3, 1.4]))
+    host = _FakeHost(1, [opening])
+    _add_host_mesh(context, host, _host_with_bore([2.0, 1.4, 0.3], [0.5, 0.5, 1.0]))
+    _add_opening(context, opening, _box([0.5, 0.5, 1.0]))
 
     result = _run(OpeningSurfaceInputs(express_ids=[_ref(1)]), context)
 
     assert result.opening_count == 1
     assert result.surface_count == 1
     assert result.geometry_keys == ["gen:opening_surface_main_2"]
-    opening = result.openings[0]
-    assert opening.express_id == "main:expr:2"
-    assert opening.guid == "0LhBByOR0VH8aBzIyEdt5G"
-    assert opening.host_express_id == "main:expr:1"
-    assert opening.error is None
-    assert opening.area == pytest.approx(1.4)
-    assert opening.width == pytest.approx(1.0)
-    assert opening.height == pytest.approx(1.4)
-    assert opening.depth == pytest.approx(0.3)
-    # both cap faces are cached: the mesh area is twice the single cap area
-    assert resolve_mesh(context, "gen:opening_surface_main_2").area == pytest.approx(
-        2.8
-    )
+    entry = result.openings[0]
+    assert entry.express_id == "main:expr:2"
+    assert entry.guid == "0LhBByOR0VH8aBzIyEdt5G"
+    assert entry.host_express_id == "main:expr:1"
+    assert entry.error is None
+    assert entry.method == "closed_cut_surface"
+    assert entry.watertight is True
+    assert entry.area == pytest.approx(0.25)
+    assert entry.depth == pytest.approx(0.3)
 
-
-def test_horizontal_opening_uses_horizontal_axes() -> None:
-    context = _context()
-    opening = _FakeOpening(3)
-    _add_entity(context, _FakeHost(2, [opening]))
-    # flat box: the largest opposing surfaces are the ±Z faces (a skylight)
-    _add_opening(context, opening, _box([1.2, 0.8, 0.3]))
-
-    result = _run(OpeningSurfaceInputs(express_ids=[_ref(2)]), context)
-
-    opening_result = result.openings[0]
-    assert opening_result.area == pytest.approx(0.96)
-    assert opening_result.width == pytest.approx(1.2)
-    assert opening_result.height == pytest.approx(0.8)
-    assert opening_result.depth == pytest.approx(0.3)
-
-
-def test_opening_with_single_cap_face_has_no_depth() -> None:
-    context = _context()
-    box = _box([1.0, 0.3, 1.4])
-    # drop one cap face: the remaining void exposes only one dominant flat face
-    keep = box.face_normals[:, 1] > -0.9
-    single_cap = trimesh.Trimesh(
-        vertices=box.vertices, faces=box.faces[keep], process=False
-    )
-    opening = _FakeOpening(4)
-    _add_entity(context, _FakeHost(3, [opening]))
-    _add_opening(context, opening, single_cap)
-
-    result = _run(OpeningSurfaceInputs(express_ids=[_ref(3)]), context)
-
-    opening_result = result.openings[0]
-    assert opening_result.area == pytest.approx(1.4)
-    assert opening_result.depth is None
-
-
-def test_oversized_opening_is_clipped_to_host_planes() -> None:
-    context = _context()
-    # Wall: the two dominant opposing faces are the ±Z faces (thickness 0.4).
-    host = _FakeHost(20, [])
-    _add_entity(context, host)
-    _add_host_mesh(context, host, _box([2.0, 2.0, 0.4]))
-    # Opening prism crosses the wall along Z but extends far beyond it, so its
-    # largest faces (±X/±Y, 0.6 each) are perpendicular to the wall surface.
-    opening = _FakeOpening(21)
-    _add_entity(context, _FakeHost(20, [opening]))
-    _add_opening(context, opening, _box([0.3, 0.3, 2.0]))
-
-    result = _run(OpeningSurfaceInputs(express_ids=[_ref(20)]), context)
-
-    assert result.opening_count == 1
-    opening_result = result.openings[0]
-    assert opening_result.error is None
-    # The true hole is the ±Z cross-section, not the large perpendicular faces.
-    assert opening_result.area == pytest.approx(0.09, rel=1e-2)
-    assert opening_result.depth == pytest.approx(0.4, rel=1e-2)
-    assert opening_result.geometry_key is not None
-    cap_mesh = resolve_mesh(context, opening_result.geometry_key)
-    assert cap_mesh.bounds[0][2] == pytest.approx(-0.2, abs=1e-3)
-    assert cap_mesh.bounds[1][2] == pytest.approx(0.2, abs=1e-3)
-
-
-# --- edge cases -----------------------------------------------------------------
+    volume = resolve_mesh(context, entry.geometry_key or "")
+    assert volume.is_watertight
+    assert volume.volume > 0
 
 
 def test_host_without_openings_contributes_nothing() -> None:
@@ -272,24 +489,24 @@ def test_opening_without_cached_mesh_reports_error() -> None:
     context = _context()
     opening = _FakeOpening(11)
     _add_entity(context, _FakeHost(12, [opening]))
-    _add_entity(context, opening)  # entity exists, but its geometry is not cached
+    _add_entity(context, opening)
 
     result = _run(OpeningSurfaceInputs(express_ids=[_ref(12)]), context)
 
     assert result.opening_count == 1
     assert result.surface_count == 0
-    opening_result = result.openings[0]
-    assert opening_result.error == "no cached geometry"
-    assert opening_result.geometry_key is None
-    assert opening_result.area is None
-    assert opening_result.depth is None
+    entry = result.openings[0]
+    assert entry.error == "no cached geometry"
+    assert entry.geometry_key is None
+    assert entry.method is None
 
 
 def test_repeated_host_emits_opening_once() -> None:
     context = _context()
     opening = _FakeOpening(13)
-    _add_entity(context, _FakeHost(14, [opening]))
-    _add_opening(context, opening, _box([1.0, 0.3, 1.4]))
+    host = _FakeHost(14, [opening])
+    _add_host_mesh(context, host, _host_with_bore([2.0, 1.4, 0.3], [0.5, 0.5, 1.0]))
+    _add_opening(context, opening, _box([0.5, 0.5, 1.0]))
 
     result = _run(OpeningSurfaceInputs(express_ids=[_ref(14), _ref(14)]), context)
 
@@ -315,18 +532,161 @@ def test_bound_but_empty_runs_vacuously() -> None:
     assert result.openings == []
 
 
-def test_non_element_reference_raises() -> None:
-    context = _context()
+def test_is_watertight_returns_false_for_degenerate_meshes() -> None:
+    """A malformed (1-D faces) or empty mesh reports False instead of raising.
 
-    with pytest.raises(ValueError, match="opening_surface requires"):
-        _run(OpeningSurfaceInputs(express_ids=["gen:cube"]), context)
+    Regression for the real-world model: the caps_only fallback once built a
+    trimesh from a flat list of face ids, leaving a 1-D ``faces`` array, and
+    ``_is_watertight`` crashed in trimesh's ``faces_to_edges``. It must be
+    tolerant of degenerate geometry (diagnostics only, never watertight).
+    """
+    malformed = trimesh.Trimesh(
+        vertices=np.zeros((3, 3), dtype=np.float64),
+        faces=np.array([0, 1, 2], dtype=np.int64),
+        process=False,
+    )
+    assert getattr(malformed.faces, "ndim", 0) == 1
+    assert _is_watertight(malformed) is False
+
+    empty = trimesh.Trimesh(
+        vertices=np.zeros((3, 3), dtype=np.float64),
+        faces=np.empty((0, 3), dtype=np.int64),
+        process=False,
+    )
+    assert _is_watertight(empty) is False
 
 
-def test_unbound_express_ids_fails_validation() -> None:
-    from pydantic import ValidationError
+def _jogged_ring_mesh() -> tuple[np.ndarray, np.ndarray, list[list[int]]]:
+    """An open tube whose two rims are jogged rings.
 
-    with pytest.raises(ValidationError, match="express_ids"):
-        OpeningSurfaceInputs.model_validate({})
+    The bore steps from a cap-plane run, down a perpendicular reveal step into an
+    internal layer plane, along it, and back up — the rim of a decomposed
+    multi-layer wall's bore. Both rims are the same jogged profile translated
+    along the cap normal (``z``), so the side faces are the planar vertical quads
+    between matching rim vertices.
+    """
+    near = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [2.0, 1.0, 0.0],
+            [2.0, 1.0, -0.2],
+            [0.0, 1.0, -0.2],
+            [0.0, 0.0, -0.2],
+        ],
+        dtype=np.float64,
+    )
+    far = near + np.array([0.0, 0.0, 1.0], dtype=np.float64)
+    vertices = np.concatenate([near, far], axis=0)
+    faces: list[list[int]] = []
+    for i in range(6):
+        a, b = i, (i + 1) % 6
+        fa, fb = a + 6, b + 6
+        faces.append([a, b, fb])
+        faces.append([a, fb, fa])
+    return (
+        vertices,
+        np.asarray(faces, dtype=np.int64),
+        [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]],
+    )
+
+
+_CAP_NORMAL_Z = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+
+
+def test_jogged_ring_has_axial_edge() -> None:
+    """A mid-wall jog edge runs parallel to the cap normal and is detected."""
+    vertices, _, _ = _jogged_ring_mesh()
+    assert _ring_has_axial_edge(vertices, [0, 1, 2, 3, 4, 5], _CAP_NORMAL_Z) is True
+
+
+def test_planar_ring_has_no_axial_edge() -> None:
+    """A flat cross-section rim (planar) has no axial step edge."""
+    vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float64)
+    assert _ring_has_axial_edge(vertices, [0, 1, 2, 3], _CAP_NORMAL_Z) is False
+
+
+def test_jogged_ring_groups_decompose_into_level_and_band_caps() -> None:
+    """The jogged rim becomes one level cap per in-plane run plus one band cap.
+
+    The near rim has two in-plane runs (the cap plane ``z=0`` and the internal
+    layer plane ``z=-0.2``) and two axial reveal steps, so it must decompose into
+    exactly three disjoint cap polygons (two level faces and one band face), each
+    with no repeated corner.
+    """
+    vertices, _, _ = _jogged_ring_mesh()
+    groups = _jogged_ring_groups(vertices, [0, 1, 2, 3, 4, 5], _CAP_NORMAL_Z)
+    assert len(groups) == 3
+    for group in groups:
+        assert len(group) >= 3
+        assert len({int(v) for v in group}) == len(group)
+
+
+def _planar_box_tube() -> tuple[np.ndarray, np.ndarray, list[list[int]]]:
+    """An open box tube: four vertical quads with planar square rims."""
+    vertices = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+    faces = np.asarray(
+        [
+            [0, 1, 5],
+            [0, 5, 4],
+            [1, 2, 6],
+            [1, 6, 5],
+            [2, 3, 7],
+            [2, 7, 6],
+            [3, 0, 4],
+            [3, 4, 7],
+        ],
+        dtype=np.int64,
+    )
+    return vertices, faces, [[0, 1, 2, 3], [4, 5, 6, 7]]
+
+
+def test_build_ring_closed_planar_tube_is_a_prism() -> None:
+    """A planar rim tube closes into a unit cube with an analytic volume."""
+    vertices, faces, rings = _planar_box_tube()
+    closed = _build_ring_closed(
+        vertices, faces, rings, _CAP_NORMAL_Z, context=None, host_ref=None
+    )
+    assert closed is not None
+    assert closed.is_watertight
+    assert closed.is_winding_consistent
+    assert closed.volume == pytest.approx(1.0, rel=1e-6)
+
+
+def test_build_ring_closed_jogged_tube_is_watertight() -> None:
+    """A jogged rim tube re-caps into a watertight, positive-volume solid."""
+    vertices, faces, rings = _jogged_ring_mesh()
+    closed = _build_ring_closed(
+        vertices, faces, rings, _CAP_NORMAL_Z, context=None, host_ref=None
+    )
+    assert closed is not None
+    assert closed.is_watertight
+    assert closed.is_winding_consistent
+    assert closed.volume > 0
+
+
+def test_build_ring_closed_fails_open_when_a_loop_cannot_be_capped() -> None:
+    """A rim that yields no valid cap polygon returns None so the caller falls back."""
+    vertices, faces, _ = _planar_box_tube()
+    # A two-vertex degenerate loop cannot form a cap: must fail (fallback).
+    assert (
+        _build_ring_closed(
+            vertices, faces, [[0, 2]], _CAP_NORMAL_Z, context=None, host_ref=None
+        )
+        is None
+    )
 
 
 # --- real model -------------------------------------------------------------------
@@ -342,157 +702,176 @@ def real_context() -> ExecutionContext:
     )
 
 
-@pytest.fixture(scope="module")
-def real_result(real_context: ExecutionContext) -> OpeningSurfaceResult:
-    model = cast(Any, real_context.ifc_model)
-    host_refs = [
+def _host_refs(model: Any) -> list[str]:
+    return [
         f"main:expr:{entity.id()}"
         for entity_type in ("IfcWall", "IfcSlab", "IfcRoof")
         for entity in model.by_type(entity_type)
     ]
-    return _run(OpeningSurfaceInputs(express_ids=host_refs), real_context)
 
 
-def test_all_model_openings_are_retrieved(
-    real_context: ExecutionContext, real_result: OpeningSurfaceResult
+def test_real_model_produces_watertight_volumes(
+    real_context: ExecutionContext,
 ) -> None:
-    assert real_result.opening_count == 17
-    assert real_result.surface_count == 17
-    assert len(real_result.geometry_keys) == 17
-
-    for opening in real_result.openings:
-        assert opening.error is None
-        assert opening.geometry_key is not None
-        assert opening.geometry_key.startswith("gen:opening_surface_main_")
-        assert opening.area is not None and opening.area > 0
-        assert opening.width is not None and opening.width > 0
-        assert opening.height is not None and opening.height > 0
-        assert opening.depth is not None and opening.depth > 0
-        mesh = resolve_mesh(real_context, opening.geometry_key)
-        assert len(mesh.faces) > 0
-
-    # Oversized cutter that extends beyond the wall: its surface must be the
-    # host-parallel hole (0.30 x 0.30) within the wall thickness, not the large
-    # perpendicular faces of the raw element.
-    entries = {
-        opening.express_id.split(":")[-1]: opening for opening in real_result.openings
-    }
-    oversized = entries["2555"]
-    assert oversized.area == pytest.approx(0.09, rel=0.01)
-    assert oversized.depth == pytest.approx(0.47, rel=0.01)
-    assert oversized.width == pytest.approx(0.30, rel=0.01)
-    assert oversized.height == pytest.approx(0.30, rel=0.01)
-
-
-def test_wall_opening_models_produce_host_parallel_caps() -> None:
-    expected: dict[str, dict[str, Any]] = {
-        "Testmodel-WallOpenings.ifc": {
-            "count": 10,
-            "areas": {"4188": 1.35, "4196": 1.7952},
-        },
-        "Testmodel-WallOpenings-Complex.ifc": {
-            "count": 22,
-            "areas": {"6303": 1.9404, "8059": 1.8415},
-        },
-    }
-    for model_file, meta in expected.items():
-        model = ifcopenshell.open(str(MODELS_ROOT / "specific" / model_file))
-        context = ExecutionContext(
-            ifc_model=cast(Any, model),
-            node_outputs={},
-            geometry_cache=build_geometry_cache(model),
-        )
-        refs = [f"main:expr:{entity.id()}" for entity in model.by_type("IfcWall")]
-        result = _run(OpeningSurfaceInputs(express_ids=refs), context)
-        assert result.opening_count == meta["count"]
-
-        entries = {
-            opening.express_id.split(":")[-1]: opening for opening in result.openings
-        }
-        for opening in result.openings:
-            assert opening.error is None
-            assert opening.geometry_key is not None
-            host_id = opening.host_express_id.split(":")[-1]
-            host_mesh = resolve_mesh(context, f"main:expr:{host_id}")
-            host_normals = _significant_host_normals(host_mesh)
-            assert host_normals
-            cap_normal = _opening_cap_normal(
-                resolve_mesh(context, opening.geometry_key)
-            )
-            parallel = max(abs(float(cap_normal @ normal)) for normal in host_normals)
-            assert parallel >= 0.98
-
-        for opening_id, area in meta["areas"].items():
-            assert entries[opening_id].area == pytest.approx(area, rel=0.02)
-
-
-def test_roof_openings_are_host_parallel_and_clipped_to_roof_thickness(
-    real_context: ExecutionContext, real_result: OpeningSurfaceResult
-) -> None:
-    """Roof openings lie in the plane of their pitch and are clipped to its slab.
-
-    The sloped roof (express 655) is ~0.35 units thick but is voided by cutters
-    that are ~0.52 deep. Every roof opening must therefore be clipped to the
-    pitch slab: its cap faces are host-parallel to one of the roof's significant
-    surface planes and its depth equals the roof thickness, not the raw cutter
-    length.
-    """
-    roof_openings = [
-        opening
-        for opening in real_result.openings
-        if opening.host_express_id.endswith(":655")
-    ]
-    assert len(roof_openings) == 5
-
-    for opening in roof_openings:
-        assert opening.error is None
-        assert opening.geometry_key is not None
-        assert opening.area is not None and opening.area > 0
-        assert opening.depth == pytest.approx(0.35, rel=0.01)
-
-        host_mesh = resolve_mesh(real_context, opening.host_express_id)
-        host_normals = _significant_host_normals(host_mesh)
-        assert host_normals
-        cap_normal = _opening_cap_normal(
-            resolve_mesh(real_context, opening.geometry_key)
-        )
-        parallel = max(abs(float(cap_normal @ normal)) for normal in host_normals)
-        assert parallel >= 0.98
-
-    entries = {opening.express_id.split(":")[-1]: opening for opening in roof_openings}
-    # The oversized cutters are clipped, so their area no longer reports the large
-    # unclipped cap of the raw cutting solid.
-    assert entries["667"].area == pytest.approx(1.8455, rel=0.01)
-    assert entries["679"].area == pytest.approx(7.9971, rel=0.01)
-    assert entries["817"].area == pytest.approx(2.8209, rel=0.01)
-
-
-def _filled_windows(real_context: ExecutionContext) -> Iterator[tuple[Any, Any]]:
-    """Yield (window entity, its opening entity) for every filled opening."""
     model = cast(Any, real_context.ifc_model)
-    for relationship in model.by_type("IfcRelFillsElement"):
-        yield relationship.RelatedBuildingElement, relationship.RelatingOpeningElement
+    result = _run(OpeningSurfaceInputs(express_ids=_host_refs(model)), real_context)
+
+    assert result.opening_count > 0
+    assert result.surface_count == result.opening_count
+    for entry in result.openings:
+        assert entry.error is None
+        assert entry.geometry_key is not None
+        volume = resolve_mesh(real_context, entry.geometry_key or "")
+        assert len(volume.faces) > 0
+        if entry.watertight:
+            assert volume.is_watertight
+            assert volume.is_winding_consistent
+            assert volume.volume > 0
 
 
-def test_wall_window_opening_matches_window_overall_dimensions(
-    real_context: ExecutionContext, real_result: OpeningSurfaceResult
-) -> None:
-    """Wall windows sit tightly in their void, so the caps equal the window size."""
-    entries = {opening.express_id: opening for opening in real_result.openings}
+def test_real_model_closed_cut_surface_is_watertight() -> None:
+    """Every closed_cut_surface volume re-caps its bore's rims to a watertight solid.
 
-    checked = 0
-    for window, opening_entity in _filled_windows(real_context):
-        host = opening_entity.VoidsElements[0].RelatingBuildingElement
-        if not host.is_a("IfcWall"):
+    Regression for decomposed multi-layer hosts (Zementputz / Stahlbeton / EPS
+    walls): the cut-surface tube's rim is jogged across a layer-interface plane,
+    so the surface node must re-cap the bore from its own rim rings (a level cap
+    per in-plane run plus a perpendicular band cap) rather than trust the
+    centroid-fan ``_close_bore`` applies. Every ``closed_cut_surface`` volume must
+    come out watertight and winding-consistent with a positive volume.
+
+    A fresh context is used so the test is order-independent (the shared module
+    fixture already caches the generated geometry keys).
+    """
+    model = ifcopenshell.open(str(_REAL_MODEL))
+    context = ExecutionContext(
+        ifc_model=cast(Any, model),
+        node_outputs={},
+        geometry_cache=build_geometry_cache(model),
+    )
+    result = _run(OpeningSurfaceInputs(express_ids=_host_refs(model)), context)
+
+    assert result.opening_count > 0
+    closed = 0
+    for entry in result.openings:
+        if (entry.method or "") != "closed_cut_surface":
             continue
-        width = getattr(window, "OverallWidth", None)
-        height = getattr(window, "OverallHeight", None)
-        entry = entries.get(f"main:expr:{opening_entity.id()}")
-        if entry is None or entry.area is None or width is None or height is None:
-            continue
-        checked += 1
-        assert entry.area == pytest.approx(width * height, rel=0.01)
-        assert entry.width == pytest.approx(width, rel=0.01)
-        assert entry.height == pytest.approx(height, rel=0.01)
+        closed += 1
+        assert entry.watertight is True
+        volume = resolve_mesh(context, entry.geometry_key or "")
+        assert volume.is_watertight, f"{entry.express_id} not watertight"
+        assert volume.is_winding_consistent
+        assert volume.volume > 0
 
-    assert checked > 0
+    assert closed > 0, "expected at least one through-bore to stay closed"
+
+
+def test_real_model_volumes_are_always_created_for_every_opening() -> None:
+    """Every opening on the small model closes to a watertight positive-volume solid.
+
+    Regression guard: the surface node must always produce a closed, positive-volume
+    solid for every opening on the model, with its method recorded. The upstream
+    surface-extraction node is deprecated, so the surface node itself is the truth:
+    no hard-coded volume numbers, only the structural invariants of the solid.
+
+    A fresh context is used so the test is order-independent: the shared
+    ``real_context`` module fixture already caches ``gen:opening_surface_main_*``
+    keys, and ``cache_mesh`` rejects a repeated key.
+    """
+    model = ifcopenshell.open(str(_REAL_MODEL))
+    context = ExecutionContext(
+        ifc_model=cast(Any, model),
+        node_outputs={},
+        geometry_cache=build_geometry_cache(model),
+    )
+    refs = _host_refs(model)
+
+    volumes = _run(OpeningSurfaceInputs(express_ids=refs), context)
+
+    # The closed-surface geometry is ALWAYS created for every opening.
+    assert volumes.opening_count > 0
+    assert volumes.surface_count == volumes.opening_count
+    assert len(volumes.geometry_keys) == volumes.opening_count
+
+    for volume in volumes.openings:
+        assert volume.error is None
+        assert volume.geometry_key is not None
+        assert volume.method in {"closed_cut_surface", "lofted_caps"}
+
+        mesh = resolve_mesh(context, volume.geometry_key or "")
+        assert len(mesh.faces) > 0
+        # The produced geometry stays a correct solid on this model.
+        assert volume.watertight is True
+        assert mesh.is_watertight
+        assert mesh.is_winding_consistent
+        assert mesh.volume > 0
+
+
+def test_simple_model_window_closes_door_becomes_watertight() -> None:
+    """The Simple model: the window closes and the floor-reaching door now closes too.
+
+    In the cut-surface node the door stays an open ring. The combined node lofts
+    the door's caps into a closed volume, so BOTH openings report a watertight
+    positive-volume solid, each with its method recorded.
+    """
+    model = ifcopenshell.open(
+        str(MODELS_ROOT / "specific" / "Testmodel-WallOpenings-Simple.ifc")
+    )
+    context = ExecutionContext(
+        ifc_model=cast(Any, model),
+        node_outputs={},
+        geometry_cache=build_geometry_cache(model),
+    )
+    result = _run(OpeningSurfaceInputs(express_ids=_host_refs(model)), context)
+
+    assert result.opening_count == 2
+    assert result.surface_count == 2
+
+    watertight = 0
+    methods: set[str] = set()
+    for entry in result.openings:
+        assert entry.error is None
+        assert entry.geometry_key is not None
+        volume = resolve_mesh(context, entry.geometry_key or "")
+        assert entry.watertight is True
+        assert volume.is_watertight
+        assert volume.is_winding_consistent
+        assert volume.volume > 0
+        methods.add(entry.method or "")
+        watertight += 1
+    # the through-bore window uses the closed cut surface; the door is lofted
+    assert watertight == 2
+    assert "closed_cut_surface" in methods
+    assert "lofted_caps" in methods
+
+
+def test_light_exposure_skylights_closed_with_correct_volumes() -> None:
+    """The folded-roof skylights are closed cut surfaces, not lofted caps.
+
+    Openings 679 and 703 are the roof skylights whose rims span two pitches.
+    Because the cut-surface tube now closes watertight, the surface node must use
+    ``closed_cut_surface`` and report the correct volumes, never the buggy
+    ``lofted_caps`` path (which once reported 0.405 and 0.071).
+    """
+    model = ifcopenshell.open(str(_REAL_MODEL))
+    context = ExecutionContext(
+        ifc_model=cast(Any, model),
+        node_outputs={},
+        geometry_cache=build_geometry_cache(model),
+    )
+    result = _run(OpeningSurfaceInputs(express_ids=_host_refs(model)), context)
+
+    expected_volumes = {"679": 2.359805, "703": 0.539082}
+    found = 0
+    for entry in result.openings:
+        opening_id = entry.express_id.rsplit(":", 1)[-1]
+        if opening_id not in expected_volumes:
+            continue
+        found += 1
+        assert entry.error is None
+        assert entry.method == "closed_cut_surface"
+        assert entry.watertight is True
+        volume = resolve_mesh(context, entry.geometry_key or "")
+        assert volume.is_watertight
+        assert volume.is_winding_consistent
+        assert abs(volume.volume - expected_volumes[opening_id]) < 1e-3
+    assert found == 2

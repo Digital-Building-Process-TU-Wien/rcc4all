@@ -675,7 +675,7 @@ export interface Measurement {
   }
 }
 /**
- * Retrieves the surfaces of openings that lie in the plane of the host surface (walls, slabs, roofs) and caches them as generated geometry for downstream nodes.
+ * Retrieves a watertight closed surface per opening by closing the host's cut-surface tube for a through-bore, or by lofting the opening's cap faces into a solid for an open ring, and caches it as generated geometry.
  */
 export interface OpeningSurface {
   result: {
@@ -684,15 +684,15 @@ export interface OpeningSurface {
      */
     opening_count: number
     /**
-     * Number of openings whose surfaces were retrieved into the geometry cache.
+     * Number of openings whose closed-surface geometry was retrieved into the geometry cache.
      */
     surface_count: number
     /**
-     * Geometry-cache keys (`gen:`) of the retrieved opening surfaces, in opening order. Bind to geometry consumers such as measurement or collision.
+     * Geometry-cache keys (`gen:`) of the retrieved opening closed surfaces, in opening order. Bind to geometry consumers such as measurement or collision.
      */
     geometry_keys?: string[]
     /**
-     * Flat list of openings with their retrieved surface data.
+     * Flat list of openings with their retrieved closed-surface data.
      */
     openings?: {
       /**
@@ -708,27 +708,35 @@ export interface OpeningSurface {
        */
       host_express_id: string
       /**
-       * Geometry-cache key (`gen:`) of the retrieved opening surfaces, or None when they could not be retrieved.
+       * Geometry-cache key (`gen:`) of the retrieved opening closed surface, or None when it could not be retrieved.
        */
       geometry_key?: (string | null)
+      /**
+       * How the closed surface was derived: 'closed_cut_surface' (a through-bore whose cut-surface tube closed watertight), 'lofted_caps' (the two cap faces were lofted/connected, possibly with a synthesized second cap), or 'caps_only' (no watertight closed surface; the cap/tube geometry is emitted unchanged).
+       */
+      method?: (string | null)
+      /**
+       * Whether the emitted geometry is a closed, winding-consistent, positive-volume solid.
+       */
+      watertight?: boolean
       /**
        * Opening area in the plane of the host surface (the larger cap face), or None when it could not be retrieved.
        */
       area?: (number | null)
       /**
-       * Horizontal extent of the opening surfaces in the host plane, or None when it could not be retrieved.
+       * Horizontal extent of the opening in the host plane, or None when it could not be retrieved.
        */
       width?: (number | null)
       /**
-       * Vertical extent of the opening surfaces in the host plane, or None when it could not be retrieved.
+       * Vertical extent of the opening in the host plane, or None when it could not be retrieved.
        */
       height?: (number | null)
       /**
-       * Distance between the two cap faces along the host surface normal. None when only one cap face exists (e.g. a recess) or when it could not be retrieved.
+       * Distance between the two cap faces along the host surface normal. None when only one cap face exists or it could not be retrieved.
        */
       depth?: (number | null)
       /**
-       * Error reason when the opening surfaces could not be retrieved.
+       * Error reason when the opening closed surface could not be retrieved.
        */
       error?: (string | null)
     }[]
@@ -741,7 +749,7 @@ export interface OpeningSurface {
   }
 }
 /**
- * Builds a self-contained IFC4X3 model of opening-surface cap faces from the opening_surface node, placed into the source model's spatial structure.
+ * Builds a self-contained IFC4X3 model of watertight opening closed surfaces from the opening_surface node, placed into the source model's spatial structure.
  */
 export interface OpeningSurfaceIFCGenerator {
   settings: {
@@ -756,7 +764,7 @@ export interface OpeningSurfaceIFCGenerator {
      */
     output_path: string
     /**
-     * Number of generated opening-surface proxies.
+     * Number of generated opening closed-surface proxies.
      */
     element_count: number
     /**
@@ -776,9 +784,17 @@ export interface OpeningSurfaceIFCGenerator {
        */
       element_guid: string
       /**
-       * Index of the cap face this proxy represents (0 = larger cap, 1 = its opposing cap; a single-cap recess yields only cap 0).
+       * Number of polygonal faces written for this opening closed surface.
        */
-      cap?: number
+      face_count?: number
+      /**
+       * How the source closed surface was derived: 'closed_cut_surface', 'lofted_caps' or 'caps_only'.
+       */
+      method?: (string | null)
+      /**
+       * Volume of the opening solid written as an IfcQuantityVolume, in cubic metres, or None when it could not be retrieved.
+       */
+      volume?: (number | null)
       /**
        * Qualified reference of the host element the opening voids.
        */
@@ -799,7 +815,7 @@ export interface OpeningSurfaceIFCGenerator {
   }
   inputs: {
     /**
-     * Opening surface results of the opening_surface node. Bind its 'openings' output here.
+     * Opening closed-surface results of the opening_surface node. Bind its 'openings' output here.
      */
     openings?: {
       /**
@@ -815,27 +831,35 @@ export interface OpeningSurfaceIFCGenerator {
        */
       host_express_id: string
       /**
-       * Geometry-cache key (`gen:`) of the retrieved opening surfaces, or None when they could not be retrieved.
+       * Geometry-cache key (`gen:`) of the retrieved opening closed surface, or None when it could not be retrieved.
        */
       geometry_key?: (string | null)
+      /**
+       * How the closed surface was derived: 'closed_cut_surface' (a through-bore whose cut-surface tube closed watertight), 'lofted_caps' (the two cap faces were lofted/connected, possibly with a synthesized second cap), or 'caps_only' (no watertight closed surface; the cap/tube geometry is emitted unchanged).
+       */
+      method?: (string | null)
+      /**
+       * Whether the emitted geometry is a closed, winding-consistent, positive-volume solid.
+       */
+      watertight?: boolean
       /**
        * Opening area in the plane of the host surface (the larger cap face), or None when it could not be retrieved.
        */
       area?: (number | null)
       /**
-       * Horizontal extent of the opening surfaces in the host plane, or None when it could not be retrieved.
+       * Horizontal extent of the opening in the host plane, or None when it could not be retrieved.
        */
       width?: (number | null)
       /**
-       * Vertical extent of the opening surfaces in the host plane, or None when it could not be retrieved.
+       * Vertical extent of the opening in the host plane, or None when it could not be retrieved.
        */
       height?: (number | null)
       /**
-       * Distance between the two cap faces along the host surface normal. None when only one cap face exists (e.g. a recess) or when it could not be retrieved.
+       * Distance between the two cap faces along the host surface normal. None when only one cap face exists or it could not be retrieved.
        */
       depth?: (number | null)
       /**
-       * Error reason when the opening surfaces could not be retrieved.
+       * Error reason when the opening closed surface could not be retrieved.
        */
       error?: (string | null)
     }[]
