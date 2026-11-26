@@ -488,6 +488,15 @@
       "presetXAxis": "X Axis",
       "presetYAxis": "Y Axis"
     },
+    "geometryProjection": {
+      "title": "Geometry Projection",
+      "description": "Project cached geometries (e.g. building footprints) onto a plane through the world origin and store the flat projected footprint as generated geometry.",
+      "projectionNormal": "Projection Normal",
+      "projectionNormalHelp": "Normal vector of the projection plane. Default [0,0,1] computes a top-down footprint through the world origin.",
+      "presetXyPlane": "XY Plane (Z)",
+      "presetYzPlane": "YZ Plane (X)",
+      "presetXzPlane": "XZ Plane (Y)"
+    },
     "idsChecker": {
       "title": "IDS Checker Node",
       "description": "Select a local development IDS file.",

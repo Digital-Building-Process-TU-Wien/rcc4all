@@ -488,6 +488,15 @@
       "presetXAxis": "X-Achse",
       "presetYAxis": "Y-Achse"
     },
+    "geometryProjection": {
+      "title": "Geometrieprojektion",
+      "description": "Projiziert zwischengespeicherte Geometrien (z. B. Gebäudegrundrisse) auf eine Ebene durch den Weltursprung und speichert den flachen projizierten Grundriss als generierte Geometrie.",
+      "projectionNormal": "Projektionsnormale",
+      "projectionNormalHelp": "Normalenvektor der Projektionsebene. Standard [0,0,1] berechnet einen Grundriss (Draufsicht) durch den Weltursprung.",
+      "presetXyPlane": "XY-Ebene (Z)",
+      "presetYzPlane": "YZ-Ebene (X)",
+      "presetXzPlane": "XZ-Ebene (Y)"
+    },
     "idsChecker": {
       "title": "IDS Checker Node",
       "description": "Wählen Sie eine lokale IDS-Entwicklungsdatei aus.",

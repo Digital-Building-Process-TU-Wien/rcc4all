@@ -6,6 +6,7 @@ import type { ComparisonNodeSchema } from './comparison'
 import type { ConcatStringNodeSchema } from './concat_string'
 import type { FileInputNodeSchema } from './file_input'
 import type { Generate3DCubeNodeSchema } from './generate_3d_cube'
+import type { GeometryProjectionNodeSchema } from './geometry_projection'
 import type { GetElementCreationPositionDoorNodeSchema } from './get_element_creation_position_door'
 import type { GetPropertyNodeSchema } from './get_property'
 import type { IdsCheckerNodeSchema } from './ids_checker'
@@ -22,6 +23,7 @@ export interface NodeRegistrySchema {
   concat_string: ConcatStringNodeSchema
   file_input: FileInputNodeSchema
   generate_3d_cube: Generate3DCubeNodeSchema
+  geometry_projection: GeometryProjectionNodeSchema
   get_element_creation_position_door: GetElementCreationPositionDoorNodeSchema
   get_property: GetPropertyNodeSchema
   ids_checker: IdsCheckerNodeSchema

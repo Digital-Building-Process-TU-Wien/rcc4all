@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/geometry_projection.schema.json",
+  "type": "object",
+  "title": "Geometry Projection",
+  "description": "Project cached geometries (e.g. building footprints) onto a plane through the world origin and store the flat projected footprint as generated geometry. Does not compute areas.",
+  "categories": [
+    "Geometry"
+  ],
+  "markdownDescription": "The `geometry_projection` node projects the geometry of each input reference onto a plane\npassing through the world origin and stores the resulting **flat footprint surface** as new\ngenerated geometry in the cache. It is the counterpart to `measurement`'s `projected_area`\nmode: that node only reports the projected area, while this node produces an actual planar\nmesh you can use downstream (e.g. feed into `collision`, `measurement`, or a later\n`geometry_projection`).\n\nThe projected geometry is stored under a deterministic `gen:proj_<reference>` key that maps\neach input reference back to its generated key in the result. It does **not** compute areas.\n\n## Use case example\n\n- Generate a footprint (top-down projection) of a building or element and use it as the\n  input to a collision or measurement check.\n- Project an intersection mesh (from the `collision` node) onto a plane for further analysis.\n\n## Settings\n\n### Projection normal\n\nThe normal vector of the projection plane. The plane always passes through the **world\norigin**.\n\n- **Default**: `[0.0, 0.0, 1.0]` (XY plane, top-down footprint)\n- **Format**: List of exactly 3 floats `[x, y, z]`\n- **Normalization**: The normal is normalized internally; only the direction matters, not the\n  magnitude.\n- **Zero normal**: If the normal is zero-length (e.g. `[0.0, 0.0, 0.0]`), an error entry\n  `undefined normal` is produced for every input.\n- **Examples**:\n  - `[0, 0, 1]` \u2192 Project onto the XY plane (footprint; `z=0`, keeps `x/y` plan position)\n  - `[1, 0, 0]` \u2192 Project onto the YZ plane\n  - `[0, 1, 0]` \u2192 Project onto the XZ plane\n\n## Inputs\n\n- **List** (required): A list of fully qualified geometry cache keys\n  (`<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry,\n  `inter:<id>` for helper/intersection geometry). An empty list yields an empty result.\n  - **Dict input**: Also accepts a dict (e.g., the `intersection_meshes` output from the\n    collision node). The dict's non-null values (cache keys) are used.\n\n## Outputs\n\n- **Projected geometries**: A dict mapping each input geometry cache key to the generated\n  `gen:proj_<...>` key under which its footprint was stored in the geometry cache.\n- **Errors**: A list of per-input `{reference, error}` failures.\n\n### Generated key\n\nThe generated key is `gen:proj_<reference>` where every `:` and `/` in the reference is\nreduced to `_`. A uniqueness guard appends `_1`, `_2`, \u2026 if the key already exists in the\ncache. Because the generated key never contains a clean `:expr:<int>` sequence, it can never\nbe misparsed as an IFC reference downstream.\n\n| Input reference | Generated key |\n|-----------------|---------------|\n| `main:expr:170` | `gen:proj_main_expr_170` |\n| `inter:intersection_main:expr:766_main:expr:347` | `gen:proj_inter_intersection_main_expr_766_main_expr_347` |\n| `gen:a_b` (then `gen:a:b`) | `gen:proj_gen_a_b`, then `gen:proj_gen_a_b_1` |\n\n## Example Configuration\n\n**Settings:**\n- Projection normal: `[0.0, 0.0, 1.0]` (top-down footprint)\n\n**Inputs:**\n- List: `[\"main:expr:101\", \"main:expr:102\"]` (two walls)\n\n**Output:**\n```json\n{\n  \"projected_geometries\": {\n    \"main:expr:101\": \"gen:proj_main_expr_101\",\n    \"main:expr:102\": \"gen:proj_main_expr_102\"\n  },\n  \"errors\": []\n}\n```\n\n### Error handling\n\n- `no cached geometry` \u2014 The reference is not a valid geometry cache key or has no cached\n  geometry (e.g. `main:expr:999`).\n- `no projected geometry` \u2014 The projection is empty/degenerate: the mesh is edge-on to the\n  projection plane, so it has no area in that plane.\n- `undefined normal` \u2014 The projection normal is zero-length. Emitted for every input.\n\n**Inputs:**\n- List: `[\"main:expr:101\", \"main:expr:999\"]`\n\n**Output:**\n```json\n{\n  \"projected_geometries\": {\n    \"main:expr:101\": \"gen:proj_main_expr_101\"\n  },\n  \"errors\": [\n    { \"reference\": \"main:expr:999\", \"error\": \"no cached geometry\" }\n  ]\n}\n```\n\n## Notes\n\n- **Winding / orientation**: For negative or rotated normals the footprint is geometrically\n  correct, but the face normal direction may be inverted. Use the mesh purely as a planar\n  surface.\n- **Idempotency**: The deterministic key plus uniqueness guard appends `_1`, `_2`, \u2026 on\n  re-execution, so re-running the same workflow accumulates new projected geometries rather\n  than overwriting existing ones.\n- **Empty list**: An empty **List** yields an empty result (no errors).",
+  "locales": {
+    "de": {
+      "title": "Geometrieprojektion",
+      "description": "Projiziert zwischengespeicherte Geometrien (z. B. Geb\u00e4udegrundrisse) auf eine Ebene durch den Weltursprung und speichert den flachen projizierten Grundriss als generierte Geometrie. Berechnet keine Fl\u00e4chen.",
+      "categories": [
+        "Geometry"
+      ],
+      "markdownDescription": "Der `geometry_projection`-Knoten projiziert die Geometrie jeder Eingangsreferenz auf eine\nEbene durch den **Weltursprung** und speichert die resultierende **flache Grundrissfl\u00e4che** als\nneue generierte Geometrie im Cache. Er ist das Gegenst\u00fcck zum `projected_area`-Modus des\n`measurement`-Knotens: Jener meldet nur die projizierte Fl\u00e4che, w\u00e4hrend dieser Knoten ein\ntats\u00e4chliches ebenes Mesh erzeugt, das Sie downstream verwenden k\u00f6nnen (z. B. als Eingabe f\u00fcr\n`collision`, `measurement` oder eine weitere `geometry_projection`).\n\nDie projizierte Geometrie wird unter einem deterministischen `gen:proj_<reference>`-Schl\u00fcssel\ngespeichert, der jede Eingangsreferenz im Ergebnis auf ihren generierten Schl\u00fcssel abbildet.\nDer Knoten berechnet **keine** Fl\u00e4chen.\n\n## Anwendungsbeispiel\n\n- Einen Grundriss (Draufsicht) eines Geb\u00e4udes oder Bauteils erzeugen und als Eingabe f\u00fcr\n  einen Kollisions- oder Messungs-Check verwenden.\n- Eine Schnittmenge (aus dem `collision`-Knoten) f\u00fcr weitere Analysen auf eine Ebene projizieren.\n\n## Einstellungen\n\n### Projektionsnormale\n\nDer Normalenvektor der Projektionsebene. Die Ebene verl\u00e4uft immer durch den **Weltursprung**.\n\n- **Standard**: `[0.0, 0.0, 1.0]` (XY-Ebene, Draufsicht)\n- **Format**: Liste von genau 3 Floats `[x, y, z]`\n- **Normalisierung**: Die Normale wird intern normalisiert; nur die Richtung ist relevant, nicht\n  die L\u00e4nge.\n- **Null-Normale**: Wenn die Normale keine L\u00e4nge hat (z. B. `[0.0, 0.0, 0.0]`), wird ein\n  Fehlereintrag `undefined normal` f\u00fcr jede Eingabe erzeugt.\n- **Beispiele**:\n  - `[0, 0, 1]` \u2192 Projektion auf die XY-Ebene (Grundriss; `z=0`, `x/y`-Lage bleibt erhalten)\n  - `[1, 0, 0]` \u2192 Projektion auf die YZ-Ebene\n  - `[0, 1, 0]` \u2192 Projektion auf die XZ-Ebene\n\n## Eingaben\n\n- **Liste** (erforderlich): Liste voll qualifizierter Geometrie-Cache-Schl\u00fcssel\n  (`<slug>:expr:<id>` f\u00fcr IFC-Elemente, `gen:<object_id>` f\u00fcr generierte Geometrie,\n  `inter:<id>` f\u00fcr Hilfs-/Schnittgeometrie). Eine leere Liste liefert ein leeres Ergebnis.\n  - **Dict-Eingabe**: Akzeptiert auch ein Dict (z. B. die `intersection_meshes`-Ausgabe des\n    collision-Knotens). Die Nicht-Null-Werte des Dicts (Cache-Schl\u00fcssel) werden verwendet.\n\n## Ausgaben\n\n- **Projizierte Geometrien**: Ein Dict, das jeden eingegebenen Geometrie-Cache-Schl\u00fcssel auf\n  den generierten `gen:proj_<...>`-Schl\u00fcssel abbildet, unter dem der Grundriss im Cache\n  gespeichert wurde.\n- **Fehler**: Eine Liste von `{reference, error}`-Fehlern pro Eingabe.\n\n### Generierter Schl\u00fcssel\n\nDer generierte Schl\u00fcssel ist `gen:proj_<reference>`, wobei jedes `:` und `/` in der Referenz\nzu `_` reduziert wird. Ein Eindeutigkeits-Guard h\u00e4ngt `_1`, `_2`, \u2026 an, falls der Schl\u00fcssel\nbereits im Cache existiert. Da der generierte Schl\u00fcssel nie eine saubere `:expr:<int>`-Sequenz\nenth\u00e4lt, kann er downstream nie f\u00e4lschlich als IFC-Referenz geparst werden.\n\n| Eingangsreferenz | Generierter Schl\u00fcssel |\n|------------------|----------------------|\n| `main:expr:170` | `gen:proj_main_expr_170` |\n| `inter:intersection_main:expr:766_main:expr:347` | `gen:proj_inter_intersection_main_expr_766_main_expr_347` |\n| `gen:a_b` (dann `gen:a:b`) | `gen:proj_gen_a_b`, dann `gen:proj_gen_a_b_1` |\n\n## Beispielkonfiguration\n\n**Einstellungen:**\n- Projektionsnormale: `[0.0, 0.0, 1.0]` (Draufsicht)\n\n**Eingaben:**\n- Liste: `[\"main:expr:101\", \"main:expr:102\"]` (zwei W\u00e4nde)\n\n**Ausgabe:**\n```json\n{\n  \"projected_geometries\": {\n    \"main:expr:101\": \"gen:proj_main_expr_101\",\n    \"main:expr:102\": \"gen:proj_main_expr_102\"\n  },\n  \"errors\": []\n}\n```\n\n### Fehlerbehandlung\n\n- `no cached geometry` \u2014 Die Referenz ist kein g\u00fcltiger Geometrie-Cache-Schl\u00fcssel oder hat\n  keine zwischengespeicherte Geometrie (z. B. `main:expr:999`).\n- `no projected geometry` \u2014 Die Projektion ist leer/degeneriert: Das Mesh liegt kantenparallel\n  zur Projektionsebene und hat daher in dieser Ebene keine Fl\u00e4che.\n- `undefined normal` \u2014 Die Projektionsnormale ist null. Wird f\u00fcr jede Eingabe ausgegeben.\n\n**Eingaben:**\n- Liste: `[\"main:expr:101\", \"main:expr:999\"]`\n\n**Ausgabe:**\n```json\n{\n  \"projected_geometries\": {\n    \"main:expr:101\": \"gen:proj_main_expr_101\"\n  },\n  \"errors\": [\n    { \"reference\": \"main:expr:999\", \"error\": \"no cached geometry\" }\n  ]\n}\n```\n\n## Hinweise\n\n- **Windung / Ausrichtung**: Bei negativen oder rotierten Normalen ist der Grundriss\n  geometrisch korrekt, aber die Richtung der Fl\u00e4chennormalen kann invertiert sein. Verwenden\n  Sie das Mesh rein als ebene Fl\u00e4che.\n- **Idempotenz**: Der deterministische Schl\u00fcssel plus Eindeutigkeits-Guard h\u00e4ngt bei erneuter\n  Ausf\u00fchrung `_1`, `_2`, \u2026 an, sodass eine wiederholte Ausf\u00fchrung neue projizierte Geometrien\n  anh\u00e4uft statt bestehende zu \u00fcberschreiben.\n- **Leere Liste**: Eine leere **Liste** liefert ein leeres Ergebnis (keine Fehler)."
+    },
+    "en": {
+      "title": "Geometry Projection",
+      "description": "Project cached geometries (e.g. building footprints) onto a plane through the world origin and store the flat projected footprint as generated geometry. Does not compute areas.",
+      "categories": [
+        "Geometry"
+      ],
+      "markdownDescription": "The `geometry_projection` node projects the geometry of each input reference onto a plane\npassing through the world origin and stores the resulting **flat footprint surface** as new\ngenerated geometry in the cache. It is the counterpart to `measurement`'s `projected_area`\nmode: that node only reports the projected area, while this node produces an actual planar\nmesh you can use downstream (e.g. feed into `collision`, `measurement`, or a later\n`geometry_projection`).\n\nThe projected geometry is stored under a deterministic `gen:proj_<reference>` key that maps\neach input reference back to its generated key in the result. It does **not** compute areas.\n\n## Use case example\n\n- Generate a footprint (top-down projection) of a building or element and use it as the\n  input to a collision or measurement check.\n- Project an intersection mesh (from the `collision` node) onto a plane for further analysis.\n\n## Settings\n\n### Projection normal\n\nThe normal vector of the projection plane. The plane always passes through the **world\norigin**.\n\n- **Default**: `[0.0, 0.0, 1.0]` (XY plane, top-down footprint)\n- **Format**: List of exactly 3 floats `[x, y, z]`\n- **Normalization**: The normal is normalized internally; only the direction matters, not the\n  magnitude.\n- **Zero normal**: If the normal is zero-length (e.g. `[0.0, 0.0, 0.0]`), an error entry\n  `undefined normal` is produced for every input.\n- **Examples**:\n  - `[0, 0, 1]` \u2192 Project onto the XY plane (footprint; `z=0`, keeps `x/y` plan position)\n  - `[1, 0, 0]` \u2192 Project onto the YZ plane\n  - `[0, 1, 0]` \u2192 Project onto the XZ plane\n\n## Inputs\n\n- **List** (required): A list of fully qualified geometry cache keys\n  (`<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry,\n  `inter:<id>` for helper/intersection geometry). An empty list yields an empty result.\n  - **Dict input**: Also accepts a dict (e.g., the `intersection_meshes` output from the\n    collision node). The dict's non-null values (cache keys) are used.\n\n## Outputs\n\n- **Projected geometries**: A dict mapping each input geometry cache key to the generated\n  `gen:proj_<...>` key under which its footprint was stored in the geometry cache.\n- **Errors**: A list of per-input `{reference, error}` failures.\n\n### Generated key\n\nThe generated key is `gen:proj_<reference>` where every `:` and `/` in the reference is\nreduced to `_`. A uniqueness guard appends `_1`, `_2`, \u2026 if the key already exists in the\ncache. Because the generated key never contains a clean `:expr:<int>` sequence, it can never\nbe misparsed as an IFC reference downstream.\n\n| Input reference | Generated key |\n|-----------------|---------------|\n| `main:expr:170` | `gen:proj_main_expr_170` |\n| `inter:intersection_main:expr:766_main:expr:347` | `gen:proj_inter_intersection_main_expr_766_main_expr_347` |\n| `gen:a_b` (then `gen:a:b`) | `gen:proj_gen_a_b`, then `gen:proj_gen_a_b_1` |\n\n## Example Configuration\n\n**Settings:**\n- Projection normal: `[0.0, 0.0, 1.0]` (top-down footprint)\n\n**Inputs:**\n- List: `[\"main:expr:101\", \"main:expr:102\"]` (two walls)\n\n**Output:**\n```json\n{\n  \"projected_geometries\": {\n    \"main:expr:101\": \"gen:proj_main_expr_101\",\n    \"main:expr:102\": \"gen:proj_main_expr_102\"\n  },\n  \"errors\": []\n}\n```\n\n### Error handling\n\n- `no cached geometry` \u2014 The reference is not a valid geometry cache key or has no cached\n  geometry (e.g. `main:expr:999`).\n- `no projected geometry` \u2014 The projection is empty/degenerate: the mesh is edge-on to the\n  projection plane, so it has no area in that plane.\n- `undefined normal` \u2014 The projection normal is zero-length. Emitted for every input.\n\n**Inputs:**\n- List: `[\"main:expr:101\", \"main:expr:999\"]`\n\n**Output:**\n```json\n{\n  \"projected_geometries\": {\n    \"main:expr:101\": \"gen:proj_main_expr_101\"\n  },\n  \"errors\": [\n    { \"reference\": \"main:expr:999\", \"error\": \"no cached geometry\" }\n  ]\n}\n```\n\n## Notes\n\n- **Winding / orientation**: For negative or rotated normals the footprint is geometrically\n  correct, but the face normal direction may be inverted. Use the mesh purely as a planar\n  surface.\n- **Idempotency**: The deterministic key plus uniqueness guard appends `_1`, `_2`, \u2026 on\n  re-execution, so re-running the same workflow accumulates new projected geometries rather\n  than overwriting existing ones.\n- **Empty list**: An empty **List** yields an empty result (no errors)."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "projection_normal": {
+          "default": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "description": "Normal vector of the projection plane, e.g. [0,0,1] projects onto the XY plane (top-down footprint). Normalized internally. Zero vector produces an 'undefined normal' error for every input.",
+          "items": {
+            "type": "number"
+          },
+          "title": "Projection Normal",
+          "type": "array"
+        }
+      },
+      "title": "GeometryProjectionSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "projected_geometries": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Maps each input geometry cache key to the generated `gen:proj_<...>` key under which its flat projected footprint was stored in the geometry cache.",
+          "title": "Projected Geometries",
+          "type": "object"
+        },
+        "errors": {
+          "default": [],
+          "description": "Per-input projection failures.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "reference": {
+                "description": "The geometry cache key that failed to project, or the raw input when no geometry was found.",
+                "title": "Reference",
+                "type": "string"
+              },
+              "error": {
+                "description": "Error reason: 'no cached geometry' (missing/invalid key), 'no projected geometry' (degenerate, edge-on projection) or 'undefined normal' (zero-length normal).",
+                "title": "Error",
+                "type": "string"
+              }
+            },
+            "required": [
+              "reference",
+              "error"
+            ],
+            "title": "ProjectionError",
+            "type": "object"
+          },
+          "title": "Errors",
+          "type": "array"
+        }
+      },
+      "title": "GeometryProjectionResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "liste_a": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            }
+          ],
+          "description": "List of fully qualified geometry cache keys \u2014 `<slug>:expr:<id>` for IFC elements, `gen:<object_id>` for generated geometry, `inter:<id>` for helper/intersection geometry \u2014 in the order to project. An empty list yields an empty result. Also accepts a dict (e.g., collision node's `intersection_meshes` output); in this case the dict's non-null values (cache keys) are used.",
+          "title": "List"
+        }
+      },
+      "required": [
+        "liste_a"
+      ],
+      "title": "GeometryProjectionInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

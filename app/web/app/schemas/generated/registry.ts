@@ -6,6 +6,7 @@ import comparisonSchema from '../../../../../shared/schemas/nodes/comparison.sch
 import concatStringSchema from '../../../../../shared/schemas/nodes/concat_string.schema.json'
 import fileInputSchema from '../../../../../shared/schemas/nodes/file_input.schema.json'
 import generate3DCubeSchema from '../../../../../shared/schemas/nodes/generate_3d_cube.schema.json'
+import geometryProjectionSchema from '../../../../../shared/schemas/nodes/geometry_projection.schema.json'
 import getElementCreationPositionDoorSchema from '../../../../../shared/schemas/nodes/get_element_creation_position_door.schema.json'
 import getPropertySchema from '../../../../../shared/schemas/nodes/get_property.schema.json'
 import idsCheckerSchema from '../../../../../shared/schemas/nodes/ids_checker.schema.json'
@@ -22,6 +23,7 @@ export const NODE_SCHEMAS = {
   concat_string: concatStringSchema,
   file_input: fileInputSchema,
   generate_3d_cube: generate3DCubeSchema,
+  geometry_projection: geometryProjectionSchema,
   get_element_creation_position_door: getElementCreationPositionDoorSchema,
   get_property: getPropertySchema,
   ids_checker: idsCheckerSchema,

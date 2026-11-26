@@ -12,6 +12,7 @@ from .comparison.comparison import comparison
 from .concat_string.concat_string import concat_string
 from .file_input.file_input import file_input
 from .generate_3d_cube.generate_3d_cube import generate_3d_cube
+from .geometry_projection.geometry_projection import geometry_projection
 from .get_element_creation_position_door.get_element_creation_position_door import (
     get_element_creation_position_door,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "dispatch",
     "file_input",
     "generate_3d_cube",
+    "geometry_projection",
     "get_element_creation_position_door",
     "get_property",
     "get_registry",
