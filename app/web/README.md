@@ -45,6 +45,12 @@ Multi-model workflows use these contracts:
 - IFC node inputs use qualified references such as `main:expr:123`.
 - Bind `ifc_element_filter.express_ids` before passing references to downstream IFC consumers. A bound empty list remains empty and does not trigger whole-model scanning.
 
+### Saving and loading workflows
+
+**Save** and **Load** sit at the right end of the model bar. Named workflows are stored under `web/.dev-files/workflow/` by default; the save dialog can place them in any folder inside `web/.dev-files` and lists the files already there, so an existing workflow can be picked and overwritten instead of creating a duplicate.
+
+The saved file is the runner payload (`{ files, nodes, edges }`) plus each node's canvas `position`, so a workflow with a `main` model assigned can be executed directly — the runner rejects a workflow without one. Model paths are written relative to the workflow file (the runner's native convention) and translated back to `web/.dev-files`-relative paths when the file is loaded in the editor.
+
 ### Permission Model
 - **Super Admins**: Full system access via Payload admin UI
 - **Group Admins**: Manage their group(s), invite users, create subgroups

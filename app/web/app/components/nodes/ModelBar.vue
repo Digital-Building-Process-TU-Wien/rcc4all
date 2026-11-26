@@ -133,7 +133,7 @@ async function confirm() {
 </script>
 
 <template>
-  <div class="flex h-20 items-center gap-3 overflow-x-auto border-b border-default bg-elevated px-6">
+  <div class="flex h-20 w-full items-center gap-3 overflow-x-auto px-6">
     <div
       v-for="file in orderedFiles"
       :key="file.slug"

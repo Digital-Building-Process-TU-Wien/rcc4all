@@ -64,25 +64,34 @@ comparison method is active at a time.
 
 ## Outputs
 
-The result is a slim, structured check per element:
+The result is a slim, structured check per element. The executor wraps every
+node result in an envelope `{ label, type, result }`, where `label`
+(runtime-assigned name) and `type` (`"tilt_of_components"`) live on the outer
+envelope — the node's `result` object itself carries only the fields below:
 
-- `element_count`: number of elements processed
-- `check_count`: number of elements with at least one surface/axis check (elements
-  without tessellated geometry are skipped and not counted)
-- `failed_count`: number of elements with at least one flagged surface/axis
+- `summary_element_count` (elements processed), `summary_passed_count` /
+  `summary_failed_count` (element-level: elements with at least one flagged
+  surface/axis vs. none), and `summary_check_count` (total number of
+  surface/axis checks across all elements).
+- `passed_express_ids`, `failed_express_ids`: flat lists of qualified references
+  partitioning the measured elements.
 - `elements`: ordered list of
-  - `express_id` (the qualified reference string), `class_name` (IFC class or
-    `unknown`), `element_category`
+  - `express_ids` (list, normally a single qualified reference), `class_name`
+    (IFC class or `unknown`)
   - `failed`: true when at least one check was flagged
-  - `checks`: list of `TiltSurfaceCheck`:
-    - `expected`: human-readable pass condition combined from the comparison
-      method and limits (e.g. "less than or equal to X")
-    - `tilt_angle` (°), `passed`
-    - `geometry_key`: geometry-cache key of the helper geometry for flagged checks
+  - `checks`: list of `TiltCheck`:
+    - `key`: `"surface_0"` / `"surface_1"` (2D) or `"axis"` (1D)
+    - `check_parameter`: `"angle"`
+    - `expected_value`: human-readable pass condition combined from the
+      comparison method and limits (e.g. "less than or equal to X")
+    - `actual_value` (°, as string), `unit` (`"deg"`), `missing` (always
+      `false`), `passed`
+    - `expected_value_condition`, `expected_value_min`, `expected_value_max`:
+      always `""` (the whole expectation is captured in `expected_value`)
 
 A 2D element yields up to two checks (front/back surfaces); a 1D element yields
-one check (its axis). The `check_count` and `failed_count` totals count elements,
-not individual checks.
+one check (its axis). `summary_check_count` counts individual checks, not
+elements.
 
 ## Helper geometry
 

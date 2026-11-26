@@ -66,16 +66,23 @@ property value matches any accepted value. Requires at least one accepted value.
 
 ## Outputs
 
-- `element_count`, `total_checks`, `failed_count`
+The executor wraps every node result in an envelope `{ label, type, result }`,
+where `label` (runtime-assigned name) and `type` (`"loi_check"`) live on the
+outer envelope. The node's `result` object carries only the fields below:
+
+- `summary_element_count`, `summary_passed_count`, `summary_failed_count`
+  (element-level), and `summary_check_count` (total number of checks).
 - `passed_express_ids`, `failed_express_ids`: flat lists of the qualified
   element references of the checked elements — those whose checks all passed,
   and those with at least one failed check. Elements with no applied checks are
   excluded from both lists.
-- `elements`: each with `express_id` (the qualified reference string),
-  `class_name` (or `unknown`), `failed`, and `checks` — each check has
-  `id`/`property_key`, `property_name`, `condition`,
-  `expected`, optional `expected_min`/`expected_max` (range barriers), `actual`
-  (`null` if missing), and `passed`.
+- `elements`: each with `express_ids` (a list of qualified references), `class_name`
+  (or `unknown`), `failed`, and `checks` — each check has `key`, `check_parameter`
+  (the property name), `expected_value`, `actual_value` (string, empty when
+  missing), `unit` (empty when unknown), `missing` (true when the property is
+  absent), `passed`, plus `expected_value_condition` (the comparison operator),
+  `expected_value_min` / `expected_value_max` (range barriers for
+  `between`/`outside`, empty otherwise).
 
 A reference naming a missing id yields an `unknown` element (with no applied
 checks) when no component type is specified in the comparison table.
@@ -93,28 +100,31 @@ checks) when no component type is specified in the comparison table.
 
 ```json
 {
-  "element_count": 2,
-  "total_checks": 6,
-  "failed_count": 2,
+  "summary_element_count": 2,
+  "summary_passed_count": 1,
+  "summary_failed_count": 1,
+  "summary_check_count": 6,
+  "passed_express_ids": ["main:expr:1235"],
+  "failed_express_ids": ["main:expr:1234"],
   "elements": [
     {
-      "express_id": "main:expr:1235",
+      "express_ids": ["main:expr:1235"],
       "class_name": "IFCWALL",
       "failed": false,
       "checks": [
-        { "id": "Pset_WallCommon.LoadBearing", "property_key": "Pset_WallCommon.LoadBearing", "property_name": "LoadBearing", "condition": "equals", "expected": "true", "actual": "true", "passed": true },
-        { "id": "Pset_WallCommon.ThermalTransmittance", "property_key": "Pset_WallCommon.ThermalTransmittance", "property_name": "ThermalTransmittance", "condition": "lt", "expected": "0.4", "actual": "0.25", "passed": true },
-        { "id": "Pset_WallCommon.FireRating", "property_key": "Pset_WallCommon.FireRating", "property_name": "FireRating", "condition": "one_of", "expected": "F30, F60", "actual": "F30", "passed": true }
+        { "key": "Pset_WallCommon.LoadBearing", "check_parameter": "LoadBearing", "expected_value": "true", "actual_value": "true", "unit": "", "missing": false, "passed": true, "expected_value_condition": "equals", "expected_value_min": "", "expected_value_max": "" },
+        { "key": "Pset_WallCommon.ThermalTransmittance", "check_parameter": "ThermalTransmittance", "expected_value": "0.4", "actual_value": "0.25", "unit": "", "missing": false, "passed": true, "expected_value_condition": "lt", "expected_value_min": "", "expected_value_max": "" },
+        { "key": "Pset_WallCommon.FireRating", "check_parameter": "FireRating", "expected_value": "F30, F60", "actual_value": "F30", "unit": "", "missing": false, "passed": true, "expected_value_condition": "one_of", "expected_value_min": "", "expected_value_max": "" }
       ]
     },
     {
-      "express_id": "main:expr:1234",
+      "express_ids": ["main:expr:1234"],
       "class_name": "IFCWALL",
       "failed": true,
       "checks": [
-        { "id": "Pset_WallCommon.LoadBearing", "property_key": "Pset_WallCommon.LoadBearing", "property_name": "LoadBearing", "condition": "equals", "expected": "true", "actual": "true", "passed": true },
-        { "id": "Pset_WallCommon.ThermalTransmittance", "property_key": "Pset_WallCommon.ThermalTransmittance", "property_name": "ThermalTransmittance", "condition": "lt", "expected": "0.4", "actual": "0.8", "passed": false },
-        { "id": "Pset_WallCommon.FireRating", "property_key": "Pset_WallCommon.FireRating", "property_name": "FireRating", "condition": "one_of", "expected": "F30, F60", "actual": "F90", "passed": false }
+        { "key": "Pset_WallCommon.LoadBearing", "check_parameter": "LoadBearing", "expected_value": "true", "actual_value": "true", "unit": "", "missing": false, "passed": true, "expected_value_condition": "equals", "expected_value_min": "", "expected_value_max": "" },
+        { "key": "Pset_WallCommon.ThermalTransmittance", "check_parameter": "ThermalTransmittance", "expected_value": "0.4", "actual_value": "0.8", "unit": "", "missing": false, "passed": false, "expected_value_condition": "lt", "expected_value_min": "", "expected_value_max": "" },
+        { "key": "Pset_WallCommon.FireRating", "check_parameter": "FireRating", "expected_value": "F30, F60", "actual_value": "F90", "unit": "", "missing": false, "passed": false, "expected_value_condition": "one_of", "expected_value_min": "", "expected_value_max": "" }
       ]
     }
   ]

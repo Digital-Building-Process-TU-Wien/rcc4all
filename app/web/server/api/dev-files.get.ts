@@ -1,19 +1,11 @@
 import { readdir } from 'node:fs/promises'
-import { join } from 'node:path'
-import process from 'node:process'
+import { assertDevOnly, DEV_FILES_DIRECTORY, isMissingPathError } from '../utils/dev-files'
 
 export default defineEventHandler(async () => {
-  if (!import.meta.dev) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Not Found',
-    })
-  }
-
-  const devFilesDirectory = join(process.cwd(), '.dev-files')
+  assertDevOnly()
 
   try {
-    const entries = await readdir(devFilesDirectory, { withFileTypes: true })
+    const entries = await readdir(DEV_FILES_DIRECTORY, { withFileTypes: true })
 
     return {
       files: entries
@@ -23,12 +15,7 @@ export default defineEventHandler(async () => {
     }
   }
   catch (error) {
-    if (
-      typeof error === 'object'
-      && error !== null
-      && 'code' in error
-      && (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-    ) {
+    if (isMissingPathError(error)) {
       throw createError({
         statusCode: 404,
         statusMessage: '.dev-files folder not found',

@@ -5,6 +5,10 @@ from typing import Literal
 from pydantic import Field
 
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
+from openbim_runner.nodes.bcf_output.harmonized import (
+    HarmonizedCheckResult,
+    HarmonizedElement,
+)
 from openbim_runner.util.ifc_properties import (
     build_property_key,
     entity_matches_type,
@@ -104,81 +108,30 @@ class LoiCheckInputs(NodeModel):
     )
 
 
-class PropertyCheckResult(NodeModel):
-    id: str = Field(
-        title="ID",
-        description="Stable identifier for this check (the property key, e.g., 'Pset.X' or 'X').",
-    )
-    property_key: str = Field(
-        title="Property key",
-        description="Property key in 'Pset.Property' or 'Property' format.",
-    )
-    property_name: str = Field(
-        title="Property name",
-        description="Name of the property being compared.",
-    )
-    condition: ComparisonCondition = Field(
-        title="Condition",
-        description="The comparison operator that was applied.",
-    )
-    expected: str = Field(
-        default="",
-        title="Expected",
-        description="Expected value as a string (empty for is_true / is_false and range checks).",
-    )
-    expected_min: str | None = Field(
-        default=None,
-        title="Expected min",
-        description="Lower barrier used for numeric range checks, or None for single-value checks.",
-    )
-    expected_max: str | None = Field(
-        default=None,
-        title="Expected max",
-        description="Upper barrier used for numeric range checks, or None for single-value checks.",
-    )
-    actual: str | None = Field(
-        default=None,
-        title="Actual",
-        description="Actual property value as a string, or None if the property is missing.",
-    )
-    passed: bool = Field(
-        title="Passed",
-        description="Whether the property value satisfies the condition.",
-    )
-
-
-class ComparisonElement(NodeModel):
-    express_id: str = Field(
-        title="Express ID",
-        description="The qualified element reference (`<slug>:expr:<id>`).",
-    )
-    class_name: str = Field(
-        title="Class name",
-        description="IFC entity class (e.g., IFCWALL) or 'unknown' for missing entities.",
-    )
-    failed: bool = Field(
-        title="Failed",
-        description="True if at least one check on this element failed.",
-    )
-    checks: list[PropertyCheckResult] = Field(
-        default=[],
-        title="Checks",
-        description="List of property check results for this element.",
-    )
+# The result models are the harmonized check schema shared with other checking
+# nodes (e.g. tilt_of_components). Keeping these aliases lets this node read the
+# same data shape while exposing a single source of truth for downstream
+# consumers like bcf_output.
+PropertyCheckResult = HarmonizedCheckResult
+ComparisonElement = HarmonizedElement
 
 
 class LoiCheckResult(NodeModel):
-    element_count: int = Field(
+    summary_element_count: int = Field(
         title="Element count",
         description="Number of elements processed.",
     )
-    total_checks: int = Field(
-        title="Total checks",
-        description="Total number of property checks across all elements.",
+    summary_passed_count: int = Field(
+        title="Passed count",
+        description="Number of checked elements whose checks all passed.",
     )
-    failed_count: int = Field(
+    summary_failed_count: int = Field(
         title="Failed count",
-        description="Total number of failed checks across all elements.",
+        description="Number of checked elements with at least one failed check.",
+    )
+    summary_check_count: int = Field(
+        title="Check count",
+        description="Total number of property checks across all elements.",
     )
     passed_express_ids: list[str] = Field(
         default=[],
@@ -217,7 +170,6 @@ async def loi_check(
 
     elements: list[ComparisonElement] = []
     total_checks = 0
-    failed_count = 0
 
     # Explicitly specified component types act as an output filter: only elements
     # matching at least one are emitted. If ANY row uses an "Any Element" signal
@@ -243,7 +195,7 @@ async def loi_check(
             if not specified_types:
                 elements.append(
                     ComparisonElement(
-                        express_id=element.reference,
+                        express_ids=[element.reference],
                         class_name="unknown",
                         failed=False,
                         checks=[],
@@ -293,38 +245,38 @@ async def loi_check(
                 passed = _check_one_of(actual, accepted)
                 condition = row.condition
                 expected = ", ".join(accepted)
-                expected_min = None
-                expected_max = None
+                expected_min = ""
+                expected_max = ""
             else:
                 passed = _check_passes(row.condition, actual, row.expected_value)
                 condition = row.condition
                 expected = row.expected_value
-                expected_min = None
-                expected_max = None
+                expected_min = ""
+                expected_max = ""
 
             prop_key = build_property_key(row.property_set, row.property_name)
             checks.append(
                 PropertyCheckResult(
-                    id=prop_key,
-                    property_key=prop_key,
-                    property_name=row.property_name,
-                    condition=condition,
-                    expected=expected,
-                    expected_min=expected_min,
-                    expected_max=expected_max,
-                    actual=actual,
+                    key=prop_key,
+                    check_parameter=row.property_name,
+                    expected_value=expected,
+                    actual_value=actual if actual is not None else "",
+                    unit="",
+                    missing=actual is None,
                     passed=passed,
+                    expected_value_condition=condition,
+                    expected_value_min=expected_min,
+                    expected_value_max=expected_max,
                 )
             )
             if not passed:
                 element_failed = True
 
         total_checks += len(checks)
-        failed_count += sum(1 for check in checks if not check.passed)
 
         elements.append(
             ComparisonElement(
-                express_id=element.reference,
+                express_ids=[element.reference],
                 class_name=class_name,
                 failed=element_failed,
                 checks=checks,
@@ -332,17 +284,20 @@ async def loi_check(
         )
 
     checked = [element for element in elements if element.checks]
+    passed_express_ids = [
+        ref for element in checked if not element.failed for ref in element.express_ids
+    ]
+    failed_express_ids = [
+        ref for element in checked if element.failed for ref in element.express_ids
+    ]
 
     return LoiCheckResult(
-        element_count=len(elements),
-        total_checks=total_checks,
-        failed_count=failed_count,
-        passed_express_ids=[
-            element.express_id for element in checked if not element.failed
-        ],
-        failed_express_ids=[
-            element.express_id for element in checked if element.failed
-        ],
+        summary_element_count=len(elements),
+        summary_passed_count=len(passed_express_ids),
+        summary_failed_count=len(failed_express_ids),
+        summary_check_count=total_checks,
+        passed_express_ids=passed_express_ids,
+        failed_express_ids=failed_express_ids,
         elements=elements,
     )
 

@@ -1,15 +1,10 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { join, normalize } from 'node:path'
-import process from 'node:process'
+import { assertDevOnly, isMissingPathError } from '../utils/dev-files'
+import { resolveInDevFiles } from '../utils/workflow-files'
 
 export default defineEventHandler(async (event) => {
-  if (!import.meta.dev) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Not Found',
-    })
-  }
+  assertDevOnly()
 
   const { name } = getQuery(event)
   if (typeof name !== 'string' || !name) {
@@ -19,28 +14,16 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const devFilesDirectory = normalize(join(process.cwd(), '.dev-files'))
-  const target = normalize(join(devFilesDirectory, name))
-  if (!target.startsWith(devFilesDirectory)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Invalid file name',
-    })
-  }
+  const { absolute } = resolveInDevFiles(name)
 
   try {
-    const content = await readFile(target)
+    const content = await readFile(absolute)
     return {
       hash: createHash('sha256').update(content).digest('hex'),
     }
   }
   catch (error) {
-    if (
-      typeof error === 'object'
-      && error !== null
-      && 'code' in error
-      && (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-    ) {
+    if (isMissingPathError(error)) {
       throw createError({
         statusCode: 404,
         statusMessage: 'File not found',
