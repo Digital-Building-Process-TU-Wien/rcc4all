@@ -333,6 +333,23 @@ def test_geometry_projection_key_sanitization_and_guard() -> None:
     assert result.errors == []
 
 
+def test_geometry_projection_duplicate_refs_are_idempotent() -> None:
+    """The same reference listed twice maps to one key and caches one footprint."""
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
+
+    result = _run(
+        GeometryProjectionSettings(),
+        GeometryProjectionInputs(liste_a=[_ref(1), _ref(1)]),
+        context,
+    )
+
+    assert result.projected_geometries == {"main:expr:1": "gen:proj_main_expr_1"}
+    assert result.errors == []
+    # Only the source mesh and the single shared footprint are cached — no `_1`.
+    assert set(context.geometry_cache) == {"main:expr:1", "gen:proj_main_expr_1"}
+
+
 def test_geometry_projection_generated_key_is_not_ifc_ref() -> None:
     """Generated keys must never parse back as an IFC reference."""
     from rcc4all_runner.util.references import split_reference

@@ -158,6 +158,40 @@ def resolve_side(
     return keys
 
 
+def resolve_keys(
+    context: ExecutionContext,
+    refs: list[str] | dict[str, str | None] | None = None,
+) -> list[tuple[str, str | None]]:
+    """Resolve a list or dict of references into ordered ``(label, cache_key)`` pairs.
+
+    Soft resolution: never raises. For each reference:
+
+    - a valid geometry cache key present in the cache → ``(ref, ref)``;
+    - a malformed key or one with no cached geometry → ``(raw_ref, None)``;
+    - a dict → its non-null values, treated like a list.
+
+    This is the lenient counterpart to :func:`resolve_side`, which raises. It is
+    used by consumers that want per-item errors (e.g. ``measurement``,
+    ``geometry_projection``) rather than a hard failure on the first bad entry.
+    """
+    cache = _ensure_cache(context)
+    refs = refs or []
+
+    if isinstance(refs, dict):
+        refs = [value for value in refs.values() if value is not None]
+
+    results: list[tuple[str, str | None]] = []
+    for ref in refs:
+        if not is_geometry_key(ref):
+            results.append((str(ref), None))
+            continue
+        if ref in cache:
+            results.append((ref, ref))
+        else:
+            results.append((str(ref), None))
+    return results
+
+
 def _is_watertight(mesh: trimesh.Trimesh) -> bool:
     return bool(mesh.is_watertight and mesh.is_winding_consistent and mesh.volume > 0)
 

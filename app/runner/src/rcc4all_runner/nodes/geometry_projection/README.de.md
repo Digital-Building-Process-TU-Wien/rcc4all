@@ -4,22 +4,22 @@ description: Projiziert zwischengespeicherte Geometrien (z. B. Gebäudegrundriss
 categories: Geometry
 ---
 
-Der `geometry_projection`-Knoten projiziert die Geometrie jeder Eingangsreferenz auf eine
+Der `geometry_projection`-Node projiziert die Geometrie jeder Eingangsreferenz auf eine
 Ebene durch den **Weltursprung** und speichert die resultierende **flache Grundrissfläche** als
 neue generierte Geometrie im Cache. Er ist das Gegenstück zum `projected_area`-Modus des
-`measurement`-Knotens: Jener meldet nur die projizierte Fläche, während dieser Knoten ein
+`measurement`-Nodes: Jener meldet nur die projizierte Fläche, während dieser Node ein
 tatsächliches ebenes Mesh erzeugt, das Sie downstream verwenden können (z. B. als Eingabe für
 `collision`, `measurement` oder eine weitere `geometry_projection`).
 
 Die projizierte Geometrie wird unter einem deterministischen `gen:proj_<reference>`-Schlüssel
 gespeichert, der jede Eingangsreferenz im Ergebnis auf ihren generierten Schlüssel abbildet.
-Der Knoten berechnet **keine** Flächen.
+Der Node berechnet **keine** Flächen.
 
 ## Anwendungsbeispiel
 
 - Einen Grundriss (Draufsicht) eines Gebäudes oder Bauteils erzeugen und als Eingabe für
   einen Kollisions- oder Messungs-Check verwenden.
-- Eine Schnittmenge (aus dem `collision`-Knoten) für weitere Analysen auf eine Ebene projizieren.
+- Eine Schnittmenge (aus dem `collision`-Node) für weitere Analysen auf eine Ebene projizieren.
 
 ## Einstellungen
 
@@ -44,7 +44,7 @@ Der Normalenvektor der Projektionsebene. Die Ebene verläuft immer durch den **W
   (`<slug>:expr:<id>` für IFC-Elemente, `gen:<object_id>` für generierte Geometrie,
   `inter:<id>` für Hilfs-/Schnittgeometrie). Eine leere Liste liefert ein leeres Ergebnis.
   - **Dict-Eingabe**: Akzeptiert auch ein Dict (z. B. die `intersection_meshes`-Ausgabe des
-    collision-Knotens). Die Nicht-Null-Werte des Dicts (Cache-Schlüssel) werden verwendet.
+    collision-Nodes). Die Nicht-Null-Werte des Dicts (Cache-Schlüssel) werden verwendet.
 
 ## Ausgaben
 
@@ -56,9 +56,12 @@ Der Normalenvektor der Projektionsebene. Die Ebene verläuft immer durch den **W
 ### Generierter Schlüssel
 
 Der generierte Schlüssel ist `gen:proj_<reference>`, wobei jedes `:` und `/` in der Referenz
-zu `_` reduziert wird. Ein Eindeutigkeits-Guard hängt `_1`, `_2`, … an, falls der Schlüssel
-bereits im Cache existiert. Da der generierte Schlüssel nie eine saubere `:expr:<int>`-Sequenz
-enthält, kann er downstream nie fälschlich als IFC-Referenz geparst werden.
+zu `_` reduziert wird. Innerhalb eines Laufs bildet dieselbe Referenz immer auf denselben
+Schlüssel ab (idempotent); zwei verschiedene Referenzen, die auf dieselbe Basis reduziert
+werden, erhalten `_1`, `_2`, … sodass ihre Grundrisse nie kollidieren. Ein bereits im Cache
+vorhandener Schlüssel (z. B. von einem früheren Node) wird nicht wiederverwendet, sondern
+mit `_n` ergänzt. Da der generierte Schlüssel nie eine saubere `:expr:<int>`-Sequenz enthält,
+kann er downstream nie fälschlich als IFC-Referenz geparst werden.
 
 | Eingangsreferenz | Generierter Schlüssel |
 |------------------|----------------------|
@@ -113,7 +116,9 @@ enthält, kann er downstream nie fälschlich als IFC-Referenz geparst werden.
 - **Windung / Ausrichtung**: Bei negativen oder rotierten Normalen ist der Grundriss
   geometrisch korrekt, aber die Richtung der Flächennormalen kann invertiert sein. Verwenden
   Sie das Mesh rein als ebene Fläche.
-- **Idempotenz**: Der deterministische Schlüssel plus Eindeutigkeits-Guard hängt bei erneuter
-  Ausführung `_1`, `_2`, … an, sodass eine wiederholte Ausführung neue projizierte Geometrien
-  anhäuft statt bestehende zu überschreiben.
+- **Idempotenz**: Innerhalb eines Laufs erzeugt dieselbe, zweimal gelistete Referenz denselben
+  generierten Schlüssel (kein doppelter Grundriss). Eine erneute Ausführung gegen einen frischen
+  Cache erzeugt ebenfalls dieselben Schlüssel — sie häuft kein `_1`, `_2`, … an. Ein bereits im
+  gemeinsamen Cache vorhandener Schlüssel (z. B. von einem früheren Node) wird nicht
+  wiederverwendet; er erhält einen `_n`-Suffix.
 - **Leere Liste**: Eine leere **Liste** liefert ein leeres Ergebnis (keine Fehler).

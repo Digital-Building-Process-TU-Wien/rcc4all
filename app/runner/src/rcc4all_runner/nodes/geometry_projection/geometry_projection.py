@@ -1,19 +1,22 @@
 from __future__ import annotations
 
+import sys
+
 import numpy as np
 import trimesh
 from pydantic import Field, field_validator
 from trimesh.geometry import plane_transform
 
 from rcc4all_runner.nodes.base import ExecutionContext, NodeModel, node
-from rcc4all_runner.util.geometry import cache_mesh, resolve_mesh
-from rcc4all_runner.util.references import is_geometry_key
+from rcc4all_runner.util.geometry import cache_mesh, resolve_keys, resolve_mesh
 
 
 class GeometryProjectionSettings(NodeModel):
     projection_normal: list[float] = Field(
         default=[0.0, 0.0, 1.0],
         title="Projection Normal",
+        min_length=3,
+        max_length=3,
         description=(
             "Normal vector of the projection plane, e.g. [0,0,1] projects onto the XY plane "
             "(top-down footprint). Normalized internally. Zero vector produces an 'undefined "
@@ -85,77 +88,70 @@ def _project_to_plane(
     """
     try:
         path = mesh.projected(normal=normal.tolist())
-    except Exception:
+    except Exception as exc:
+        print(f"geometry_projection: mesh.projected() failed: {exc}", file=sys.stderr)
         return None
     if len(path.vertices) == 0:
         return None
 
     try:
         v2, faces = path.triangulate()
-    except Exception:
-        return None
-    if faces is None or len(faces) == 0:
+        if faces is None or len(faces) == 0:
+            return None
+
+        # Lift the 2D triangulated vertices back to world space. `plane_transform`
+        # maps plane-local coordinates into world; its inverse maps the projected
+        # 2D coordinates (in the plane basis) to world-space 3D points.
+        transform = plane_transform(origin=None, normal=normal.tolist())
+        inv_transform = np.linalg.inv(transform)
+        homog = np.hstack([v2, np.zeros((len(v2), 1)), np.ones((len(v2), 1))])
+        world_vertices = (homog @ inv_transform.T)[:, :3]
+
+        footprint = trimesh.Trimesh(
+            vertices=world_vertices, faces=np.asarray(faces, dtype=int), process=False
+        )
+    except Exception as exc:
+        print(f"geometry_projection: triangulate/lift failed: {exc}", file=sys.stderr)
         return None
 
-    # Lift the 2D triangulated vertices back to world space. `plane_transform`
-    # maps plane-local coordinates into world; its inverse maps the projected
-    # 2D coordinates (in the plane basis) to world-space 3D points.
-    transform = plane_transform(origin=None, normal=normal.tolist())
-    inv_transform = np.linalg.inv(transform)
-    homog = np.hstack([v2, np.zeros((len(v2), 1)), np.ones((len(v2), 1))])
-    world_vertices = (homog @ inv_transform.T)[:, :3]
-
-    footprint = trimesh.Trimesh(
-        vertices=world_vertices, faces=np.asarray(faces, dtype=int), process=False
-    )
     if len(footprint.faces) == 0:
         return None
     return footprint
 
 
-def _resolve_keys(
-    context: ExecutionContext, refs: list[str] | dict[str, str | None]
-) -> list[tuple[str, str | None]]:
-    """Flatten the input into (reference_label, cache_key_or_None) pairs.
+def _assign_projection_keys(
+    context: ExecutionContext, reference_keys: list[str]
+) -> dict[str, str]:
+    """Assign a deterministic ``gen:proj_<reference>`` key per input reference.
 
-    - A valid geometry cache key present in the cache → ``(key, key)``.
-    - A malformed key or one with no cached geometry → ``(raw ref, None)``.
-    - A dict (e.g., collision's ``intersection_meshes``) → its non-null values.
+    Idempotent within a single call: a reference that appears more than once in
+    the list maps to the *same* generated key (no duplicate footprint, no ``_n``
+    counter). Two *different* references that sanitize to the same base (e.g.
+    ``gen:a_b`` vs ``gen:a:b``) still get distinct keys (``base``, ``base_1``,
+    …) so their footprints never collide.
+
+    The reference's ``:`` and ``/`` are reduced to ``_`` so the resulting key
+    can never parse back as an IFC reference (which would break downstream slug
+    detection). Keys already present in the shared cache are taken, so a base
+    produced by an earlier node is not reused — it gets a ``_n`` suffix.
     """
     cache = context.geometry_cache or {}
-    refs = refs or []
+    used = set(cache)
+    assigned: dict[str, str] = {}
 
-    if isinstance(refs, dict):
-        refs = [value for value in refs.values() if value is not None]
-
-    results: list[tuple[str, str | None]] = []
-    for ref in refs:
-        if not is_geometry_key(ref):
-            results.append((str(ref), None))
+    for reference in reference_keys:
+        if reference in assigned:
             continue
-        if ref in cache:
-            results.append((ref, ref))
-        else:
-            results.append((str(ref), None))
-    return results
+        base = "gen:proj_" + reference.replace(":", "_").replace("/", "_")
+        key = base
+        counter = 1
+        while key in used:
+            key = f"{base}_{counter}"
+            counter += 1
+        assigned[reference] = key
+        used.add(key)
 
-
-def _unique_geometry_key(context: ExecutionContext, reference: str) -> str:
-    """Build a deterministic ``gen:proj_<reference>`` key, guarding against collisions.
-
-    The reference's ``:`` and ``/`` are reduced to ``_`` so the resulting key can
-    never parse back as an IFC reference (which would break downstream slug
-    detection). If the key already exists in the cache, ``_1``, ``_2``, … is
-    appended.
-    """
-    base = "gen:proj_" + reference.replace(":", "_").replace("/", "_")
-    cache = context.geometry_cache or {}
-    key = base
-    counter = 1
-    while key in cache:
-        key = f"{base}_{counter}"
-        counter += 1
-    return key
+    return assigned
 
 
 @node()
@@ -169,15 +165,18 @@ async def geometry_projection(
     if norm == 0:
         errors = [
             ProjectionError(reference=label, error="undefined normal")
-            for label, _ in _resolve_keys(context, inputs.liste_a)
+            for label, _ in resolve_keys(context, inputs.liste_a)
         ]
         return GeometryProjectionResult(projected_geometries={}, errors=errors)
     normal_unit = normal / norm
 
+    resolved = resolve_keys(context, inputs.liste_a)
+    key_map = _assign_projection_keys(context, [label for label, _ in resolved])
+
     projected_geometries: dict[str, str] = {}
     errors: list[ProjectionError] = []
 
-    for label, cache_key in _resolve_keys(context, inputs.liste_a):
+    for label, cache_key in resolved:
         if cache_key is None:
             errors.append(ProjectionError(reference=label, error="no cached geometry"))
             continue
@@ -190,8 +189,9 @@ async def geometry_projection(
             )
             continue
 
-        generated_key = _unique_geometry_key(context, label)
-        cache_mesh(context, footprint, key=generated_key)
+        generated_key = key_map[label]
+        if generated_key not in context.geometry_cache:
+            cache_mesh(context, footprint, key=generated_key)
         projected_geometries[label] = generated_key
 
     return GeometryProjectionResult(

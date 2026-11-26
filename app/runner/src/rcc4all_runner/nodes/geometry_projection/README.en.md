@@ -55,9 +55,11 @@ origin**.
 ### Generated key
 
 The generated key is `gen:proj_<reference>` where every `:` and `/` in the reference is
-reduced to `_`. A uniqueness guard appends `_1`, `_2`, … if the key already exists in the
-cache. Because the generated key never contains a clean `:expr:<int>` sequence, it can never
-be misparsed as an IFC reference downstream.
+reduced to `_`. Within a single run the same reference always maps to the same key (idempotent);
+two different references that reduce to the same base get `_1`, `_2`, … so their footprints never
+collide, and a key already in the cache (e.g. from an earlier node) gets a `_n` suffix. Because
+the generated key never contains a clean `:expr:<int>` sequence, it can never be misparsed as
+an IFC reference downstream.
 
 | Input reference | Generated key |
 |-----------------|---------------|
@@ -112,7 +114,8 @@ be misparsed as an IFC reference downstream.
 - **Winding / orientation**: For negative or rotated normals the footprint is geometrically
   correct, but the face normal direction may be inverted. Use the mesh purely as a planar
   surface.
-- **Idempotency**: The deterministic key plus uniqueness guard appends `_1`, `_2`, … on
-  re-execution, so re-running the same workflow accumulates new projected geometries rather
-  than overwriting existing ones.
+- **Idempotency**: Within a single run, listing the same reference twice produces the same
+  generated key (no duplicate footprint). Re-running the same workflow against a fresh cache
+  also yields the same keys — it does not accumulate `_1`, `_2`, … A key that already exists in
+  the shared cache (e.g. produced by an earlier node) is not reused; it gets a `_n` suffix.
 - **Empty list**: An empty **List** yields an empty result (no errors).

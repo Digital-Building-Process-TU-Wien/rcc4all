@@ -7,8 +7,11 @@ export interface GeometryProjectionNodeSchema {
   settings: {
     /**
      * Normal vector of the projection plane, e.g. [0,0,1] projects onto the XY plane (top-down footprint). Normalized internally. Zero vector produces an 'undefined normal' error for every input.
+     *
+     * @minItems 3
+     * @maxItems 3
      */
-    projection_normal?: number[]
+    projection_normal?: [number, number, number]
   }
   result: {
     /**

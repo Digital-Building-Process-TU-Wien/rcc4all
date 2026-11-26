@@ -8,8 +8,7 @@ from pydantic import Field
 from trimesh.proximity import ProximityQuery
 
 from rcc4all_runner.nodes.base import ExecutionContext, NodeModel, node
-from rcc4all_runner.util.geometry import ensure_watertight, resolve_mesh
-from rcc4all_runner.util.references import is_geometry_key
+from rcc4all_runner.util.geometry import ensure_watertight, resolve_keys, resolve_mesh
 
 MeasurementType = Literal[
     "volume",
@@ -126,8 +125,8 @@ def _compute_distance_between(
 
     Unit: length_unit
     """
-    resolved_a = _resolve_keys(context, list_a)
-    resolved_b = _resolve_keys(context, list_b) if list_b else resolved_a
+    resolved_a = resolve_keys(context, list_a)
+    resolved_b = resolve_keys(context, list_b) if list_b else resolved_a
 
     lookup_a = dict(resolved_a)
     lookup_b = dict(resolved_b)
@@ -194,38 +193,6 @@ def _resolve_reference(
         return resolve_mesh(context, cache_key), None
     except ValueError:
         return None, "no cached geometry"
-
-
-def _resolve_keys(
-    context: ExecutionContext,
-    refs: list[str] | dict[str, str | None] | None = None,
-) -> list[tuple[str, str | None]]:
-    """Resolve a list of qualified references into (reference_label, cache_key_or_None) pairs.
-
-    - Qualified geometry cache key (`<slug>:expr:<id>`, `gen:<object_id>`, `inter:<id>`)
-      → used as-is
-    - Malformed reference → (ref_label, None); the geometry lookup reports it missing
-    - Dict (e.g., collision `intersection_meshes`) → check non-null values like list entries
-
-    Returns (ref_label, key) for present geometry, (ref_label, None) for missing.
-    """
-    cache = context.geometry_cache or {}
-    refs = refs or []
-
-    if isinstance(refs, dict):
-        refs = [mesh_key for mesh_key in refs.values() if mesh_key is not None]
-
-    results_list: list[tuple[str, str | None]] = []
-    for ref in refs:
-        if not is_geometry_key(ref):
-            results_list.append((str(ref), None))
-            continue
-        if ref in cache:
-            results_list.append((ref, ref))
-        else:
-            results_list.append((str(ref), None))
-
-    return results_list
 
 
 def _aabb_overlap(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool:
@@ -307,7 +274,7 @@ def _compute_distance_to_reference(
     Unit: length_unit
     Output: one MeasurementItem per element, reference = element cache key
     """
-    resolved = _resolve_keys(context, list_a)
+    resolved = resolve_keys(context, list_a)
     measurements: list[MeasurementItem] = []
 
     if reference_type == "plane" and np.linalg.norm(reference_normal) == 0:
@@ -377,7 +344,7 @@ async def measurement(
             settings.reference_normal,
         )
 
-    resolved = _resolve_keys(context, inputs.list_a)
+    resolved = resolve_keys(context, inputs.list_a)
 
     measurements: list[MeasurementItem] = []
 
