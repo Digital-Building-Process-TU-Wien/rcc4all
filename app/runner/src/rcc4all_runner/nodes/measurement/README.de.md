@@ -1,10 +1,10 @@
 ---
 title: Messung
-description: Berechnet geometrische Messungen (Volumen, Oberfläche, projizierte Fläche, Bauteilhöhe, minimaler Abstand zwischen Elementen, Abstand zur Referenz) von IFC-Elementen oder zwischengespeicherten Geometrien.
+description: Berechnet geometrische Messungen (Volumen, Oberfläche, Bauteilhöhe, minimaler Abstand zwischen Elementen, Abstand zur Referenz) von IFC-Elementen oder zwischengespeicherten Geometrien.
 categories: Measurement
 ---
 
-Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder anderen zwischengespeicherten Geometrien (z. B. Schnittmengen aus dem collision-Knoten). Jede Messung wird pro Element mit Referenz, Wert und ggf. Fehler ausgegeben. Der Knoten unterstützt Volumen-, Oberflächen-, projizierte Flächen-, Bauteilhöhen-, minimaler Abstand zwischen Elementen- und Abstand-zur-Referenz-Berechnungen.
+Der `measurement`-Knoten berechnet geometrische Messungen von IFC-Elementen oder anderen zwischengespeicherten Geometrien (z. B. Schnittmengen aus dem collision-Knoten). Jede Messung wird pro Element mit Referenz, Wert und ggf. Fehler ausgegeben. Der Knoten unterstützt Volumen-, Oberflächen-, Bauteilhöhen-, minimaler Abstand zwischen Elementen- und Abstand-zur-Referenz-Berechnungen.
 
 ## Anwendungsbeispiel
 
@@ -23,21 +23,9 @@ Der Typ der zu berechnenden Messung.
 |------|-------------|----------------|
 | `volume` | **Volumen** | Berechnet das 3D-Volumen jedes Elements. Erfordert wasserdichte Geometrie; nicht wasserdichte Meshes werden repariert oder als Fehler gemeldet. |
 | `surface_area` | **Oberfläche** | Berechnet die Gesamtoberfläche jedes Elements. Funktioniert mit jedem Mesh. |
-| `projected_area` | **Projizierte Fläche** | Berechnet die Fläche eines Elements, projiziert auf eine Ebene senkrecht zum angegebenen Normalenvektor. Standardnormal [0,0,1] berechnet die Grundrissfläche (Draufsicht). Funktioniert mit jedem Mesh. |
 | `component_height` | **Bauteilhöhe** | Berechnet die Ausdehnung eines Elements entlang eines Richtungsvektors. Standardrichtung [0,0,1] berechnet die vertikale Höhe. Funktioniert mit jedem Mesh. |
 | `distance_between` | **Minimaler Abstand zwischen Elementen** | Berechnet den minimalen Oberflächenabstand zwischen Elementpaaren mit dem List A / List B-Muster. Siehe Hinweise für Details. Funktioniert mit jedem Mesh. |
 | `distance_to_reference` | **Abstand zur Referenz** | Berechnet den minimalen Abstand jedes Elements zu einem Referenzpunkt oder einer Referenzebene. Siehe Hinweise für Details. Funktioniert mit jedem Mesh. |
-
-### Projektionsnormal
-
-Nur verwendet, wenn **Messungstyp** `projected_area` ist. Gibt den Normalenvektor der Projektionsebene an.
-
-- **Standard**: `[0.0, 0.0, 1.0]` (XY-Ebene, Draufsicht)
-- **Format**: Liste von 3 Floats `[x, y, z]`
-- **Beispiele**:
-  - `[0, 0, 1]` → Projektion auf XY-Ebene (Grundriss)
-  - `[1, 0, 0]` → Projektion auf YZ-Ebene (Seitenansicht)
-  - `[0, 1, 0]` → Projektion auf XZ-Ebene (Frontansicht)
 
 ### Richtung
 
@@ -91,8 +79,8 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 
 ## Ausgaben
 
-- **Type**: Der verwendete Messungstyp (z. B. `volume`, `surface_area`, `projected_area`, `component_height`, `distance_between`, `distance_to_reference`)
-- **Unit**: Die Maßeinheit (`volume_unit` für Volumen, `area_unit` für Oberfläche und projizierte Fläche, `length_unit` für Bauteilhöhe, minimaler Abstand zwischen Elementen und Abstand zur Referenz, in Modell-Einheiten)
+- **Type**: Der verwendete Messungstyp (z. B. `volume`, `surface_area`, `component_height`, `distance_between`, `distance_to_reference`)
+- **Unit**: Die Maßeinheit (`volume_unit` für Volumen, `area_unit` für Oberfläche, `length_unit` für Bauteilhöhe, minimaler Abstand zwischen Elementen und Abstand zur Referenz, in Modell-Einheiten)
 - **Measurements**: Liste der Messungen, jeweils mit:
   - `reference`: Der Geometrie-Cache-Schlüssel (z. B. `main:expr:123`, `gen:abc`) oder für `distance_between`: `<keyA>_<keyB>` (directional, **NICHT** sortiert)
   - `value`: Der gemessene Wert (null wenn Geometrie fehlt oder Messung fehlgeschlagen)
@@ -142,27 +130,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 }
 ```
 
-### Beispiel 3: Projizierte Fläche (Grundriss)
-
-**Einstellungen:**
-- Messungstyp: `projected_area`
-- Projektionsnormal: `[0.0, 0.0, 1.0]` (Draufsicht)
-
-**Eingaben:**
-- List A: `["main:expr:101"]` (eine Wand)
-
-**Ausgabe:**
-```json
-{
-  "type": "projected_area",
-  "unit": "area_unit",
-  "measurements": [
-    { "reference": "main:expr:101", "value": 3.5, "error": null }
-  ]
-}
-```
-
-### Beispiel 4: Bauteilhöhe (vertikal)
+### Beispiel 3: Bauteilhöhe (vertikal)
 
 **Einstellungen:**
 - Messungstyp: `component_height`
@@ -182,7 +150,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 }
 ```
 
-### Beispiel 5: Volumen von Kollisionsschnittmengen
+### Beispiel 4: Volumen von Kollisionsschnittmengen
 
 **Szenario:** Ein `collision`-Knoten (im Modus `intersection_mesh`) hat Schnittmengen erzeugt. Sie möchten das Volumen jeder Überlappung messen.
 
@@ -204,7 +172,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 }
 ```
 
-### Beispiel 6: Abstand zwischen zwei Elementen (beide Richtungen)
+### Beispiel 5: Abstand zwischen zwei Elementen (beide Richtungen)
 
 **Einstellungen:**
 - Messungstyp: `distance_between`
@@ -225,7 +193,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 }
 ```
 
-### Beispiel 7: Abstand zu Referenzpunkt
+### Beispiel 6: Abstand zu Referenzpunkt
 
 **Einstellungen:**
 - Messungstyp: `distance_to_reference`
@@ -247,7 +215,7 @@ Nur verwendet, wenn **Messungstyp** `distance_to_reference` und **Referenztyp** 
 }
 ```
 
-### Beispiel 8: Fehlerbehandlung
+### Beispiel 7: Fehlerbehandlung
 
 **Einstellungen:**
 - Messungstyp: `volume`
@@ -277,11 +245,12 @@ Weitere Fehlerfälle:
 Messungen werden in **Modell-Einheiten** (den nativen Einheiten der IFC-Modellgeometrie) ausgegeben.
 
 - **Volumen**: wird in `volume_unit` ausgegeben (z. B. m³ für ein Meter-basiertes Modell, mm³ für ein Millimeter-basiertes Modell)
-- **Fläche** (Oberfläche und projizierte Fläche): wird in `area_unit` ausgegeben (z. B. m² für ein Meter-basiertes Modell, mm² für ein Millimeter-basiertes Modell)
+- **Fläche** (Oberfläche): wird in `area_unit` ausgegeben (z. B. m² für ein Meter-basiertes Modell, mm² für ein Millimeter-basiertes Modell)
 - **Abstand** (Bauteilhöhe, minimaler Abstand zwischen Elementen, Abstand zur Referenz): wird in `length_unit` ausgegeben (z. B. m für ein Meter-basiertes Modell, mm für ein Millimeter-basiertes Modell)
 
 ## Hinweise
 
+- **Projizierte Fläche**: Um die flache Grundrissfläche (projizierte Fläche) eines Elements zu messen, verwenden Sie den `geometry_projection`-Knoten, um das projizierte Grundriss-Mesh zu erzeugen, und messen Sie es anschließend hier mit dem Modus `surface_area`.
 - **Wasserdichtigkeit für Volumen erforderlich**: Die Volumenberechnung erfordert wasserdichte Geometrie. Der Knoten versucht automatisch, nicht wasserdichte Meshes zu reparieren. Wenn die Reparatur fehlschlägt, wird die Messung mit Fehler gemeldet. Alle anderen Modi funktionieren mit jedem Mesh.
 - **Abstand zwischen**: Referenzen folgen dem Format `<keyA>_<keyB>` (directional, **NICHT** sortiert). Bei leerer List B wird jedes ungeordnete Paar in **beiden Richtungen** ausgegeben. Bei nicht-leerer List B eine Richtung pro A×B-Paar. Sich schneidende Paare geben `0.0` zurück (erkannt via AABB + FCL Kollision). Nur Elemente mit tessellierter Body-Geometrie sind messbar.
 - **Abstand zur Referenz**: Im `plane`-Modus, wenn die Ebene das Mesh schneidet (min ≤ 0 ≤ max über Vertices), ist Abstand = 0. Null-Normale (z. B. `[0.0, 0.0, 0.0]`) erzeugt Fehler `undefined normal`. Nur Elemente mit tessellierter Body-Geometrie sind messbar.

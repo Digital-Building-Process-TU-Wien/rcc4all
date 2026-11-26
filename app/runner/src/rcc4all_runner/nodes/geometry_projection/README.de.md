@@ -6,10 +6,10 @@ categories: Geometry
 
 Der `geometry_projection`-Node projiziert die Geometrie jeder Eingangsreferenz auf eine
 Ebene durch den **Weltursprung** und speichert die resultierende **flache Grundrissfläche** als
-neue generierte Geometrie im Cache. Er ist das Gegenstück zum `projected_area`-Modus des
-`measurement`-Nodes: Jener meldet nur die projizierte Fläche, während dieser Node ein
-tatsächliches ebenes Mesh erzeugt, das Sie downstream verwenden können (z. B. als Eingabe für
-`collision`, `measurement` oder eine weitere `geometry_projection`).
+neue generierte Geometrie im Cache. Um die projizierte Fläche zu messen, übergeben Sie den
+resultierenden Grundriss an den `surface_area`-Modus des `measurement`-Nodes. Dieser Node
+erzeugt ein tatsächliches ebenes Mesh, das Sie downstream verwenden können (z. B. als Eingabe
+für `collision`, `measurement` oder eine weitere `geometry_projection`).
 
 Die projizierte Geometrie wird unter einem deterministischen `gen:proj_<reference>`-Schlüssel
 gespeichert, der jede Eingangsreferenz im Ergebnis auf ihren generierten Schlüssel abbildet.

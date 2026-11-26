@@ -1,18 +1,14 @@
 /* GENERATED FILE - DO NOT EDIT. Regenerate with `npm run generate:schema`. */
 
 /**
- * Compute geometric measurements (volume, surface area, projected area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.
+ * Compute geometric measurements (volume, surface area, component height, minimum distance between elements, distance to reference) of IFC elements or cached geometries.
  */
 export interface MeasurementNodeSchema {
   settings: {
     /**
-     * The type of measurement to compute: 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', 'distance_to_reference'.
+     * The type of measurement to compute: 'volume', 'surface_area', 'component_height', 'distance_between', 'distance_to_reference'.
      */
-    measurement_type?: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
-    /**
-     * Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view). Only used for 'projected_area' mode.
-     */
-    projection_normal?: number[]
+    measurement_type?: ('volume' | 'surface_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
      * Direction vector for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. Normalized internally.
      */
@@ -34,7 +30,7 @@ export interface MeasurementNodeSchema {
     /**
      * The measurement type used to generate this result.
      */
-    type: ('volume' | 'surface_area' | 'projected_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
+    type: ('volume' | 'surface_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
      * The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).
      */

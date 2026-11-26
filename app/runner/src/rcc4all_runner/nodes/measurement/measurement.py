@@ -13,7 +13,6 @@ from rcc4all_runner.util.geometry import ensure_watertight, resolve_keys, resolv
 MeasurementType = Literal[
     "volume",
     "surface_area",
-    "projected_area",
     "component_height",
     "distance_between",
     "distance_to_reference",
@@ -24,12 +23,7 @@ class MeasurementSettings(NodeModel):
     measurement_type: MeasurementType = Field(
         default="volume",
         title="Measurement Type",
-        description="The type of measurement to compute: 'volume', 'surface_area', 'projected_area', 'component_height', 'distance_between', 'distance_to_reference'.",
-    )
-    projection_normal: list[float] = Field(
-        default=[0.0, 0.0, 1.0],
-        title="Projection Normal",
-        description="Normal vector for the projection plane. Default [0,0,1] computes footprint (top-down view). Only used for 'projected_area' mode.",
+        description="The type of measurement to compute: 'volume', 'surface_area', 'component_height', 'distance_between', 'distance_to_reference'.",
     )
     direction: list[float] = Field(
         default=[0.0, 0.0, 1.0],
@@ -382,15 +376,6 @@ async def measurement(
                 MeasurementItem(reference=cache_key, value=mesh.area, error=None)
             )
 
-        elif settings.measurement_type == "projected_area":
-            normal = settings.projection_normal
-            projected_path = mesh.projected(normal=normal)
-            measurements.append(
-                MeasurementItem(
-                    reference=cache_key, value=projected_path.area, error=None
-                )
-            )
-
         elif settings.measurement_type == "component_height":
             direction = settings.direction
             norm = np.linalg.norm(direction)
@@ -409,7 +394,7 @@ async def measurement(
 
     if settings.measurement_type == "volume":
         unit = "volume_unit"
-    elif settings.measurement_type in {"surface_area", "projected_area"}:
+    elif settings.measurement_type == "surface_area":
         unit = "area_unit"
     else:  # component_height, distance_between
         unit = "length_unit"

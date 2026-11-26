@@ -15,11 +15,7 @@ const node = useScopedNode<MeasurementNode>(props.node.id)
 const { t } = useI18n()
 
 if (!node.value.data.settings) {
-  node.value.data.settings = { measurement_type: 'volume', projection_normal: [0.0, 0.0, 1.0], direction: [0.0, 0.0, 1.0], reference_type: 'point', reference_point: [0.0, 0.0, 0.0], reference_normal: [0.0, 0.0, 1.0] }
-}
-
-if (!node.value.data.settings.projection_normal) {
-  node.value.data.settings.projection_normal = [0.0, 0.0, 1.0]
+  node.value.data.settings = { measurement_type: 'volume', direction: [0.0, 0.0, 1.0], reference_type: 'point', reference_point: [0.0, 0.0, 0.0], reference_normal: [0.0, 0.0, 1.0] }
 }
 
 if (!node.value.data.settings.direction) {
@@ -41,15 +37,10 @@ if (!node.value.data.settings.reference_normal) {
 const measurementTypes = [
   { value: 'volume', labelKey: 'node.measurement.typeVolume' },
   { value: 'surface_area', labelKey: 'node.measurement.typeSurfaceArea' },
-  { value: 'projected_area', labelKey: 'node.measurement.typeProjectedArea' },
   { value: 'component_height', labelKey: 'node.measurement.typeComponentHeight' },
   { value: 'distance_between', labelKey: 'node.measurement.typeDistanceBetween' },
   { value: 'distance_to_reference', labelKey: 'node.measurement.typeDistanceToReference' },
 ]
-
-function setPresetNormal(preset: [number, number, number]) {
-  node.value.data.settings!.projection_normal = [...preset]
-}
 
 function setPresetDirection(preset: [number, number, number]) {
   node.value.data.settings!.direction = [...preset]
@@ -64,7 +55,6 @@ const hasListBWarning = computed(() => {
     && (node.value.data as any).input_bindings?.list_b
 })
 
-const projectionNormal = computed(() => node.value.data.settings?.projection_normal ?? [0, 0, 1])
 const direction = computed(() => node.value.data.settings?.direction ?? [0, 0, 1])
 const referencePoint = computed(() => node.value.data.settings?.reference_point ?? [0, 0, 0])
 const referenceNormal = computed(() => node.value.data.settings?.reference_normal ?? [0, 0, 1])
@@ -101,67 +91,6 @@ const referenceNormal = computed(() => node.value.data.settings?.reference_norma
       <div v-if="hasListBWarning" class="mt-2 flex items-start gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
         <Icon name="i-lucide-triangle-alert" class="size-3 flex-shrink-0 mt-0.5" />
         <span>{{ t('node.measurement.listBWarning') }}</span>
-      </div>
-    </div>
-
-    <div v-if="node.data.settings!.measurement_type === 'projected_area'" class="flex flex-col gap-2">
-      <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">{{ t('node.measurement.projectionNormal') }}</label>
-      <p class="text-xs text-slate-400">
-        {{ t('node.measurement.projectionNormalHelp') }}
-      </p>
-
-      <div class="flex gap-2 mb-2">
-        <button
-          class="flex-1 px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors"
-          :class="projectionNormal[0] === 0 && projectionNormal[1] === 0 && projectionNormal[2] === 1 ? 'bg-blue-100 border-blue-400' : ''"
-          @click="setPresetNormal([0, 0, 1])"
-        >
-          {{ t('node.measurement.presetXyPlane') }}
-        </button>
-        <button
-          class="flex-1 px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors"
-          :class="projectionNormal[0] === 1 && projectionNormal[1] === 0 && projectionNormal[2] === 0 ? 'bg-blue-100 border-blue-400' : ''"
-          @click="setPresetNormal([1, 0, 0])"
-        >
-          {{ t('node.measurement.presetYzPlane') }}
-        </button>
-        <button
-          class="flex-1 px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors"
-          :class="projectionNormal[0] === 0 && projectionNormal[1] === 1 && projectionNormal[2] === 0 ? 'bg-blue-100 border-blue-400' : ''"
-          @click="setPresetNormal([0, 1, 0])"
-        >
-          {{ t('node.measurement.presetXzPlane') }}
-        </button>
-      </div>
-
-      <div class="grid grid-cols-3 gap-2">
-        <div class="flex flex-col gap-1">
-          <label class="text-[9px] text-slate-400 font-medium uppercase">X</label>
-          <input
-            v-model.number="projectionNormal[0]"
-            type="number"
-            step="0.1"
-            class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-          >
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[9px] text-slate-400 font-medium uppercase">Y</label>
-          <input
-            v-model.number="projectionNormal[1]"
-            type="number"
-            step="0.1"
-            class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-          >
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[9px] text-slate-400 font-medium uppercase">Z</label>
-          <input
-            v-model.number="projectionNormal[2]"
-            type="number"
-            step="0.1"
-            class="bg-white border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 transition-all shadow-sm"
-          >
-        </div>
       </div>
     </div>
 

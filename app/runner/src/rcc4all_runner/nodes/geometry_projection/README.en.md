@@ -6,10 +6,9 @@ categories: Geometry
 
 The `geometry_projection` node projects the geometry of each input reference onto a plane
 passing through the world origin and stores the resulting **flat footprint surface** as new
-generated geometry in the cache. It is the counterpart to `measurement`'s `projected_area`
-mode: that node only reports the projected area, while this node produces an actual planar
-mesh you can use downstream (e.g. feed into `collision`, `measurement`, or a later
-`geometry_projection`).
+generated geometry in the cache. To measure the projected area, feed the resulting footprint
+into `measurement`'s `surface_area` mode. This node produces an actual planar mesh you can
+use downstream (e.g. feed into `collision`, `measurement`, or a later `geometry_projection`).
 
 The projected geometry is stored under a deterministic `gen:proj_<reference>` key that maps
 each input reference back to its generated key in the result. It does **not** compute areas.

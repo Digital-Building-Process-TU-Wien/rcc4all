@@ -9,6 +9,11 @@ import trimesh
 
 from conftest import main_ref as _ref
 from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.nodes.geometry_projection.geometry_projection import (
+    GeometryProjectionInputs,
+    GeometryProjectionSettings,
+    geometry_projection,
+)
 from rcc4all_runner.nodes.measurement.measurement import (
     MeasurementInputs,
     MeasurementResult,
@@ -305,144 +310,6 @@ def test_measurement_with_intersection_meshes_dict_surface_area() -> None:
     )
     assert result.measurements[0].value == pytest.approx(24.0)
     assert result.measurements[0].error is None
-
-
-def test_measurement_projected_area_default_normal() -> None:
-    context = _context()
-    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
-
-    result = _run(
-        MeasurementSettings(
-            measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]
-        ),
-        MeasurementInputs(list_a=[_ref(1)]),
-        context,
-    )
-
-    assert result.type == "projected_area"
-    assert result.unit == "area_unit"
-    assert len(result.measurements) == 1
-    assert result.measurements[0].reference == "main:expr:1"
-    assert result.measurements[0].value == pytest.approx(6.0, abs=0.1)
-    assert result.measurements[0].error is None
-
-
-def test_measurement_projected_area_custom_normal_x() -> None:
-    context = _context()
-    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
-
-    result = _run(
-        MeasurementSettings(
-            measurement_type="projected_area", projection_normal=[1.0, 0.0, 0.0]
-        ),
-        MeasurementInputs(list_a=[_ref(1)]),
-        context,
-    )
-
-    assert result.type == "projected_area"
-    assert result.unit == "area_unit"
-    assert len(result.measurements) == 1
-    assert result.measurements[0].reference == "main:expr:1"
-    assert result.measurements[0].value == pytest.approx(12.0, abs=0.1)
-    assert result.measurements[0].error is None
-
-
-def test_measurement_projected_area_custom_normal_y() -> None:
-    context = _context()
-    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
-
-    result = _run(
-        MeasurementSettings(
-            measurement_type="projected_area", projection_normal=[0.0, 1.0, 0.0]
-        ),
-        MeasurementInputs(list_a=[_ref(1)]),
-        context,
-    )
-
-    assert result.type == "projected_area"
-    assert result.unit == "area_unit"
-    assert len(result.measurements) == 1
-    assert result.measurements[0].reference == "main:expr:1"
-    assert result.measurements[0].value == pytest.approx(8.0, abs=0.1)
-    assert result.measurements[0].error is None
-
-
-def test_measurement_projected_area_non_watertight() -> None:
-    context = _context()
-    open_mesh = trimesh.Trimesh(
-        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
-        faces=[[0, 1, 2]],
-        process=False,
-    )
-    cache_mesh(context, open_mesh, object_id="open")
-
-    result = _run(
-        MeasurementSettings(
-            measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]
-        ),
-        MeasurementInputs(list_a=["gen:open"]),
-        context,
-    )
-
-    assert len(result.measurements) == 1
-    assert result.measurements[0].reference == "gen:open"
-    assert result.measurements[0].value is not None
-    assert result.measurements[0].error is None
-
-
-def test_measurement_projected_area_missing_geometry() -> None:
-    context = _context()
-    _box(context, 1, [0, 0, 0], extents=[1, 1, 1])
-
-    result = _run(
-        MeasurementSettings(
-            measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]
-        ),
-        MeasurementInputs(list_a=[_ref(1), _ref(999)]),
-        context,
-    )
-
-    assert len(result.measurements) == 2
-    assert result.measurements[0].reference == "main:expr:1"
-    assert result.measurements[0].value is not None
-    assert result.measurements[0].error is None
-    assert result.measurements[1].reference == "main:expr:999"
-    assert result.measurements[1].value is None
-    assert result.measurements[1].error == "no cached geometry"
-
-
-def test_measurement_projected_area_dict_input() -> None:
-    context = _context()
-    mesh1 = trimesh.creation.box(extents=[0.5, 0.5, 0.5])
-    mesh2 = trimesh.creation.box(extents=[1, 1, 1])
-    cache_mesh(context, mesh1, key="inter:intersection_main:expr:1_main:expr:2")
-    cache_mesh(context, mesh2, key="inter:intersection_main:expr:3_main:expr:4")
-
-    intersection_meshes = {
-        "main:expr:1__main:expr:2": "inter:intersection_main:expr:1_main:expr:2",
-        "main:expr:3__main:expr:4": "inter:intersection_main:expr:3_main:expr:4",
-        "main:expr:5__main:expr:6": None,
-    }
-
-    result = _run(
-        MeasurementSettings(
-            measurement_type="projected_area", projection_normal=[0.0, 0.0, 1.0]
-        ),
-        MeasurementInputs(list_a=intersection_meshes),
-        context,
-    )
-
-    assert len(result.measurements) == 2
-    assert (
-        result.measurements[0].reference == "inter:intersection_main:expr:1_main:expr:2"
-    )
-    assert result.measurements[0].value == pytest.approx(0.25, abs=0.01)
-    assert result.measurements[0].error is None
-    assert (
-        result.measurements[1].reference == "inter:intersection_main:expr:3_main:expr:4"
-    )
-    assert result.measurements[1].value == pytest.approx(1.0, abs=0.01)
-    assert result.measurements[1].error is None
 
 
 def test_measurement_component_height_default_direction() -> None:
@@ -1218,4 +1085,40 @@ def test_measurement_distance_to_reference_non_watertight() -> None:
     assert len(result.measurements) == 1
     assert result.measurements[0].reference == "gen:open"
     assert result.measurements[0].value is not None
+    assert result.measurements[0].error is None
+
+
+def test_measurement_surface_area_equivalence_to_geometry_projection() -> None:
+    """geometry_projection + surface_area reproduces the former projected_area result.
+
+    Regression guard for the removal of the `projected_area` measurement mode:
+    projecting a mesh with the `geometry_projection` node and measuring the
+    generated footprint with `surface_area` yields the same footprint area the
+    old `projected_area` node reported for that normal.
+    """
+    context = _context()
+    _box(context, 1, [0, 0, 0], extents=[2, 3, 4])
+
+    proj_result = asyncio.run(
+        geometry_projection(
+            GeometryProjectionSettings(projection_normal=[0.0, 0.0, 1.0]),
+            GeometryProjectionInputs(liste_a=[_ref(1)]),
+            context,
+        )
+    )
+    assert proj_result.errors == []
+    generated_key = proj_result.projected_geometries[_ref(1)]
+
+    result = _run(
+        MeasurementSettings(measurement_type="surface_area"),
+        MeasurementInputs(list_a=[generated_key]),
+        context,
+    )
+
+    assert result.type == "surface_area"
+    assert result.unit == "area_unit"
+    assert len(result.measurements) == 1
+    assert result.measurements[0].reference == generated_key
+    # Footprint of a [2,3,4] box projected onto the XY plane = 2 * 3 = 6.
+    assert result.measurements[0].value == pytest.approx(6.0, abs=0.1)
     assert result.measurements[0].error is None
