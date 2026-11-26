@@ -15,6 +15,8 @@ from shapely.geometry import MultiPoint
 from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
 from openbim_runner.util.geometry import (
     _is_watertight,  # pyright: ignore[reportPrivateUsage]
+    _safe_fix_normals,  # pyright: ignore[reportPrivateUsage]
+    _safe_volume,  # pyright: ignore[reportPrivateUsage]
     cache_mesh,
     ensure_watertight,
     reshape_flat,
@@ -66,10 +68,22 @@ _CAP_PLANE_TOLERANCE = 0.03
 # A cap-ring vertex is a redundant sliver when the two edges meeting at it run
 # in nearly the same direction (the path is almost straight through it) and one
 # of those edges is only a short stub; collapsing it recovers the true polygon
-# without changing the shape. Used only when the two rims start with unequal
-# vertex counts (see ``_loft_caps_watertight``).
+# without changing the shape. Used when the two rims do not pair up cleanly —
+# unequal vertex counts, or equal counts whose rings are not congruent (see
+# ``_loft_caps_watertight``).
 _COLLINEAR_COS = math.cos(math.radians(8.0))
 _SLIVER_EDGE_LEN = 0.05
+
+# Two equal-length cap rims bridge directly (the detected cap faces preserved
+# verbatim) only when they are congruent: every vertex then maps to its
+# counterpart at a pure offset along the cap normal, leaving no displacement
+# inside the cap plane. Degenerate mirror-image rims (bevel slivers on different
+# corners) leave some pairs displaced in-plane after any cyclic shift; when that
+# displacement exceeds this fraction of the rims' in-plane extent a direct
+# bridge would twist, so the rims are cleaned and — when that recovers
+# congruent rings — re-lofted instead. Genuine congruent rims on the real-world
+# model measure ~0.02 of extent; the degenerate ones measure 0.4 and up.
+_TWIST_INPLANE_RATIO = 0.15
 
 # --- Opening cap-face / host-surface helpers ---------------------------------
 _ALIGNED_COS = math.cos(math.pi / 180.0)
@@ -84,6 +98,12 @@ _CURVED_REGION_COS = math.cos(math.radians(2.0))
 _CAP_VERTICAL_COS = math.cos(math.radians(45.0))
 _OPENING_PERPENDICULAR_COS = math.cos(math.radians(60.0))
 _CURVED_HOST_MIN_SHARE = 0.25
+# A curved (faceted) host wall can sit the hole cap plane noticeably proud of the
+# outer facet centroids, so the outer->inner facet span under-reads the wall and
+# the generated void is left too shallow. When the cap plane is this far beyond
+# the facet span, re-measure the depth from the cap plane out to the innermost
+# host surface instead; a near-flush cap leaves the facet-span depth unchanged.
+_CAP_PROUD_TOL = 0.08
 
 
 class OpeningSurface(NodeModel):
@@ -383,11 +403,9 @@ def _build_ring_closed(
         faces=np.asarray(cap_faces, int),
         process=False,
     )
-    try:
-        closed.fix_normals()
-    except Exception:
+    if not _safe_fix_normals(closed):
         return None
-    if closed.is_winding_consistent and closed.volume < 0:
+    if closed.is_winding_consistent and _safe_volume(closed) < 0:
         closed.faces = closed.faces[:, ::-1]
     return closed if _is_watertight(closed) else None
 
@@ -531,7 +549,7 @@ def _opening_surface(
         if (
             tube is not None
             and _is_watertight(tube)
-            and float(tube.volume) > _MIN_CLOSED_TUBE_VOLUME
+            and _safe_volume(tube) > _MIN_CLOSED_TUBE_VOLUME
         ):
             reclosed = _close_tube_rings(context, host_ref, host_mesh, cutter, cap_info)
             volume = reclosed if reclosed is not None else tube
@@ -895,11 +913,9 @@ def _tapered_prism(
     mesh = trimesh.Trimesh(
         vertices=verts, faces=np.asarray(new_faces, int), process=False
     )
-    if mesh.is_watertight and mesh.is_winding_consistent and mesh.volume < 0:
+    if mesh.is_watertight and mesh.is_winding_consistent and _safe_volume(mesh) < 0:
         mesh.faces = mesh.faces[:, ::-1]
-    try:
-        mesh.fix_normals()
-    except Exception:
+    if not _safe_fix_normals(mesh):
         return None
     return mesh if _is_watertight(mesh) else None
 
@@ -930,11 +946,9 @@ def _extrude_ring(ring_pts: np.ndarray, vec: np.ndarray) -> trimesh.Trimesh | No
         faces.append([i, j, n + j])
         faces.append([i, n + j, n + i])
     mesh = trimesh.Trimesh(vertices=verts, faces=np.asarray(faces, int), process=False)
-    if mesh.is_watertight and mesh.is_winding_consistent and mesh.volume < 0:
+    if mesh.is_watertight and mesh.is_winding_consistent and _safe_volume(mesh) < 0:
         mesh.faces = mesh.faces[:, ::-1]
-    try:
-        mesh.fix_normals()
-    except Exception:
+    if not _safe_fix_normals(mesh):
         return None
     return mesh if _is_watertight(mesh) else None
 
@@ -1049,8 +1063,12 @@ def _loft_caps_watertight(
     faces found by the cap analysis; only new side
     faces are added between the two cap boundary rings, connected in 3D. The two
     rims are first brought into a consistent winding (a cyclic shift alone cannot
-    fix opposite winding) so the side band does not self-intersect. Returns
-    ``None`` when no watertight closed surface can be built (the caller degrades to
+    fix opposite winding) so the side band does not self-intersect. Equal-length
+    rims that no cyclic shift can pair are cleaned and re-lofted when cleanup
+    recovers congruent rings (degenerate mirror-image slivers, whose direct
+    bridge would twist); when the rims genuinely differ after cleanup the direct
+    bridge keeps the detected cap faces verbatim. Returns ``None`` when no
+    watertight closed surface can be built (the caller degrades to
     ``caps_only``).
     """
     front_arr = np.asarray(front_ring, int)
@@ -1093,6 +1111,27 @@ def _loft_caps_watertight(
         # the pre-existing resampling loft.
         return _loft_polygons(vertices[front_arr], vertices[back_arr])
 
+    if _rings_twisted(vertices[front_arr], vertices[back_arr], cap_normal):
+        # Equal counts do not imply congruent rims. When the collinear bevel
+        # slivers sit on different corners in the two rims (mirror images) no
+        # cyclic shift pairs the vertices and a direct bridge twists into long
+        # diagonal side triangles. Such rims hide the same degenerate rings as
+        # above — but reroute only when cleanup recovers congruent rings, the
+        # signature of the mirror-image case. Rims that stay non-congruent after
+        # cleanup genuinely differ: slivers at different spots along the same
+        # edge mispair vertices that all lie on one line, a benign planar
+        # re-triangulation whose direct bridge (and its detected cap faces) is
+        # exact, while a resampling loft would push corners off the true
+        # rectangle and distort the volume.
+        cleaned_f = _clean_degenerate_ring(vertices, front_arr)
+        cleaned_b = _clean_degenerate_ring(vertices, back_arr)
+        if cleaned_f is not None and cleaned_b is not None:
+            a = vertices[cleaned_f]
+            b = vertices[cleaned_b]
+            if len(a) == len(b) and not _rings_twisted(a, b, cap_normal):
+                return _loft_polygons(a, b)
+        # No congruent recovery: fall through and bridge the original rims.
+
     shift = _ring_shift(vertices[front_arr], vertices[back_arr])
     back_arr = np.roll(back_arr, shift)
     side: list[list[int]] = []
@@ -1111,11 +1150,9 @@ def _loft_caps_watertight(
         faces=np.asarray(all_faces, dtype=np.int64),
         process=False,
     )
-    if mesh.is_watertight and mesh.is_winding_consistent and mesh.volume < 0:
+    if mesh.is_watertight and mesh.is_winding_consistent and _safe_volume(mesh) < 0:
         mesh.faces = mesh.faces[:, ::-1]
-    try:
-        mesh.fix_normals()
-    except Exception:
+    if not _safe_fix_normals(mesh):
         return None
     return mesh if _is_watertight(mesh) else None
 
@@ -1133,24 +1170,74 @@ def _ring_shift(a: np.ndarray, b: np.ndarray) -> int:
     return best_shift
 
 
+def _rings_twisted(a: np.ndarray, b: np.ndarray, cap_normal: np.ndarray) -> bool:
+    """Whether two equal-length cap rims cannot be paired by a cyclic shift.
+
+    Equal vertex counts do not imply congruent rims: a rectangle authored with
+    collinear bevel slivers can carry them on *different corners* in the two rims
+    (mirror images), so no cyclic shift pairs corresponding vertices and a direct
+    bridge collapses into long diagonal side triangles — a watertight but twisted
+    solid. Congruent rims pair every vertex with its counterpart at a pure offset
+    along the cap normal, so the in-plane part of each pair offset is ~0; a
+    mismatched pair sits displaced inside the cap plane. That displacement is
+    compared to the rims' in-plane extent, so the test is scale-free. Used only
+    when the two rims already agree on vertex count (see
+    ``_loft_caps_watertight``).
+    """
+    n = len(a)
+    if n < 3 or n != len(b):
+        return False
+    normal = np.asarray(cap_normal, dtype=np.float64)
+    norm = float(np.linalg.norm(normal))
+    if norm <= 0.0:
+        return False
+    normal = normal / norm
+    shift = _ring_shift(a, b)
+    offsets = np.asarray(a, dtype=np.float64) - np.roll(
+        np.asarray(b, dtype=np.float64), shift, axis=0
+    )
+    along = offsets @ normal
+    in_plane = np.linalg.norm(offsets - np.outer(along, normal), axis=1)
+    points = np.vstack(
+        [np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)]
+    )
+    flat = points - np.outer(points @ normal, normal)
+    extent = float(np.linalg.norm(flat[:, None, :] - flat[None, :, :], axis=2).max())
+    if extent <= 1e-9:
+        return False
+    return bool(float(in_plane.max()) > _TWIST_INPLANE_RATIO * extent)
+
+
 def _loft_polygons(
     a_pts: np.ndarray, b_pts: np.ndarray, n: int | None = None
 ) -> trimesh.Trimesh | None:
     """Loft the closed polygons ``a_pts`` and ``b_pts`` into one watertight solid.
 
-    Both polygons are resampled to ``n`` points (uniform arc length), the b ring
-    is rotated to best align with the a ring, and the volume is built from the
-    two re-triangulated caps plus the side quads between corresponding samples.
+    When ``n`` is given, both polygons are resampled to ``n`` points (uniform arc
+    length). When ``n`` is omitted and the two rings already agree on vertex
+    count, the original ring vertices are kept so the caps are exact
+    (resampling by uniform arc length would push non-regular polygon corners onto
+    edge midpoints); otherwise both rings are resampled to the larger count. The
+    b ring is rotated to best align with the a ring, and the volume is built from
+    the two re-triangulated caps plus the side quads between corresponding
+    samples.
     """
     a_pts = np.asarray(a_pts, dtype=np.float64)
     b_pts = np.asarray(b_pts, dtype=np.float64)
     if len(a_pts) < 3 or len(b_pts) < 3:
         return None
     count = n if n is not None else max(len(a_pts), len(b_pts))
-    a = _resample_closed(a_pts, count)
-    b = _resample_closed(b_pts, count)
-    if a is None or b is None:
-        return None
+    if n is None and len(a_pts) == len(b_pts):
+        # The two caps already agree on vertex count. Resampling by uniform arc
+        # length would move the corner vertices to edge midpoints whenever the cap
+        # is a non-regular polygon (e.g. a non-square rectangle), distorting the
+        # emitted cap. Keep the original ring vertices so the cap is exact.
+        a, b = a_pts, b_pts
+    else:
+        a = _resample_closed(a_pts, count)
+        b = _resample_closed(b_pts, count)
+        if a is None or b is None:
+            return None
     a, b = _align_rings(a, b)
 
     all_vertices: list[np.ndarray] = [a[i] for i in range(count)]
@@ -1174,11 +1261,9 @@ def _loft_polygons(
         faces=np.asarray(faces, int),
         process=False,
     )
-    if mesh.is_watertight and mesh.is_winding_consistent and mesh.volume < 0:
+    if mesh.is_watertight and mesh.is_winding_consistent and _safe_volume(mesh) < 0:
         mesh.faces = mesh.faces[:, ::-1]
-    try:
-        mesh.fix_normals()
-    except Exception:
+    if not _safe_fix_normals(mesh):
         return None
     return mesh if _is_watertight(mesh) else None
 
@@ -1816,12 +1901,10 @@ def _build_closed(
     if (
         closed_mesh.is_watertight
         and closed_mesh.is_winding_consistent
-        and closed_mesh.volume < 0
+        and _safe_volume(closed_mesh) < 0
     ):
         closed_mesh.faces = closed_mesh.faces[:, ::-1]
-    try:
-        closed_mesh.fix_normals()
-    except Exception:
+    if not _safe_fix_normals(closed_mesh):
         return None
     return closed_mesh if _is_watertight(closed_mesh) else None
 
@@ -2511,7 +2594,23 @@ def _host_band_depth(
     # facets behind the hole. For a genuine two-band flat wall the outer and inner
     # facet clusters are each tight, so this equals the old single-gap split and
     # flat/2-band hosts did not regress.
-    return abs(float(offsets[-1]) - float(offsets[0]))
+    span = abs(float(offsets[-1]) - float(offsets[0]))
+
+    # The single-cap prism is extruded from the hole CAP plane, which on a faced
+    # round wall can sit noticeably proud of the curved outer facet centroids. When
+    # it does, the outer->inner facet span stops short of the far wall surface by
+    # that proud offset and the void under this cap is left too shallow. Re-measure
+    # from the cap plane out to the innermost host surface and use it; keep the
+    # plain facet span when the cap is near-flush so correctly-filled hosts are
+    # untouched.
+    cap_off = float(center @ cap_normal)
+    cap_to_far = max(
+        abs(cap_off - float(offsets[0])),
+        abs(cap_off - float(offsets[-1])),
+    )
+    if cap_to_far - span > _CAP_PROUD_TOL:
+        return cap_to_far
+    return span
 
 
 def _region_is_curved(normals: np.ndarray, region: list[int]) -> bool:

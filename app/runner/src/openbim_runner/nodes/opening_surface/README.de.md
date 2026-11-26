@@ -1,35 +1,36 @@
 ---
 title: Öffnungsflächen
-description: Ermittelt pro Öffnung eine wasserdichte geschlossene Oberfläche, indem das Schnittflächenrohr des Bauteils für eine Durchgangsbohrung geschlossen wird oder die Deckelflächen der Öffnung für einen offenen Ring zu einem Volumenkörper verbunden werden, und speichert sie als generierte Geometrie.
+description: Ermittelt pro Öffnung eine wasserdichte geschlossene Oberfläche und speichert sie als generierte Geometrie.
 categories: geometry
 ---
 
 Der `opening_surface`-Node ermittelt für jede Öffnung der Eingabe-Elemente genau
 eine **wasserdichte geschlossene Oberfläche**, die den Öffnungsraum füllt. Er
-schließt das Schnittflächenrohr des Bauteils für eine Durchgangsbohrung oder
-verbindet die Deckelflächen der Öffnung für einen offenen Ring zu einem
-Volumenkörper, sodass beide als geschlossener Körper mit positivem Volumen enden.
+kombiniert entweder die Deckelflächen mit den Schnittflächen, wenn diese einen
+geschlossenen Ring bilden (bei Fenstern), oder verbindet die Deckelflächen der
+Öffnung linear, wenn die Schnittflächen einen offenen Ring bilden (bei Türen), sodass beide 
+als geschlossener Körper mit positivem Volumen enden.
 
 ## Funktionsweise
 
 Für jedes Eingabe-Element werden die Öffnungen (`IfcRelVoidsElement`) und ihre
 zwischengespeicherten Body-Netze sowie das Netz des Bauteils aufgelöst. Danach:
 
-- **Geschlossener Ring (Durchgangsbohrung / Fenster, ebene Ränder):** Das
-  Schnittflächenrohr des Bauteils wird gebildet und geschlossen. Wenn es
-  wasserdicht schließt, wird es unverändert ausgegeben
+- **Geschlossener Ring (Fenster, ebene Ränder):** Die Schnittflächen werden 
+  zu einem geschlossenen Ring geschlossen. Wenn er an den offenen Seiten 
+  wasserdicht geschlossen werden kann, wird er unverändert ausgegeben
   (`method = "closed_cut_surface"`).
-- **Offener Ring (Tür / nicht-ebener Rand / gekrümmtes Bauteil):** Das
-  Schnittflächenrohr bleibt offen. Stattdessen werden die Deckelflächen der
+- **Offener Ring (Tür / nicht-ebener Rand / gekrümmtes Bauteil):** Der
+  Schnittflächenring bleibt offen. Stattdessen werden die Deckelflächen der
   Öffnung aus den Oberflächenebenen des Bauteils analysiert. Werden **zwei**
   Deckelflächen gefunden, werden beide verwendet; wird **nur eine** gefunden,
   wird eine zweite synthetisiert, indem die gefundene Deckelfläche um die
-  Wandstärke kopiert und gegen die Laibungsflächen des Rohrs beschnitten wird.
+  Wandstärke kopiert und gegen die Laibungsflächen des Rings beschnitten wird.
   Die beiden Deckelflächen werden dann **verbunden** (durch neue Seitenflächen
   zwischen korrespondierenden Randpunkten im 3D-Raum) und bilden ein wasserdichtes
   Volumen (`method = "lofted_caps"`).
-- **Kein Volumen:** Wenn weder ein geschlossenes Rohr noch zwei verbindbare
-  Deckelflächen gebaut werden können, wird die Deckel-/Rohrgeometrie unverändert
+- **Kein Volumen:** Wenn weder ein geschlossener Ring noch zwei verbindbare
+  Deckelflächen gebaut werden können, wird die Deckel-/Ringgeometrie unverändert
   ausgegeben (`method = "caps_only"`, `watertight = false`); es wird keine
   erfundene Geometrie erzeugt.
 
@@ -94,15 +95,6 @@ measurement oder collision gebunden werden.
   gemeldet.
 - Jede Öffnung erscheint genau einmal, auch wenn ihr Bauteil mehrfach übergeben
   wird. Referenzen, die auf keine Entität auflösen, liefern keine Öffnungen.
-- Der `closed_cut_surface`-Pfad wird nur für ein tatsächlich wasserdichtes,
-  geschlossenes Rohr verwendet, sodass der frühere falsche Türverschluss
-  (eine zwangsgeschlossene bodentiefe Tür) nie erzeugt wird. Ein offener Ring
-  fällt stattdessen auf den Verbindungspfad zurück.
-- Wird genau eine Deckelfläche gefunden, ist die zweite ein Dickenversatz der
-  ersten, beschnitten gegen die Laibungsflächen des Rohrs. Ohne Rohr oder ohne
-  zuverlässige Wandstärke, oder wenn die Verbindung nicht wasserdicht gebaut
-  werden kann, fällt der Node auf `caps_only` zurück, statt ein Volumen zu
-  erfinden.
 - Gekrümmte Bauteile werden mit Oberflächenregion-Logik analysiert; eine runde
   Wand, die nur eine Deckelfläche zeigt, erhält ihre gegenüberliegende
   Deckelfläche synthetisiert.

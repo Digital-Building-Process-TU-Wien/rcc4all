@@ -312,3 +312,169 @@ different-direction polygon vertices, so `_clean_degenerate_ring` leaves them
 **Validation:** `app/runner` `test_opening_volume.py` — 24 passed; curved-volume
 extents along the cap normal now match the host wall span (0.39 / 0.4711 / 0.469
 vs the previous under-measured depths).
+
+## 2026-11-26 — follow-up: proud-cap depth guard + equal-rim twist
+
+### Follow-up A (curved-wall depth) — cap plane sits proud of the facet span
+
+The 2026-11-25 `_host_band_depth` fix (return the full outer→inner facet span)
+still left one opening visibly too thin: the door `3I1L5gPDWg0VT5GUKLWs9c`
+("Tür-008") on the round wall `Wand-004` (`IfcWall` 7879) measured 0.39 instead
+of ~0.52.
+
+**Root cause.** The single-cap prism is extruded from the hole *cap plane*, and on
+a faced round wall that cap plane can sit noticeably proud of the curved outer
+facet centroids. So the outer→inner *facet* span under-reads the wall by exactly
+that proud offset, and the generated void stops short of the far wall surface by
+the same amount.
+
+**Fix.** In `_host_band_depth`, keep the facet span, but when the cap plane is
+more than `_CAP_PROUD_TOL` (0.08) beyond it, re-measure the depth from the cap
+plane out to the innermost host surface (`cap_to_far`) and return that instead.
+Added `_CAP_PROUD_TOL = 0.08` beside the other cap-facing constants.
+
+**Scope (verified).** Only the door is under-filled and only it is boosted
+(0.39 → 0.52; its volume now reaches the inner wall surface). The sibling window
+`3Zhu2g0pTLQTxxN3bM$Bc_` on the same wall takes the `closed_cut_surface` path and
+never reads this depth, so its rendered volume is unchanged. The flush host-9461
+openings (`0K5s5...`, `05J0...`, `1N8iUS0...`, `3Io1y...`) have cap-proud deltas
+≈0.05, below the threshold, so they stay put.
+
+### Follow-up B (degenerate rim slivers) — equal-rim door is *left twisted*
+
+The 2026-11-25 gating rule left `3ndo_UUzohbPDx681yNH6S` (`6`/`6`) on the
+equal-rim direct-bridging path. Inspecting the generated solid shows it is
+watertight but the side band is **twisted**: every bridge triangle is a long
+diagonal.
+
+**Root cause.** The two `6`-rings are not congruent — the rectangle's collinear
+bevel-slivers sit on *different corners* in the two rims (front: top-left +
+bottom-right; back: bottom-left + top-right), i.e. they are effectively mirror
+images. `_ring_shift` only tries cyclic shifts, so it cannot bring them into
+correspondence (the best shift still leaves 2 misaligned pairs, edges up to 2.27).
+A cyclic offset (e.g. index `i` vs `i-1`) is worse (sum-of-squares 14.4 vs 2.2),
+and even reversing one rim only reaches 6.1. The only alignment that works is to
+drop the bevel slivers, leaving both rims as the same 4-corner rectangle.
+
+**Consequence.** Cleaning both rims to `4`/`4` (letting the `n != m` cleanup also
+run when `n == m`) produces a clean prism but changes the door's volume
+0.445 → 0.280. So the equal-rim gating rule preserves the authored ring but at the
+cost of a twisted side band. Left as an open decision (see below).
+
+### Follow-up C (equal-count resampling) — `_loft_polygons` kept distorting caps
+
+While re-examining the equal-rim path, a separate defect surfaced in the loft
+itself. `_loft_polygons` unconditionally resampled *both* rings to a common
+count with uniform arc length. For a non-regular polygon cap (e.g. a
+non-square rectangle) that moves the two corner vertices onto edge midpoints,
+so the emitted cap is no longer the authored rectangle.
+
+**Symptom.** The door `3GC7bRf2psnrst9ie8qFDX` (host `IfcWall` 364003, `n = m =
+4`) emitted cap z-values `8.66, 9.3475, 10.925, 10.2375` — two interpolated
+mid-edge vertices — instead of the four true rectangle corners (`8.66`, `10.925`).
+The resampled intermediate vertices (z `9.3475` / `10.2375`, and the apexes at
+`9.7925`) all come from `_resample_closed` uniform-arc-length resampling of a
+non-square rectangle to `count = 4`, moving 2 corners to edge midpoints and
+adding 2 centroid apexes. Watertight but with the wrong, shrunken cap.
+
+**Fix.** In `_loft_polygons`, when `n is None` and the two rings already have
+equal counts, keep the original ring vertices (`a, b = a_pts, b_pts`); only run
+`_resample_closed` when the counts actually differ (or an explicit `n` is
+supplied). This preserves the authored cap geometry exactly, and leaves the
+`n != m` degradation branch untouched.
+
+**Outcome.** `3GC7bRf` now emits only the true corners — z `8.66 ×4` and
+`10.925 ×4` plus the two `9.7925` cap apexes; the interpolated `9.3475` /
+`10.2375` vertices are gone. Still watertight (0 boundary edges) with positive
+volume, correcting 0.16883 → 0.21166 (the true prism). `3ndo_UUz` is unchanged
+(0.4452, 12 verts) because it never calls `_loft_polygons` (it takes the
+equal-rim direct-bridge path).
+
+**Validation:** `app/runner` `test_opening_surface.py` — 23 passed; the single
+failure (`test_simple_model_window_closes_door_becomes_watertight`) is a
+pre-existing missing-fixture `FileNotFoundError` for
+`Testmodel-WallOpenings-Simple.ifc`, unrelated to this change.
+
+### Follow-up D (degenerate rim slivers) — equal-rim twist is detected and cleaned
+
+Resolves Follow-up B. Per user decision, the equal-rim direct bridge is kept for
+congruent rims, and rims that a cyclic shift cannot pair are routed through the
+existing clean-and-resample path.
+
+**Correction to Follow-up B's consequence.** The feared volume regression does
+not reproduce: cleaning `3ndo_UUz`'s two `6`-rings to the true `4`/`4` rectangle
+and lofting gives volume **0.4485** (was 0.4452 twisted) — essentially
+unchanged, not 0.280. The clean prism is strictly better (straight side quads,
+16 faces instead of 20 diagonal ones).
+
+**Detection.** Equal counts do not imply congruent rims, so `_rings_twisted`
+measures it: after the best cyclic shift (`_ring_shift`), a congruent rim pair
+offsets every vertex purely along the cap normal (the wall depth), leaving ~0
+displacement *inside the cap plane*. Instrumenting every `n == m` case on the
+real-world model confirms a clean separation — genuine congruent rims measure an
+in-plane displacement ≤ 0.022 of the rims' in-plane extent, while the degenerate
+mirror-image rims measure 0.399 (`3ndo_UUz`, `6`/`6`) and 0.826 (the three
+`Tür-001` doors on `Wand-012`, `7`/`7`). Threshold `_TWIST_INPLANE_RATIO = 0.15`
+(fraction of in-plane extent, so the test is scale-free; a plain
+max-distance/mean-distance ratio would miss a narrow door in a thick wall).
+
+**Fix.** In `_loft_caps_watertight`, the clean-and-resample branch now also runs
+when `n == m` but `_rings_twisted` fires, so the bevel slivers are collapsed
+(`_clean_degenerate_ring`) and the caps re-lofted (`_loft_polygons`) instead of
+bridged with a twisted band. Genuine congruent equal-rim prisms are untouched
+(the detected cap faces stay verbatim, 12 faces, same volume).
+
+**Outcome.** `3ndo_UUzohbPDx681yNH6S` (`Tür-017`, `Wand-003` 274017): 0.4452 →
+0.4485, 16 faces, clean prism. The three `Tür-001` doors (`3texd0KTo...` 126420,
+`0M03gUGW...` 183477, `32kjha0R...` 265558, each on its own `Wand-012`
+instance): 0.2240 → 0.1709, 20 faces — their previous volumes were computed off
+twisted bands. All ~100 other openings on the model are byte-identical in method,
+volume and face count.
+
+**Validation:** `app/runner` `test_opening_surface.py` —
+`test_loft_equal_rims_mirror_slivers_loft_clean_prism` added (mirrored-sliver
+`6`-rings loft to the exact rectangle prism, detector asserted both ways); full
+suite passes except the pre-existing missing-fixture failure noted above.
+
+### Follow-up E (degenerate rim slivers) — the `Tür-001` "twist" was benign
+
+Follow-up D mis-routed the three `Tür-001` doors. Their 0.2240 → 0.1709 volume
+change was a regression, not a fix: the user confirmed the *before* values were
+correct (and 3ndo's reroute remains correct).
+
+**Root cause.** The `Tür-001` rims are congruent rectangles offset purely along
+the cap normal — but the collinear bevel slivers sit at *different heights on
+the same edge* (front: stub pair near the bottom; back: stub pair near the top,
+plus an isolated collinear vertex 0.19 up whose edges are all ≥ 0.19, no short
+stub). No cyclic shift pairs the vertices by height, so the best shift leaves
+two pairs off by 2.003 and `_rings_twisted` fires (ratio 0.827). The
+mispairing is benign: every mispaired vertex lies on the two parallel edge
+lines, which span a plane, so the direct bridge's side triangles stay inside
+that plane — the direct-bridge solid is exact (0.9601 × 2.2225 × 0.1051 =
+0.2243 ≈ 0.2240). Follow-up D then degraded it twice: cleanup collapsed the
+front rim to the exact rectangle (`7`→`4`) but kept the back rim a pentagon
+(`7`→`5`, the isolated stub-less vertex survives), and `_loft_polygons` resampled
+the unequal `4`/`5` rings to 5 uniform-arc-length points, pushing corners off
+the true rectangle → 0.1709 (24% low).
+
+**Fix.** The two branches in `_loft_caps_watertight` are now split. `n != m`
+keeps its behaviour byte-identical. For `n == m` with `_rings_twisted` firing,
+cleanup runs but reroutes to `_loft_polygons` only when it *recovers congruent
+rings* (equal counts and `_rings_twisted` False on the cleaned rings) — the
+signature of the mirror-image case. Rims that stay non-congruent after cleanup
+genuinely differ (slivers at different spots along one edge), so they fall
+through to the direct bridge with the original rims and the detected cap faces
+verbatim.
+
+**Outcome.** `3ndo_UUzohbPDx681yNH6S` keeps its Follow-up D result (0.4485, 16
+faces, clean prism — its slivers sit on different *corners*, cleanup recovers
+congruent `4`/`4` rings). The three `Tür-001` doors (`3texd0KTo...` 126420,
+`0M03gUGW...` 183477, `32kjha0R...` 265558) are back to their correct direct
+bridge: 0.2240, 24 faces. All other openings unchanged (only these four doors
+ever entered the twist branch among the model's 74 equal-rim cases).
+
+**Validation:** `app/runner` `test_opening_surface.py` —
+`test_loft_equal_rims_benign_sliver_offset_keeps_direct_bridge` added (congruent
+rectangles with slivers at different heights on one edge keep the direct bridge:
+detector fires, volume stays the exact prism, caps verbatim at 24 faces); full
+suite 25 passed except the pre-existing missing-fixture failure noted above.

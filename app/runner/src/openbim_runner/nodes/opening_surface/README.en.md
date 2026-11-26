@@ -1,13 +1,14 @@
 ---
 title: Opening Surface
-description: Retrieves a watertight closed surface per opening by closing the host's cut-surface tube for a through-bore, or by lofting the opening's cap faces into a solid for an open ring, and caches it as generated geometry.
+description: Retrieves a watertight closed surface per opening and caches it as generated geometry.
 categories: geometry
 ---
 
-The `opening_surface` node retrieves, for every opening of the input building
+The `opening_surface` node retrieves, for every opening of the input
 elements, one **watertight closed surface** that fills the opening void. It
-closes the host's cut-surface tube for a through-bore, or lofts the opening's cap
-faces into a solid for an open ring, so both end up as a closed, positive-volume
+either combines the cap faces with the cut surfaces when they form a closed
+ring (windows), or linearly connects the opening's cap faces when the cut
+surfaces form an open ring (doors), so both end up as a closed, positive-volume
 solid.
 
 ## How it works
@@ -15,21 +16,21 @@ solid.
 For each input element, the openings (`IfcRelVoidsElement`) and their cached Body
 meshes are resolved, along with the host element's mesh. Then:
 
-- **Closed ring (through-bore / window, planar rims):** the host's cut-surface
-  tube is built and closed. When it closes watertight, it is emitted unchanged
-  (`method = "closed_cut_surface"`).
-- **Open ring (door / non-planar rim / curved host):** the cut-surface tube stays
-  open. The opening's cap faces are analysed from the host surface planes
+- **Closed ring (window, planar rims):** the cut surfaces are closed into a
+  closed ring. When it can be closed watertight on the open sides, it is emitted
+  unchanged (`method = "closed_cut_surface"`).
+- **Open ring (door / non-planar rim / curved host):** the cut-surface ring
+  stays open. The opening's cap faces are analysed from the host surface planes
   instead. When **two** caps are found, both are used; when **only one** cap is
-  found, a second cap is synthesised by copying the found cap across the wall by
-  its thickness and clipping the copy against the tube reveal faces. The two caps
-  are then **lofted** (connected by new side faces between corresponding boundary
-  points in 3D) into one watertight volume (`method = "lofted_caps"`).
-- **No volume:** when neither a closed tube nor two loftable caps can be built,
-  the cap/tube geometry is emitted unchanged (`method = "caps_only"`,
+  found, a second cap is synthesised by copying the found cap across the wall
+  thickness and clipping the copy against the ring's reveal faces. The two caps
+  are then **connected** (by new side faces between corresponding boundary
+  points in 3D) and form a watertight volume (`method = "lofted_caps"`).
+- **No volume:** when neither a closed ring nor two connectable caps can be
+  built, the cap/ring geometry is emitted unchanged (`method = "caps_only"`,
   `watertight = false`); no fabricated geometry is produced.
 
-The loft connects corresponding boundary points in 3D, so it tolerates hosts
+The connection links corresponding boundary points in 3D, so it tolerates hosts
 whose two dominant surfaces are not parallel (a wall or slab of linearly varying
 thickness) and curved hosts.
 
@@ -84,13 +85,6 @@ consumers such as measurement or collision.
   tessellated geometry are reported with an error entry instead.
 - Each opening appears once, even when its host element is passed multiple
   times. References that resolve to no entity contribute no openings.
-- The `closed_cut_surface` path is used only for a genuinely watertight closed
-  tube, so the old incorrect door closure (a floor-reaching door forced shut)
-  is never produced. An open ring falls through to the lofted-cap path instead.
-- When exactly one cap face is found, the second cap is a thickness offset of the
-  first, clipped against the tube reveal faces. If no tube or no reliable wall
-  thickness is available, or the loft cannot be made watertight, the node degrades
-  to `caps_only` rather than fabricating a volume.
 - Curved hosts are analysed with surface-region logic; a round wall that exposes
   only one cap gets its opposing cap synthesised.
 - Openings are only collected from the input elements themselves, not from parts

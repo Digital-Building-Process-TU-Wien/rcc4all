@@ -159,13 +159,62 @@ def resolve_side(
     return keys
 
 
+def _safe_volume(mesh: trimesh.Trimesh) -> float:
+    """Signed volume of a mesh, quieting trimesh's cosmetic divide-by-zero.
+
+    trimesh's ``mass_properties`` computes ``center_mass = integrated[1:4] /
+    volume`` without guarding a numerically-zero signed volume. A degenerate
+    closed shell (a cap-fan closure whose windings cancel) is watertight and
+    winding-consistent but has ~zero volume, so reading ``mesh.volume`` on it
+    emits a divide-by-zero RuntimeWarning and NaN inertia. The value is still a
+    valid float (0 or a sub-epsilon residue) that callers compare against a
+    threshold, so suppress the noise at the numpy level. ``np.errstate`` is used
+    because it is independent of the Python ``warnings`` filter list (which an
+    outer ``catch_warnings``+``simplefilter("always")`` harness would otherwise
+    defeat). An unreadable mesh is treated as zero-volume.
+    """
+    try:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return float(mesh.volume)
+    except Exception:
+        return 0.0
+
+
+def _safe_fix_normals(mesh: trimesh.Trimesh) -> bool:
+    """Re-orient ``mesh`` normals, quieting trimesh's cosmetic divide-by-zero.
+
+    ``fix_normals`` reads the signed volume (via ``mass_properties``) to orient a
+    closed mesh, so on a degenerate sub-epsilon-volume shell it triggers the same
+    divide-by-zero RuntimeWarning. A degenerate shell is rejected by the caller
+    anyway, so suppress the noise and report success/failure as a bool.
+    """
+    try:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mesh.fix_normals()
+        return True
+    except Exception:
+        return False
+
+
+# A closed, winding-consistent mesh must enclose at least this much volume to be
+# a real solid. trimesh itself treats ``|volume| < tol.zero`` as "no volume" in
+# its mass-properties integration, so a sub-epsilon shell (a degenerate
+# self-cancelling cap fan) is not a valid positive-volume body and is rejected.
+# Real elements have volumes orders of magnitude above this (mj̄ build units).
+MIN_VOLUME = trimesh.constants.tol.zero
+
+
 def _is_watertight(mesh: trimesh.Trimesh) -> bool:
     # Guard against degenerate/empty meshes: trimesh would raise on a 1-D faces
     # array and is_watertight is vacuously true for an empty one.
     faces = getattr(mesh, "faces", None)
     if faces is None or getattr(faces, "ndim", 0) != 2 or faces.shape[0] == 0:
         return False
-    return bool(mesh.is_watertight and mesh.is_winding_consistent and mesh.volume > 0)
+    return bool(
+        mesh.is_watertight
+        and mesh.is_winding_consistent
+        and _safe_volume(mesh) > MIN_VOLUME
+    )
 
 
 def ensure_watertight(

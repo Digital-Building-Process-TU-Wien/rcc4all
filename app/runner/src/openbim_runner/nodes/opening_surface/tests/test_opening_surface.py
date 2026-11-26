@@ -20,6 +20,7 @@ from openbim_runner.nodes.opening_surface.opening_surface import (
     _loft_open_ring,  # pyright: ignore[reportPrivateUsage]
     _loft_polygons,  # pyright: ignore[reportPrivateUsage]
     _ring_has_axial_edge,  # pyright: ignore[reportPrivateUsage]
+    _rings_twisted,  # pyright: ignore[reportPrivateUsage]
     opening_surface,
 )
 from openbim_runner.util.geometry import (
@@ -316,6 +317,176 @@ def test_loft_unequal_rims_orients_before_resample() -> None:
     # The two caps outline the same 2x1 rectangle, separated by 0.5 along the cap
     # normal, so the solid's volume is 2.0 * 0.5. The uncorrected loft returned ~0.
     assert mesh.volume == pytest.approx(1.0, rel=0.05)
+
+
+def test_loft_equal_rims_mirror_slivers_loft_clean_prism() -> None:
+    """Equal-length rims with mirrored bevel slivers loft into a clean prism.
+
+    Regression for the real-world door ``3ndo_UUzohbPDx681yNH6S`` (``Tür-017``
+    on wall ``Wand-003``): a rectangle authored as a 6-ring can carry its
+    collinear bevel slivers on *different corners* in the two rims — mirror
+    images no cyclic shift can pair. The direct bridge still closed watertight,
+    but every side triangle was a long diagonal (a twisted band) and the volume
+    was computed off that twisted solid. The in-plane mismatch is detected, the
+    slivers collapsed, and the caps re-lofted as the true 4-corner rectangle.
+    """
+    # A 2x1 rectangle at z=0 whose two bevel slivers (0.03 stubs on the bottom
+    # and top edge) sit by the bottom-right and top-left corners.
+    front_corners = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.97, 0.0, 0.0],  # sliver, 0.03 before the right corner
+            [2.0, 0.0, 0.0],
+            [2.0, 1.0, 0.0],
+            [0.03, 1.0, 0.0],  # sliver, 0.03 after the left corner
+            [0.0, 1.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+    # The same rectangle at z=0.5 with the slivers mirrored onto the other two
+    # corners (bottom-left and top-right), as the real door's back rim has them.
+    back_corners = np.array(
+        [
+            [0.0, 0.0, 0.5],
+            [0.03, 0.0, 0.5],  # sliver, 0.03 after the left corner
+            [2.0, 0.0, 0.5],
+            [2.0, 1.0, 0.5],
+            [1.97, 1.0, 0.5],  # sliver, 0.03 before the right corner
+            [0.0, 1.0, 0.5],
+        ],
+        dtype=np.float64,
+    )
+    vertices = np.concatenate([front_corners, back_corners], axis=0)
+    # Fans of the two 6-gon caps (the sliver fans carry one zero-area triangle,
+    # as the authored degenerate caps do); the front faces give the cap normal.
+    cap_faces = np.array(
+        [
+            [0, 1, 2],
+            [0, 2, 3],
+            [0, 3, 4],
+            [0, 4, 5],
+            [6, 7, 8],
+            [6, 8, 9],
+            [6, 9, 10],
+            [6, 10, 11],
+        ],
+        dtype=np.int64,
+    )
+    front = [0, 1, 2, 3]
+    back = [4, 5, 6, 7]
+    front_ring = list(range(6))
+    back_ring = list(range(6, 12))
+    cap_normal = np.array([0.0, 0.0, 1.0])
+
+    # The detector itself: mirrored slivers cannot be paired, congruent rims can.
+    assert _rings_twisted(front_corners, back_corners, cap_normal)
+    clean_front = front_corners[[0, 2, 3, 5]]
+    clean_back = back_corners[[0, 2, 3, 5]]
+    assert not _rings_twisted(clean_front, clean_back, cap_normal)
+
+    mesh = _loft_caps_watertight(
+        vertices, cap_faces, front, back, front_ring, back_ring
+    )
+
+    assert mesh is not None
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    # The true void is the 4-corner rectangle prism: 2 x 1 area, 0.5 deep. The
+    # twisted direct bridge (the previous behaviour) computes a different volume
+    # off its diagonal side band.
+    assert mesh.volume == pytest.approx(1.0, rel=0.05)
+    # The clean path re-fans both caps from the collapsed 4-corner rings:
+    # 2x4 cap triangles plus 2x4 side triangles. A direct bridge of the two
+    # 6-rings would carry 20 faces.
+    assert len(mesh.faces) == 16
+
+
+def test_loft_equal_rims_benign_sliver_offset_keeps_direct_bridge() -> None:
+    """Equal rims with a benign mispairing keep the direct bridge and cap faces.
+
+    Regression for the real-world ``Tür-001`` doors (e.g.
+    ``3texd0KTo1WTX$r2SeRJ02``): the two cap rims are the *same* rectangle,
+    offset purely along the cap normal, but the collinear bevel slivers sit at
+    different heights on the same edge. No cyclic shift pairs the vertices by
+    height, so the twist detector fires — yet every mispaired vertex lies on the
+    two parallel edge lines, so the direct bridge's side triangles stay in that
+    plane and the solid is exact. Cleanup cannot recover congruent rings (one
+    rim keeps an isolated collinear vertex with no short stub), so the rims must
+    stay on the direct bridge with the detected cap faces verbatim; a resampling
+    loft would push corners off the true rectangle and distort the volume
+    (0.2240 -> 0.1709 on the real door).
+    """
+    # A 2x1 rectangle at z=0 with bevel slivers low on the left edge: the stub
+    # pair (y=0.02/0.035) plus a single stub-below-the-corner vertex (y=0.97).
+    front_ring_pts = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [2.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.97, 0.0],  # 0.03 stub below the corner
+            [0.0, 0.035, 0.0],  # upper end of the stub pair
+            [0.0, 0.02, 0.0],  # lower end of the stub pair
+        ],
+        dtype=np.float64,
+    )
+    # The same rectangle at z=0.5 with its slivers high on the left edge; the
+    # isolated vertex at y=0.19 has no short stub (edges 0.71 and 0.19), so
+    # cleanup keeps it and the ring stays a pentagon.
+    back_ring_pts = np.array(
+        [
+            [0.0, 0.0, 0.5],
+            [2.0, 0.0, 0.5],
+            [2.0, 1.0, 0.5],
+            [0.0, 1.0, 0.5],
+            [0.0, 0.915, 0.5],  # upper end of the stub pair
+            [0.0, 0.9, 0.5],  # 0.015 stub below the corner
+            [0.0, 0.19, 0.5],  # isolated collinear vertex, no stub
+        ],
+        dtype=np.float64,
+    )
+    vertices = np.concatenate([front_ring_pts, back_ring_pts], axis=0)
+    # Fans of the two 7-gon caps (the sliver fans carry zero-area triangles, as
+    # the authored degenerate caps do); the front faces give the cap normal.
+    cap_faces = np.array(
+        [
+            [0, 1, 2],
+            [0, 2, 3],
+            [0, 3, 4],
+            [0, 4, 5],
+            [0, 5, 6],
+            [7, 8, 9],
+            [7, 9, 10],
+            [7, 10, 11],
+            [7, 11, 12],
+            [7, 12, 13],
+        ],
+        dtype=np.int64,
+    )
+    front = [0, 1, 2, 3, 4]
+    back = [5, 6, 7, 8, 9]
+    front_ring = list(range(7))
+    back_ring = list(range(7, 14))
+    cap_normal = np.array([0.0, 0.0, 1.0])
+
+    # The detector fires: the slivers sit at different heights, so the best
+    # cyclic shift still mispairs vertices by up to ~0.87 in-plane.
+    assert _rings_twisted(front_ring_pts, back_ring_pts, cap_normal)
+
+    mesh = _loft_caps_watertight(
+        vertices, cap_faces, front, back, front_ring, back_ring
+    )
+
+    assert mesh is not None
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    # The mispaired vertices all lie on the left-edge line, so the twisted-looking
+    # side triangles stay inside the left face plane: the direct bridge is exact
+    # and the volume is the true prism 2 x 1 x 0.5.
+    assert mesh.volume == pytest.approx(1.0, rel=0.05)
+    # The detected caps survive verbatim: 2x5 fan triangles plus 2x7 side
+    # triangles. A clean+reloft of the 4/5 rings would carry a different count.
+    assert len(mesh.faces) == 24
 
 
 def _two_surface_host_mesh() -> trimesh.Trimesh:
