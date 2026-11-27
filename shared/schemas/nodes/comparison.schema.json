@@ -1,0 +1,324 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/comparison.schema.json",
+  "type": "object",
+  "title": "Comparison",
+  "description": "Compares numeric values against a target value or range and produces harmonized check elements for BCF output.",
+  "categories": [
+    "validation"
+  ],
+  "markdownDescription": "The `comparison` node compares numeric values (actual values) against\na target value and produces harmonized check elements compatible with the `bcf_output`\nnode. It is purely numeric and IFC-agnostic: each raw reference (`inter:intersection_...`,\na `<k1>_<k2>` distance pair, or `<slug>:expr:<id>`) is carried through unchanged, and\nthe `bcf_output` node expands it (via the shared `expand_reference` helper) into IFC\nmember objects so BCF topics can be created with proper viewpoints.\n\n## Use case example\n\n```\ncollision \u2192 measurement \u2192 comparison \u2192 bcf_output\n```\n\n1. **Collision node** detects intersecting elements and produces `intersection_meshes`\n2. **Measurement node** computes the volume of each intersection mesh\n3. **Comparison node** compares each volume against a target (e.g., `0.0` for any collision) and emits harmonized elements\n4. **BCF output** creates BCF 3.0 topics with viewpoints for each colliding element\n\n## Settings\n\n| Setting | Type | Default | Description |\n|---------|------|---------|-------------|\n| `condition` | `Literal[\"equals\",\"not_equals\",\"lt\",\"le\",\"gt\",\"ge\",\"between\",\"outside\"]` | `\"lt\"` | Comparison operator applied to the value |\n| `target_value` | `float` | `0.0` | Target value for single-value operators (`equals`, `not_equals`, `lt`, `le`, `gt`, `ge`) |\n| `target_min` | `float` | `0.0` | Lower barrier for `between` / `outside` operators |\n| `target_max` | `float` | `0.0` | Upper barrier for `between` / `outside` operators |\n| `inclusive_min` | `bool` | `True` | If `True`, the range includes values equal to `target_min` (\u2265); otherwise strictly greater (>) |\n| `inclusive_max` | `bool` | `True` | If `True`, the range includes values equal to `target_max` (\u2264); otherwise strictly less (<) |\n| `abs_tol` | `float` | `0.001` | Absolute tolerance to absorb float noise near boundaries. Applied to `equals`/`not_equals`, `le`/`ge`, and `between`/`outside` (inclusive sides only); `lt`/`gt` remain strict. Negative values are normalized to their absolute value. |\n\n## Inputs\n\n| Input | Type | Bound from | Description |\n|-------|------|------------|-------------|\n| `values` | `list[ComparisonValueItem]` | upstream node | List of values to compare. Each item has a `reference` to its source element and a `value`. Bind to a list output of an upstream node. |\n| `unit` | `str` | upstream node | Unit of the compared values. Bind to a unit output of an upstream node, e.g. `measurement.unit`. |\n| `check_parameter` | `str` | upstream node | Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. `measurement.type`. |\n\n## Outputs\n\nThe result is a slim, structured check per element. The executor wraps every node\nresult in an envelope `{ label, type, result }`, where `label` (runtime-assigned\nname) and `type` (`\"comparison\"`) live on the outer envelope \u2014 the node's `result`\nobject itself carries only the fields below:\n\n- `summary_element_count` (elements processed), `summary_passed_count` /\n  `summary_failed_count` (element-level: elements with passed/failed check), and\n  `summary_check_count` (total number of checks, equals element count).\n- `passed_express_ids`, `failed_express_ids`: one raw reference per passing/failing\n  element (so each list length equals the element count).\n- `elements`: ordered list of\n  - `express_ids` (list with the single raw reference, unchanged \u2014 e.g.\n    `inter:intersection_...`, a `<k1>_<k2>` pair, or `<slug>:expr:<id>`), `class_name`\n    (`\"\"`; derived per member by `bcf_output`)\n  - `failed`: true when the check failed\n  - `checks`: list of `HarmonizedCheckResult` (one per element):\n    - `key`: the bound `check_parameter` (e.g., `volume`)\n    - `check_parameter`: the bound input\n    - `expected_value`: `str(target_value)` (single operators) or `\"\"` (range)\n    - `actual_value`: `str(value)` or `\"\"` (missing)\n    - `unit`: bound input\n    - `missing`: `True` when value is `None`, has an error, or is non-finite (`NaN`, `+/-inf`)\n    - `passed`: not missing and comparison passes\n    - `expected_value_condition`: `condition`\n    - `expected_value_min`: `str(target_min)` (between/outside) or `\"\"`\n    - `expected_value_max`: `str(target_max)` (between/outside) or `\"\"`\n\n## Behavior\n\nFor each `ComparisonValueItem` in `values`:\n\n1. **Emit one element per item (no resolution, no dedup):** every `ComparisonValueItem`\n   becomes **one element** carrying its raw `reference` unchanged:\n   `express_ids=[item.reference]`, `class_name=\"\"`. The comparison node never resolves\n   references and never skips \u2014 `bcf_output` expands the raw ref into member objects\n   and drops any it cannot expand.\n\n2. **Determine pass/fail:**\n   - `missing = value is None or error is set or value is non-finite (NaN, +/-inf)` \u2192 `check.missing=True`, `failed=True`\n   - Otherwise evaluate numeric comparison based on `condition` using `abs_tol`\n\nEach element carries the single `HarmonizedCheckResult` built from the bound\n`check_parameter` / `unit` and the target settings.\n\n**Summary counts:** aggregate passed/failed across elements; `passed_express_ids` /\n`failed_express_ids` hold one raw reference per element.\n\n## Validations\n\n- `check_parameter` non-empty \u2192 `ValueError` (BCF `check.key` required).\n- `target_min > target_max` for `between`/`outside` \u2192 `ValueError`.\n\n## Notes\n\n- **Configurable tolerance:** `abs_tol` (default `0.001`) is applied to `equals`/`not_equals` (`math.isclose`), `le`/`ge` (boundary expansion), and `between`/`outside` (inclusive sides only); `lt`/`gt` remain strict. Negative values are normalized to their absolute value.\n- **Non-finite values:** `NaN`, `+inf`, `-inf` are classified as `missing=True, failed=True` to surface in BCF.\n- **Reference/class resolution:** moved to the `bcf_output` node. The comparison node only passes raw references through; `bcf_output` expands them into members and derives each member's IFC class via the shared `expand_reference` helper in `rcc4all_runner.util.references`.",
+  "locales": {
+    "de": {
+      "title": "Vergleich",
+      "description": "Vergleicht numerische Werte mit einem Zielwert oder Bereich und erzeugt harmonisierte Pr\u00fcfelemente f\u00fcr die BCF-Ausgabe.",
+      "categories": [
+        "validation"
+      ],
+      "markdownDescription": "Der `comparison`-Node vergleicht numerische Werte (Ist-Werte) mit einem Zielwert\nund erzeugt harmonisierte Pr\u00fcfelemente, die mit dem `bcf_output`-Node kompatibel sind.\nEr ist rein numerisch und IFC-agnostisch: Jede rohe Referenz (`inter:intersection_...`,\nein `<k1>_<k2>`-Abstands-Paar oder `<slug>:expr:<id>`) wird unver\u00e4ndert durchgereicht,\nund der `bcf_output`-Node erweitert sie (\u00fcber den gemeinsamen Helfer `expand_reference`)\nzu IFC-Mitgliedsobjekten, damit BCF-Themen mit korrekten Ansichten erstellt werden k\u00f6nnen.\n\n## Anwendungsbeispiel\n\n```\ncollision \u2192 measurement \u2192 comparison \u2192 bcf_output\n```\n\n1. **Collision-Node** erkennt sich schneidende Elemente und erzeugt `intersection_meshes`\n2. **Measurement-Node** berechnet das Volumen jedes Schnittmengennetzes\n3. **Comparison-Node** vergleicht jedes Volumen mit einem Zielwert (z. B. `0.0` f\u00fcr jede Kollision) und emittiert harmonisierte Elemente\n4. **BCF-Output** erstellt BCF 3.0-Themen mit Ansichten f\u00fcr jedes kollidierende Element\n\n## Einstellungen\n\n| Einstellung | Typ | Standard | Beschreibung |\n|-------------|-----|----------|--------------|\n| `condition` | `Literal[\"equals\",\"not_equals\",\"lt\",\"le\",\"gt\",\"ge\",\"between\",\"outside\"]` | `\"lt\"` | Vergleichsoperator, der auf den Wert angewendet wird |\n| `target_value` | `float` | `0.0` | Zielwert f\u00fcr Einzelwert-Operatoren (`equals`, `not_equals`, `lt`, `le`, `gt`, `ge`) |\n| `target_min` | `float` | `0.0` | Untere Schranke f\u00fcr `between` / `outside`-Operatoren |\n| `target_max` | `float` | `0.0` | Obere Schranke f\u00fcr `between` / `outside`-Operatoren |\n| `inclusive_min` | `bool` | `True` | Wenn `True`, schlie\u00dft der Bereich Werte ein, die gleich `target_min` sind (\u2265); sonst strikt gr\u00f6\u00dfer (>) |\n| `inclusive_max` | `bool` | `True` | Wenn `True`, schlie\u00dft der Bereich Werte ein, die gleich `target_max` sind (\u2264); sonst strikt kleiner (<) |\n| `abs_tol` | `float` | `0.001` | Absolute Toleranz zur Absorption von Gleitkomma-Rauschen nahe Grenzwerten. Angewendet auf `equals`/`not_equals`, `le`/`ge` und `between`/`outside` (nur inklusive Seiten); `lt`/`gt` bleiben strikt. Negative Werte werden als ihr absoluter Wert behandelt. |\n\n## Eingaben\n\n| Eingabe | Typ | Gebunden von | Beschreibung |\n|---------|-----|--------------|--------------|\n| `values` | `list[ComparisonValueItem]` | upstream node | Liste von Werten zum Vergleichen. Jeder Eintrag hat eine `reference` auf sein Quellelement und einen `value`. An ein Listen-Ausgangssignal eines upstream Nodes binden. |\n| `unit` | `str` | upstream node | Ma\u00dfeinheit der verglichenen Werte. An ein Einheiten-Ausgangssignal eines upstream Nodes binden, z. B. `measurement.unit`. |\n| `check_parameter` | `str` | upstream node | Bezeichnung f\u00fcr die Pr\u00fcfung (wird zum BCF-Pr\u00fcfschl\u00fcssel). An ein Typ-/Pr\u00fcfparameter-Ausgangssignal eines upstream Nodes binden, z. B. `measurement.type`. |\n\n## Ausgaben\n\nDas Ergebnis ist eine schlanke, strukturierte Pr\u00fcfung pro Element. Der Executor\nkapselt jedes Knotenergebnis in einen Umschlag `{ label, type, result }`, wobei\n`label` (zur Laufzeit zugewiesener Name) und `type` (`\"comparison\"`) auf dem\n\u00e4u\u00dferen Umschlag liegen \u2014 das `result`-Objekt des Nodes selbst enth\u00e4lt nur die\nfolgenden Felder:\n\n- `summary_element_count` (verarbeitete Elemente), `summary_passed_count` /\n  `summary_failed_count` (auf Elementebene: Elemente mit bestandener/gefeilter\n  Pr\u00fcfung) und `summary_check_count` (Gesamtzahl der Pr\u00fcfungen, entspricht der\n  Elementanzahl).\n- `passed_express_ids`, `failed_express_ids`: eine rohe Referenz pro\n  bestandenem/gefeiltem Element (die Listenl\u00e4nge entspricht also der Elementanzahl).\n- `elements`: geordnete Liste von\n  - `express_ids` (Liste mit der einzelnen, unver\u00e4nderten rohen Referenz \u2014 z. B.\n    `inter:intersection_...`, ein `<k1>_<k2>`-Paar oder `<slug>:expr:<id>`),\n    `class_name` (`\"\"`; wird pro Mitglied von `bcf_output` abgeleitet)\n  - `failed`: wahr, wenn die Pr\u00fcfung fehlgeschlagen ist\n  - `checks`: Liste von `HarmonizedCheckResult` (eine pro Element):\n    - `key`: der gebundene `check_parameter` (z. B. `volume`)\n    - `check_parameter`: die gebundene Eingabe\n    - `expected_value`: `str(target_value)` (Einzelwert-Operatoren) oder `\"\"` (Bereich)\n    - `actual_value`: `str(value)` oder `\"\"` (fehlend)\n    - `unit`: gebundene Eingabe\n    - `missing`: `True`, wenn Wert `None` ist, einen Fehler hat oder nicht endlich (`NaN`, `+/-inf`)\n    - `passed`: nicht fehlend und Vergleich besteht\n    - `expected_value_condition`: `condition`\n    - `expected_value_min`: `str(target_min)` (between/outside) oder `\"\"`\n    - `expected_value_max`: `str(target_max)` (between/outside) oder `\"\"`\n\n## Verhalten\n\nF\u00fcr jedes `ComparisonValueItem` in `values`:\n\n1. **Ein Element pro Eintrag emittieren (keine Aufl\u00f6sung, kein Dedup):** jedes\n   `ComparisonValueItem` wird **ein Element**, das seine rohe `reference` unver\u00e4ndert\n   tr\u00e4gt: `express_ids=[item.reference]`, `class_name=\"\"`. Der Vergleich-Node l\u00f6st\n   nie Referenzen auf und \u00fcberspringt nie \u2014 `bcf_output` erweitert die rohe Referenz\n   zu Mitgliedsobjekten und verwirft, was es nicht erweitern kann.\n\n2. **Bestanden/Nicht bestanden bestimmen:**\n   - `missing = value is None or error is set or value is non-finite (NaN, +/-inf)` \u2192 `check.missing=True`, `failed=True`\n   - Sonst numerischen Vergleich basierend auf `condition` unter Verwendung von `abs_tol` auswerten\n\nJedes Element tr\u00e4gt die einzelne `HarmonizedCheckResult`, die aus dem gebundenen\n`check_parameter`/`unit` und den Zieleinstellungen aufgebaut wird.\n\n**Zusammenfassungszahlen:** bestandene/gefeilte \u00fcber alle Elemente aggregieren;\n`passed_express_ids`/`failed_express_ids` enthalten eine rohe Referenz pro Element.\n\n## Validierungen\n\n- `check_parameter` nicht leer \u2192 `ValueError` (BCF `check.key` erforderlich).\n- `target_min > target_max` f\u00fcr `between`/`outside` \u2192 `ValueError`.\n\n## Hinweise\n\n- **Konfigurierbare Toleranz:** `abs_tol` (Standard `0.001`) wird auf `equals`/`not_equals` (`math.isclose`), `le`/`ge` (Grenzwert-Erweiterung) und `between`/`outside` (nur inklusive Seiten) angewendet; `lt`/`gt` bleiben strikt. Negative Werte werden als ihr absoluter Wert behandelt.\n- **Nicht-endliche Werte:** `NaN`, `+inf`, `-inf` werden als `missing=True, failed=True` klassifiziert, um in BCF sichtbar zu werden.\n- **Referenz-/Klassen-Aufl\u00f6sung:** in den `bcf_output`-Node verlagert. Der Vergleich-Node reicht nur rohe Referenzen durch; `bcf_output` erweitert sie zu Mitgliedern und leitet die IFC-Klasse jedes Mitglieds \u00fcber den gemeinsamen Helfer `expand_reference` in `rcc4all_runner.util.references` ab."
+    },
+    "en": {
+      "title": "Comparison",
+      "description": "Compares numeric values against a target value or range and produces harmonized check elements for BCF output.",
+      "categories": [
+        "validation"
+      ],
+      "markdownDescription": "The `comparison` node compares numeric values (actual values) against\na target value and produces harmonized check elements compatible with the `bcf_output`\nnode. It is purely numeric and IFC-agnostic: each raw reference (`inter:intersection_...`,\na `<k1>_<k2>` distance pair, or `<slug>:expr:<id>`) is carried through unchanged, and\nthe `bcf_output` node expands it (via the shared `expand_reference` helper) into IFC\nmember objects so BCF topics can be created with proper viewpoints.\n\n## Use case example\n\n```\ncollision \u2192 measurement \u2192 comparison \u2192 bcf_output\n```\n\n1. **Collision node** detects intersecting elements and produces `intersection_meshes`\n2. **Measurement node** computes the volume of each intersection mesh\n3. **Comparison node** compares each volume against a target (e.g., `0.0` for any collision) and emits harmonized elements\n4. **BCF output** creates BCF 3.0 topics with viewpoints for each colliding element\n\n## Settings\n\n| Setting | Type | Default | Description |\n|---------|------|---------|-------------|\n| `condition` | `Literal[\"equals\",\"not_equals\",\"lt\",\"le\",\"gt\",\"ge\",\"between\",\"outside\"]` | `\"lt\"` | Comparison operator applied to the value |\n| `target_value` | `float` | `0.0` | Target value for single-value operators (`equals`, `not_equals`, `lt`, `le`, `gt`, `ge`) |\n| `target_min` | `float` | `0.0` | Lower barrier for `between` / `outside` operators |\n| `target_max` | `float` | `0.0` | Upper barrier for `between` / `outside` operators |\n| `inclusive_min` | `bool` | `True` | If `True`, the range includes values equal to `target_min` (\u2265); otherwise strictly greater (>) |\n| `inclusive_max` | `bool` | `True` | If `True`, the range includes values equal to `target_max` (\u2264); otherwise strictly less (<) |\n| `abs_tol` | `float` | `0.001` | Absolute tolerance to absorb float noise near boundaries. Applied to `equals`/`not_equals`, `le`/`ge`, and `between`/`outside` (inclusive sides only); `lt`/`gt` remain strict. Negative values are normalized to their absolute value. |\n\n## Inputs\n\n| Input | Type | Bound from | Description |\n|-------|------|------------|-------------|\n| `values` | `list[ComparisonValueItem]` | upstream node | List of values to compare. Each item has a `reference` to its source element and a `value`. Bind to a list output of an upstream node. |\n| `unit` | `str` | upstream node | Unit of the compared values. Bind to a unit output of an upstream node, e.g. `measurement.unit`. |\n| `check_parameter` | `str` | upstream node | Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. `measurement.type`. |\n\n## Outputs\n\nThe result is a slim, structured check per element. The executor wraps every node\nresult in an envelope `{ label, type, result }`, where `label` (runtime-assigned\nname) and `type` (`\"comparison\"`) live on the outer envelope \u2014 the node's `result`\nobject itself carries only the fields below:\n\n- `summary_element_count` (elements processed), `summary_passed_count` /\n  `summary_failed_count` (element-level: elements with passed/failed check), and\n  `summary_check_count` (total number of checks, equals element count).\n- `passed_express_ids`, `failed_express_ids`: one raw reference per passing/failing\n  element (so each list length equals the element count).\n- `elements`: ordered list of\n  - `express_ids` (list with the single raw reference, unchanged \u2014 e.g.\n    `inter:intersection_...`, a `<k1>_<k2>` pair, or `<slug>:expr:<id>`), `class_name`\n    (`\"\"`; derived per member by `bcf_output`)\n  - `failed`: true when the check failed\n  - `checks`: list of `HarmonizedCheckResult` (one per element):\n    - `key`: the bound `check_parameter` (e.g., `volume`)\n    - `check_parameter`: the bound input\n    - `expected_value`: `str(target_value)` (single operators) or `\"\"` (range)\n    - `actual_value`: `str(value)` or `\"\"` (missing)\n    - `unit`: bound input\n    - `missing`: `True` when value is `None`, has an error, or is non-finite (`NaN`, `+/-inf`)\n    - `passed`: not missing and comparison passes\n    - `expected_value_condition`: `condition`\n    - `expected_value_min`: `str(target_min)` (between/outside) or `\"\"`\n    - `expected_value_max`: `str(target_max)` (between/outside) or `\"\"`\n\n## Behavior\n\nFor each `ComparisonValueItem` in `values`:\n\n1. **Emit one element per item (no resolution, no dedup):** every `ComparisonValueItem`\n   becomes **one element** carrying its raw `reference` unchanged:\n   `express_ids=[item.reference]`, `class_name=\"\"`. The comparison node never resolves\n   references and never skips \u2014 `bcf_output` expands the raw ref into member objects\n   and drops any it cannot expand.\n\n2. **Determine pass/fail:**\n   - `missing = value is None or error is set or value is non-finite (NaN, +/-inf)` \u2192 `check.missing=True`, `failed=True`\n   - Otherwise evaluate numeric comparison based on `condition` using `abs_tol`\n\nEach element carries the single `HarmonizedCheckResult` built from the bound\n`check_parameter` / `unit` and the target settings.\n\n**Summary counts:** aggregate passed/failed across elements; `passed_express_ids` /\n`failed_express_ids` hold one raw reference per element.\n\n## Validations\n\n- `check_parameter` non-empty \u2192 `ValueError` (BCF `check.key` required).\n- `target_min > target_max` for `between`/`outside` \u2192 `ValueError`.\n\n## Notes\n\n- **Configurable tolerance:** `abs_tol` (default `0.001`) is applied to `equals`/`not_equals` (`math.isclose`), `le`/`ge` (boundary expansion), and `between`/`outside` (inclusive sides only); `lt`/`gt` remain strict. Negative values are normalized to their absolute value.\n- **Non-finite values:** `NaN`, `+inf`, `-inf` are classified as `missing=True, failed=True` to surface in BCF.\n- **Reference/class resolution:** moved to the `bcf_output` node. The comparison node only passes raw references through; `bcf_output` expands them into members and derives each member's IFC class via the shared `expand_reference` helper in `rcc4all_runner.util.references`."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "default": "lt",
+          "description": "Comparison operator applied to the value.",
+          "enum": [
+            "equals",
+            "not_equals",
+            "lt",
+            "le",
+            "gt",
+            "ge",
+            "between",
+            "outside"
+          ],
+          "title": "Condition",
+          "type": "string"
+        },
+        "target_value": {
+          "default": 0.0,
+          "description": "Target value for single-value operators (equals, not_equals, lt, le, gt, ge).",
+          "title": "Target value",
+          "type": "number"
+        },
+        "target_min": {
+          "default": 0.0,
+          "description": "Lower barrier for between / outside operators.",
+          "title": "Target min",
+          "type": "number"
+        },
+        "target_max": {
+          "default": 0.0,
+          "description": "Upper barrier for between / outside operators.",
+          "title": "Target max",
+          "type": "number"
+        },
+        "inclusive_min": {
+          "default": true,
+          "description": "If True, the range includes values equal to the lower barrier (>=); otherwise strictly greater (>).",
+          "title": "Inclusive min",
+          "type": "boolean"
+        },
+        "inclusive_max": {
+          "default": true,
+          "description": "If True, the range includes values equal to the upper barrier (<=); otherwise strictly less (<).",
+          "title": "Inclusive max",
+          "type": "boolean"
+        },
+        "abs_tol": {
+          "default": 0.001,
+          "description": "Absolute tolerance for float comparisons. Negative values are treated as their absolute value.",
+          "title": "Absolute tolerance",
+          "type": "number"
+        }
+      },
+      "title": "ComparisonSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "summary_element_count": {
+          "description": "Number of elements processed.",
+          "title": "Element count",
+          "type": "integer"
+        },
+        "summary_passed_count": {
+          "description": "Number of elements whose check passed.",
+          "title": "Passed count",
+          "type": "integer"
+        },
+        "summary_failed_count": {
+          "description": "Number of elements with a failed check.",
+          "title": "Failed count",
+          "type": "integer"
+        },
+        "summary_check_count": {
+          "description": "Total number of checks (equals element count, one check per element).",
+          "title": "Check count",
+          "type": "integer"
+        },
+        "passed_express_ids": {
+          "default": [],
+          "description": "Qualified references of elements whose check passed.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Passed express IDs",
+          "type": "array"
+        },
+        "failed_express_ids": {
+          "default": [],
+          "description": "Qualified references of elements with a failed check.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Failed express IDs",
+          "type": "array"
+        },
+        "elements": {
+          "default": [],
+          "description": "Ordered list of elements with their comparison check results.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "express_ids": {
+                "description": "The element reference(s) this element carries. Usually a single raw reference (`<slug>:expr:<id>`, an `inter:intersection_...` helper key, or a `_`-joined distance pair) that bcf_output expands into IFC member objects for viewpoints.",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Express IDs",
+                "type": "array"
+              },
+              "class_name": {
+                "description": "IFC entity class (e.g. IFCWALL) or 'unknown' for missing entities.",
+                "title": "Class name",
+                "type": "string"
+              },
+              "failed": {
+                "description": "True if at least one check on this element failed.",
+                "title": "Failed",
+                "type": "boolean"
+              },
+              "checks": {
+                "default": [],
+                "description": "List of check results for this element.",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": {
+                      "description": "Stable identifier for this check (e.g. a property key or 'surface_0').",
+                      "title": "Key",
+                      "type": "string"
+                    },
+                    "check_parameter": {
+                      "description": "The parameter being checked (e.g. the property name, or 'angle').",
+                      "title": "Check parameter",
+                      "type": "string"
+                    },
+                    "expected_value": {
+                      "default": "",
+                      "description": "Expected value as a string (empty for is_true / is_false and range checks).",
+                      "title": "Expected value",
+                      "type": "string"
+                    },
+                    "actual_value": {
+                      "default": "",
+                      "description": "Measured/read value as a string, or empty if the value is missing.",
+                      "title": "Actual value",
+                      "type": "string"
+                    },
+                    "unit": {
+                      "default": "",
+                      "description": "Measurement unit of the compared value, or empty when unknown.",
+                      "title": "Unit",
+                      "type": "string"
+                    },
+                    "missing": {
+                      "default": false,
+                      "description": "True when the value is not present / could not be measured.",
+                      "title": "Missing",
+                      "type": "boolean"
+                    },
+                    "passed": {
+                      "description": "Whether the check passed.",
+                      "title": "Passed",
+                      "type": "boolean"
+                    },
+                    "expected_value_condition": {
+                      "default": "",
+                      "description": "The comparison operator that was applied (empty for checks with none).",
+                      "title": "Expected value condition",
+                      "type": "string"
+                    },
+                    "expected_value_min": {
+                      "default": "",
+                      "description": "Lower barrier used for numeric range checks, or empty for single-value checks.",
+                      "title": "Expected value min",
+                      "type": "string"
+                    },
+                    "expected_value_max": {
+                      "default": "",
+                      "description": "Upper barrier used for numeric range checks, or empty for single-value checks.",
+                      "title": "Expected value max",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "check_parameter",
+                    "passed"
+                  ],
+                  "title": "HarmonizedCheckResult",
+                  "type": "object"
+                },
+                "title": "Checks",
+                "type": "array"
+              }
+            },
+            "required": [
+              "express_ids",
+              "class_name",
+              "failed"
+            ],
+            "title": "HarmonizedElement",
+            "type": "object"
+          },
+          "title": "Elements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary_element_count",
+        "summary_passed_count",
+        "summary_failed_count",
+        "summary_check_count"
+      ],
+      "title": "ComparisonResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "default": [],
+          "description": "List of values to compare. Each item has a `reference` to its source element and a `value`. Bind to a list output of an upstream node.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "reference": {
+                "description": "Reference of the value's source element (e.g. `main:expr:1`, an `inter:intersection_...` helper key, or a `_`-joined distance pair).",
+                "title": "Reference",
+                "type": "string"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The numeric value to compare. Null if the value is missing or could not be computed.",
+                "title": "Value"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Error reason when the value could not be computed (e.g. 'no cached geometry').",
+                "title": "Error"
+              }
+            },
+            "required": [
+              "reference"
+            ],
+            "title": "ComparisonValueItem",
+            "type": "object"
+          },
+          "title": "Values",
+          "type": "array"
+        },
+        "unit": {
+          "default": "",
+          "description": "Unit of the compared values. Bind to a unit output of an upstream node, e.g. measurement.unit.",
+          "title": "Unit",
+          "type": "string"
+        },
+        "check_parameter": {
+          "default": "",
+          "description": "Label naming the check (becomes the BCF check key). Bind to a type/check_parameter output of an upstream node, e.g. measurement.type.",
+          "title": "Check parameter",
+          "type": "string"
+        }
+      },
+      "title": "ComparisonInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

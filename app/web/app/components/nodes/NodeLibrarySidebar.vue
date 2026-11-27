@@ -6,14 +6,20 @@ interface Props {
   hasNodes: boolean
   nodeCount: number
   isRunning?: boolean
+  insideSubworkflow?: boolean
+  hasSubworkflowOutput?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
   isRunning: false,
+  insideSubworkflow: false,
+  hasSubworkflowOutput: false,
 })
 
 const emit = defineEmits<{
   addNode: [node: AvailableNode]
+  addInput: []
+  addOutput: []
   runWorkflow: []
   clearCanvas: []
 }>()
@@ -27,6 +33,12 @@ const availableNodes = computed(() => {
     label: t('node.jsonOutput.title'),
     categories: ['Other'],
     description: t('node.jsonOutput.description'),
+  })
+  nodes.push({
+    nodeName: 'subworkflow',
+    label: t('node.subworkflow.title'),
+    categories: ['Other'],
+    description: t('node.subworkflow.description'),
   })
   return nodes
 })
@@ -53,6 +65,7 @@ const filteredNodes = computed(() => {
 const nodesByCategory = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   const result: Record<string, AvailableNode[]> = {}
+  const categoryLabels = new Map<string, string>()
 
   availableNodes.value.forEach((node) => {
     let nodeMatches = true
@@ -64,20 +77,27 @@ const nodesByCategory = computed(() => {
     if (!nodeMatches)
       return
 
-    const hasCategories = node.categories.length > 0
+    const normalizedCategories = node.categories
+      .map(cat => cat.trim())
+      .filter(Boolean)
 
-    if (hasCategories) {
-      node.categories.forEach((cat) => {
+    if (normalizedCategories.length > 0) {
+      normalizedCategories.forEach((cat) => {
+        const key = cat.toLowerCase()
+        const displayLabel = categoryLabels.get(key) ?? cat
+        if (!categoryLabels.has(key))
+          categoryLabels.set(key, displayLabel)
+
         let categoryMatches = true
         if (query) {
-          categoryMatches = cat.toLowerCase().includes(query)
+          categoryMatches = key.includes(query)
         }
 
         if (categoryMatches || nodeMatches) {
-          if (!result[cat])
-            result[cat] = []
-          if (!result[cat].some(n => n.nodeName === node.nodeName)) {
-            result[cat].push(node)
+          if (!result[displayLabel])
+            result[displayLabel] = []
+          if (!result[displayLabel].some(n => n.nodeName === node.nodeName)) {
+            result[displayLabel].push(node)
           }
         }
       })
@@ -167,6 +187,32 @@ function handleAddNode(node: AvailableNode) {
         </p>
       </div>
       <div class="flex flex-col gap-2 px-3 pb-4">
+        <div v-if="insideSubworkflow" class="flex flex-col gap-2 rounded-xl border border-default bg-default/80 p-3">
+          <p class="text-xs font-semibold uppercase tracking-tight text-muted">
+            {{ t('node.subworkflow.portsTitle') }}
+          </p>
+          <UButton
+            icon="i-lucide-log-in"
+            color="primary"
+            variant="soft"
+            block
+            :label="t('node.subworkflow.addInput')"
+            @click="emit('addInput')"
+          />
+          <UButton
+            v-if="!hasSubworkflowOutput"
+            icon="i-lucide-log-out"
+            color="primary"
+            variant="soft"
+            block
+            :label="t('node.subworkflow.addOutput')"
+            @click="emit('addOutput')"
+          />
+          <p v-else class="text-xs text-muted">
+            {{ t('node.subworkflow.singleOutputHint') }}
+          </p>
+        </div>
+
         <div class="rounded-xl border border-default bg-default/80 p-3">
           <p class="text-sm font-medium text-highlighted">
             {{ t('library.addAvailableNodes') }}
@@ -198,9 +244,12 @@ function handleAddNode(node: AvailableNode) {
         </div>
 
         <UInput
+          id="node-library-search"
           v-model="searchQuery"
+          name="node-library-search"
           icon="i-lucide-search"
           :placeholder="t('library.filterNodes')"
+          :aria-label="t('library.filterNodes')"
           size="sm"
           clearable
         />

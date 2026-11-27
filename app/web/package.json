@@ -14,8 +14,9 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
+    "test:unit": "tsx --tsconfig .nuxt/tsconfig.json --test tests/dev-paths.test.ts tests/workflow-schema.test.ts tests/workflow-bindings.test.ts tests/workflow-graph.test.ts",
     "check": "npm run lint && npm run typecheck",
-    "generate:schema": "uv run --directory ../runner openbim-runner export-schema ../web/scripts/schema.json && tsx scripts/generate-types.ts"
+    "generate:schema": "uv run --directory ../runner rcc4all-runner export-schema ../../shared/schemas && tsx scripts/generate-schemas.ts"
   },
   "dependencies": {
     "@comark/vue": "^0.3.1",

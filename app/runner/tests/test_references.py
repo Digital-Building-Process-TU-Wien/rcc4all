@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from openbim_runner.util.references import (
+from rcc4all_runner.util.references import (
     expr_key,
     guid_key,
     is_generated_key,

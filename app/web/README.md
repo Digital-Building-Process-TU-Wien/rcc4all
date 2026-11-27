@@ -6,21 +6,21 @@ This is the web frontend for RCC4All, built with [Nuxt 4](https://nuxt.com/) and
 
 The frontend provides the main user interface for the RCC4All platform, enabling collaboration across contracting authorities. Its central capability is a **visual scripting editor** where checking nodes are composed into reusable templates. From this authoring step, an execution plan JSON is produced and sent to the checking rule runner.
 
-The web frontend communicates with the [Payload CMS](./app/cms) backend via the [Payload SDK](https://github.com/payloadcms/payload/tree/main/packages/sdk) to:
-- Manage groups, projects, files, and check runs
-- Handle user permissions and authentication (JWT/magic links)
-- Trigger validation workflows
-- Display results and helper geometry
+The web frontend also contains optional [Payload CMS](../cms) integration via the [Payload SDK](https://github.com/payloadcms/payload/tree/main/packages/sdk) (not currently used — leave `NUXT_PUBLIC_PAYLOAD_URL` empty to run standalone). Planned CMS-backed features include:
+- Managing groups, projects, files, and check runs (planned)
+- Invite-only authentication with magic links (planned; current CMS login is email/password)
+- Triggering validation workflows via CMS and displaying helper geometry (planned)
 
 ## Getting Started
 
 ### Prerequisites
-- **Node.js**: tested with Node 24
-- A running CMS backend (see [../cms/README.md](../cms/README.md))
+- **Node.js**: 24+ (`npm >= 11.7`)
+- **Python 3.11+** and **[uv](https://github.com/astral-sh/uv)** (with `uv sync` run in `../runner`) for workflow execution and schema generation
 
 ```env
-# CMS backend URL (needed for Payload SDK)
-PAYLOAD_PUBLIC_API_URL=http://localhost:3000  # or your CMS URL
+# Optional: Payload CMS API URL (leave empty to disable CMS calls; not currently used)
+NUXT_PUBLIC_PAYLOAD_URL=
+# Local CMS example: http://localhost:3000/api
 ```
 
 ## Key Features & Architecture
@@ -34,7 +34,7 @@ The visual scripting editor produces a workflow JSON that is executed by the [ru
 1. User creates nodes and connects them on the canvas
 2. IFC models are assigned to named slots via the **Add IFC Model** button in the editor header. The reserved `main` slot is required; other slots have unique slugs. These slots are serialized as the workflow's `files` member. A **File Input** node selects one assigned model and outputs its slug. Connect it to an **IFC Element Filter** node's `model_slug` input to choose the model that the filter scans. Other IFC consumers select their model from each qualified reference, such as `main:expr:123`.
 3. Workflow JSON is saved to `.dev-files/` and passed to the Python runner
-4. Results are displayed in a new tab, also saved to `.dev-files/`
+4. Results are displayed on `/results` and saved to `.dev-files/`
 
 ### Current multi-model contract
 
@@ -45,57 +45,41 @@ Multi-model workflows use these contracts:
 - IFC node inputs use qualified references such as `main:expr:123`.
 - Bind `ifc_element_filter.express_ids` before passing references to downstream IFC consumers. A bound empty list remains empty and does not trigger whole-model scanning.
 
-### Permission Model
-- **Super Admins**: Full system access via Payload admin UI
-- **Group Admins**: Manage their group(s), invite users, create subgroups
-- **Users**: View and create projects within their groups
-- **Anonymous**: Access publicly shared projects
+### Saving and loading workflows
 
-Authentication is invite-only via JWT tokens (magic links).
+**Save** and **Load** sit at the right end of the model bar. Named workflows are stored under `app/web/.dev-files/workflow/` by default; the save dialog can place them in any folder inside `app/web/.dev-files` and lists the files already there, so an existing workflow can be picked and overwritten instead of creating a duplicate.
 
-### Integration with CMS
+The saved file is the runner payload (`{ files, nodes, edges }`) plus each node's canvas `position`, so a workflow with a `main` model assigned can be executed directly — the runner rejects a workflow without one. Model paths are written relative to the workflow file (the runner's native convention) and translated back to `.dev-files`-relative paths when the file is loaded in the editor.
 
-The frontend uses the Payload SDK (configured in [composables/usePayloadSDK.ts](./app/composables/usePayloadSDK.ts)) to:
-- Query projects, check runs, and files
-- Authenticate users
-- Submit workflows for validation
+### Integration with CMS *(not currently used)*
+
+Optional Payload CMS integration is configured in [composables/usePayloadSDK.ts](./app/composables/usePayloadSDK.ts) (disabled when `NUXT_PUBLIC_PAYLOAD_URL` is unset). Currently wired to read `pages` and `groups` and handle email/password login; full CMS-backed projects, check runs, magic links, and workflow submission are planned.
 
 ## Development Workflow
 
-### Working with the CMS
-
-The web frontend depends on the CMS backend. To develop locally:
-
-1. **Start the CMS** (in `../cms`):
+1. **Install and start the web frontend** (in `app/web`):
    ```bash
-   cd ../cms
-   npm install
+   npm ci
    npm run dev
    ```
+   The dev server runs on `http://localhost:3001` (workflow editor at `/node-demo`).
 
-2. **Start the web frontend** (in this directory):
+2. **Generate runner schema types** (after runner changes or initial setup):
    ```bash
-   npm install
-   npm run dev
-   ```
-
-3. **Update types** after CMS schema changes:
-   ```bash
-   # From cms/ directory:
-   npm run generate:types
-   ```
-
-4. **Generate runner schema types** (after runner changes or initial setup):
-   ```bash
-   # From web/ directory:
    npm run generate:schema
    ```
-   This exports the latest Python node schema from the runner and generates TypeScript types in `app/utils/schema.d.ts`.
+   Exports the Python per-node and workflow JSON Schemas from `../runner` into `../../shared/schemas/` and regenerates `app/schemas/generated/`.
+
+3. **Run checks and tests**:
+   ```bash
+   npm run check
+   npm run test:unit
+   ```
 
 ## See Also
 
 - [Top-level README](../../README.md) – Overview of the entire RCC4All project
-- [CMS README](../cms/README.md) – Backend, data model, and API documentation
+- [CMS README](../cms/README.md) – Backend, data model, and API documentation *(not currently used)*
 - [Runner README](../runner/README.md) – Execution engine for checking rules
 - [Nuxt Docs](https://nuxt.com/)
 - [Tailwind CSS Docs](https://tailwindcss.com/)

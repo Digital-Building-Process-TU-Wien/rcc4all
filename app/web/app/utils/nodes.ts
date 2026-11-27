@@ -1,18 +1,55 @@
-/**
- * Base interface for all node data
- */
-import type { NodeRegistrySchema } from '@@/scripts/schema'
-import schemaJson from '@@/scripts/schema.json'
+import type { NodeRegistrySchema, SubworkflowPort } from '~/schemas'
+import {
+  getNodeLocaleMetadata,
+  getRegisteredNodeNames,
+} from '~/schemas'
+import {
+  createSubworkflowPortNode,
+  DEFAULT_SUBWORKFLOW_OUTPUT_PORT,
+} from './subworkflow-graph'
+
+export type { SubworkflowPort }
 
 export type SupportedLocale = 'en' | 'de'
 
+// Editor-side mirrors of the generated workflow-file types. They are
+// deliberately hand-written: the editor graph carries concerns the stored
+// workflow file does not (the `viewport` on a subworkflow definition, Vue
+// Flow handles on edges, and the runtime `label` on node data). The stored
+// file types stay generated in `app/schemas/generated/workflow.d.ts`.
+export interface StoredEdge {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+}
+
+/**
+ * Base interface for all node data
+ */
 export interface NodeData {
   label: string
   noInput?: boolean
+  noOutput?: boolean
   nodeName: string
   filename?: string
   settings?: Record<string, any>
   input_bindings?: Record<string, string>
+  subworkflow?: SubworkflowDefinitionData
+}
+
+export interface StoredNode {
+  id: string
+  position: { x: number, y: number }
+  data: NodeData
+}
+
+export interface SubworkflowDefinitionData {
+  name: string
+  nodes: StoredNode[]
+  edges: StoredEdge[]
+  viewport?: { x: number, y: number, zoom: number }
 }
 
 export interface AvailableNode {
@@ -71,18 +108,52 @@ function toPascalCase(str: string): string {
 const nodeNameToComponent: Record<string, string> = {
   bcf_output: 'BcfOutput',
   collision: 'Collision',
+  comparison: 'Comparison',
   concat_string: 'ConcatString',
   file_input: 'FileInput',
   generate_3d_cube: 'Generate3DCube',
+  get_element_creation_position_door: 'GetElementCreationPositionDoor',
   get_property: 'GetProperty',
   ids_checker: 'IdsChecker',
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
   measurement: 'Measurement',
-  opening_surface: 'OpeningSurface',
-  opening_surface_ifc_generator: 'OpeningSurfaceIfcGenerator',
-  loi_check: 'LoiCheck',
+  set_3d_position_rotation: 'Set3DPositionRotation',
+  subworkflow: 'SubworkflowNode',
+  subworkflow_input: 'SubworkflowInput',
+  subworkflow_output: 'SubworkflowOutput',
   tilt_of_components: 'TiltOfComponents',
+}
+
+export function createSubworkflowDefinition(): SubworkflowDefinitionData {
+  return {
+    name: '',
+    nodes: [
+      createSubworkflowPortNode(
+        'output',
+        { name: DEFAULT_SUBWORKFLOW_OUTPUT_PORT },
+        { x: 480, y: 140 },
+      ),
+    ],
+    edges: [],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  }
+}
+
+export function createNodeData(availableNode: AvailableNode): NodeData {
+  if (availableNode.nodeName === 'subworkflow') {
+    return {
+      label: availableNode.label,
+      nodeName: 'subworkflow',
+      subworkflow: createSubworkflowDefinition(),
+    }
+  }
+
+  return {
+    label: availableNode.label,
+    noInput: availableNode.nodeName === 'file_input',
+    nodeName: availableNode.nodeName,
+  }
 }
 
 /**
@@ -107,49 +178,16 @@ export function getNodeLabel(nodeName: string): string {
   return formatNodeLabel(nodeName)
 }
 
-function toSnakeCase(str: string): string {
-  return str
-    .replace(CAMEL_BOUNDARY_RE, '$1_$2')
-    .toLowerCase()
-}
-
-function getNodeCategories(nodeName: string, locale: SupportedLocale = 'en'): string[] {
-  const _key = toSnakeCase(nodeName)
-  const nodeData = (schemaJson.properties as any)[nodeName]
-  if (!nodeData)
-    return []
-
-  const localeData = nodeData.locales?.[locale] || nodeData.locales?.en
-  return localeData?.categories || nodeData.categories || []
-}
-
-function getNodeDescription(nodeName: string, locale: SupportedLocale = 'en'): { description?: string, markdownDescription?: string } {
-  const _key = toSnakeCase(nodeName)
-  const nodeData = (schemaJson.properties as any)[nodeName]
-  if (!nodeData)
-    return {}
-
-  const localeData = nodeData.locales?.[locale] || nodeData.locales?.en
-  return {
-    description: localeData?.description,
-    markdownDescription: localeData?.markdownDescription,
-  }
-}
-
 export function getAvailableNodes(locale: SupportedLocale = 'en'): AvailableNode[] {
-  const nodeNames = Object.keys(schemaJson.properties || {})
-
-  return nodeNames
+  return getRegisteredNodeNames()
     .map((nodeName) => {
-      const nodeData = (schemaJson.properties as any)[nodeName]
-      const localeData = nodeData?.locales?.[locale] || nodeData?.locales?.en
-      const title = localeData?.title || nodeData?.title || getNodeLabel(nodeName)
-
+      const metadata = getNodeLocaleMetadata(nodeName, locale)
       return {
         nodeName,
-        label: title,
-        categories: getNodeCategories(nodeName, locale),
-        ...getNodeDescription(nodeName, locale),
+        label: metadata.title || getNodeLabel(nodeName),
+        categories: metadata.categories,
+        description: metadata.description,
+        markdownDescription: metadata.markdownDescription,
       }
     })
     .sort((left, right) => left.label.localeCompare(right.label))
@@ -160,7 +198,7 @@ export function getAvailableNodes(locale: SupportedLocale = 'en'): AvailableNode
  * @returns Array of available node names
  */
 export function getAvailableNodeNames(): string[] {
-  return Object.keys(schemaJson.properties || {})
+  return getRegisteredNodeNames()
 }
 
 /**

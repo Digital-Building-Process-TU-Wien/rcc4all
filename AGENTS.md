@@ -4,8 +4,8 @@ Monorepo with three applications plus shared packages. Each application document
 
 - `app/web` – Nuxt 4 frontend → [AGENTS.md](./app/web/AGENTS.md)
 - `app/runner` – Python checking-rule engine → [README.md](./app/runner/README.md)
-- `app/cms` – Payload CMS backend → [AGENTS.md](./app/cms/AGENTS.md)
-- `shared/` – shared types and packages
+- `app/cms` – Payload CMS backend *(not currently used)* → [AGENTS.md](./app/cms/AGENTS.md)
+- `shared/` – shared types, schemas, and packages
 
 ## Scratch workspace
 

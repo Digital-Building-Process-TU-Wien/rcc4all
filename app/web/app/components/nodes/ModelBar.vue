@@ -3,7 +3,7 @@ import type { ModelFile } from '~/stores/flow'
 import { useFlowStore } from '~/stores/flow'
 
 // Keep in sync with the runner validator:
-// app/runner/src/openbim_runner/workflow.py (MODEL_SLUG_PATTERN).
+// app/runner/src/rcc4all_runner/workflow/model.py (MODEL_SLUG_PATTERN).
 const MODEL_SLUG_RE = /^[a-z0-9][a-z0-9-_]*$/
 
 const { t } = useI18n()
@@ -15,7 +15,9 @@ const { data: devFilesData } = useFetch('/api/dev-files', {
   server: false,
 })
 
-const allFiles = computed(() => devFilesData.value?.files ?? [])
+const allFiles = computed(() =>
+  (devFilesData.value?.files ?? []).filter(file => file.toLowerCase().endsWith('.ifc')),
+)
 
 const isOpen = ref(false)
 const query = ref('')
@@ -133,7 +135,7 @@ async function confirm() {
 </script>
 
 <template>
-  <div class="flex h-20 items-center gap-3 overflow-x-auto border-b border-default bg-elevated px-6">
+  <div class="flex h-20 w-full items-center gap-3 overflow-x-auto px-6">
     <div
       v-for="file in orderedFiles"
       :key="file.slug"
@@ -250,12 +252,12 @@ async function confirm() {
         <UAlert v-if="error" color="error" :title="error" />
       </div>
     </template>
-    <template #footer="{ close }">
+    <template #footer>
       <UButton
         color="neutral"
         variant="outline"
         :label="t('modelBar.cancel')"
-        @click="close"
+        @click="isOpen = false"
       />
       <UButton
         color="primary"

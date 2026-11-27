@@ -1,25 +1,21 @@
-## Linting & Typechecking
+## Linting, Typechecking & Tests
 
-Before committing, always run:
+Before committing, run:
 
 ```bash
-npm run check
+npm run check      # npm run lint + npm run typecheck
+npm run test:unit
 ```
 
-This aggregates linting and typechecking. (Equivalent to `npm run lint` + `npm run typecheck`.)
-
-This ensures your code passes ESLint and TypeScript validation.
-
 ## Styling
-Use Tailwindcss only have a look at the main.css for some project wide presets.
+Use Tailwind CSS utility classes. Font theme tokens live in `app/assets/css/main.css`.
 
 ### Avoid Arbitrary Values
 
-Use existing design tokens (spacing scale, colors, sizes).
-Avoid arbitrary values unless absolutely necessary.
+Use Tailwind's spacing scale, colors, and sizes instead of arbitrary values unless necessary.
 
 **✅ Do**
-<div class="mt-lg p-sm">
+<div class="mt-4 p-2">
 
 **❌ Don’t**
 <div class="mt-[18px] p-[7px]">
@@ -69,14 +65,14 @@ import { computed, ref } from 'vue'
 
 ### Node Types
 
-Use `SchemaNodeType<K>` from `~/utils/schema-helpers` for Vue Flow node components. This reuses the generated schema types from `scripts/schema.d.ts` (source of truth from Python).
+Use `SchemaNodeType<K>` from `~/schemas` for Vue Flow node components. This reuses the generated per-node schema types from `app/schemas/generated/` (derived from `shared/schemas/`).
 
 **✅ Do:**
 ```typescript
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 type ConcatNode = SchemaNodeType<'concat_string'>
-const node = useScopedNode<ConcatNode>(props.id)
+const node = useScopedNode<ConcatNode>(props.node.id)
 ```
 
 **❌ Don't:**
@@ -102,9 +98,9 @@ const { nodes, hasNodes } = storeToRefs(store)
 
 store.addNodes({
   id: nanoid(),
-  type: 'custom',
+  type: availableNode.nodeName,
   position: { x: 100, y: 100 },
-  data: { label: 'My Node' },
+  data: createNodeData(availableNode),
 })
 
 store.updateNodeData(nodeId, { settings: { value: 42 } })
@@ -119,14 +115,15 @@ store.nodesById[id] = newNode
 
 ### Scoped Node Access
 
-Use `useScopedNode(id)` in node components for two-way binding:
+Use `useScopedNode(id)` in node settings components for two-way binding:
 
 **✅ Do:**
 ```typescript
-const node = useScopedNode<MyNodeData>(props.id)
+type MyNode = SchemaNodeType<'my_node'>
+const node = useScopedNode<MyNode>(props.node.id)
 
-const value = node.value.data.settings.myValue
-node.value.data.settings.myValue = newValue
+const value = node.value.data.settings?.myValue
+node.value.data.settings!.myValue = newValue
 ```
 
 **❌ Don't:**

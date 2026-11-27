@@ -1,4 +1,4 @@
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 
 export type TiltOfComponentsNode = SchemaNodeType<'tilt_of_components'>
 export type TiltOfComponentsSettings = NonNullable<TiltOfComponentsNode['data']['settings']>

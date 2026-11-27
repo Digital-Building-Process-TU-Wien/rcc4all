@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SchemaNodeType } from '~/utils/schema-helpers'
+import type { SchemaNodeType } from '~/schemas'
 import { useScopedNode } from '~/composables/useScopedNode'
 
 type IdsCheckerNode = SchemaNodeType<'ids_checker'>

@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "OpenBIM Engine"
+    "title": "RCC4All"
   },
   "nav": {
     "start": "Start",
@@ -73,9 +73,29 @@
     "toNodeEditor": "To Node Editor"
   },
   "editor": {
-    "title": "BIM Node Editor",
     "nodeCount": "{count} node | {count} nodes",
-    "emptyCanvas": "Add the first node to your canvas."
+    "emptyCanvas": "Add the first node to your canvas.",
+    "hintSelect": "Drag to select · Space + drag to pan",
+    "hintPan": "Drag to pan · Shift + drag to select",
+    "modeSelect": "Select",
+    "modePan": "Pan",
+    "selectionCount": "{count} selected",
+    "addToSubworkflow": "Add to subworkflow",
+    "extractFailed": "Cannot create subworkflow",
+    "extractOutputConflict": "The selection produces more than one outgoing value ({references}). Keep a single output or select fewer nodes.",
+    "extractMetaNode": "Input and output nodes stay in their subworkflow.",
+    "extractEmpty": "Select at least one node.",
+    "warningCount": "{count} warning | {count} warnings",
+    "warningTitle": "Workflow warnings",
+    "warningItem": "{target} input '{input}' expects {expected} but receives {actual} from {source}.{output}",
+    "warningMissingRequired": "{target}: required input '{input}' is not bound",
+    "warningUnboundEdge": "Connection from {source} to {target} has no input binding",
+    "warningHint": "These connections are saved, but the runner may reject the workflow until they are fixed.",
+    "autoBindAmbiguousTitle": "Manual binding needed",
+    "autoBindAmbiguousDescription": "Multiple compatible ports between {source} and {target} ({inputs}). Open {target} to choose input bindings.",
+    "autoBindIncompatibleTitle": "No compatible ports",
+    "autoBindIncompatibleDescription": "{source} has no outputs compatible with {target}'s inputs.",
+    "bcfOutputCompatible": "Compatible with BCF Output"
   },
   "library": {
     "backHome": "Back Home",
@@ -123,6 +143,47 @@
     "replaceTitle": "Replace IFC model",
     "replaceDescription": "Pick a different IFC file for this model slot."
   },
+  "workflowFiles": {
+    "load": "Load",
+    "save": "Save",
+    "loadTitle": "Load workflow",
+    "loadDescription": "Pick a workflow JSON from web/.dev-files.",
+    "saveTitle": "Save workflow",
+    "saveDescription": "Store the current canvas as a workflow JSON in web/.dev-files.",
+    "nameLabel": "File name",
+    "namePlaceholder": "e.g. escape-route-check",
+    "folderLabel": "Folder",
+    "folderHint": "Relative to web/.dev-files. Leave empty to save in its root.",
+    "chooseFolder": "Browse",
+    "chooseFolderTitle": "Choose folder",
+    "chooseFolderDescription": "Navigate to the folder that should hold the workflow file.",
+    "selectFolder": "Select folder",
+    "existingFiles": "Existing files",
+    "existingFilesHint": "Pick a file to overwrite it, or type a new name above.",
+    "noModelWarning": "No main model assigned. The runner needs one, so this workflow will not run until you assign it.",
+    "typeWarnings": "This workflow has {count} warning. The runner may reject it until the warning is fixed. | This workflow has {count} warnings. The runner may reject it until the warnings are fixed.",
+    "searchFiles": "Search workflow files...",
+    "searchFolders": "Search folders...",
+    "loading": "Loading...",
+    "retry": "Retry",
+    "listFailed": "Could not list the folder.",
+    "noFiles": "No workflow files in this folder.",
+    "noFolders": "No subfolders.",
+    "noMatches": "Nothing matches your search.",
+    "parentFolder": "Parent folder",
+    "nameRequired": "Enter a file name.",
+    "invalidName": "Use a plain file name without slashes or reserved characters.",
+    "invalidFolder": "Use a folder path inside web/.dev-files without reserved characters or '..'.",
+    "conflict": "A workflow named '{name}' already exists in this folder.",
+    "overwrite": "Overwrite",
+    "overwriteHint": "Saving again replaces the existing file.",
+    "loadFailed": "Could not load the workflow.",
+    "saveFailed": "Could not save the workflow.",
+    "loaded": "Workflow loaded",
+    "saved": "Workflow saved",
+    "replaceWarning": "Loading replaces the current canvas.",
+    "cancel": "Cancel"
+  },
   "slideover": {
     "nodeDetails": "Node Details",
     "description": "Configure and inspect node properties",
@@ -134,7 +195,8 @@
     "unknownNode": "Unknown Node",
     "componentNotFound": "Node component not found",
     "selectNode": "Select a node to view details",
-    "deleteNode": "Delete Node"
+    "deleteNode": "Delete Node",
+    "resizePanel": "Resize panel"
   },
   "bindings": {
     "title": "Input Bindings",
@@ -142,6 +204,9 @@
     "selectOutput": "Select output...",
     "none": "None",
     "typeMismatch": "Type mismatch",
+    "ambiguousOutputs": "Multiple compatible outputs — select one.",
+    "noCompatibleOutputs": "This source has no compatible outputs.",
+    "required": "Required input — select a source and output.",
     "model": "Model",
     "noConfigurableInputs": "This node has no configurable inputs"
   },
@@ -194,21 +259,77 @@
       "description": "Points to an IFC model assigned in the editor's model bar.",
       "selectModel": "Select a model..."
     },
-    "generate3dCube": {
-      "title": "Generate 3D Cube",
-      "description": "Creates a cuboid geometry in the cache under a unique object_id, for use in a collision node.",
+    "set3DPositionRotation": {
+      "title": "Set 3D Position & Rotation",
+      "description": "Define a 3D position and Euler rotation via UI settings. Output can be used for downstream geometric operations.",
       "position": "Position (X, Y, Z)",
       "rotation": "Rotation (X°, Y°, Z°)",
+      "rotationHint": "Follows the right-hand rule: positive rotation is counter-clockwise when looking along the axis.",
+      "outputPosition": "Output",
+      "noOutputYet": "No output yet. Run the workflow."
+    },
+    "getElementCreationPositionDoor": {
+      "title": "Get Element Creation Position Door",
+      "description": "Extract footprint points (P1-P7) from IFC door openings and walls at bottom elevation.",
+      "choosePoint": "Choose point",
+      "doorCount": "{count} door | {count} doors",
+      "p7Center": "P7 - Center (Centroid)",
+      "p1Corner": "P1 - Corner (Front left)",
+      "p2Corner": "P2 - Corner (Front right)",
+      "p3Corner": "P3 - Corner (Back right)",
+      "p4Corner": "P4 - Corner (Back left)",
+      "p5Midpoint": "P5 - Midpoint (P1-P2)",
+      "p6Midpoint": "P6 - Midpoint (P3-P4)",
+      "rotationOutput": "Rotation (X°, Y°, Z°)",
+      "noRotation": "No rotation data",
+      "diagram": {
+        "front": "Front",
+        "back": "Back",
+        "label": "Footprint Overview"
+      }
+    },
+    "generate3dCube": {
+      "title": "Generate 3D Cube",
+      "description": "Creates a cuboid geometry with configurable size. Position and rotation can be offset from an upstream node's output.",
+      "positionOffset": "Position Offset (+X, +Y, +Z)",
+      "rotationOffset": "Rotation Offset (+X°, +Y°, +Z°)",
+      "deltaHint": "These values are added to the position/rotation from the input binding. Leave at 0 to use input values directly.",
       "size": "Size (W, H, D)",
       "objectId": "Object ID",
       "uniqueObjectId": "unique object id",
       "objectIdHint": "Unique reference for the cube. Feed its object_ids output into a collision node.",
       "objectIdsOutput": "Object IDs (output)",
-      "noOutputYet": "No output yet. Run the workflow."
+      "noOutputYet": "No output yet. Run the workflow.",
+      "rotationHint": "Follows the right-hand rule: positive rotation is counter-clockwise when looking along the axis."
     },
     "jsonOutput": {
       "title": "JSON Output",
       "description": "Visual endcap for workflow output"
+    },
+    "subworkflow": {
+      "title": "Subworkflow",
+      "description": "Group nodes into a nested canvas with typed inputs and one output.",
+      "defaultName": "Subworkflow",
+      "namePlaceholder": "Subworkflow name",
+      "nameLabel": "Subworkflow name",
+      "inputNodeKind": "Input",
+      "outputNodeKind": "Output",
+      "portsTitle": "Subworkflow ports",
+      "addInput": "Add input",
+      "addOutput": "Add output",
+      "singleOutputHint": "A subworkflow has a single output. Delete its output node to replace it.",
+      "inputPortTitle": "Input port",
+      "outputPortTitle": "Output port",
+      "portName": "Port name",
+      "noPorts": "No ports yet. Open the subworkflow to add inputs.",
+      "invalidPortName": "Use letters, digits and underscores, starting with a letter.",
+      "duplicatePortName": "Port names must be unique inside the subworkflow.",
+      "unboundPort": "Not bound in the parent workflow.",
+      "outputUnbound": "Pick the inner node that produces this output.",
+      "editInsideHint": "Group nodes into a nested canvas. Double-click the node on the canvas to open it.",
+      "open": "Open subworkflow",
+      "settings": "Subworkflow settings",
+      "root": "Workflow"
     },
     "property": {
       "noSelectionsAdded": "No selections added",
@@ -250,13 +371,23 @@
     },
     "bcfOutput": {
       "title": "BCF Output",
-      "description": "Turn LOI-Check failures into a BCF 3.0 file. Connect the {elements} output of an LOI-Check node.",
+      "description": "Turn checking-node failures into a BCF 3.0 file. Connect the {elements} output of an LOI-Check or Tilt-of-Components node.",
       "modeAuto": "Auto",
       "modeManual": "Manual",
-      "autoModeInfo": "the standard templates are applied automatically for every LOI-Check scenario. Switch to manual mode to write your own title and description templates.",
+      "autoModeInfo": "the standard templates are applied automatically for every check scenario. Switch to manual mode to write your own title and description templates.",
       "titleTemplate": "Title template",
       "descriptionTemplate": "Description template",
-      "suggestionPlaceholder": "Choose a suggestion or type your own"
+      "suggestionPlaceholder": "Choose a suggestion or type your own",
+      "projectName": "Project name",
+      "author": "Creation author",
+      "topicType": "Topic type",
+      "topicStatus": "Topic status",
+      "outputFilename": "Output filename",
+      "includedElements": "Included elements",
+      "includedAll": "All",
+      "includedFailed": "Failed",
+      "includedPassed": "Passed",
+      "outputMode": "Output Mode"
     },
     "ifc": {
       "loadingIndex": "Loading IFC 4.3 selection list...",
@@ -404,6 +535,31 @@
         "formatPlaceholder": "Select format",
         "formatHint": "Report saved as"
       }
+    },
+    "comparison": {
+      "title": "Comparison",
+      "description": "Compare measured numeric values against a target value or range and produce harmonized check elements for BCF output.",
+      "conditionHeader": "Condition",
+      "condition": {
+        "equals": "equals (=)",
+        "not_equals": "not equals (≠)",
+        "lt": "less than (<)",
+        "le": "less or equal (≤)",
+        "gt": "greater than (>)",
+        "ge": "greater or equal (≥)",
+        "between": "between",
+        "outside": "outside"
+      },
+      "targetValue": "Target value",
+      "range": "Range",
+      "minPlaceholder": "Min",
+      "maxPlaceholder": "Max",
+      "inclusion": "Inclusion",
+      "inclusiveMin": "Incl. min",
+      "inclusiveMax": "Incl. max",
+      "tolerance": "Absolute tolerance",
+      "toleranceHint": "Negative values are treated as their absolute value.",
+      "decimalTooltip": "Decimal values: the separator follows your browser locale (e.g. 0.25 or 0,25)."
     }
   }
 }

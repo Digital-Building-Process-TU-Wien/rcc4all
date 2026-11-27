@@ -1,6 +1,6 @@
 # CONTRIBUTING
 
-Thank you for you interest in rcc4all, we appreciate your input in our
+Thank you for your interest in RCC4All, we appreciate your input in our
 - [Discussions](https://github.com/Digital-Building-Process-TU-Wien/rcc4all/discussions): General talk around our project, suggestions, clarifications,
 usecases - your first stop to get ahold of the maintainers.
 - [Issues](https://github.com/Digital-Building-Process-TU-Wien/rcc4all/issues): You found a bug, a typo or want to suggest a well defined new feature?
@@ -45,7 +45,7 @@ under it using the same conventions.
 ## Pull Request Guidelines
 
 - Please follow [conventional branch](https://conventionalbranch.org/) naming (e.g., `feat/element-position-node`, `fix/issue-123`, `chore/update-getting-started`) and [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) messages.
-- Check out our [Getting Started Guide](GettingStarted.md) and have a look at the READMEs ([web](/app/web/README.md), [cms](/app/cms/README.md), [runner](/app/runner/README.md)) of the subprojects.
+- Check out our [Getting Started Guide](GettingStarted.md) and have a look at the READMEs ([web](./app/web/README.md), [runner](./app/runner/README.md), [cms](./app/cms/README.md)) of the subprojects.
 - Run tests and linters — see [Development Tools & Verification](#development-tools--verification) below. The same checks run in CI on every PR.
 - Try to stick to existing types (pydantic & ts) and derive from them instead of defining new ones.
 
@@ -78,27 +78,23 @@ uv run ruff check && uv run ruff format --check && uv run pyright && uv run pyte
 
 ### Web (`app/web`) — Nuxt
 
+Requires Node.js 24+ (`npm >= 11.7`).
+
 ```bash
 cd app/web
 npm ci
-npm run check   # eslint + nuxt typecheck
+npm run check      # eslint + nuxt typecheck
+npm run test:unit  # unit tests
 ```
 
-When the runner's node types change, regenerate the committed schema pair and run the checks:
+When the runner's node types or workflow models change, regenerate the committed schema files (requires `uv` and a synced `app/runner`) and run the checks:
 
 ```bash
 npm run generate:schema
 ```
 
-`scripts/schema.json` and `scripts/schema.d.ts` are generated files (see the header in `schema.d.ts`) and are committed; CI fails if they drift from the runner's registry.
+`shared/schemas/` and `app/web/app/schemas/generated/` contain generated files and are committed; CI fails if they drift from the runner's registry.
 
-### CMS (`app/cms`) — Payload
+### CMS (`app/cms`) — Payload *(not currently used)*
 
-Not covered by CI yet. Run its checks locally when working on it (see `app/cms/README.md`):
-
-```bash
-cd app/cms
-npm ci
-npm run lint
-npm run test
-```
+Not currently in active use and not covered by CI.

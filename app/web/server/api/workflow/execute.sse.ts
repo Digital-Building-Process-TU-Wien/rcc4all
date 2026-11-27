@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
 
   const runnerDir = join(process.cwd(), '..', 'runner')
   const command = 'uv'
-  const args = ['run', 'openbim-runner', 'run', workflowPath]
+  const args = ['run', 'rcc4all-runner', 'run', workflowPath]
 
   const runner = spawn(command, args, {
     cwd: runnerDir,

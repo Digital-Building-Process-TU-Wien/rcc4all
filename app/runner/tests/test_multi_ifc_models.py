@@ -7,9 +7,9 @@ from typing import Any, cast
 import pytest
 import trimesh
 
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.util.geometry import cache_mesh, resolve_side, split_expr_key
-from openbim_runner.workflow import (
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.util.geometry import cache_mesh, resolve_side, split_expr_key
+from rcc4all_runner.workflow import (
     ModelFile,
     WorkflowDefinition,
     WorkflowNode,
@@ -172,7 +172,7 @@ def test_two_model_workflow_emits_qualified_references(tmp_path: Any) -> None:
     node carries its own model slug, even for the non-main model."""
     import shutil
 
-    from openbim_runner.workflow import execute_workflow_async
+    from rcc4all_runner.workflow import execute_workflow_async
 
     test_ifc = Path(__file__).parent / "testdata" / "test.ifc"
     for slug in ("main", "second_model"):

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/set_3d_position_rotation.schema.json",
+  "type": "object",
+  "title": "Set 3D Position & Rotation",
+  "description": "Define a 3D position and rotation via UI settings.",
+  "categories": [
+    "3D operation"
+  ],
+  "markdownDescription": "The `set_3d_position_rotation` node allows users to manually define a 3D position and Euler rotation through the UI.\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position as `[x, y, z]` coordinates in meters. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `elements` | `list[ElementResult]` | List with one element containing position and rotation values. The `express_id` field is empty (no IFC element reference). |\n\n## Example\n\n```json\n{\n  \"settings\": {\n    \"position\": [5.0, 3.0, 0.0],\n    \"rotation\": [0.0, 0.0, 45.0]\n  }\n}\n```\n\nThis creates a single element at position (5, 3, 0) with a 45-degree rotation around the Z-axis.\n\n## Notes\n\n- Position coordinates are in **meters**\n- Rotation follows the **right-hand rule** (X, Y, Z in degrees): positive rotation is counter-clockwise when looking along the axis\n- The output `express_id` is always empty since this node does not reference an IFC element",
+  "locales": {
+    "de": {
+      "title": "3D-Position und Rotation setzen",
+      "description": "Definiert eine 3D-Position und Rotation \u00fcber UI-Einstellungen.",
+      "categories": [
+        "3D operation"
+      ],
+      "markdownDescription": "Der `set_3d_position_rotation` Node erm\u00f6glicht es Benutzern, manuell eine 3D-Position und Euler-Rotation \u00fcber das UI zu definieren.\n\n## Einstellungen\n\n| Name | Typ | Beschreibung |\n|------|-----|-------------|\n| `position` | `list[float]` | Position als `[x, y, z]` Koordinaten in Metern. Standard: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation um X, Y, Z Achsen in Grad (Euler-Winkel). Standard: `[0.0, 0.0, 0.0]` |\n\n## Ausgaben\n\n| Name | Typ | Beschreibung |\n|------|-----|-------------|\n| `elements` | `list[ElementResult]` | Liste mit einem Element, das Positions- und Rotationswerte enth\u00e4lt. Das Feld `express_id` ist leer (kein IFC-Element-Referenz). |\n\n## Beispiel\n\n```json\n{\n  \"settings\": {\n    \"position\": [5.0, 3.0, 0.0],\n    \"rotation\": [0.0, 0.0, 45.0]\n  }\n}\n```\n\nDies erstellt ein einzelnes Element an der Position (5, 3, 0) mit einer 45-Grad-Rotation um die Z-Achse.\n\n## Hinweise\n\n- Positionskoordinaten sind in **Metern**\n- Rotation folgt der **Rechte-Hand-Regel** (X, Y, Z in Grad): Positive Rotation ist gegen den Uhrzeigersinn, wenn man entlang der Achse blickt\n- Die Ausgabe `express_id` ist immer leer, da dieser Node kein IFC-Element referenziert"
+    },
+    "en": {
+      "title": "Set 3D Position & Rotation",
+      "description": "Define a 3D position and rotation via UI settings.",
+      "categories": [
+        "3D operation"
+      ],
+      "markdownDescription": "The `set_3d_position_rotation` node allows users to manually define a 3D position and Euler rotation through the UI.\n\n## Settings\n\n| Name | Type | Description |\n|------|------|-------------|\n| `position` | `list[float]` | Position as `[x, y, z]` coordinates in meters. Default: `[0.0, 0.0, 0.0]` |\n| `rotation` | `list[float]` | Rotation around X, Y, Z axes in degrees (Euler angles). Default: `[0.0, 0.0, 0.0]` |\n\n## Outputs\n\n| Name | Type | Description |\n|------|------|-------------|\n| `elements` | `list[ElementResult]` | List with one element containing position and rotation values. The `express_id` field is empty (no IFC element reference). |\n\n## Example\n\n```json\n{\n  \"settings\": {\n    \"position\": [5.0, 3.0, 0.0],\n    \"rotation\": [0.0, 0.0, 45.0]\n  }\n}\n```\n\nThis creates a single element at position (5, 3, 0) with a 45-degree rotation around the Z-axis.\n\n## Notes\n\n- Position coordinates are in **meters**\n- Rotation follows the **right-hand rule** (X, Y, Z in degrees): positive rotation is counter-clockwise when looking along the axis\n- The output `express_id` is always empty since this node does not reference an IFC element"
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "description": "3D position [x, y, z] in meters.",
+          "items": {
+            "type": "number"
+          },
+          "title": "Position",
+          "type": "array"
+        },
+        "rotation": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "description": "Euler angles [x, y, z] in degrees for rotation around each axis.",
+          "items": {
+            "type": "number"
+          },
+          "title": "Rotation",
+          "type": "array"
+        }
+      },
+      "title": "Set3DPositionRotationSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "elements": {
+          "default": [],
+          "description": "List with one element containing position and rotation values.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "express_id": {
+                "default": "",
+                "description": "Empty string (no IFC element reference).",
+                "title": "Express ID",
+                "type": "string"
+              },
+              "position": {
+                "description": "World coordinates [x, y, z] in meters.",
+                "items": {
+                  "type": "number"
+                },
+                "title": "Position",
+                "type": "array"
+              },
+              "rotation": {
+                "additionalProperties": false,
+                "properties": {
+                  "rotation_x": {
+                    "description": "Rotation around global X-axis in degrees.",
+                    "title": "Rotation X",
+                    "type": "number"
+                  },
+                  "rotation_y": {
+                    "description": "Rotation around global Y-axis in degrees.",
+                    "title": "Rotation Y",
+                    "type": "number"
+                  },
+                  "rotation_z": {
+                    "description": "Rotation around global Z-axis in degrees.",
+                    "title": "Rotation Z",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "rotation_x",
+                  "rotation_y",
+                  "rotation_z"
+                ],
+                "title": "Rotation",
+                "type": "object",
+                "description": "Euler angles (X, Y, Z) in degrees."
+              }
+            },
+            "required": [
+              "position",
+              "rotation"
+            ],
+            "title": "ElementResult",
+            "type": "object"
+          },
+          "title": "Elements",
+          "type": "array"
+        }
+      },
+      "title": "Set3DPositionRotationResult",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings"
+  ],
+  "additionalProperties": false
+}

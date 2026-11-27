@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "workflow.schema.json",
+  "$defs": {
+    "ModelFile": {
+      "additionalProperties": false,
+      "description": "An IFC file assigned to a workflow slot, keyed by a user-chosen slug.",
+      "properties": {
+        "path": {
+          "description": "Path to the IFC file, relative to the workflow JSON when not absolute.",
+          "title": "Path",
+          "type": "string"
+        },
+        "slug": {
+          "description": "User-chosen identifier for this model. The reserved slug 'main' is the main IFC file.",
+          "title": "Slug",
+          "type": "string"
+        },
+        "hash": {
+          "default": "",
+          "description": "Optional SHA-256 content hash of the file, recorded when the file was assigned.",
+          "title": "File hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "slug"
+      ],
+      "title": "ModelFile",
+      "type": "object"
+    },
+    "NodePosition": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0,
+          "description": "Canvas X coordinate.",
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0,
+          "description": "Canvas Y coordinate.",
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "title": "NodePosition",
+      "type": "object"
+    },
+    "SubworkflowDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "description": "Display name.",
+          "title": "Name",
+          "type": "string"
+        },
+        "nodes": {
+          "default": [],
+          "description": "Nodes belonging to the subworkflow.",
+          "items": {
+            "$ref": "#/$defs/WorkflowNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "edges": {
+          "default": [],
+          "description": "Edges belonging to the subworkflow.",
+          "items": {
+            "$ref": "#/$defs/WorkflowEdge"
+          },
+          "title": "Edges",
+          "type": "array"
+        }
+      },
+      "title": "SubworkflowDefinition",
+      "type": "object"
+    },
+    "WorkflowEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Upstream node ID.",
+          "title": "Source node",
+          "type": "string"
+        },
+        "target": {
+          "description": "Downstream node ID.",
+          "title": "Target node",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "target"
+      ],
+      "title": "WorkflowEdge",
+      "type": "object"
+    },
+    "WorkflowNode": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Unique workflow node identifier.",
+          "title": "Node ID",
+          "type": "string"
+        },
+        "type": {
+          "description": "Registered node type name.",
+          "title": "Node type",
+          "type": "string"
+        },
+        "label": {
+          "default": "",
+          "description": "Human-readable label for the node. Falls back to node type if empty.",
+          "title": "Node label",
+          "type": "string"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "default": {},
+          "description": "User-authored settings passed directly to the node function.",
+          "title": "Node settings",
+          "type": "object"
+        },
+        "input_bindings": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Mappings from node input names to previously produced '<node_id>.<field_name>' references.",
+          "title": "Input bindings",
+          "type": "object"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NodePosition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Canvas position. Persisted so the editor can restore layout; ignored by execution.",
+          "title": "Position"
+        },
+        "subworkflow": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SubworkflowDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Embedded subworkflow definition when this node's type is 'subworkflow'.",
+          "title": "Subworkflow"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "title": "WorkflowNode",
+      "type": "object"
+    },
+    "SubworkflowPort": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Port name used in bindings.",
+          "title": "Port name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "SubworkflowPort",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "files": {
+      "default": [],
+      "description": "IFC files loaded for this workflow, each keyed by a model slug. Exactly one file must use the reserved slug 'main'.",
+      "items": {
+        "$ref": "#/$defs/ModelFile"
+      },
+      "title": "IFC files",
+      "type": "array"
+    },
+    "nodes": {
+      "default": [],
+      "description": "Workflow nodes to execute.",
+      "items": {
+        "$ref": "#/$defs/WorkflowNode"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "edges": {
+      "default": [],
+      "description": "Directed edges used to determine execution order.",
+      "items": {
+        "$ref": "#/$defs/WorkflowEdge"
+      },
+      "title": "Edges",
+      "type": "array"
+    }
+  },
+  "title": "WorkflowDefinition",
+  "type": "object"
+}

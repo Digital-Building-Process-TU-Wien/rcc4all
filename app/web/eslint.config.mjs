@@ -26,4 +26,11 @@ export default withNuxt(
       'no-console': 'warn',
     },
   },
+  {
+    // Unit tests run with Node's built-in test runner (`npm run test:unit`), not vitest.
+    files: ['tests/**/*.ts'],
+    rules: {
+      'test/no-import-node-test': 'off',
+    },
+  },
 )
