@@ -470,7 +470,7 @@
       "referenceTypePoint": "Punkt",
       "referenceTypePlane": "Ebene",
       "referencePoint": "Referenzpunkt",
-      "referencePointHelp": "Koordinaten [x, y, z] des Referenzpunkts (oder Ebenenursprungs).",
+      "referencePointHelp": "Koordinaten [x, y, z] in Metern des Referenzpunkts (oder Ebenenursprungs).",
       "planeNormal": "Ebenennormale",
       "planeNormalHelp": "Normalenvektor der Referenzebene. Standard [0,0,1] ist die XY-Ebene.",
       "typeVolume": "Volumen",

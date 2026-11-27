@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { SchemaNodeType } from '~/schemas'
-import { useScopedNode } from '~/composables/useScopedNode'
 
 type MeasurementNode = SchemaNodeType<'measurement'>
+
+/** Editor-side extras on node data; input bindings live outside the node schema. */
+type MeasurementNodeData = MeasurementNode['data'] & { input_bindings?: Record<string, string> }
 
 interface Props {
   node: MeasurementNode
@@ -16,6 +18,10 @@ const { t } = useI18n()
 
 if (!node.value.data.settings) {
   node.value.data.settings = { measurement_type: 'volume', direction: [0.0, 0.0, 1.0], reference_type: 'point', reference_point: [0.0, 0.0, 0.0], reference_normal: [0.0, 0.0, 1.0] }
+}
+
+if (!node.value.data.settings.measurement_type) {
+  node.value.data.settings.measurement_type = 'volume'
 }
 
 if (!node.value.data.settings.direction) {
@@ -52,7 +58,7 @@ function setPresetReferenceNormal(preset: [number, number, number]) {
 
 const hasListBWarning = computed(() => {
   return node.value.data.settings?.measurement_type !== 'distance_between'
-    && (node.value.data as any).input_bindings?.list_b
+    && Boolean((node.value.data as MeasurementNodeData).input_bindings?.list_b)
 })
 
 const direction = computed(() => node.value.data.settings?.direction ?? [0, 0, 1])

@@ -470,7 +470,7 @@
       "referenceTypePoint": "Point",
       "referenceTypePlane": "Plane",
       "referencePoint": "Reference Point",
-      "referencePointHelp": "Coordinates [x, y, z] of the reference point (or plane origin).",
+      "referencePointHelp": "Coordinates [x, y, z] in metres of the reference point (or plane origin).",
       "planeNormal": "Plane Normal",
       "planeNormalHelp": "Normal vector of the reference plane. Default [0,0,1] is the XY plane.",
       "typeVolume": "Volume",

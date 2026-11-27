@@ -10,21 +10,30 @@ export interface MeasurementNodeSchema {
      */
     measurement_type?: ('volume' | 'surface_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
-     * Direction vector for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. Normalized internally.
+     * Direction vector [x, y, z] for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. All three values must be finite. Normalized internally.
+     *
+     * @minItems 3
+     * @maxItems 3
      */
-    direction?: number[]
+    direction?: [number, number, number]
     /**
      * Reference type for 'distance_to_reference' mode. 'point' computes distance to a reference point; 'plane' computes perpendicular distance to a reference plane.
      */
     reference_type?: ('point' | 'plane')
     /**
-     * Reference point coordinates [x, y, z]. Used for both 'point' and 'plane' reference types.
+     * Reference point coordinates [x, y, z] in metres. Used for both 'point' and 'plane' reference types (plane origin for 'plane'). All three values must be finite.
+     *
+     * @minItems 3
+     * @maxItems 3
      */
-    reference_point?: number[]
+    reference_point?: [number, number, number]
     /**
-     * Plane normal vector [x, y, z]. Only used for 'distance_to_reference' mode with reference_type='plane'. Zero normal results in error entry.
+     * Plane normal vector [x, y, z]. Only used for 'distance_to_reference' mode with reference_type='plane'. All three values must be finite. Normalized internally; zero normal results in an error entry.
+     *
+     * @minItems 3
+     * @maxItems 3
      */
-    reference_normal?: number[]
+    reference_normal?: [number, number, number]
   }
   result: {
     /**
@@ -32,7 +41,7 @@ export interface MeasurementNodeSchema {
      */
     type: ('volume' | 'surface_area' | 'component_height' | 'distance_between' | 'distance_to_reference')
     /**
-     * The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).
+     * The unit of measurement ('volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance). Cached IFC geometry is tessellated in metres, so values are m³, m² or m.
      */
     unit: string
     /**
@@ -48,7 +57,7 @@ export interface MeasurementNodeSchema {
        */
       value?: (number | null)
       /**
-       * Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight').
+       * Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight', 'empty geometry').
        */
       error?: (string | null)
     }[]
@@ -61,7 +70,7 @@ export interface MeasurementNodeSchema {
       [k: string]: (string | null)
     })
     /**
-     * Second (optional) list of fully qualified geometry cache keys. When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys.
+     * Second (optional) list of fully qualified geometry cache keys. When empty, pairs are formed within List A. When non-empty, computes cartesian product AxB. Also accepts a dict (e.g., collision node's `intersection_meshes` output); non-null values are used as cache keys. A dict whose values are all null is treated like an empty List B.
      */
     list_b?: (string[] | {
       [k: string]: (string | null)

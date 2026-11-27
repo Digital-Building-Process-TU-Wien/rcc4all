@@ -600,6 +600,60 @@ def test_raw_pair_ref_expands_to_members(tmp_path: Path) -> None:
     )
 
 
+def test_raw_pair_ref_with_underscore_slug_expands_to_members(
+    tmp_path: Path,
+) -> None:
+    """A distance-pair ref with an underscore slug expands into both members.
+
+    ``expand_reference`` used to split only on the last underscore, so
+    ``main:expr:101_second_model:expr:77`` was dropped by BCF normalization.
+    """
+    writer = FakeWriter()
+    elements = [
+        HarmonizedElement(
+            express_ids=["main:expr:101_second_model:expr:77"],
+            class_name="",
+            failed=True,
+            checks=[_failing_check()],
+        )
+    ]
+
+    mod = _bcf_module()
+
+    original = mod.BcfWriter
+
+    def factory(**kw: Any) -> FakeWriter:
+        writer.kwargs = kw
+        return writer
+
+    mod.BcfWriter = factory  # type: ignore[assignment]
+    context = ExecutionContext(
+        models={
+            "main": cast(Any, _model()),
+            "second_model": cast(
+                Any, FakeIfcModel({77: FakeEntity(77, "guid-777", name="Wall C")})
+            ),
+        },
+        node_outputs={},
+        output_dir=tmp_path,
+    )
+    try:
+        result = asyncio.run(
+            bcf_output(
+                BcfOutputSettings(title_template="{name_a} ↔ {name_b}"),
+                BcfOutputInputs(elements=elements),
+                context,
+            )
+        )
+    finally:
+        mod.BcfWriter = original  # type: ignore[assignment]
+
+    assert result.topic_count == 1
+    assert result.viewpoint_count == 2
+    assert set(result.topics[0].guids) == {"guid-111", "guid-777"}
+    assert result.skipped == 0
+
+
 def test_unresolvable_raw_ref_dropped(tmp_path: Path) -> None:
     """A raw ref that cannot expand to IFC members yields no topic and is reported."""
     writer = FakeWriter()

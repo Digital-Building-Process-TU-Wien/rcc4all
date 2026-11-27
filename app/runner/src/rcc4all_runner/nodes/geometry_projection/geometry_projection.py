@@ -14,7 +14,12 @@ from trimesh.path.polygons import projected as trimesh_projected
 from trimesh.util import append_faces
 
 from rcc4all_runner.nodes.base import ExecutionContext, NodeModel, node
-from rcc4all_runner.util.geometry import cache_mesh, resolve_keys, resolve_mesh
+from rcc4all_runner.util.geometry import (
+    cache_mesh,
+    resolve_keys,
+    resolve_mesh,
+    unit_vector,
+)
 
 
 class GeometryProjectionSettings(NodeModel):
@@ -234,23 +239,13 @@ def _assign_projection_keys(
     return assigned
 
 
-def _unit_normal(value: list[float]) -> np.ndarray | None:
-    """Normalize a finite vector without overflow/underflow; zero returns None."""
-    normal = np.asarray(value, dtype=float)
-    scale = float(np.max(np.abs(normal)))
-    if scale == 0:
-        return None
-    scaled = normal / scale
-    return scaled / np.linalg.norm(scaled)
-
-
 @node()
 async def geometry_projection(
     settings: GeometryProjectionSettings,
     inputs: GeometryProjectionInputs,
     context: ExecutionContext,
 ) -> GeometryProjectionResult:
-    normal_unit = _unit_normal(settings.projection_normal)
+    normal_unit = unit_vector(settings.projection_normal)
     if normal_unit is None:
         errors = [
             ProjectionError(reference=label, error="undefined normal")

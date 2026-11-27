@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+import sys
 from typing import Literal
 
 import numpy as np
 import trimesh
-from pydantic import Field
+from pydantic import Field, FiniteFloat
 from trimesh.proximity import ProximityQuery
 
 from rcc4all_runner.nodes.base import ExecutionContext, NodeModel, node
-from rcc4all_runner.util.geometry import ensure_watertight, resolve_keys, resolve_mesh
+from rcc4all_runner.util.geometry import (
+    ensure_watertight,
+    fcl_surface_distance,
+    resolve_keys,
+    resolve_mesh,
+    unit_vector,
+)
 
 MeasurementType = Literal[
     "volume",
@@ -25,25 +32,43 @@ class MeasurementSettings(NodeModel):
         title="Measurement Type",
         description="The type of measurement to compute: 'volume', 'surface_area', 'component_height', 'distance_between', 'distance_to_reference'.",
     )
-    direction: list[float] = Field(
+    direction: list[FiniteFloat] = Field(
         default=[0.0, 0.0, 1.0],
         title="Direction",
-        description="Direction vector for extent computation. Default [0,0,1] computes vertical height. Only used for 'component_height' mode. Normalized internally.",
+        min_length=3,
+        max_length=3,
+        description=(
+            "Direction vector [x, y, z] for extent computation. Default [0,0,1] computes "
+            "vertical height. Only used for 'component_height' mode. All three values "
+            "must be finite. Normalized internally."
+        ),
     )
     reference_type: Literal["point", "plane"] = Field(
         default="point",
         title="Reference Type",
         description="Reference type for 'distance_to_reference' mode. 'point' computes distance to a reference point; 'plane' computes perpendicular distance to a reference plane.",
     )
-    reference_point: list[float] = Field(
+    reference_point: list[FiniteFloat] = Field(
         default=[0.0, 0.0, 0.0],
         title="Reference Point",
-        description="Reference point coordinates [x, y, z]. Used for both 'point' and 'plane' reference types.",
+        min_length=3,
+        max_length=3,
+        description=(
+            "Reference point coordinates [x, y, z] in metres. Used for both 'point' "
+            "and 'plane' reference types (plane origin for 'plane'). All three "
+            "values must be finite."
+        ),
     )
-    reference_normal: list[float] = Field(
+    reference_normal: list[FiniteFloat] = Field(
         default=[0.0, 0.0, 1.0],
         title="Reference Normal",
-        description="Plane normal vector [x, y, z]. Only used for 'distance_to_reference' mode with reference_type='plane'. Zero normal results in error entry.",
+        min_length=3,
+        max_length=3,
+        description=(
+            "Plane normal vector [x, y, z]. Only used for 'distance_to_reference' "
+            "mode with reference_type='plane'. All three values must be finite. "
+            "Normalized internally; zero normal results in an error entry."
+        ),
     )
 
 
@@ -66,7 +91,7 @@ class MeasurementInputs(NodeModel):
             "Second (optional) list of fully qualified geometry cache keys. When empty, pairs are "
             "formed within List A. When non-empty, computes cartesian product AxB. Also accepts a "
             "dict (e.g., collision node's `intersection_meshes` output); non-null values are used "
-            "as cache keys."
+            "as cache keys. A dict whose values are all null is treated like an empty List B."
         ),
     )
 
@@ -84,7 +109,7 @@ class MeasurementItem(NodeModel):
     error: str | None = Field(
         default=None,
         title="Error",
-        description="Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight').",
+        description="Error reason if measurement failed (e.g., 'no cached geometry', 'non-watertight', 'empty geometry').",
     )
 
 
@@ -95,13 +120,22 @@ class MeasurementResult(NodeModel):
     )
     unit: str = Field(
         title="Unit",
-        description="The unit of measurement (model units, e.g., 'volume_unit' for volume, 'area_unit' for area and 'length_unit' for distance).",
+        description=(
+            "The unit of measurement ('volume_unit' for volume, 'area_unit' for area and "
+            "'length_unit' for distance). Cached IFC geometry is tessellated in metres, so "
+            "values are m³, m² or m."
+        ),
     )
     measurements: list[MeasurementItem] = Field(
         default=[],
         title="Measurements",
         description="List of per-element measurements.",
     )
+
+
+def _is_empty_mesh(mesh: trimesh.Trimesh) -> bool:
+    """True for a mesh with no vertices or no faces (nothing measurable)."""
+    return len(mesh.vertices) == 0 or len(mesh.faces) == 0
 
 
 def _compute_distance_between(
@@ -112,58 +146,70 @@ def _compute_distance_between(
     """Compute minimal surface-to-surface distance between element pairs.
 
     Behavior:
-        - list_b empty: all unordered pairs within list_a (n choose 2), emit both directions
-        - list_b non-empty: cartesian product AxB (skip self-pairs), emit one direction per pair
-        - Reference format: {key_a}_{key_b} (directional, NOT sorted)
-        - Pairs with missing geometry emit error item (value=null, error='no cached geometry')
+        - list_b empty after null-value filtering: all unordered pairs within
+          list_a (n choose 2), emit both directions. A dict whose values are
+          all null therefore behaves like an empty List B.
+        - list_b non-empty: cartesian product AxB (skip self-pairs), emit one
+          direction per pair.
+        - Reference format: {key_a}_{key_b} (directional, NOT sorted).
+        - Distances are exact (FCL triangle-BVH surface distance, positive for
+          nested non-touching surfaces) and computed once per unordered pair.
+        - Missing geometry, empty meshes, and backend failures yield per-pair
+          error items ('no cached geometry', 'empty geometry',
+          'distance computation failed') instead of approximate values.
 
-    Unit: length_unit
+    Unit: length_unit (metres)
     """
     resolved_a = resolve_keys(context, list_a)
-    resolved_b = resolve_keys(context, list_b) if list_b else resolved_a
+    resolved_b = resolve_keys(context, list_b)
+    if not resolved_b:
+        resolved_b = resolved_a
 
     lookup_a = dict(resolved_a)
     lookup_b = dict(resolved_b)
     keys_a = [ref for ref, _ in resolved_a]
     keys_b = [ref for ref, _ in resolved_b]
 
-    measurements: list[MeasurementItem] = []
+    meshes: dict[str, trimesh.Trimesh | None] = {}
+    pair_results: dict[tuple[str, str], tuple[float | None, str | None]] = {}
 
-    for key_a in keys_a:
-        mesh_a, error_a = _resolve_reference(context, lookup_a.get(key_a))
-        if error_a:
-            for key_b in keys_b:
-                if key_a == key_b:
-                    continue
-                pair_ref_ab = f"{key_a}_{key_b}"
-                measurements.append(
-                    MeasurementItem(
-                        reference=pair_ref_ab, value=None, error="no cached geometry"
+    def _mesh_for(key: str, lookup: dict[str, str | None]) -> trimesh.Trimesh | None:
+        if key not in meshes:
+            mesh, _error = _resolve_reference(context, lookup.get(key))
+            meshes[key] = mesh
+        return meshes[key]
+
+    def _pair_result(key_a: str, key_b: str) -> tuple[float | None, str | None]:
+        memo_key = (key_a, key_b) if key_a <= key_b else (key_b, key_a)
+        if memo_key not in pair_results:
+            mesh_a = _mesh_for(key_a, lookup_a)
+            mesh_b = _mesh_for(key_b, lookup_b)
+            if mesh_a is None or mesh_b is None:
+                pair_results[memo_key] = (None, "no cached geometry")
+            elif _is_empty_mesh(mesh_a) or _is_empty_mesh(mesh_b):
+                pair_results[memo_key] = (None, "empty geometry")
+            else:
+                distance = fcl_surface_distance(mesh_a, mesh_b)
+                if distance is None:
+                    print(
+                        f"measurement: exact surface distance failed for pair "
+                        f"{key_a!r} / {key_b!r}",
+                        file=sys.stderr,
                     )
-                )
-            continue
+                    pair_results[memo_key] = (None, "distance computation failed")
+                else:
+                    pair_results[memo_key] = (distance, None)
+        return pair_results[memo_key]
 
-        assert mesh_a is not None
-
+    measurements: list[MeasurementItem] = []
+    for key_a in keys_a:
         for key_b in keys_b:
             if key_a == key_b:
                 continue
-
-            mesh_b, error_b = _resolve_reference(context, lookup_b.get(key_b))
-            pair_ref_ab = f"{key_a}_{key_b}"
-
-            if error_b:
-                measurements.append(
-                    MeasurementItem(
-                        reference=pair_ref_ab, value=None, error="no cached geometry"
-                    )
-                )
-            else:
-                assert mesh_b is not None
-                dist = _pair_distance(mesh_a, mesh_b)
-                measurements.append(
-                    MeasurementItem(reference=pair_ref_ab, value=dist, error=None)
-                )
+            value, error = _pair_result(key_a, key_b)
+            measurements.append(
+                MeasurementItem(reference=f"{key_a}_{key_b}", value=value, error=error)
+            )
 
     return MeasurementResult(
         type="distance_between",
@@ -189,67 +235,6 @@ def _resolve_reference(
         return None, "no cached geometry"
 
 
-def _aabb_overlap(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool:
-    """Quick bounding-box overlap test."""
-    a_min, a_max = a.bounds
-    b_min, b_max = b.bounds
-    return bool(np.all(a_min <= b_max) and np.all(b_min <= a_max))
-
-
-def _fcl_collision(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool | None:
-    """Triangle-based collision test via FCL.
-
-    Returns True if meshes collide, False if not, or None if FCL unavailable.
-    """
-    try:
-        from trimesh.collision import CollisionManager
-    except Exception:
-        return None
-    try:
-        manager = CollisionManager()
-        manager.add_object("a", a)
-        manager.add_object("b", b)
-        return bool(manager.in_collision_internal())
-    except Exception:
-        return None
-
-
-def _meshes_intersect(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool:
-    """Check if two meshes intersect using AABB + FCL."""
-    if not _aabb_overlap(a, b):
-        return False
-    fcl_result = _fcl_collision(a, b)
-    return fcl_result is True
-
-
-def _pair_distance(a: trimesh.Trimesh, b: trimesh.Trimesh) -> float:
-    """Compute minimal surface-to-surface distance between two meshes.
-
-    First checks for intersection using AABB + FCL. If meshes intersect,
-    returns 0.0 immediately. Otherwise uses trimesh ProximityQuery (BVH-based)
-    for efficient nearest-point lookup, sampling vertices from both meshes
-    and taking the global minimum.
-
-    Works on any mesh (convex or non-convex).
-
-    Returns:
-        Minimum distance in model units (0.0 if meshes intersect/touch).
-    """
-    if _meshes_intersect(a, b):
-        return 0.0
-
-    prox_a = ProximityQuery(a)
-    prox_b = ProximityQuery(b)
-
-    result_a = prox_a.on_surface(b.vertices)
-    result_b = prox_b.on_surface(a.vertices)
-
-    dist_a = result_a[1]
-    dist_b = result_b[1]
-
-    return float(min(dist_a.min(), dist_b.min()))
-
-
 def _compute_distance_to_reference(
     context: ExecutionContext,
     list_a: list[str] | dict[str, str | None],
@@ -260,18 +245,26 @@ def _compute_distance_to_reference(
     """Compute absolute distance from each element to a reference point or plane.
 
     Behavior:
-        - reference_type="point": min surface distance from reference point to element via ProximityQuery
-        - reference_type="plane": min over vertices of |(v - origin)·n̂| (perpendicular distance to plane)
-        - Zero normal for plane mode → error entry "undefined normal"
-        - Works on any mesh (no watertight requirement)
+        - reference_type="point": min surface distance from the reference point
+          to each element via ProximityQuery (works on any mesh).
+        - reference_type="plane": min over referenced vertices of
+          |(v - origin)·n̂| — the perpendicular distance to the plane, 0.0
+          when the plane crosses the mesh. Vertices not referenced by any
+          face are ignored; they are not part of the surface.
+        - Zero normal for plane mode → error entry "undefined normal".
+        - Empty meshes → error entry "empty geometry".
+        - Unexpected backend failures are isolated per item
+          ("measurement failed") and logged to stderr.
 
-    Unit: length_unit
-    Output: one MeasurementItem per element, reference = element cache key
+    Unit: length_unit (metres)
     """
     resolved = resolve_keys(context, list_a)
     measurements: list[MeasurementItem] = []
 
-    if reference_type == "plane" and np.linalg.norm(reference_normal) == 0:
+    normal_unit = unit_vector(reference_normal) if reference_type == "plane" else None
+    origin = np.asarray(reference_point, dtype=float)
+
+    if reference_type == "plane" and normal_unit is None:
         for ref_label, _ in resolved:
             measurements.append(
                 MeasurementItem(
@@ -295,22 +288,48 @@ def _compute_distance_to_reference(
         # mesh is guaranteed non-None here
         assert mesh is not None
 
-        if reference_type == "point":
-            prox = ProximityQuery(mesh)
-            result = prox.on_surface(np.array([reference_point]))
-            dist = float(abs(result[1][0]))
+        if _is_empty_mesh(mesh):
             measurements.append(
-                MeasurementItem(reference=ref_label, value=dist, error=None)
+                MeasurementItem(reference=ref_label, value=None, error="empty geometry")
             )
-        else:  # plane
-            n_hat = np.array(reference_normal) / np.linalg.norm(reference_normal)
-            signed_dists = (mesh.vertices - reference_point) @ n_hat
-            if signed_dists.min() <= 0 <= signed_dists.max():
-                min_dist = 0.0
-            else:
-                min_dist = float(np.abs(signed_dists).min())
+            continue
+
+        try:
+            if reference_type == "point":
+                prox = ProximityQuery(mesh)
+                result = prox.on_surface(origin.reshape(1, 3))
+                dist = float(abs(result[1][0]))
+                measurements.append(
+                    MeasurementItem(reference=ref_label, value=dist, error=None)
+                )
+            else:  # plane
+                assert normal_unit is not None
+                vertices = mesh.vertices[mesh.referenced_vertices]
+                if len(vertices) == 0:
+                    measurements.append(
+                        MeasurementItem(
+                            reference=ref_label, value=None, error="empty geometry"
+                        )
+                    )
+                    continue
+                signed_dists = (vertices - origin) @ normal_unit
+                if signed_dists.min() <= 0 <= signed_dists.max():
+                    min_dist = 0.0
+                else:
+                    min_dist = float(np.abs(signed_dists).min())
+                measurements.append(
+                    MeasurementItem(reference=ref_label, value=min_dist, error=None)
+                )
+        except Exception as exc:
+            print(
+                f"measurement: distance to reference failed for {ref_label!r} "
+                f"({type(exc).__name__}): {exc}",
+                file=sys.stderr,
+            )
             measurements.append(
-                MeasurementItem(reference=ref_label, value=min_dist, error=None)
+                MeasurementItem(
+                    reference=ref_label, value=None, error="measurement failed"
+                )
             )
 
     return MeasurementResult(
@@ -341,6 +360,11 @@ async def measurement(
     resolved = resolve_keys(context, inputs.list_a)
 
     measurements: list[MeasurementItem] = []
+    direction_unit = (
+        unit_vector(settings.direction)
+        if settings.measurement_type == "component_height"
+        else None
+    )
 
     for ref_label, cache_key in resolved:
         mesh, error = _resolve_reference(context, cache_key)
@@ -354,49 +378,70 @@ async def measurement(
         assert mesh is not None
         assert cache_key is not None
 
-        if settings.measurement_type == "volume":
-            repaired, error = ensure_watertight(mesh)
-            if repaired is None:
-                measurements.append(
-                    MeasurementItem(
-                        reference=cache_key,
-                        value=None,
-                        error=f"non-watertight: {error}",
+        try:
+            if settings.measurement_type == "volume":
+                repaired, repair_error = ensure_watertight(mesh)
+                if repaired is None:
+                    assert repair_error is not None
+                    measurements.append(
+                        MeasurementItem(
+                            reference=cache_key, value=None, error=repair_error
+                        )
                     )
-                )
-            else:
-                measurements.append(
-                    MeasurementItem(
-                        reference=cache_key, value=repaired.volume, error=None
+                else:
+                    measurements.append(
+                        MeasurementItem(
+                            reference=cache_key, value=repaired.volume, error=None
+                        )
                     )
+
+            elif settings.measurement_type == "surface_area":
+                measurements.append(
+                    MeasurementItem(reference=cache_key, value=mesh.area, error=None)
                 )
 
-        elif settings.measurement_type == "surface_area":
-            measurements.append(
-                MeasurementItem(reference=cache_key, value=mesh.area, error=None)
+            else:  # component_height
+                if direction_unit is None:
+                    measurements.append(
+                        MeasurementItem(
+                            reference=cache_key,
+                            value=None,
+                            error="undefined direction",
+                        )
+                    )
+                    continue
+                # Only vertices referenced by at least one face are part of
+                # the actual surface; unreferenced vertices are ignored.
+                vertices = mesh.vertices[mesh.referenced_vertices]
+                if len(vertices) == 0:
+                    measurements.append(
+                        MeasurementItem(
+                            reference=cache_key, value=None, error="empty geometry"
+                        )
+                    )
+                    continue
+                extent = float(np.ptp(vertices @ direction_unit))
+                measurements.append(
+                    MeasurementItem(reference=cache_key, value=extent, error=None)
+                )
+
+        except Exception as exc:
+            print(
+                f"measurement: {settings.measurement_type} failed for "
+                f"{cache_key!r} ({type(exc).__name__}): {exc}",
+                file=sys.stderr,
             )
-
-        elif settings.measurement_type == "component_height":
-            direction = settings.direction
-            norm = np.linalg.norm(direction)
-            if norm == 0:
-                measurements.append(
-                    MeasurementItem(
-                        reference=cache_key, value=None, error="undefined direction"
-                    )
-                )
-                continue
-            d_hat = np.array(direction) / norm
-            extent = np.ptp(mesh.vertices @ d_hat)
             measurements.append(
-                MeasurementItem(reference=cache_key, value=float(extent), error=None)
+                MeasurementItem(
+                    reference=cache_key, value=None, error="measurement failed"
+                )
             )
 
     if settings.measurement_type == "volume":
         unit = "volume_unit"
     elif settings.measurement_type == "surface_area":
         unit = "area_unit"
-    else:  # component_height, distance_between
+    else:  # component_height
         unit = "length_unit"
 
     return MeasurementResult(
