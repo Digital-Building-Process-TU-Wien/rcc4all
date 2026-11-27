@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 
 import ifcopenshell
 import ifcopenshell.guid
 import numpy as np
 from pydantic import Field
 
-from openbim_runner.nodes.base import AutoBind, ExecutionContext, NodeModel, node
-from openbim_runner.nodes.opening_surface.opening_surface import OpeningSurface
-from openbim_runner.nodes.opening_surface_ifc_generator._ifc_helpers import (
+from rcc4all_runner.nodes.base import ExecutionContext, NodeModel, node
+from rcc4all_runner.nodes.opening_surface.opening_surface import OpeningSurface
+from rcc4all_runner.nodes.opening_surface_ifc_generator._ifc_helpers import (
     _add_area_quantity,  # pyright: ignore[reportPrivateUsage]
     _body_context,  # pyright: ignore[reportPrivateUsage]
     _build_polygonal_face_set,  # pyright: ignore[reportPrivateUsage]
@@ -22,7 +22,7 @@ from openbim_runner.nodes.opening_surface_ifc_generator._ifc_helpers import (
     _replicate_spatial_structure,  # pyright: ignore[reportPrivateUsage]
     _result_storey,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.util.geometry import resolve_mesh
+from rcc4all_runner.util.geometry import resolve_mesh
 
 
 class OpeningSurfaceIfcGeneratorSettings(NodeModel):
@@ -37,7 +37,7 @@ class OpeningSurfaceIfcGeneratorSettings(NodeModel):
 
 
 class OpeningSurfaceIfcGeneratorInputs(NodeModel):
-    openings: Annotated[list[OpeningSurface], AutoBind()] = Field(
+    openings: list[OpeningSurface] = Field(
         default=[],
         title="Openings",
         description=(

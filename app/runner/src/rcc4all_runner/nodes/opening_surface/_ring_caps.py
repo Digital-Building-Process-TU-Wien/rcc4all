@@ -5,18 +5,18 @@ from __future__ import annotations
 import numpy as np
 import trimesh
 
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.opening_surface._host_surface import (
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.nodes.opening_surface._host_surface import (
     _host_surface_planes,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._mesh_topology import (
+from rcc4all_runner.nodes.opening_surface._mesh_topology import (
     _edge_key,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._numeric import (
+from rcc4all_runner.nodes.opening_surface._numeric import (
     _face_normals,  # pyright: ignore[reportPrivateUsage]
     _in_plane_axes,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._planes import (
+from rcc4all_runner.nodes.opening_surface._planes import (
     _PLANE_COS,  # pyright: ignore[reportPrivateUsage]
 )
 

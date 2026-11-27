@@ -10,17 +10,17 @@ import ifcopenshell.geom
 import numpy as np
 import trimesh
 
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.opening_surface._numeric import (
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.nodes.opening_surface._numeric import (
     _face_normals,  # pyright: ignore[reportPrivateUsage]
     _group_area,  # pyright: ignore[reportPrivateUsage]
     _in_plane_axes,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._planes import (
+from rcc4all_runner.nodes.opening_surface._planes import (
     _planar_groups,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.util.geometry import reshape_flat
-from openbim_runner.util.references import expr_key, split_expr_key
+from rcc4all_runner.util.geometry import reshape_flat
+from rcc4all_runner.util.references import expr_key, split_expr_key
 
 # Two face groups oppose each other when their normals cross within ~10°.
 _OPPOSING_COS = -math.cos(math.radians(10.0))

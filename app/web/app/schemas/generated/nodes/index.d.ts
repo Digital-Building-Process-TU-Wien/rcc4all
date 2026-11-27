@@ -12,6 +12,8 @@ import type { IdsCheckerNodeSchema } from './ids_checker'
 import type { IfcElementFilterNodeSchema } from './ifc_element_filter'
 import type { LoiCheckNodeSchema } from './loi_check'
 import type { MeasurementNodeSchema } from './measurement'
+import type { OpeningSurfaceNodeSchema } from './opening_surface'
+import type { OpeningSurfaceIfcGeneratorNodeSchema } from './opening_surface_ifc_generator'
 import type { Set3DPositionRotationNodeSchema } from './set_3d_position_rotation'
 import type { TiltOfComponentsNodeSchema } from './tilt_of_components'
 
@@ -28,6 +30,8 @@ export interface NodeRegistrySchema {
   ifc_element_filter: IfcElementFilterNodeSchema
   loi_check: LoiCheckNodeSchema
   measurement: MeasurementNodeSchema
+  opening_surface: OpeningSurfaceNodeSchema
+  opening_surface_ifc_generator: OpeningSurfaceIfcGeneratorNodeSchema
   set_3d_position_rotation: Set3DPositionRotationNodeSchema
   tilt_of_components: TiltOfComponentsNodeSchema
 }

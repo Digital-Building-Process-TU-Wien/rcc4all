@@ -12,6 +12,8 @@ import idsCheckerSchema from '../../../../../shared/schemas/nodes/ids_checker.sc
 import ifcElementFilterSchema from '../../../../../shared/schemas/nodes/ifc_element_filter.schema.json'
 import loiCheckSchema from '../../../../../shared/schemas/nodes/loi_check.schema.json'
 import measurementSchema from '../../../../../shared/schemas/nodes/measurement.schema.json'
+import openingSurfaceSchema from '../../../../../shared/schemas/nodes/opening_surface.schema.json'
+import openingSurfaceIfcGeneratorSchema from '../../../../../shared/schemas/nodes/opening_surface_ifc_generator.schema.json'
 import set3DPositionRotationSchema from '../../../../../shared/schemas/nodes/set_3d_position_rotation.schema.json'
 import tiltOfComponentsSchema from '../../../../../shared/schemas/nodes/tilt_of_components.schema.json'
 
@@ -28,6 +30,8 @@ export const NODE_SCHEMAS = {
   ifc_element_filter: ifcElementFilterSchema,
   loi_check: loiCheckSchema,
   measurement: measurementSchema,
+  opening_surface: openingSurfaceSchema,
+  opening_surface_ifc_generator: openingSurfaceIfcGeneratorSchema,
   set_3d_position_rotation: set3DPositionRotationSchema,
   tilt_of_components: tiltOfComponentsSchema,
 } as const

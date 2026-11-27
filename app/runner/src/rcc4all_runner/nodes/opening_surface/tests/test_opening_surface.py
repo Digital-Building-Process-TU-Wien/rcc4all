@@ -9,25 +9,25 @@ import pytest
 import trimesh
 
 from conftest import main_ref as _ref
-from openbim_runner.inspect_models import MODELS_ROOT
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.opening_surface._loft import (
+from rcc4all_runner.inspect_models import MODELS_ROOT
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.nodes.opening_surface._loft import (
     _loft_caps_watertight,  # pyright: ignore[reportPrivateUsage]
     _loft_open_ring,  # pyright: ignore[reportPrivateUsage]
     _loft_polygons,  # pyright: ignore[reportPrivateUsage]
     _rings_twisted,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._tube import (
+from rcc4all_runner.nodes.opening_surface._tube import (
     _build_ring_closed,  # pyright: ignore[reportPrivateUsage]
     _jogged_ring_groups,  # pyright: ignore[reportPrivateUsage]
     _ring_has_axial_edge,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface.opening_surface import (
+from rcc4all_runner.nodes.opening_surface.opening_surface import (
     OpeningSurfaceInputs,
     OpeningSurfaceResult,
     opening_surface,
 )
-from openbim_runner.util.geometry import (
+from rcc4all_runner.util.geometry import (
     _is_watertight,  # pyright: ignore[reportPrivateUsage]
     build_geometry_cache,
     cache_mesh,

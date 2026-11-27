@@ -13,6 +13,8 @@
     "ifc_element_filter": "nodes/ifc_element_filter.schema.json",
     "loi_check": "nodes/loi_check.schema.json",
     "measurement": "nodes/measurement.schema.json",
+    "opening_surface": "nodes/opening_surface.schema.json",
+    "opening_surface_ifc_generator": "nodes/opening_surface_ifc_generator.schema.json",
     "set_3d_position_rotation": "nodes/set_3d_position_rotation.schema.json",
     "tilt_of_components": "nodes/tilt_of_components.schema.json"
   }

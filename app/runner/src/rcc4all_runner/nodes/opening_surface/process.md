@@ -1,7 +1,7 @@
 # `opening_surface` — process overview
 
 This document maps the run-time process of the `opening_surface` node
-(`app/runner/src/openbim_runner/nodes/opening_surface/`) and shows the
+(`app/runner/src/rcc4all_runner/nodes/opening_surface/`) and shows the
 different paths an opening can take, with the functions each path calls. Every function below is annotated with the module and line it lives in. Line numbers reference that file unless noted otherwise:
 
 - `entry`   = `opening_surface.py`
@@ -19,8 +19,8 @@ different paths an opening can take, with the functions each path calls. Every f
 
 Shared helpers live outside this folder:
 
-- `geom` = `app/runner/src/openbim_runner/util/geometry.py`
-- `ref`  = `app/runner/src/openbim_runner/util/references.py`
+- `geom` = `app/runner/src/rcc4all_runner/util/geometry.py`
+- `ref`  = `app/runner/src/rcc4all_runner/util/references.py`
 
 Each opening resolves to exactly one result, with `method` one of
 `closed_cut_surface`, `lofted_caps`, or `caps_only`, or a failure entry (`error`

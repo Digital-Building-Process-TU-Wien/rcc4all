@@ -5,20 +5,20 @@ from __future__ import annotations
 import numpy as np
 import trimesh
 
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.opening_surface._mesh_topology import (
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.nodes.opening_surface._mesh_topology import (
     _boundary_loops,  # pyright: ignore[reportPrivateUsage]
     _edge_key,  # pyright: ignore[reportPrivateUsage]
     _prune_flaps,  # pyright: ignore[reportPrivateUsage]
     _weld_rim,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._ring_caps import (
+from rcc4all_runner.nodes.opening_surface._ring_caps import (
     _MIN_CAP_LOOP,  # pyright: ignore[reportPrivateUsage]
     _close_open_ring,  # pyright: ignore[reportPrivateUsage]
     _loop_cap_groups,  # pyright: ignore[reportPrivateUsage]
     _loop_is_planar,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.util.geometry import (
+from rcc4all_runner.util.geometry import (
     _is_watertight,  # pyright: ignore[reportPrivateUsage]
     _safe_fix_normals,  # pyright: ignore[reportPrivateUsage]
     _safe_volume,  # pyright: ignore[reportPrivateUsage]

@@ -10,10 +10,10 @@ import numpy as np
 import trimesh
 from shapely.geometry import MultiPoint
 
-from openbim_runner.nodes.opening_surface._numeric import (
+from rcc4all_runner.nodes.opening_surface._numeric import (
     _in_plane_axes,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.util.geometry import ensure_watertight
+from rcc4all_runner.util.geometry import ensure_watertight
 
 # Two faces are coplanar when their normals align within ~1° and their planes
 # sit within this offset of each other.

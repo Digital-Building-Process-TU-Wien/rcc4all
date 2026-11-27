@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/opening_surface_ifc_generator.schema.json",
+  "type": "object",
+  "title": "Opening Surface IFC Generator",
+  "description": "Builds a self-contained IFC4X3 model of watertight opening closed surfaces from the opening_surface node, placed into the source model's spatial structure.",
+  "categories": [
+    "geometry"
+  ],
+  "markdownDescription": "The `opening_surface_ifc_generator` node builds a self-contained IFC4X3 model in\nwhich each opening closed surface retrieved by the `opening_surface` node becomes\none `IfcBuildingElementProxy`.\n\n## How it works\n\nFor each opening, the cached volume mesh is resolved and its planar face groups\nare flattened into polygonal faces of one `IfcPolygonalFaceSet` per group, written\nas the Body of a single `IfcBuildingElementProxy`. Each opening is one element.\n\nThe project/site/building/storey skeleton is replicated from every source model,\nand each proxy is contained in the new storey that mirrors the storey holding its\nhost element. The opening closed surface is written as an `IfcQuantityVolume` and\nthe opening area as an `IfcQuantityArea`.\n\n## Inputs\n\n- **Openings** (required): the opening results of the `opening_surface` node. Bind\n  its `openings` output here. This must be bound to real geometry; an unbound\n  required input fails the node.\n- **Output filename** (settings): the name of the generated IFC file, written into\n  the workflow output directory.\n\n## Outputs\n\n- `output_path`: absolute path of the generated IFC file\n- `element_count`: number of generated proxies\n- `storey_count`: number of building storeys replicated from the source model\n- `elements`: ordered list with one entry per opening:\n  - `opening_ref`: the source opening's qualified reference\n  - `element_guid`: GlobalId of the generated proxy\n  - `face_count`: number of polygonal faces written\n  - `method`: how the source closed surface was derived\n  - `volume`: the volume in cubic metres (`IfcQuantityVolume`)\n  - `host_ref` / `storey_ref`: source host and storey references\n  - `area`: the opening area (`IfcQuantityArea`)\n  - `error`: reason when the proxy could not be generated\n\n## Notes and limitations\n\n- A proxy is generated for every opening that has cached geometry. Openings\n  without geometry are reported with an error entry instead and count toward\n  `element_count` only when they have an error.\n- The proxy is written at the world origin; its geometry carries the absolute\n  coordinates of the opening closed surface from the source model.",
+  "locales": {
+    "de": {
+      "title": "\u00d6ffnungsfl\u00e4chen-IFC-Generator",
+      "description": "Erstellt ein eigenst\u00e4ndiges IFC4X3-Modell aus den wasserdichten geschlossenen \u00d6ffnungsoberfl\u00e4chen des opening_surface-Nodes und ordnet es der r\u00e4umlichen Struktur des Quellmodells zu.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "Der `opening_surface_ifc_generator`-Node erstellt ein eigenst\u00e4ndiges IFC4X3-Modell,\nin dem jede vom `opening_surface`-Node ermittelte geschlossene\n\u00d6ffnungsoberfl\u00e4che zu einem `IfcBuildingElementProxy` wird.\n\n## Funktionsweise\n\nF\u00fcr jede \u00d6ffnung wird das zwischengespeicherte Netz der geschlossenen Oberfl\u00e4che\naufgel\u00f6st und seine ebenen Fl\u00e4chengruppen werden zu polygonalen Fl\u00e4chen einer\n`IfcPolygonalFaceSet` pro Gruppe abgeflacht und als Body eines einzelnen\n`IfcBuildingElementProxy` geschrieben. Jede \u00d6ffnung ist ein Element.\n\nDas Projekt-/Gel\u00e4nde-/Geb\u00e4ude-/Geschossger\u00fcst wird aus jedem Quellmodell\n\u00fcbernommen, und jeder Proxy wird in das neue Geschoss eingeordnet, das das\nGeschoss seines Bauteils spiegelt. Die geschlossene \u00d6ffnungsoberfl\u00e4che wird als\n`IfcQuantityVolume` und die \u00d6ffnungsfl\u00e4che als `IfcQuantityArea` geschrieben.\n\n## Eing\u00e4nge\n\n- **\u00d6ffnungen** (erforderlich): die \u00d6ffnungsergebnisse des `opening_surface`-Nodes.\n  Binden Sie hier dessen `openings`-Ausgang an. Dies muss an echte Geometrie\n  gebunden sein; ein ungebundener Pflichteingang l\u00e4sst den Node fehlschlagen.\n- **Ausgabedateiname** (Einstellungen): der Name der erzeugten IFC-Datei, die in\n  das Workflow-Ausgabeverzeichnis geschrieben wird.\n\n## Ausgaben\n\n- `output_path`: absoluter Pfad der erzeugten IFC-Datei\n- `element_count`: Anzahl der erzeugten Proxys\n- `storey_count`: Anzahl der aus dem Quellmodell \u00fcbernommenen Geschosse\n- `elements`: geordnete Liste mit einem Eintrag pro \u00d6ffnung:\n  - `opening_ref`: qualifizierte Referenz der Quell\u00f6ffnung\n  - `element_guid`: GlobalId des erzeugten Proxys\n  - `face_count`: Anzahl der geschriebenen polygonalen Fl\u00e4chen\n  - `method`: wie die geschlossene Quelloberfl\u00e4che ermittelt wurde\n  - `volume`: das Volumen in Kubikmetern (`IfcQuantityVolume`)\n  - `host_ref` / `storey_ref`: Referenzen von Quellbauteil und -geschoss\n  - `area`: die \u00d6ffnungsfl\u00e4che (`IfcQuantityArea`)\n  - `error`: Grund, wenn der Proxy nicht erzeugt werden konnte\n\n## Hinweise und Grenzen\n\n- F\u00fcr jede \u00d6ffnung mit zwischengespeicherter Geometrie wird ein Proxy erzeugt.\n  \u00d6ffnungen ohne Geometrie werden stattdessen als Fehlereintrag gemeldet.\n- Der Proxy wird am Weltursprung geschrieben; seine Geometrie tr\u00e4gt die absoluten\n  Koordinaten der geschlossenen \u00d6ffnungsoberfl\u00e4che aus dem Quellmodell."
+    },
+    "en": {
+      "title": "Opening Surface IFC Generator",
+      "description": "Builds a self-contained IFC4X3 model of watertight opening closed surfaces from the opening_surface node, placed into the source model's spatial structure.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "The `opening_surface_ifc_generator` node builds a self-contained IFC4X3 model in\nwhich each opening closed surface retrieved by the `opening_surface` node becomes\none `IfcBuildingElementProxy`.\n\n## How it works\n\nFor each opening, the cached volume mesh is resolved and its planar face groups\nare flattened into polygonal faces of one `IfcPolygonalFaceSet` per group, written\nas the Body of a single `IfcBuildingElementProxy`. Each opening is one element.\n\nThe project/site/building/storey skeleton is replicated from every source model,\nand each proxy is contained in the new storey that mirrors the storey holding its\nhost element. The opening closed surface is written as an `IfcQuantityVolume` and\nthe opening area as an `IfcQuantityArea`.\n\n## Inputs\n\n- **Openings** (required): the opening results of the `opening_surface` node. Bind\n  its `openings` output here. This must be bound to real geometry; an unbound\n  required input fails the node.\n- **Output filename** (settings): the name of the generated IFC file, written into\n  the workflow output directory.\n\n## Outputs\n\n- `output_path`: absolute path of the generated IFC file\n- `element_count`: number of generated proxies\n- `storey_count`: number of building storeys replicated from the source model\n- `elements`: ordered list with one entry per opening:\n  - `opening_ref`: the source opening's qualified reference\n  - `element_guid`: GlobalId of the generated proxy\n  - `face_count`: number of polygonal faces written\n  - `method`: how the source closed surface was derived\n  - `volume`: the volume in cubic metres (`IfcQuantityVolume`)\n  - `host_ref` / `storey_ref`: source host and storey references\n  - `area`: the opening area (`IfcQuantityArea`)\n  - `error`: reason when the proxy could not be generated\n\n## Notes and limitations\n\n- A proxy is generated for every opening that has cached geometry. Openings\n  without geometry are reported with an error entry instead and count toward\n  `element_count` only when they have an error.\n- The proxy is written at the world origin; its geometry carries the absolute\n  coordinates of the opening closed surface from the source model."
+    }
+  },
+  "properties": {
+    "settings": {
+      "additionalProperties": false,
+      "properties": {
+        "output_filename": {
+          "default": "opening_surface_model.ifc",
+          "description": "Name of the generated IFC file. Written into the workflow output directory (the folder containing the workflow file).",
+          "title": "Output filename",
+          "type": "string"
+        }
+      },
+      "title": "OpeningSurfaceIfcGeneratorSettings",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "output_path": {
+          "description": "Absolute path of the generated IFC file.",
+          "title": "Output path",
+          "type": "string"
+        },
+        "element_count": {
+          "description": "Number of generated opening closed-surface proxies.",
+          "title": "Element count",
+          "type": "integer"
+        },
+        "storey_count": {
+          "description": "Number of building storeys replicated from the source model.",
+          "title": "Storey count",
+          "type": "integer"
+        },
+        "elements": {
+          "default": [],
+          "description": "Ordered list of generated proxies with their spatial relation.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "opening_ref": {
+                "description": "Qualified reference of the source opening (`<slug>:expr:<id>`).",
+                "title": "Opening reference",
+                "type": "string"
+              },
+              "element_guid": {
+                "description": "GlobalId of the generated IfcBuildingElementProxy.",
+                "title": "Element GUID",
+                "type": "string"
+              },
+              "face_count": {
+                "default": 0,
+                "description": "Number of polygonal faces written for this opening closed surface.",
+                "title": "Face count",
+                "type": "integer"
+              },
+              "method": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "How the source closed surface was derived: 'closed_cut_surface', 'lofted_caps' or 'caps_only'.",
+                "title": "Method"
+              },
+              "volume": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Volume of the opening solid written as an IfcQuantityVolume, in cubic metres, or None when it could not be retrieved.",
+                "title": "Volume"
+              },
+              "host_ref": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Qualified reference of the host element the opening voids.",
+                "title": "Host reference"
+              },
+              "storey_ref": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Qualified reference of the source building storey the proxy was contained in, or None when the host is not inside a storey.",
+                "title": "Storey reference"
+              },
+              "area": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Opening area written as an IfcQuantityArea on the proxy.",
+                "title": "Area"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Error reason when the proxy could not be generated.",
+                "title": "Error"
+              }
+            },
+            "required": [
+              "opening_ref",
+              "element_guid"
+            ],
+            "title": "OpeningSurfaceIfcElementResult",
+            "type": "object"
+          },
+          "title": "Elements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "output_path",
+        "element_count",
+        "storey_count"
+      ],
+      "title": "OpeningSurfaceIfcGeneratorResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "openings": {
+          "default": [],
+          "description": "Opening closed-surface results of the opening_surface node. Bind its 'openings' output here.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "express_id": {
+                "description": "The qualified opening reference (`<slug>:expr:<id>`).",
+                "title": "Express ID",
+                "type": "string"
+              },
+              "guid": {
+                "default": "",
+                "description": "GlobalId of the opening element, empty when missing.",
+                "title": "GUID",
+                "type": "string"
+              },
+              "host_express_id": {
+                "description": "Qualified reference of the host element the opening voids.",
+                "title": "Host express ID",
+                "type": "string"
+              },
+              "geometry_key": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Geometry-cache key (`gen:`) of the retrieved opening closed surface, or None when it could not be retrieved.",
+                "title": "Geometry key"
+              },
+              "method": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "How the closed surface was derived: 'closed_cut_surface' (a through-bore whose cut-surface tube closed watertight), 'lofted_caps' (the two cap faces were lofted/connected, possibly with a synthesized second cap), or 'caps_only' (no watertight closed surface; the cap/tube geometry is emitted unchanged).",
+                "title": "Method"
+              },
+              "watertight": {
+                "default": false,
+                "description": "Whether the emitted geometry is a closed, winding-consistent, positive-volume solid.",
+                "title": "Watertight",
+                "type": "boolean"
+              },
+              "area": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Opening area in the plane of the host surface (the larger cap face), or None when it could not be retrieved.",
+                "title": "Area"
+              },
+              "width": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Horizontal extent of the opening in the host plane, or None when it could not be retrieved.",
+                "title": "Width"
+              },
+              "height": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Vertical extent of the opening in the host plane, or None when it could not be retrieved.",
+                "title": "Height"
+              },
+              "depth": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Distance between the two cap faces along the host surface normal. None when only one cap face exists or it could not be retrieved.",
+                "title": "Depth"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Error reason when the opening closed surface could not be retrieved.",
+                "title": "Error"
+              }
+            },
+            "required": [
+              "express_id",
+              "host_express_id"
+            ],
+            "title": "OpeningSurface",
+            "type": "object"
+          },
+          "title": "Openings",
+          "type": "array"
+        }
+      },
+      "title": "OpeningSurfaceIfcGeneratorInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "settings",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

@@ -7,18 +7,18 @@ import math
 import numpy as np
 import trimesh
 
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.opening_surface._host_surface import (
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.nodes.opening_surface._host_surface import (
     _OPPOSING_COS,  # pyright: ignore[reportPrivateUsage]
     _curved_host_caps,  # pyright: ignore[reportPrivateUsage]
     _host_surface_planes,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._numeric import (
+from rcc4all_runner.nodes.opening_surface._numeric import (
     _face_normals,  # pyright: ignore[reportPrivateUsage]
     _group_area,  # pyright: ignore[reportPrivateUsage]
     _in_plane_axes,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._planes import (
+from rcc4all_runner.nodes.opening_surface._planes import (
     _clip_to_slab,  # pyright: ignore[reportPrivateUsage]
     _planar_groups,  # pyright: ignore[reportPrivateUsage]
 )

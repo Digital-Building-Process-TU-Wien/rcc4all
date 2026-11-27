@@ -118,6 +118,8 @@ const nodeNameToComponent: Record<string, string> = {
   ifc_element_filter: 'IfcElementFilter',
   json_output: 'JsonOutput',
   measurement: 'Measurement',
+  opening_surface: 'OpeningSurface',
+  opening_surface_ifc_generator: 'OpeningSurfaceIfcGenerator',
   set_3d_position_rotation: 'Set3DPositionRotation',
   subworkflow: 'SubworkflowNode',
   subworkflow_input: 'SubworkflowInput',

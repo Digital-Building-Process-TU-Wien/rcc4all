@@ -12,8 +12,8 @@ import numpy as np
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.util.references import split_expr_key
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.util.references import split_expr_key
 
 _ALIGNED_COS = math.cos(math.pi / 180.0)
 _PLANE_TOLERANCE = 0.01

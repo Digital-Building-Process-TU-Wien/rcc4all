@@ -5,27 +5,27 @@ from __future__ import annotations
 import numpy as np
 import trimesh
 
-from openbim_runner.nodes.opening_surface._mesh_topology import (
+from rcc4all_runner.nodes.opening_surface._mesh_topology import (
     _boundary_loops,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._numeric import (
+from rcc4all_runner.nodes.opening_surface._numeric import (
     _face_normals,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._rings import (
+from rcc4all_runner.nodes.opening_surface._rings import (
     _align_rings,  # pyright: ignore[reportPrivateUsage]
     _clean_degenerate_ring,  # pyright: ignore[reportPrivateUsage]
     _orient_ring,  # pyright: ignore[reportPrivateUsage]
     _resample_closed,  # pyright: ignore[reportPrivateUsage]
     _ring_shift,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._wedge import (
+from rcc4all_runner.nodes.opening_surface._wedge import (
     _cut_ring_by_tube,  # pyright: ignore[reportPrivateUsage]
     _extrude_ring,  # pyright: ignore[reportPrivateUsage]
     _is_degenerate_wedge,  # pyright: ignore[reportPrivateUsage]
     _tapered_prism,  # pyright: ignore[reportPrivateUsage]
     _wall_faces_along,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.util.geometry import (
+from rcc4all_runner.util.geometry import (
     _is_watertight,  # pyright: ignore[reportPrivateUsage]
     _safe_fix_normals,  # pyright: ignore[reportPrivateUsage]
     _safe_volume,  # pyright: ignore[reportPrivateUsage]

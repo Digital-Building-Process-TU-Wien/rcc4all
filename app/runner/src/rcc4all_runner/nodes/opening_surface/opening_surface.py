@@ -6,35 +6,35 @@ import numpy as np
 import trimesh
 from pydantic import Field
 
-from openbim_runner.nodes.base import ExecutionContext, NodeModel, node
-from openbim_runner.nodes.opening_surface._caps import (
+from rcc4all_runner.nodes.base import ExecutionContext, NodeModel, node
+from rcc4all_runner.nodes.opening_surface._caps import (
     _cap_depth,  # pyright: ignore[reportPrivateUsage]
     _cap_extents,  # pyright: ignore[reportPrivateUsage]
     _cap_groups,  # pyright: ignore[reportPrivateUsage]
     _cap_info,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._host_surface import (
+from rcc4all_runner.nodes.opening_surface._host_surface import (
     _reveal_host_mesh,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._loft import (
+from rcc4all_runner.nodes.opening_surface._loft import (
     _loft_open_ring,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._numeric import (
+from rcc4all_runner.nodes.opening_surface._numeric import (
     _face_normals,  # pyright: ignore[reportPrivateUsage]
     _iter_openings,  # pyright: ignore[reportPrivateUsage]
     _resolve_entity,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.nodes.opening_surface._tube import (
+from rcc4all_runner.nodes.opening_surface._tube import (
     _close_tube_rings,  # pyright: ignore[reportPrivateUsage]
     _cut_surface_tube,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.util.geometry import (
+from rcc4all_runner.util.geometry import (
     _is_watertight,  # pyright: ignore[reportPrivateUsage]
     _safe_volume,  # pyright: ignore[reportPrivateUsage]
     cache_mesh,
     resolve_mesh,
 )
-from openbim_runner.util.references import expr_key, iter_resolved_elements
+from rcc4all_runner.util.references import expr_key, iter_resolved_elements
 
 # A cut-surface tube that closes into a shell enclosing (near-)zero volume is a
 # degenerate "pillow" from a host that exposes only two opposite cut surfaces

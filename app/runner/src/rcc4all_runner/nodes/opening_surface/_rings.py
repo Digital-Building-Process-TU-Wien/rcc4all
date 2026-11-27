@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from openbim_runner.nodes.opening_surface._mesh_topology import (
+from rcc4all_runner.nodes.opening_surface._mesh_topology import (
     _COINCIDENT_VERTS_EPS,  # pyright: ignore[reportPrivateUsage]
 )
 

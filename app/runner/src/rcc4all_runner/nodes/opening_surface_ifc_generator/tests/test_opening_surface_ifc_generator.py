@@ -7,20 +7,20 @@ from typing import Any, cast
 import ifcopenshell
 import pytest
 
-from openbim_runner.inspect_models import MODELS_ROOT
-from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.opening_surface.opening_surface import (
+from rcc4all_runner.inspect_models import MODELS_ROOT
+from rcc4all_runner.nodes.base import ExecutionContext
+from rcc4all_runner.nodes.opening_surface.opening_surface import (
     OpeningSurface,
     OpeningSurfaceInputs,
     opening_surface,
 )
-from openbim_runner.nodes.opening_surface_ifc_generator.opening_surface_ifc_generator import (
+from rcc4all_runner.nodes.opening_surface_ifc_generator.opening_surface_ifc_generator import (
     OpeningSurfaceIfcGeneratorInputs,
     OpeningSurfaceIfcGeneratorResult,
     OpeningSurfaceIfcGeneratorSettings,
     opening_surface_ifc_generator,
 )
-from openbim_runner.util.geometry import build_geometry_cache
+from rcc4all_runner.util.geometry import build_geometry_cache
 
 _REAL_MODEL = MODELS_ROOT / "specific" / "Testmodell-LightExposureSmall.ifc"
 

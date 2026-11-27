@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes/opening_surface.schema.json",
+  "type": "object",
+  "title": "Opening Surface",
+  "description": "Retrieves a watertight closed surface per opening and caches it as generated geometry.",
+  "categories": [
+    "geometry"
+  ],
+  "markdownDescription": "The `opening_surface` node retrieves, for every opening of the input\nelements, one **watertight closed surface** that fills the opening void. It\neither combines the cap faces with the cut surfaces when they form a closed\nring (windows), or linearly connects the opening's cap faces when the cut\nsurfaces form an open ring (doors), so both end up as a closed, positive-volume\nsolid.\n\n## How it works\n\nFor each input element, the openings (`IfcRelVoidsElement`) and their cached Body\nmeshes are resolved, along with the host element's mesh. Then:\n\n- **Closed ring (window, planar rims):** the cut surfaces are closed into a\n  closed ring. When it can be closed watertight on the open sides, it is emitted\n  unchanged (`method = \"closed_cut_surface\"`).\n- **Open ring (door / non-planar rim / curved host):** the cut-surface ring\n  stays open. The opening's cap faces are analysed from the host surface planes\n  instead. When **two** caps are found, both are used; when **only one** cap is\n  found, a second cap is synthesised by copying the found cap across the wall\n  thickness and clipping the copy against the ring's reveal faces. The two caps\n  are then **connected** (by new side faces between corresponding boundary\n  points in 3D) and form a watertight volume (`method = \"lofted_caps\"`).\n- **No volume:** when neither a closed ring nor two connectable caps can be\n  built, the cap/ring geometry is emitted unchanged (`method = \"caps_only\"`,\n  `watertight = false`); no fabricated geometry is produced.\n\nThe connection links corresponding boundary points in 3D, so it tolerates hosts\nwhose two dominant surfaces are not parallel (a wall or slab of linearly varying\nthickness) and curved hosts.\n\n## Use case example\n\n- Cross-section / fire-compartment checks: extract the closed volume of a door,\n  window or shaft so it can be measured and compared against the host element.\n- Clash or clearance checks against the actual void an opening cuts in a wall,\n  slab or roof.\n\n## Inputs\n\n- **Express IDs** (required): a list of fully qualified element references\n  (`<slug>:expr:<id>`) of host building elements (e.g. walls, slabs, roofs).\n  Typically connected to the output of an `ifc_element_filter`. Each reference\n  resolves against the model named inside it, so mixed-model lists are allowed.\n  An unbound required input fails validation; an empty bound list processes\n  zero elements.\n\n## Outputs\n\nThe result is a flat list with one entry per opening:\n\n- `opening_count`: number of openings found on the input elements\n- `surface_count`: number of openings whose closed surface was retrieved into the\n  geometry cache\n- `geometry_keys`: the `gen:` geometry-cache keys of the retrieved opening\n  closed surfaces, in opening order\n- `openings`: ordered list of\n  - `express_id` (the qualified opening reference), `guid` (GlobalId of the\n    opening), `host_express_id` (the qualified host reference)\n  - `geometry_key`: geometry-cache key of the retrieved opening closed surface\n  - `method`: `\"closed_cut_surface\"`, `\"lofted_caps\"` or `\"caps_only\"`\n  - `watertight`: whether the emitted geometry is a closed, winding-consistent,\n    positive-volume solid\n  - `area` / `width` / `height`: opening extent in the plane of the host surface\n    (the larger cap face)\n  - `depth`: distance between the two cap faces along the host surface normal\n  - `error`: reason when the closed surface could not be retrieved\n\n## Generated geometry\n\nEach retrieved opening closed surface is cached as generated geometry under\n`gen:opening_surface_<slug>_<express_id>`. The cached mesh is a watertight solid\nwhen `watertight` is true; a `caps_only` entry is the cap geometry unchanged. The\nkeys are user-referencable `gen:` keys, so they can be bound to geometry\nconsumers such as measurement or collision.\n\n## Notes and limitations\n\n- Only openings with a cached Body mesh are processed; openings without\n  tessellated geometry are reported with an error entry instead.\n- Each opening appears once, even when its host element is passed multiple\n  times. References that resolve to no entity contribute no openings.\n- Curved hosts are analysed with surface-region logic; a round wall that exposes\n  only one cap gets its opposing cap synthesised.\n- Openings are only collected from the input elements themselves, not from parts\n  of decomposed elements.",
+  "locales": {
+    "de": {
+      "title": "\u00d6ffnungsfl\u00e4chen",
+      "description": "Ermittelt pro \u00d6ffnung eine wasserdichte geschlossene Oberfl\u00e4che und speichert sie als generierte Geometrie.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "Der `opening_surface`-Node ermittelt f\u00fcr jede \u00d6ffnung der Eingabe-Elemente genau\neine **wasserdichte geschlossene Oberfl\u00e4che**, die den \u00d6ffnungsraum f\u00fcllt. Er\nkombiniert entweder die Deckelfl\u00e4chen mit den Schnittfl\u00e4chen, wenn diese einen\ngeschlossenen Ring bilden (bei Fenstern), oder verbindet die Deckelfl\u00e4chen der\n\u00d6ffnung linear, wenn die Schnittfl\u00e4chen einen offenen Ring bilden (bei T\u00fcren), sodass beide \nals geschlossener K\u00f6rper mit positivem Volumen enden.\n\n## Funktionsweise\n\nF\u00fcr jedes Eingabe-Element werden die \u00d6ffnungen (`IfcRelVoidsElement`) und ihre\nzwischengespeicherten Body-Netze sowie das Netz des Bauteils aufgel\u00f6st. Danach:\n\n- **Geschlossener Ring (Fenster, ebene R\u00e4nder):** Die Schnittfl\u00e4chen werden \n  zu einem geschlossenen Ring geschlossen. Wenn er an den offenen Seiten \n  wasserdicht geschlossen werden kann, wird er unver\u00e4ndert ausgegeben\n  (`method = \"closed_cut_surface\"`).\n- **Offener Ring (T\u00fcr / nicht-ebener Rand / gekr\u00fcmmtes Bauteil):** Der\n  Schnittfl\u00e4chenring bleibt offen. Stattdessen werden die Deckelfl\u00e4chen der\n  \u00d6ffnung aus den Oberfl\u00e4chenebenen des Bauteils analysiert. Werden **zwei**\n  Deckelfl\u00e4chen gefunden, werden beide verwendet; wird **nur eine** gefunden,\n  wird eine zweite synthetisiert, indem die gefundene Deckelfl\u00e4che um die\n  Wandst\u00e4rke kopiert und gegen die Laibungsfl\u00e4chen des Rings beschnitten wird.\n  Die beiden Deckelfl\u00e4chen werden dann **verbunden** (durch neue Seitenfl\u00e4chen\n  zwischen korrespondierenden Randpunkten im 3D-Raum) und bilden ein wasserdichtes\n  Volumen (`method = \"lofted_caps\"`).\n- **Kein Volumen:** Wenn weder ein geschlossener Ring noch zwei verbindbare\n  Deckelfl\u00e4chen gebaut werden k\u00f6nnen, wird die Deckel-/Ringgeometrie unver\u00e4ndert\n  ausgegeben (`method = \"caps_only\"`, `watertight = false`); es wird keine\n  erfundene Geometrie erzeugt.\n\nDie Verbindung verkn\u00fcpft korrespondierende Randpunkte im 3D-Raum und toleriert\ndaher Bauteile, deren beiden dominanten Oberfl\u00e4chen nicht parallel sind (eine\nWand oder Decke mit linear ver\u00e4nderlicher Dicke) sowie gekr\u00fcmmte Bauteile.\n\n## Anwendungsbeispiel\n\n- Querschnitts- / Brandabschnittspr\u00fcfungen: Ermitteln Sie das geschlossene\n  Volumen einer T\u00fcr, eines Fensters oder Schachts, um es zu vermessen und mit dem\n  Bauteil zu vergleichen.\n- Kollisions- oder Abstandspr\u00fcfungen gegen den tats\u00e4chlichen Hohlraum, den eine\n  \u00d6ffnung in Wand, Decke oder Dach schneidet.\n\n## Eing\u00e4nge\n\n- **Express-IDs** (erforderlich): eine Liste voll qualifizierter\n  Elementreferenzen (`<slug>:expr:<id>`) von Bauteilen (z. B. W\u00e4nde, Decken,\n  D\u00e4cher). \u00dcblicherweise mit dem Ausgang eines `ifc_element_filter` verbunden.\n  Jede Referenz wird gegen das in ihr benannte Modell aufgel\u00f6st, daher sind\n  modell\u00fcbergreifende Listen erlaubt. Ein ungebundener Pflichteingang schl\u00e4gt die\n  Validierung fehl; eine leere gebundene Liste verarbeitet null Elemente.\n\n## Ausgaben\n\nDas Ergebnis ist eine flache Liste mit einem Eintrag pro \u00d6ffnung:\n\n- `opening_count`: Anzahl der gefundenen \u00d6ffnungen\n- `surface_count`: Anzahl der \u00d6ffnungen, deren geschlossene Oberfl\u00e4che in den\n  Geometrie-Cache \u00fcbernommen wurde\n- `geometry_keys`: die `gen:`-Geometrie-Cache-Schl\u00fcssel der ermittelten\n  geschlossenen \u00d6ffnungsfl\u00e4chen in \u00d6ffnungsreihenfolge\n- `openings`: geordnete Liste mit\n  - `express_id` (qualifizierte \u00d6ffnungsreferenz), `guid` (GlobalId der\n    \u00d6ffnung), `host_express_id` (qualifizierte Bauteilreferenz)\n  - `geometry_key`: Geometrie-Cache-Schl\u00fcssel der ermittelten geschlossenen\n    \u00d6ffnungsfl\u00e4che\n  - `method`: `\"closed_cut_surface\"`, `\"lofted_caps\"` oder `\"caps_only\"`\n  - `watertight`: ob die ausgegebene Geometrie ein geschlossener, konsistent\n    gewickelter K\u00f6rper mit positivem Volumen ist\n  - `area` / `width` / `height`: Ausdehnung der \u00d6ffnung in der Ebene der\n    Bauteiloberfl\u00e4che (die gr\u00f6\u00dfere Deckelfl\u00e4che)\n  - `depth`: Abstand zwischen den beiden Deckelfl\u00e4chen entlang der Normalen der\n    Bauteiloberfl\u00e4che\n  - `error`: Grund, wenn die geschlossene Oberfl\u00e4che nicht ermittelt werden konnte\n\n## Generierte Geometrie\n\nJede ermittelte geschlossene \u00d6ffnungsoberfl\u00e4che wird als generierte Geometrie\nunter `gen:opening_surface_<slug>_<express_id>` gespeichert. Das\nzwischengespeicherte Netz ist ein wasserdichter K\u00f6rper, wenn `watertight` wahr\nist; ein\n`caps_only`-Eintrag ist die unver\u00e4nderte Deckelgeometrie. Die Schl\u00fcssel sind\nbenutzerreferenzierbare `gen:`-Schl\u00fcssel und k\u00f6nnen an Geometriekonsumenten wie\nmeasurement oder collision gebunden werden.\n\n## Hinweise und Grenzen\n\n- Nur \u00d6ffnungen mit einem zwischengespeicherten Body-Netz werden verarbeitet;\n  \u00d6ffnungen ohne Tessellierungsgeometrie werden stattdessen als Fehlereintrag\n  gemeldet.\n- Jede \u00d6ffnung erscheint genau einmal, auch wenn ihr Bauteil mehrfach \u00fcbergeben\n  wird. Referenzen, die auf keine Entit\u00e4t aufl\u00f6sen, liefern keine \u00d6ffnungen.\n- Gekr\u00fcmmte Bauteile werden mit Oberfl\u00e4chenregion-Logik analysiert; eine runde\n  Wand, die nur eine Deckelfl\u00e4che zeigt, erh\u00e4lt ihre gegen\u00fcberliegende\n  Deckelfl\u00e4che synthetisiert.\n- \u00d6ffnungen werden nur aus den Eingabe-Elementen selbst gesammelt, nicht aus\n  Teilen zerlegter Elemente."
+    },
+    "en": {
+      "title": "Opening Surface",
+      "description": "Retrieves a watertight closed surface per opening and caches it as generated geometry.",
+      "categories": [
+        "geometry"
+      ],
+      "markdownDescription": "The `opening_surface` node retrieves, for every opening of the input\nelements, one **watertight closed surface** that fills the opening void. It\neither combines the cap faces with the cut surfaces when they form a closed\nring (windows), or linearly connects the opening's cap faces when the cut\nsurfaces form an open ring (doors), so both end up as a closed, positive-volume\nsolid.\n\n## How it works\n\nFor each input element, the openings (`IfcRelVoidsElement`) and their cached Body\nmeshes are resolved, along with the host element's mesh. Then:\n\n- **Closed ring (window, planar rims):** the cut surfaces are closed into a\n  closed ring. When it can be closed watertight on the open sides, it is emitted\n  unchanged (`method = \"closed_cut_surface\"`).\n- **Open ring (door / non-planar rim / curved host):** the cut-surface ring\n  stays open. The opening's cap faces are analysed from the host surface planes\n  instead. When **two** caps are found, both are used; when **only one** cap is\n  found, a second cap is synthesised by copying the found cap across the wall\n  thickness and clipping the copy against the ring's reveal faces. The two caps\n  are then **connected** (by new side faces between corresponding boundary\n  points in 3D) and form a watertight volume (`method = \"lofted_caps\"`).\n- **No volume:** when neither a closed ring nor two connectable caps can be\n  built, the cap/ring geometry is emitted unchanged (`method = \"caps_only\"`,\n  `watertight = false`); no fabricated geometry is produced.\n\nThe connection links corresponding boundary points in 3D, so it tolerates hosts\nwhose two dominant surfaces are not parallel (a wall or slab of linearly varying\nthickness) and curved hosts.\n\n## Use case example\n\n- Cross-section / fire-compartment checks: extract the closed volume of a door,\n  window or shaft so it can be measured and compared against the host element.\n- Clash or clearance checks against the actual void an opening cuts in a wall,\n  slab or roof.\n\n## Inputs\n\n- **Express IDs** (required): a list of fully qualified element references\n  (`<slug>:expr:<id>`) of host building elements (e.g. walls, slabs, roofs).\n  Typically connected to the output of an `ifc_element_filter`. Each reference\n  resolves against the model named inside it, so mixed-model lists are allowed.\n  An unbound required input fails validation; an empty bound list processes\n  zero elements.\n\n## Outputs\n\nThe result is a flat list with one entry per opening:\n\n- `opening_count`: number of openings found on the input elements\n- `surface_count`: number of openings whose closed surface was retrieved into the\n  geometry cache\n- `geometry_keys`: the `gen:` geometry-cache keys of the retrieved opening\n  closed surfaces, in opening order\n- `openings`: ordered list of\n  - `express_id` (the qualified opening reference), `guid` (GlobalId of the\n    opening), `host_express_id` (the qualified host reference)\n  - `geometry_key`: geometry-cache key of the retrieved opening closed surface\n  - `method`: `\"closed_cut_surface\"`, `\"lofted_caps\"` or `\"caps_only\"`\n  - `watertight`: whether the emitted geometry is a closed, winding-consistent,\n    positive-volume solid\n  - `area` / `width` / `height`: opening extent in the plane of the host surface\n    (the larger cap face)\n  - `depth`: distance between the two cap faces along the host surface normal\n  - `error`: reason when the closed surface could not be retrieved\n\n## Generated geometry\n\nEach retrieved opening closed surface is cached as generated geometry under\n`gen:opening_surface_<slug>_<express_id>`. The cached mesh is a watertight solid\nwhen `watertight` is true; a `caps_only` entry is the cap geometry unchanged. The\nkeys are user-referencable `gen:` keys, so they can be bound to geometry\nconsumers such as measurement or collision.\n\n## Notes and limitations\n\n- Only openings with a cached Body mesh are processed; openings without\n  tessellated geometry are reported with an error entry instead.\n- Each opening appears once, even when its host element is passed multiple\n  times. References that resolve to no entity contribute no openings.\n- Curved hosts are analysed with surface-region logic; a round wall that exposes\n  only one cap gets its opposing cap synthesised.\n- Openings are only collected from the input elements themselves, not from parts\n  of decomposed elements."
+    }
+  },
+  "properties": {
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "opening_count": {
+          "description": "Number of openings found on the input elements.",
+          "title": "Opening count",
+          "type": "integer"
+        },
+        "surface_count": {
+          "description": "Number of openings whose closed-surface geometry was retrieved into the geometry cache.",
+          "title": "Surface count",
+          "type": "integer"
+        },
+        "geometry_keys": {
+          "default": [],
+          "description": "Geometry-cache keys (`gen:`) of the retrieved opening closed surfaces, in opening order. Bind to geometry consumers such as measurement or collision.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Geometry keys",
+          "type": "array"
+        },
+        "openings": {
+          "default": [],
+          "description": "Flat list of openings with their retrieved closed-surface data.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "express_id": {
+                "description": "The qualified opening reference (`<slug>:expr:<id>`).",
+                "title": "Express ID",
+                "type": "string"
+              },
+              "guid": {
+                "default": "",
+                "description": "GlobalId of the opening element, empty when missing.",
+                "title": "GUID",
+                "type": "string"
+              },
+              "host_express_id": {
+                "description": "Qualified reference of the host element the opening voids.",
+                "title": "Host express ID",
+                "type": "string"
+              },
+              "geometry_key": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Geometry-cache key (`gen:`) of the retrieved opening closed surface, or None when it could not be retrieved.",
+                "title": "Geometry key"
+              },
+              "method": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "How the closed surface was derived: 'closed_cut_surface' (a through-bore whose cut-surface tube closed watertight), 'lofted_caps' (the two cap faces were lofted/connected, possibly with a synthesized second cap), or 'caps_only' (no watertight closed surface; the cap/tube geometry is emitted unchanged).",
+                "title": "Method"
+              },
+              "watertight": {
+                "default": false,
+                "description": "Whether the emitted geometry is a closed, winding-consistent, positive-volume solid.",
+                "title": "Watertight",
+                "type": "boolean"
+              },
+              "area": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Opening area in the plane of the host surface (the larger cap face), or None when it could not be retrieved.",
+                "title": "Area"
+              },
+              "width": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Horizontal extent of the opening in the host plane, or None when it could not be retrieved.",
+                "title": "Width"
+              },
+              "height": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Vertical extent of the opening in the host plane, or None when it could not be retrieved.",
+                "title": "Height"
+              },
+              "depth": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Distance between the two cap faces along the host surface normal. None when only one cap face exists or it could not be retrieved.",
+                "title": "Depth"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Error reason when the opening closed surface could not be retrieved.",
+                "title": "Error"
+              }
+            },
+            "required": [
+              "express_id",
+              "host_express_id"
+            ],
+            "title": "OpeningSurface",
+            "type": "object"
+          },
+          "title": "Openings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "opening_count",
+        "surface_count"
+      ],
+      "title": "OpeningSurfaceResult",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "express_ids": {
+          "description": "Qualified element references (`<slug>:expr:<id>`) of host building elements (e.g. walls, slabs, roofs) whose openings are retrieved. Bind ifc_element_filter output here.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Express IDs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "express_ids"
+      ],
+      "title": "OpeningSurfaceInputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "result",
+    "inputs"
+  ],
+  "additionalProperties": false
+}

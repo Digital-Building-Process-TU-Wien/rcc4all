@@ -1,0 +1,8 @@
+{
+  "name": "rcc4all-payload-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Re-exported Payload CMS generated types for the Nuxt frontend.",
+  "types": "index.ts",
+  "main": "index.ts"
+}

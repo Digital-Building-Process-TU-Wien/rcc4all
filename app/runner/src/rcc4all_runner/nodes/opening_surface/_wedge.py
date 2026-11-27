@@ -5,10 +5,10 @@ from __future__ import annotations
 import numpy as np
 import trimesh
 
-from openbim_runner.nodes.opening_surface._numeric import (
+from rcc4all_runner.nodes.opening_surface._numeric import (
     _face_normals,  # pyright: ignore[reportPrivateUsage]
 )
-from openbim_runner.util.geometry import (
+from rcc4all_runner.util.geometry import (
     _is_watertight,  # pyright: ignore[reportPrivateUsage]
     _safe_fix_normals,  # pyright: ignore[reportPrivateUsage]
     _safe_volume,  # pyright: ignore[reportPrivateUsage]
