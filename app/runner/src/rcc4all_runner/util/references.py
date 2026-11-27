@@ -67,6 +67,17 @@ class ElementRef:
     express_id: int
 
 
+def _iter_pair_candidates(remainder: str) -> Iterator[tuple[str, str]]:
+    """Yield ``(left, right)`` for every underscore separator, left to right."""
+    start = 0
+    while True:
+        pos = remainder.find("_", start)
+        if pos < 0:
+            return
+        yield remainder[:pos], remainder[pos + 1 :]
+        start = pos + 1
+
+
 def expand_reference(reference: str) -> list[ElementRef]:
     """Expand a measurement/generator reference into IFC element refs.
 
@@ -77,6 +88,10 @@ def expand_reference(reference: str) -> list[ElementRef]:
     - Collision intersection ``inter:intersection_<k1>_<k2>`` -> both member
       keys, when each side is an IFC express key.
     - Distance pair ``<k1>_<k2>`` (both sides ``:expr:``) -> both member keys.
+
+    Model slugs may contain underscores, so the pair split tries every
+    underscore separator left to right and takes the first one where both
+    halves parse as IFC express keys.
 
     Any other shape (``gen:``, malformed, or a pair whose inner keys are not
     IFC express keys) yields ``[]``; the consumer then drops the reference.
@@ -95,19 +110,17 @@ def expand_reference(reference: str) -> list[ElementRef]:
             slug, express_id = parsed
             return [ElementRef(reference, slug, express_id)]
 
-    # Pair ref: split on the last underscore between two express keys.
-    underscore_pos = remainder.rfind("_")
-    if underscore_pos > 0:
-        k1 = remainder[:underscore_pos]
-        k2 = remainder[underscore_pos + 1 :]
-        parsed_k1 = split_expr_key(k1)
-        parsed_k2 = split_expr_key(k2)
-        if parsed_k1 is not None and parsed_k2 is not None:
-            slug1, id1 = parsed_k1
-            slug2, id2 = parsed_k2
+    # Pair ref: split at the first underscore where both halves are express
+    # keys (slugs may contain underscores, so try every candidate).
+    for key_a, key_b in _iter_pair_candidates(remainder):
+        parsed_a = split_expr_key(key_a)
+        parsed_b = split_expr_key(key_b)
+        if parsed_a is not None and parsed_b is not None:
+            slug_a, id_a = parsed_a
+            slug_b, id_b = parsed_b
             return [
-                ElementRef(k1, slug1, id1),
-                ElementRef(k2, slug2, id2),
+                ElementRef(key_a, slug_a, id_a),
+                ElementRef(key_b, slug_b, id_b),
             ]
 
     return []

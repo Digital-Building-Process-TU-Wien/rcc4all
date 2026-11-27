@@ -7,6 +7,7 @@
     "concat_string": "nodes/concat_string.schema.json",
     "file_input": "nodes/file_input.schema.json",
     "generate_3d_cube": "nodes/generate_3d_cube.schema.json",
+    "geometry_projection": "nodes/geometry_projection.schema.json",
     "get_element_creation_position_door": "nodes/get_element_creation_position_door.schema.json",
     "get_property": "nodes/get_property.schema.json",
     "ids_checker": "nodes/ids_checker.schema.json",

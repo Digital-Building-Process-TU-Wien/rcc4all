@@ -3,20 +3,20 @@ from __future__ import annotations
 import warnings
 from typing import Any, Literal
 
-import numpy as np
 import trimesh
 import trimesh.boolean
 from pydantic import Field
 
 from rcc4all_runner.nodes.base import ExecutionContext, NodeModel, node
 from rcc4all_runner.util.geometry import (
+    aabb_overlap,
     cache_mesh,
     ensure_watertight,
+    fcl_solid_collision,
     resolve_mesh,
     resolve_side,
-    split_expr_key,
 )
-from rcc4all_runner.util.references import EXPR_KIND, split_reference
+from rcc4all_runner.util.references import EXPR_KIND, split_expr_key, split_reference
 
 VOLUME_TOLERANCE = 1e-9
 AGGREGATION_REL_TYPES = ("IfcRelAggregates", "IfcRelNests")
@@ -88,12 +88,6 @@ class CollisionResult(NodeModel):
             "failed) for which no intersection mesh could be generated. Empty in 'boolean' mode."
         ),
     )
-
-
-def _aabb_overlap(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool:
-    a_min, a_max = a.bounds
-    b_min, b_max = b.bounds
-    return bool(np.all(a_min <= b_max) and np.all(b_min <= a_max))
 
 
 def _is_ancestor_pair(
@@ -168,25 +162,6 @@ def _aggregation_exclusions(ifc_model: Any) -> frozenset[tuple[int, int]]:
     return frozenset(exclusions)
 
 
-def _fcl_collision(mesh_a: trimesh.Trimesh, mesh_b: trimesh.Trimesh) -> bool | None:
-    """Triangle-based collision test via FCL (no watertight requirement).
-
-    Returns True if the meshes collide, False if not, or None when FCL is
-    unavailable (graceful degradation: caller falls through to ``errors``).
-    """
-    try:
-        from trimesh.collision import CollisionManager
-    except Exception:
-        return None
-    try:
-        manager = CollisionManager()
-        manager.add_object("a", mesh_a)
-        manager.add_object("b", mesh_b)
-        return bool(manager.in_collision_internal())
-    except Exception:
-        return None
-
-
 @node()
 async def collision(
     settings: CollisionSettings,
@@ -231,7 +206,7 @@ async def collision(
             mesh_a = resolve_mesh(context, key_a)
             mesh_b = resolve_mesh(context, key_b)
 
-            if not _aabb_overlap(mesh_a, mesh_b):
+            if not aabb_overlap(mesh_a, mesh_b):
                 continue
 
             repaired_a, _error_a = ensure_watertight(mesh_a)
@@ -254,7 +229,7 @@ async def collision(
                     boolean_error = f"boolean failed: {exc}"
 
             if boolean_error is not None:
-                fcl_result = _fcl_collision(mesh_a, mesh_b)
+                fcl_result = fcl_solid_collision(mesh_a, mesh_b)
                 if fcl_result is True:
                     collisions.setdefault(key_a, []).append(key_b)
                     if settings.mode == "intersection_mesh":

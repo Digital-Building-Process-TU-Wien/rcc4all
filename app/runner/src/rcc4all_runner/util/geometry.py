@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import sys
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 import ifcopenshell.geom
@@ -158,6 +159,40 @@ def resolve_side(
     return keys
 
 
+def resolve_keys(
+    context: ExecutionContext,
+    refs: list[str] | dict[str, str | None] | None = None,
+) -> list[tuple[str, str | None]]:
+    """Resolve a list or dict of references into ordered ``(label, cache_key)`` pairs.
+
+    Soft resolution: never raises. For each reference:
+
+    - a valid geometry cache key present in the cache → ``(ref, ref)``;
+    - a malformed key or one with no cached geometry → ``(raw_ref, None)``;
+    - a dict → its non-null values, treated like a list.
+
+    This is the lenient counterpart to :func:`resolve_side`, which raises. It is
+    used by consumers that want per-item errors (e.g. ``measurement``,
+    ``geometry_projection``) rather than a hard failure on the first bad entry.
+    """
+    cache = _ensure_cache(context)
+    refs = refs or []
+
+    if isinstance(refs, dict):
+        refs = [value for value in refs.values() if value is not None]
+
+    results: list[tuple[str, str | None]] = []
+    for ref in refs:
+        if not is_geometry_key(ref):
+            results.append((str(ref), None))
+            continue
+        if ref in cache:
+            results.append((ref, ref))
+        else:
+            results.append((str(ref), None))
+    return results
+
+
 def _is_watertight(mesh: trimesh.Trimesh) -> bool:
     return bool(mesh.is_watertight and mesh.is_winding_consistent and mesh.volume > 0)
 
@@ -191,6 +226,99 @@ def ensure_watertight(
         pass
 
     return None, "non-watertight"
+
+
+def unit_vector(value: Sequence[float]) -> np.ndarray | None:
+    """Normalize a finite vector without overflow/underflow; zero returns None.
+
+    The vector is scaled by its largest absolute component before the
+    Euclidean norm, so extreme finite inputs (e.g. ``1e308`` or ``1e-300``)
+    neither overflow to infinity nor underflow to zero.
+    """
+    vector = np.asarray(value, dtype=float)
+    scale = float(np.max(np.abs(vector)))
+    if scale == 0:
+        return None
+    scaled = vector / scale
+    return scaled / np.linalg.norm(scaled)
+
+
+def aabb_overlap(a: trimesh.Trimesh, b: trimesh.Trimesh) -> bool:
+    """Quick axis-aligned bounding-box overlap test between two meshes."""
+    a_min, a_max = a.bounds
+    b_min, b_max = b.bounds
+    return bool(np.all(a_min <= b_max) and np.all(b_min <= a_max))
+
+
+def fcl_solid_collision(
+    mesh_a: trimesh.Trimesh, mesh_b: trimesh.Trimesh
+) -> bool | None:
+    """Solid collision test via FCL (Trimesh ``CollisionManager`` semantics).
+
+    Convex meshes are treated as solids, so a closed mesh wholly inside
+    another counts as colliding. This is the clash-detection semantic the
+    collision node needs — do not use it for surface-distance measurements
+    (see :func:`fcl_surface_distance`).
+
+    Returns ``True`` if the meshes collide, ``False`` if not, or ``None``
+    when FCL is unavailable or the query fails (graceful degradation).
+    """
+    try:
+        from trimesh.collision import CollisionManager
+    except Exception:
+        return None
+    try:
+        manager = CollisionManager()
+        manager.add_object("a", mesh_a)
+        manager.add_object("b", mesh_b)
+        return bool(manager.in_collision_internal())
+    except Exception:
+        return None
+
+
+def fcl_surface_distance(
+    mesh_a: trimesh.Trimesh, mesh_b: trimesh.Trimesh
+) -> float | None:
+    """Exact unsigned surface-to-surface distance between two meshes.
+
+    Both meshes are converted to triangle BVHs — never convex solids — so the
+    query measures the actual surfaces: nested but non-touching meshes get
+    their positive surface distance, and open meshes are handled exactly. A
+    BVH surface-collision precheck normalizes touching or overlapping
+    surfaces to exactly ``0.0`` instead of numerical noise.
+
+    Returns ``None`` when the FCL backend is unavailable or the query fails
+    (failures are logged to stderr); callers should report a per-item error
+    rather than an approximate value.
+    """
+    try:
+        import fcl
+        from trimesh.collision import mesh_to_BVH
+    except Exception:
+        return None
+
+    try:
+        obj_a = fcl.CollisionObject(mesh_to_BVH(mesh_a))
+        obj_b = fcl.CollisionObject(mesh_to_BVH(mesh_b))
+        collision = fcl.CollisionResult()
+        if int(fcl.collide(obj_a, obj_b, fcl.CollisionRequest(), collision)) > 0:
+            return 0.0
+        distance = float(fcl.distance(obj_a, obj_b, fcl.DistanceRequest()))
+    except Exception as exc:
+        print(
+            f"FCL surface distance failed ({type(exc).__name__}): {exc}",
+            file=sys.stderr,
+        )
+        return None
+
+    if not bool(np.isfinite(distance)):
+        print(
+            "FCL surface distance returned a non-finite value.",
+            file=sys.stderr,
+        )
+        return None
+    # Unsigned query: clamp solver noise around touching surfaces to zero.
+    return max(distance, 0.0)
 
 
 def reshape_flat(verts: tuple[float, ...], faces: tuple[int, ...]) -> trimesh.Trimesh:
