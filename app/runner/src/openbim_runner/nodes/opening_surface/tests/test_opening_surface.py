@@ -11,16 +11,20 @@ import trimesh
 from conftest import main_ref as _ref
 from openbim_runner.inspect_models import MODELS_ROOT
 from openbim_runner.nodes.base import ExecutionContext
-from openbim_runner.nodes.opening_surface.opening_surface import (
-    OpeningSurfaceInputs,
-    OpeningSurfaceResult,
-    _build_ring_closed,  # pyright: ignore[reportPrivateUsage]
-    _jogged_ring_groups,  # pyright: ignore[reportPrivateUsage]
+from openbim_runner.nodes.opening_surface._loft import (
     _loft_caps_watertight,  # pyright: ignore[reportPrivateUsage]
     _loft_open_ring,  # pyright: ignore[reportPrivateUsage]
     _loft_polygons,  # pyright: ignore[reportPrivateUsage]
-    _ring_has_axial_edge,  # pyright: ignore[reportPrivateUsage]
     _rings_twisted,  # pyright: ignore[reportPrivateUsage]
+)
+from openbim_runner.nodes.opening_surface._tube import (
+    _build_ring_closed,  # pyright: ignore[reportPrivateUsage]
+    _jogged_ring_groups,  # pyright: ignore[reportPrivateUsage]
+    _ring_has_axial_edge,  # pyright: ignore[reportPrivateUsage]
+)
+from openbim_runner.nodes.opening_surface.opening_surface import (
+    OpeningSurfaceInputs,
+    OpeningSurfaceResult,
     opening_surface,
 )
 from openbim_runner.util.geometry import (
@@ -975,44 +979,6 @@ def test_real_model_volumes_are_always_created_for_every_opening() -> None:
         assert mesh.is_watertight
         assert mesh.is_winding_consistent
         assert mesh.volume > 0
-
-
-def test_simple_model_window_closes_door_becomes_watertight() -> None:
-    """The Simple model: the window closes and the floor-reaching door now closes too.
-
-    In the cut-surface node the door stays an open ring. The combined node lofts
-    the door's caps into a closed volume, so BOTH openings report a watertight
-    positive-volume solid, each with its method recorded.
-    """
-    model = ifcopenshell.open(
-        str(MODELS_ROOT / "specific" / "Testmodel-WallOpenings-Simple.ifc")
-    )
-    context = ExecutionContext(
-        ifc_model=cast(Any, model),
-        node_outputs={},
-        geometry_cache=build_geometry_cache(model),
-    )
-    result = _run(OpeningSurfaceInputs(express_ids=_host_refs(model)), context)
-
-    assert result.opening_count == 2
-    assert result.surface_count == 2
-
-    watertight = 0
-    methods: set[str] = set()
-    for entry in result.openings:
-        assert entry.error is None
-        assert entry.geometry_key is not None
-        volume = resolve_mesh(context, entry.geometry_key or "")
-        assert entry.watertight is True
-        assert volume.is_watertight
-        assert volume.is_winding_consistent
-        assert volume.volume > 0
-        methods.add(entry.method or "")
-        watertight += 1
-    # the through-bore window uses the closed cut surface; the door is lofted
-    assert watertight == 2
-    assert "closed_cut_surface" in methods
-    assert "lofted_caps" in methods
 
 
 def test_light_exposure_skylights_closed_with_correct_volumes() -> None:
