@@ -1,12 +1,12 @@
 /* GENERATED FILE - DO NOT EDIT. Regenerate with `npm run generate:schema`. */
 
 /**
- * Project cached geometries (e.g. building footprints) onto a plane through the world origin and store the flat projected footprint as generated geometry. Does not compute areas.
+ * Project cached geometries (e.g. element footprints) onto a plane through the world origin and store the flat projected footprint as generated geometry. Does not compute areas.
  */
 export interface GeometryProjectionNodeSchema {
   settings: {
     /**
-     * Normal vector of the projection plane, e.g. [0,0,1] projects onto the XY plane (top-down footprint). Normalized internally. Zero vector produces an 'undefined normal' error for every input.
+     * Normal vector of the projection plane, e.g. [0,0,1] projects onto the XY plane (top-down footprint). All three values must be finite. Normalized internally. Zero vector produces an 'undefined normal' error for every input.
      *
      * @minItems 3
      * @maxItems 3
@@ -29,7 +29,7 @@ export interface GeometryProjectionNodeSchema {
        */
       reference: string
       /**
-       * Error reason: 'no cached geometry' (missing/invalid key), 'no projected geometry' (degenerate, edge-on projection) or 'undefined normal' (zero-length normal).
+       * Error reason: 'no cached geometry' (missing/invalid key), 'no projected geometry' (degenerate, edge-on projection or projection/triangulation failure) or 'undefined normal' (zero-length normal).
        */
       error: string
     }[]

@@ -1,6 +1,6 @@
 ---
 title: Geometrieprojektion
-description: Projiziert zwischengespeicherte Geometrien (z. B. Gebäudegrundrisse) auf eine Ebene durch den Weltursprung und speichert den flachen projizierten Grundriss als generierte Geometrie. Berechnet keine Flächen.
+description: Projiziert zwischengespeicherte Geometrien (z. B. Bauteilgrundrisse) auf eine Ebene durch den Weltursprung und speichert den flachen projizierten Grundriss als generierte Geometrie. Berechnet keine Flächen.
 categories: Geometry
 ---
 
@@ -14,6 +14,11 @@ für `collision`, `measurement` oder eine weitere `geometry_projection`).
 Die projizierte Geometrie wird unter einem deterministischen `gen:proj_<reference>`-Schlüssel
 gespeichert, der jede Eingangsreferenz im Ergebnis auf ihren generierten Schlüssel abbildet.
 Der Node berechnet **keine** Flächen.
+
+Alle Mesh-Flächen werden projiziert, unabhängig von ihrer Windung und davon, ob das Mesh
+wasserdicht ist. Durchgehende Löcher und getrennte Regionen bleiben erhalten. Die Projektion
+verwendet keine skalenabhängige Rundung oder Erweiterung der Polygone, sodass auch schmale Löcher
+und kleine Zwischenräume zwischen Regionen erhalten bleiben.
 
 ## Anwendungsbeispiel
 
@@ -30,7 +35,10 @@ Der Normalenvektor der Projektionsebene. Die Ebene verläuft immer durch den **W
 - **Standard**: `[0.0, 0.0, 1.0]` (XY-Ebene, Draufsicht)
 - **Format**: Liste von genau 3 Floats `[x, y, z]`
 - **Normalisierung**: Die Normale wird intern normalisiert; nur die Richtung ist relevant, nicht
-  die Länge.
+  die Länge. Die Normalisierung ist auch für sehr große und sehr kleine endliche Werte numerisch
+  stabil.
+- **Endliche Werte**: Alle drei Komponenten müssen endlich sein. `NaN` und unendliche Werte werden
+  bei der Validierung der Einstellungen abgelehnt.
 - **Null-Normale**: Wenn die Normale keine Länge hat (z. B. `[0.0, 0.0, 0.0]`), wird ein
   Fehlereintrag `undefined normal` für jede Eingabe erzeugt.
 - **Beispiele**:
@@ -56,8 +64,8 @@ Der Normalenvektor der Projektionsebene. Die Ebene verläuft immer durch den **W
 ### Generierter Schlüssel
 
 Der generierte Schlüssel ist `gen:proj_<reference>`, wobei jedes `:` und `/` in der Referenz
-zu `_` reduziert wird. Innerhalb eines Laufs bildet dieselbe Referenz immer auf denselben
-Schlüssel ab (idempotent); zwei verschiedene Referenzen, die auf dieselbe Basis reduziert
+zu `_` reduziert wird. Innerhalb eines einzelnen Node-Aufrufs bildet dieselbe Referenz immer auf
+denselben Schlüssel ab (idempotent); zwei verschiedene Referenzen, die auf dieselbe Basis reduziert
 werden, erhalten `_1`, `_2`, … sodass ihre Grundrisse nie kollidieren. Ein bereits im Cache
 vorhandener Schlüssel (z. B. von einem früheren Node) wird nicht wiederverwendet, sondern
 mit `_n` ergänzt. Da der generierte Schlüssel nie eine saubere `:expr:<int>`-Sequenz enthält,
@@ -92,8 +100,9 @@ kann er downstream nie fälschlich als IFC-Referenz geparst werden.
 
 - `no cached geometry` — Die Referenz ist kein gültiger Geometrie-Cache-Schlüssel oder hat
   keine zwischengespeicherte Geometrie (z. B. `main:expr:999`).
-- `no projected geometry` — Die Projektion ist leer/degeneriert: Das Mesh liegt kantenparallel
-  zur Projektionsebene und hat daher in dieser Ebene keine Fläche.
+- `no projected geometry` — Die Projektion ist leer/degeneriert (das Mesh liegt kantenparallel zur
+  Projektionsebene), oder die Projektion/Triangulierung ist fehlgeschlagen. Unerwartete Fehler
+  werden mit der betroffenen Referenz und dem Ausnahmetyp in stderr protokolliert.
 - `undefined normal` — Die Projektionsnormale ist null. Wird für jede Eingabe ausgegeben.
 
 **Eingaben:**
@@ -116,8 +125,9 @@ kann er downstream nie fälschlich als IFC-Referenz geparst werden.
 - **Windung / Ausrichtung**: Bei negativen oder rotierten Normalen ist der Grundriss
   geometrisch korrekt, aber die Richtung der Flächennormalen kann invertiert sein. Verwenden
   Sie das Mesh rein als ebene Fläche.
-- **Idempotenz**: Innerhalb eines Laufs erzeugt dieselbe, zweimal gelistete Referenz denselben
-  generierten Schlüssel (kein doppelter Grundriss). Eine erneute Ausführung gegen einen frischen
+- **Idempotenz**: Innerhalb eines einzelnen Node-Aufrufs erzeugt dieselbe, zweimal gelistete
+  Referenz denselben generierten Schlüssel (eine Projektion und kein doppelter Grundriss). Eine
+  erneute Ausführung gegen einen frischen
   Cache erzeugt ebenfalls dieselben Schlüssel — sie häuft kein `_1`, `_2`, … an. Ein bereits im
   gemeinsamen Cache vorhandener Schlüssel (z. B. von einem früheren Node) wird nicht
   wiederverwendet; er erhält einen `_n`-Suffix.

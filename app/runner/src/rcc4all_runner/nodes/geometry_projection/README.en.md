@@ -1,6 +1,6 @@
 ---
 title: Geometry Projection
-description: Project cached geometries (e.g. building footprints) onto a plane through the world origin and store the flat projected footprint as generated geometry. Does not compute areas.
+description: Project cached geometries (e.g. element footprints) onto a plane through the world origin and store the flat projected footprint as generated geometry. Does not compute areas.
 categories: Geometry
 ---
 
@@ -12,6 +12,11 @@ use downstream (e.g. feed into `collision`, `measurement`, or a later `geometry_
 
 The projected geometry is stored under a deterministic `gen:proj_<reference>` key that maps
 each input reference back to its generated key in the result. It does **not** compute areas.
+
+All input faces contribute to the footprint, independently of face winding and watertightness.
+Through-holes and disconnected regions are preserved. The projection does not round vertices or
+pad polygons with a scale-dependent tolerance, so narrow holes and small gaps between regions are
+retained.
 
 ## Use case example
 
@@ -29,7 +34,9 @@ origin**.
 - **Default**: `[0.0, 0.0, 1.0]` (XY plane, top-down footprint)
 - **Format**: List of exactly 3 floats `[x, y, z]`
 - **Normalization**: The normal is normalized internally; only the direction matters, not the
-  magnitude.
+  magnitude. Normalization is numerically stable for very large and very small finite values.
+- **Finite values**: All three components must be finite. `NaN` and infinite values are rejected
+  during settings validation.
 - **Zero normal**: If the normal is zero-length (e.g. `[0.0, 0.0, 0.0]`), an error entry
   `undefined normal` is produced for every input.
 - **Examples**:
@@ -54,8 +61,8 @@ origin**.
 ### Generated key
 
 The generated key is `gen:proj_<reference>` where every `:` and `/` in the reference is
-reduced to `_`. Within a single run the same reference always maps to the same key (idempotent);
-two different references that reduce to the same base get `_1`, `_2`, … so their footprints never
+reduced to `_`. Within a single node invocation the same reference always maps to the same key
+(idempotent); two different references that reduce to the same base get `_1`, `_2`, … so their footprints never
 collide, and a key already in the cache (e.g. from an earlier node) gets a `_n` suffix. Because
 the generated key never contains a clean `:expr:<int>` sequence, it can never be misparsed as
 an IFC reference downstream.
@@ -89,8 +96,9 @@ an IFC reference downstream.
 
 - `no cached geometry` — The reference is not a valid geometry cache key or has no cached
   geometry (e.g. `main:expr:999`).
-- `no projected geometry` — The projection is empty/degenerate: the mesh is edge-on to the
-  projection plane, so it has no area in that plane.
+- `no projected geometry` — The projection is empty/degenerate (the mesh is edge-on to the
+  projection plane), or projection/triangulation failed. Unexpected failures are logged to stderr
+  with the affected reference and exception type.
 - `undefined normal` — The projection normal is zero-length. Emitted for every input.
 
 **Inputs:**
@@ -113,8 +121,9 @@ an IFC reference downstream.
 - **Winding / orientation**: For negative or rotated normals the footprint is geometrically
   correct, but the face normal direction may be inverted. Use the mesh purely as a planar
   surface.
-- **Idempotency**: Within a single run, listing the same reference twice produces the same
-  generated key (no duplicate footprint). Re-running the same workflow against a fresh cache
-  also yields the same keys — it does not accumulate `_1`, `_2`, … A key that already exists in
+- **Idempotency**: Within a single node invocation, listing the same reference twice produces the
+  same generated key (one projection and no duplicate footprint). Re-running the same workflow
+  against a fresh cache also yields the same keys — it does not accumulate `_1`, `_2`, … A key that
+  already exists in
   the shared cache (e.g. produced by an earlier node) is not reused; it gets a `_n` suffix.
 - **Empty list**: An empty **List** yields an empty result (no errors).

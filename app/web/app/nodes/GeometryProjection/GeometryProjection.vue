@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { SchemaNodeType } from '~/schemas'
-import { useScopedNode } from '~/composables/useScopedNode'
 
 type GeometryProjectionNode = SchemaNodeType<'geometry_projection'>
 
